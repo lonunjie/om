@@ -134,7 +134,20 @@ export interface LocationCardView {
 }
 /** Present only while the message's extensions are valid for the message as it currently reads. */
 export interface PresentationView { readonly voiceNote?: VoiceNoteView; readonly locationCard?: LocationCardView }
-interface TimelineExtras { readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView }
+/**
+ * The message a reply answers, as this device can show it. The quoted text is read from the local copy when the timeline is built and is never
+ * carried in the reply itself (only the EventID is). When the original is missing, deleted or expired, `available` is false and nothing else is set.
+ */
+export interface ReplyView {
+  readonly messageId: MessageId;
+  readonly available: boolean;
+  /** The original is our own message. */
+  readonly outgoing?: boolean;
+  /** The start of the original's text, at most 140 characters. Empty for an attachment-only original. */
+  readonly preview?: string;
+  readonly hasAttachment?: boolean;
+}
+interface TimelineExtras { readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView }
 
 export type ConversationTimelineItem =
   | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)

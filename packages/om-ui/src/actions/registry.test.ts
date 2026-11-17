@@ -21,6 +21,13 @@ describe("Action Registry", () => {
     expect(intent.ctx).toBe(ctx);
   });
 
+  it("a reply is a draft with the id of the message it answers; a malformed id is refused, never sent without its quote", () => {
+    const intent = intentOf(registry.resolve({ actionId: "send-message", params: { conversationId: "c1", text: "yes", replyTo: "msg-7" }, ctx, origin: "direct" }));
+    expect(intent).toMatchObject({ kind: "SendMessage", draft: { text: "yes", replyTo: "msg-7" } });
+    expect(registry.resolve({ actionId: "send-message", params: { conversationId: "c1", text: "yes", replyTo: "bad id!" }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    expect(registry.resolve({ actionId: "send-message", params: { conversationId: "c1", text: "yes", replyTo: 5 }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+  });
+
   it("every intent-producing action emits a known CoreIntent kind", () => {
     const samples: Record<string, unknown> = {
       "send-message": { conversationId: "c1", text: "x" },

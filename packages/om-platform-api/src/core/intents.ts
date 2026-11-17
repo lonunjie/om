@@ -16,12 +16,14 @@ interface IntentBase {
   readonly operationId: OperationId;
 }
 
-export interface SendMessage extends IntentBase { readonly kind: "SendMessage"; readonly conversationId: ConversationId; readonly draft: { readonly text: string } }
+/** What is composed: the text, and optionally the message of the same conversation it replies to (`reply_to`). */
+export interface Draft { readonly text: string; readonly replyTo?: MessageId }
+export interface SendMessage extends IntentBase { readonly kind: "SendMessage"; readonly conversationId: ConversationId; readonly draft: Draft }
 /** Files the host prepared with `AttachmentApi.prepare` (optionally with text). Each is uploaded first; the message goes out once every one is stored. */
 export interface SendAttachments extends IntentBase {
   readonly kind: "SendAttachments";
   readonly conversationId: ConversationId;
-  readonly draft: { readonly text: string };
+  readonly draft: Draft;
   readonly attachments: readonly { readonly blobId: string; readonly voiceNote?: { readonly waveform?: string } }[];
 }
 /**
@@ -31,7 +33,7 @@ export interface SendAttachments extends IntentBase {
 export interface SendAttachmentsDirect extends IntentBase {
   readonly kind: "SendAttachmentsDirect";
   readonly conversationId: ConversationId;
-  readonly draft: { readonly text: string };
+  readonly draft: Draft;
   readonly attachments: readonly { readonly blobId: string; readonly voiceNote?: { readonly waveform?: string } }[];
 }
 /** Take a direct offer back: nothing is served any more. The message stays and says the file was taken back. */

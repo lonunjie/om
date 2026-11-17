@@ -4,7 +4,7 @@ import {
   asConversationId, asDeviceId, asGroupId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
-  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, GroupRoomSetting, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
+  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, GroupRoomSetting, MessageId, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
 } from "@om/platform-api";
 
 export type PresentationOp =
@@ -75,6 +75,13 @@ const policies: readonly PrivacyPolicyLevel[] = ["recommended", "hardened", "max
 const scopes: readonly RecoveryScope[] = ["identity", "history", "provider"];
 const custodians: readonly RecoveryCustodianCode[] = ["synced_passkey", "recovery_key", "trusted_contacts", "spare_device"];
 /** Strict shape for security-critical actions: any key outside `allowed` (e.g. a "silent" or "skip notice" flag) rejects the request. */
+/** The optional `replyTo` of a send: absent, or the id of a message. `null` is a malformed one (the send is refused, never sent without its quote). */
+const replyOf = (p: Rec): MessageId | undefined | null => {
+  const r = p["replyTo"];
+  if (r === undefined) return undefined;
+  const v = id(r);
+  return v === null ? null : asMessageId(v);
+};
 const exactly = (p: Rec, allowed: readonly string[]): boolean => Object.keys(p).every((k) => allowed.includes(k));
 
 /** One Room setting with exactly one field of the expected type. Only what a screen offers is accepted: not `open` joining, not wider history, not a timer (ADR-0189 gives no durations or widening choices). */
@@ -100,9 +107,9 @@ const SPECS: Readonly<Record<string, Spec>> = {
     return { presentation: { op: "navigate", conversationId: c }, query: { kind: "GetConversationView", ctx, conversationId: asConversationId(c) } };
   } },
   "send-message": { destructive: false, parse: (p) => {
-    const c = id(p["conversationId"]); const t = p["text"];
-    if (!c || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
-    return { intent: (ctx, op) => ({ kind: "SendMessage", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t } }) };
+    const c = id(p["conversationId"]); const t = p["text"]; const r = replyOf(p);
+    if (!c || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT || r === null) return null;
+    return { intent: (ctx, op) => ({ kind: "SendMessage", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t, ...(r === undefined ? {} : { replyTo: r }) } }) };
   } },
   // Ordinary groups (ADR-0177). They go to `client.groups.do`, never to the generic CoreIntent path. A person's own tap is the only origin:
   // a suggestion (Omnibar, learned rank) cannot start, answer or leave a group. Leave and remove are consequential: the screen states the scope first.
@@ -156,8 +163,8 @@ const SPECS: Readonly<Record<string, Spec>> = {
     return { group: { kind: "send_text", conversationId: asGroupId(g), text: t } };
   } },
   "send-attachments": { destructive: false, parse: (p) => {
-    const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"];
-    if (!exactly(p, ["conversationId", "text", "attachments"]) || !c || typeof t !== "string" || t.length > MAX_TEXT || !Array.isArray(a) || a.length < 1 || a.length > 8) return null;
+    const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"]; const r = replyOf(p);
+    if (!exactly(p, ["conversationId", "text", "attachments", "replyTo"]) || r === null || !c || typeof t !== "string" || t.length > MAX_TEXT || !Array.isArray(a) || a.length < 1 || a.length > 8) return null;
     const items: { blobId: string; voiceNote?: { waveform?: string } }[] = [];
     for (const x of a as unknown[]) {
       if (x === null || typeof x !== "object") return null;
@@ -171,11 +178,11 @@ const SPECS: Readonly<Record<string, Spec>> = {
       items.push({ blobId, voiceNote: wf === undefined ? {} : { waveform: wf } });
     }
     if (items.filter((i) => i.voiceNote !== undefined).length > 1) return null; // one voice note per message
-    return { intent: (ctx, op) => ({ kind: "SendAttachments", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t }, attachments: items }) };
+    return { intent: (ctx, op) => ({ kind: "SendAttachments", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t, ...(r === undefined ? {} : { replyTo: r }) }, attachments: items }) };
   } },
   "send-attachments-direct": { destructive: false, parse: (p) => {
-    const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"];
-    if (!exactly(p, ["conversationId", "text", "attachments"]) || !c || typeof t !== "string" || t.length > MAX_TEXT || !Array.isArray(a) || a.length < 1 || a.length > 8) return null;
+    const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"]; const r = replyOf(p);
+    if (!exactly(p, ["conversationId", "text", "attachments", "replyTo"]) || r === null || !c || typeof t !== "string" || t.length > MAX_TEXT || !Array.isArray(a) || a.length < 1 || a.length > 8) return null;
     const items: { blobId: string; voiceNote?: { waveform?: string } }[] = [];
     for (const x of a as unknown[]) {
       if (x === null || typeof x !== "object") return null;
@@ -189,7 +196,7 @@ const SPECS: Readonly<Record<string, Spec>> = {
       items.push({ blobId, voiceNote: wf === undefined ? {} : { waveform: wf } });
     }
     if (items.filter((i) => i.voiceNote !== undefined).length > 1) return null; // one voice note per message
-    return { intent: (ctx, op) => ({ kind: "SendAttachmentsDirect", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t }, attachments: items }) };
+    return { intent: (ctx, op) => ({ kind: "SendAttachmentsDirect", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t, ...(r === undefined ? {} : { replyTo: r }) }, attachments: items }) };
   } },
   "withdraw-direct-offer": { destructive: false, parse: (p) => {
     const m = id(p["messageId"]);

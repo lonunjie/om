@@ -796,18 +796,39 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::SendMessage {
                 conversation_id,
                 draft,
-            } => return self.send_message(op, conversation_id, &draft.text),
+            } => {
+                return self.send_message(
+                    op,
+                    conversation_id,
+                    &draft.text,
+                    draft.reply_to.as_deref(),
+                );
+            }
             IntentBody::SendAttachments {
                 conversation_id,
                 draft,
                 attachments,
-            } => return self.send_attachments(op, conversation_id, &draft.text, attachments),
+            } => {
+                return self.send_attachments(
+                    op,
+                    conversation_id,
+                    &draft.text,
+                    attachments,
+                    draft.reply_to.as_deref(),
+                );
+            }
             IntentBody::SendAttachmentsDirect {
                 conversation_id,
                 draft,
                 attachments,
             } => {
-                return self.send_attachments_direct(op, conversation_id, &draft.text, attachments);
+                return self.send_attachments_direct(
+                    op,
+                    conversation_id,
+                    &draft.text,
+                    attachments,
+                    draft.reply_to.as_deref(),
+                );
             }
             IntentBody::WithdrawDirectOffer { message_id } => {
                 return self.withdraw_direct_offer(op, message_id);
@@ -1342,13 +1363,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         OutcomeClass::PendingNetwork
     }
 
-    fn send_message(&mut self, op: &OperationId, conv: &str, text: &str) -> Result<(), CoreError> {
-        self.compose(op, "SendMessage", conv, Some(text), vec![], None)
+    fn send_message(
+        &mut self,
+        op: &OperationId,
+        conv: &str,
+        text: &str,
+        reply_to: Option<&str>,
+    ) -> Result<(), CoreError> {
+        self.compose(op, "SendMessage", conv, Some(text), vec![], None, reply_to)
     }
 
     /// Compose an outgoing `message.create`: text, attachments and presentation extensions. A text-only message is built
     /// and queued right here. A message with attachments gets its EventID and clock now, but its event is built only once
     /// every blob is stored (the event carries the store's receipt); until then its uploads are in the outbox.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn compose(
         &mut self,
         op: &OperationId,
@@ -1357,11 +1385,30 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         text: Option<&str>,
         atts: Vec<AttachRec>,
         ext: Option<present::Extensions>,
+        reply_to: Option<&str>,
     ) -> Result<(), CoreError> {
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let Some(rel) = self.st.app.relationships.get(conv) else {
             self.record(op, kind, rejected(RejectReason::NotFound), None);
             return Ok(());
+        };
+        // A reply names a message of this same conversation that is still shown (EVENT_MODEL: `reply_to` references an
+        // event in the same ConversationID). Anything else is refused before an EventID or a clock is spent.
+        let reply_id: Option<[u8; 16]> = match reply_to {
+            None => None,
+            Some(id) => {
+                let found = rel
+                    .messages
+                    .iter()
+                    .find(|m| m.id == id && !m.lane && !m.deleted)
+                    .and_then(|m| m.id.strip_prefix("msg-"))
+                    .and_then(|h| h16(h).ok());
+                let Some(found) = found else {
+                    self.record(op, kind, rejected(RejectReason::NotFound), None);
+                    return Ok(());
+                };
+                Some(found)
+            }
         };
         let text_ok = match text {
             Some(t) => {
@@ -1443,7 +1490,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 author_device: device_id,
                 clock,
                 kind: events::K_CREATE,
-                body: events::message_create_body_with(text, refs),
+                body: events::message_create_body_reply(text, refs, reply_id),
             }
             .encode_with(ext23.clone())
         });
@@ -1488,6 +1535,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             attachments: atts,
             ext: ext23.as_ref().map(|x| hex(&cbor::encode(x))),
             lane: false,
+            social: Social {
+                reply_to: reply_id.map(|r| hex(&r)),
+            },
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;
@@ -3959,6 +4009,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     attachments: parts.attachments,
                     ext: parts.ext,
                     lane: false,
+                    social: Social {
+                        reply_to: parts.reply_to,
+                    },
                 });
                 true
             }

@@ -36,6 +36,9 @@ pub(super) struct CreateParts {
     pub text: String,
     pub attachments: Vec<AttachRec>,
     pub ext: Option<Hex>,
+    /// `reply_to` as the hex EventID, when present and well-formed (16 bytes). Whether it names a message of this
+    /// conversation is decided when the timeline is read, never here.
+    pub reply_to: Option<Hex>,
 }
 
 /// Read the content, attachment references and extensions of a `message.create`. `None` refuses the event: a content
@@ -73,6 +76,12 @@ pub(super) fn read_create(ev: &events::Event) -> Option<CreateParts> {
         text: content.unwrap_or_default(),
         attachments,
         ext: ev.extensions.as_ref().map(|x| hex(&cbor::encode(x))),
+        reply_to: ev
+            .body
+            .opt(2)
+            .and_then(|r| r.b().ok())
+            .filter(|b| b.len() == 16 && *b != ev.event_id)
+            .map(hex),
     })
 }
 
@@ -358,6 +367,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         conv: &str,
         text: &str,
         inputs: &[AttachmentInput],
+        reply_to: Option<&str>,
     ) -> Result<(), CoreError> {
         let kind = "SendAttachmentsDirect";
         let reject =
@@ -391,6 +401,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (!text.is_empty()).then_some(text),
             recs,
             None,
+            reply_to,
         )?;
         let Some(mid) = self
             .st
@@ -491,6 +502,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         conv: &str,
         text: &str,
         inputs: &[AttachmentInput],
+        reply_to: Option<&str>,
     ) -> Result<(), CoreError> {
         let kind = "SendAttachments";
         let reject =
@@ -568,6 +580,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (!text.is_empty()).then_some(text),
             recs,
             Some(ext),
+            reply_to,
         )?;
         if self
             .st
@@ -635,7 +648,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 label,
             }),
         };
-        self.compose(op, kind, conv, Some(&text), vec![], Some(ext))
+        self.compose(op, kind, conv, Some(&text), vec![], Some(ext), None)
     }
 
     // ------------------------------------------------------------------------------------------ uploads

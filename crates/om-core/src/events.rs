@@ -159,11 +159,24 @@ pub fn message_create_body(text: &str) -> V {
 /// A `message.create` body with optional content and attachment references (inline bytes are never possible: the only
 /// carrier of attachment content is an `attachment-ref`).
 pub fn message_create_body_with(text: Option<&str>, attachments: Vec<V>) -> V {
+    message_create_body_reply(text, attachments, None)
+}
+
+/// As [`message_create_body_with`], with `reply_to` (key 2): the EventID of the message this one answers. Keys are
+/// written in order (0, 1, 2), so the bytes stay canonical.
+pub fn message_create_body_reply(
+    text: Option<&str>,
+    attachments: Vec<V>,
+    reply_to: Option<[u8; 16]>,
+) -> V {
     let mut m = vec![];
     if let Some(t) = text {
         m.push((0, rich_text(t)));
     }
     m.push((1, V::A(attachments)));
+    if let Some(r) = reply_to {
+        m.push((2, V::B(r.to_vec())));
+    }
     V::M(m)
 }
 

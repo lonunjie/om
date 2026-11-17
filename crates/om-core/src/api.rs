@@ -90,8 +90,12 @@ impl OutcomeClass {
 // ---------------------------------------------------------------------------------------------- intents
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Draft {
     pub text: String,
+    /// The message this one replies to (`reply_to`, EVENT_MODEL): a message of the same conversation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<MessageId>,
 }
 
 /// One prepared attachment to send (`blob_id` from `Core::prepare_attachment`).
@@ -722,6 +726,8 @@ pub enum TimelineItem {
         attachments: Vec<AttachmentView>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         presentation: Option<PresentationView>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reply: Option<ReplyView>,
     },
     Incoming {
         message_id: MessageId,
@@ -731,8 +737,32 @@ pub enum TimelineItem {
         attachments: Vec<AttachmentView>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         presentation: Option<PresentationView>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reply: Option<ReplyView>,
     },
 }
+
+/// The message a reply answers, as this device can show it. The quoted text is read from the local copy of that message
+/// when the timeline is built; it is never carried in the reply event (only the EventID is). When the original is not
+/// here (never arrived, deleted, expired) `available` is false and nothing else is filled.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplyView {
+    pub message_id: MessageId,
+    pub available: bool,
+    /// Whether the original is our own message (for "You" versus the person's name).
+    #[serde(default)]
+    pub outgoing: bool,
+    /// The start of the original's text, bounded (`REPLY_PREVIEW_CHARS`). Empty for an attachment-only original.
+    #[serde(default)]
+    pub preview: String,
+    /// The original carries at least one attachment.
+    #[serde(default)]
+    pub has_attachment: bool,
+}
+
+/// Characters of the original shown in a quoted block.
+pub const REPLY_PREVIEW_CHARS: usize = 140;
 
 /// Where an attachment's bytes are. "Stored for later" is a hand-over to a store with a lifetime, not delivery
 /// (ADR-0150): a message can be delivered while its attachment is no longer there, and the reverse.

@@ -238,6 +238,19 @@ pub struct Msg {
     /// in the timeline, and never counted as the last message.
     #[serde(default)]
     pub lane: bool,
+    /// Shared conversation context of the message (reply link; see [`Social`]).
+    #[serde(default)]
+    pub social: Social,
+}
+
+/// What other events say about a message: the message it replies to. Reactions and the edited marker join it as their
+/// transitions land. Never part of the canonical create bytes beyond `reply_to`; a view is derived from it.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Social {
+    /// `reply_to` of the create: the EventID (hex) of a message in the same conversation (EVENT_MODEL `message.create`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<Hex>,
 }
 
 /// One attachment of a message. `reference` is the canonical `attachment-ref` and contains the content key, so it is

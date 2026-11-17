@@ -290,3 +290,17 @@ describe("SetContactNickname (ADR-0196)", () => {
     expect((await list(a))[0]?.nickname).toBeUndefined();
   });
 });
+
+describe("reply in the harness", () => {
+  it("quotes a message of the same conversation and refuses one that is not there", async () => {
+    const { h, a } = setup();
+    const before = await h.query({ kind: "GetConversationView", ctx: a, conversationId: CA });
+    const original = before.timeline[0]?.messageId;
+    if (original === undefined) throw new Error("seeded message");
+    await h.dispatch({ kind: "SendMessage", ctx: a, operationId: asOperationId("r1"), conversationId: CA, draft: { text: "answer", replyTo: original } });
+    const after = await h.query({ kind: "GetConversationView", ctx: a, conversationId: CA });
+    expect(after.timeline[1]?.reply).toEqual({ messageId: original, available: true, outgoing: false, preview: "hello", hasAttachment: false });
+    const bad = await h.dispatch({ kind: "SendMessage", ctx: a, operationId: asOperationId("r2"), conversationId: CA, draft: { text: "x", replyTo: "msg-nope" as typeof original } });
+    expect((await h.pendingOperations(a)).find((o) => o.operationId === bad.operationId)?.outcome).toEqual({ kind: "Rejected", reason: "not_found" });
+  });
+});

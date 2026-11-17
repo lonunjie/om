@@ -303,7 +303,10 @@ fn say(d: &mut Duo, from_alice: bool, text: &str) {
         &format!("m-{}", hex(text.as_bytes())),
         IntentBody::SendMessage {
             conversation_id: conv,
-            draft: Draft { text: text.into() },
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
         },
     );
     settle_all(&mut [(&mut d.alice, &d.a), (&mut d.bob, &d.b)]);
@@ -488,6 +491,7 @@ fn a_blocked_home_does_not_stall_the_peer_it_fails_over_to_the_next_route_with_t
             conversation_id: conv,
             draft: Draft {
                 text: "and straight away".into(),
+                reply_to: None,
             },
         },
     );
@@ -516,6 +520,7 @@ fn a_message_in_flight_when_the_home_goes_down_is_delivered_once_after_failover_
             conversation_id: conv,
             draft: Draft {
                 text: "in flight".into(),
+                reply_to: None,
             },
         },
     );
@@ -564,6 +569,7 @@ fn moving_off_a_home_publishes_a_version_without_it_and_keeps_polling_it_for_the
             conversation_id: conv,
             draft: Draft {
                 text: "sent to the old route".into(),
+                reply_to: None,
             },
         },
     );

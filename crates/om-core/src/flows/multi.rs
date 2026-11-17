@@ -1186,6 +1186,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             attachments: parts.attachments,
             ext: parts.ext,
             lane: false,
+            social: Social {
+                reply_to: parts.reply_to,
+            },
         });
         true
     }

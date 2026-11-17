@@ -6,7 +6,7 @@ import type {
   AttachmentApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
-  PeerRecoveryView, PersonId, PrivacyPolicyLevel, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
+  PeerRecoveryView, PersonId, PrivacyPolicyLevel, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, ReplyView, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
 import { createGroupSim, type GroupSim } from "./groups";
@@ -51,6 +51,8 @@ export interface SeedMessage {
   /** Index into `attachments` of the voice note. */
   readonly voiceNote?: number;
   readonly locationCard?: Omit<LocationCardView, "geo">;
+  /** Index of an earlier message of the same conversation this one replies to. */
+  readonly replyTo?: number;
 }
 export interface SeedProfile {
   readonly profileId: ProfileId;
@@ -114,6 +116,7 @@ interface MutableMessage {
   delivery: DeliveryState;
   attachments?: AttachmentView[];
   presentation?: PresentationView;
+  replyTo?: MessageId;
 }
 interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; nickname?: string; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
 const peerLive = (c: ConversationState): boolean => c.peerRecovery?.state === "waiting" || c.peerRecovery?.state === "ready";
@@ -206,8 +209,16 @@ export function createHarness(options: HarnessOptions = {}): Harness {
 
   const handleOf = (rec: OpRecord): OperationHandle => ({ operationId: rec.operationId, profileId: rec.profileId });
 
-  function view(m: MutableMessage): ConversationTimelineItem {
-    const extras = { ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}) };
+  function replyView(m: MutableMessage, all: readonly MutableMessage[]): ReplyView | undefined {
+    if (m.replyTo === undefined) return undefined;
+    const o = all.find((x) => x.messageId === m.replyTo);
+    return o === undefined
+      ? { messageId: m.replyTo, available: false }
+      : { messageId: o.messageId, available: true, outgoing: o.direction === "outgoing", preview: Array.from(o.text).slice(0, 140).join(""), hasAttachment: (o.attachments?.length ?? 0) > 0 };
+  }
+  function view(m: MutableMessage, all: readonly MutableMessage[]): ConversationTimelineItem {
+    const reply = replyView(m, all);
+    const extras = { ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}) };
     return m.direction === "outgoing" && m.operationId !== null
       ? { direction: "outgoing", messageId: m.messageId, operationId: m.operationId, text: m.text, sentAt: m.sentAt, delivery: m.delivery, ...extras }
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
@@ -279,7 +290,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           const st = stateFor(q.ctx);
           const conv = conversationFor(q.ctx, st, q.conversationId);
           if (!conv) throw new HarnessError("conversation not found");
-          const v: ConversationView = { summary: summary(conv), timeline: conv.messages.map(view) };
+          const v: ConversationView = { summary: summary(conv), timeline: conv.messages.map((m) => view(m, conv.messages)) };
           return v;
         }
       }
@@ -392,6 +403,8 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
         if (intent.draft.text.trim() === "") return rejected("invalid");
+        // A reply names a message of this same conversation that still exists (`reply_to`), or the send is refused.
+        if (intent.draft.replyTo !== undefined && !conv.messages.some((m) => m.messageId === intent.draft.replyTo)) return rejected("not_found");
         // ADR-0190 section 5 (D131): a text written while the contact recovers is kept here, shown as waiting, and sent when it is accepted.
         const held = peerLive(conv);
         if (held && conv.messages.filter((m) => m.delivery.state === "waiting_for_peer_recovery").length >= HELD_LIMIT) return rejected("peer_recovering");
@@ -399,6 +412,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
         conv.messages.push({
           messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(),
+          ...(intent.draft.replyTo === undefined ? {} : { replyTo: intent.draft.replyTo }),
           delivery: held ? { state: "waiting_for_peer_recovery" } : armed ? { state: "pending_reconciliation" } : { state: "sent" },
         });
         messageOwner.set(messageId, intent.ctx.profileId);
@@ -408,6 +422,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
         if (peerLive(conv)) return rejected("peer_recovering");
+        if (intent.draft.replyTo !== undefined && !conv.messages.some((m) => m.messageId === intent.draft.replyTo)) return rejected("not_found");
         const found = intent.attachments.map((a) => ({ a, blob: blobs.get(a.blobId) }));
         if (found.some((f) => f.blob === undefined || f.blob.owner !== intent.ctx.profileId)) return rejected("not_found");
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
@@ -418,6 +433,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const voice = found.findIndex((f) => f.a.voiceNote !== undefined);
         conv.messages.push({
           messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(), delivery: { state: "sent" }, attachments,
+          ...(intent.draft.replyTo === undefined ? {} : { replyTo: intent.draft.replyTo }),
           ...(voice < 0 ? {} : { presentation: { voiceNote: { attachmentIndex: voice } } }),
         });
         messageOwner.set(messageId, intent.ctx.profileId);
@@ -426,6 +442,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       case "SendAttachmentsDirect": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
+        if (intent.draft.replyTo !== undefined && !conv.messages.some((m) => m.messageId === intent.draft.replyTo)) return rejected("not_found");
         const found = intent.attachments.map((a) => ({ a, blob: blobs.get(a.blobId) }));
         if (found.some((f) => f.blob === undefined || f.blob.owner !== intent.ctx.profileId)) return rejected("not_found");
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
@@ -434,7 +451,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           index, blobId: a.blobId, mediaType: blob?.mediaType ?? "application/octet-stream", size: blob?.bytes.length ?? 0, state: "waiting_for_recipient",
           ...(blob?.filename === undefined ? {} : { filename: blob.filename }),
         }));
-        conv.messages.push({ messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(), delivery: { state: "sent" }, attachments });
+        conv.messages.push({ messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(), delivery: { state: "sent" }, attachments, ...(intent.draft.replyTo === undefined ? {} : { replyTo: intent.draft.replyTo }) });
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, { kind: "Committed" }, messageId);
       }
@@ -592,10 +609,14 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         if (conversationOwner.has(c.id)) throw new HarnessError("conversation id already seeded");
         conversationOwner.set(c.id, seed.profileId);
         st.persons.set(c.personId, { id: c.personId, displayName: c.displayName, blocked: false });
+        const seededIds: MessageId[] = [];
         const messages: MutableMessage[] = (c.messages ?? []).map((m) => {
           const messageId = asMessageId(`msg-${String(++messageSeq)}`);
           messageOwner.set(messageId, seed.profileId);
           const msg: MutableMessage = { messageId, operationId: null, direction: m.direction, text: m.text, sentAt: clock(), delivery: { state: "delivered" } };
+          const target = m.replyTo === undefined ? undefined : seededIds[m.replyTo];
+          if (target !== undefined) msg.replyTo = target;
+          seededIds.push(messageId);
           if (m.attachments !== undefined) {
             msg.attachments = m.attachments.map((a, index): AttachmentView => {
               const blobId = newBlobId();

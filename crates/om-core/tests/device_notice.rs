@@ -193,7 +193,10 @@ impl Fleet {
             "hi",
             IntentBody::SendMessage {
                 conversation_id,
-                draft: Draft { text: "hi".into() },
+                draft: Draft {
+                    text: "hi".into(),
+                    reply_to: None,
+                },
             },
         );
         self.settle();

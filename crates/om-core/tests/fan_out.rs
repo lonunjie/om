@@ -114,7 +114,10 @@ fn send(rt: &mut Runtime, ctx: &ProfileExecutionContext, op: &str, conv: &str, t
         op,
         IntentBody::SendMessage {
             conversation_id: conv.into(),
-            draft: Draft { text: t.into() },
+            draft: Draft {
+                text: t.into(),
+                reply_to: None,
+            },
         },
     );
 }

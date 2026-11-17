@@ -101,6 +101,7 @@ impl World {
                     conversation_id: self.a_conv.clone(),
                     draft: Draft {
                         text: format!("alice says {i}"),
+                        reply_to: None,
                     },
                 },
             );
@@ -112,6 +113,7 @@ impl World {
                     conversation_id: self.c_conv.clone(),
                     draft: Draft {
                         text: format!("carol says {i}"),
+                        reply_to: None,
                     },
                 },
             );

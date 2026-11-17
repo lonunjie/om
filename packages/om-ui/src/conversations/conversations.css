@@ -62,6 +62,23 @@
 .om-conv-view__foot { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--om-space-2); padding-inline: var(--om-space-1); font-size: var(--om-text-xs-size); line-height: var(--om-text-xs-line); color: var(--om-color-text-secondary); }
 .om-conv-view__end { block-size: 1px; flex: none; }
 
+/* A reply: the quoted block sits inside the bubble, and the Reply control beside it is quiet until hovered or focused (always there on touch). */
+.om-conv-view__row { display: flex; align-items: center; gap: var(--om-space-1); max-inline-size: 100%; }
+.om-conv-view__item[data-direction="outgoing"] .om-conv-view__row { flex-direction: row-reverse; }
+.om-conv-view__reply { flex: none; opacity: 0; transition: opacity var(--om-motion-quick) var(--om-ease-enter); }
+.om-conv-view__item:hover .om-conv-view__reply, .om-conv-view__item:focus-within .om-conv-view__reply, .om-conv-view__reply[aria-pressed="true"] { opacity: 1; }
+@media (hover: none) { .om-conv-view__reply { opacity: 1; } }
+.om-quote { display: grid; gap: 2px; inline-size: 100%; box-sizing: border-box; margin: 0 0 var(--om-space-2); padding: var(--om-space-1) var(--om-space-2); border: 0; border-inline-start: 3px solid var(--om-color-accent); border-radius: var(--om-radius-sm); background: var(--om-color-bg-sunken); color: var(--om-color-text-primary); font: inherit; text-align: start; }
+button.om-quote { cursor: pointer; min-block-size: var(--om-target-min); }
+button.om-quote:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
+.om-quote__who { font-size: var(--om-text-sm-size); font-weight: var(--om-weight-bold); color: var(--om-color-text-secondary); }
+.om-quote__text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.om-quote[data-available="false"] { color: var(--om-color-text-secondary); font-style: italic; }
+.om-composer__reply { flex-basis: 100%; display: flex; align-items: center; gap: var(--om-space-2); box-sizing: border-box; padding: var(--om-space-1) var(--om-space-2); border-inline-start: 3px solid var(--om-color-accent); border-radius: var(--om-radius-sm); background: var(--om-color-bg-sunken); }
+.om-composer__reply-text { flex: 1 1 auto; min-inline-size: 0; display: grid; }
+.om-composer__reply-who { font-size: var(--om-text-sm-size); font-weight: var(--om-weight-bold); color: var(--om-color-text-secondary); }
+.om-composer__reply-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .om-delivery { display: inline-flex; gap: var(--om-space-1); }
 .om-delivery[data-state="rejected"] { font-weight: var(--om-weight-bold); color: var(--om-color-danger-fg); }
 .om-delivery[data-state^="pending"] .om-delivery__glyph { animation: om-pulse 1.2s ease-in-out infinite; }

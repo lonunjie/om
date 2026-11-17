@@ -193,6 +193,7 @@ fn hello_follows_both_bindings_and_each_side_activates_only_then() {
                 conversation_id: conv,
                 draft: Draft {
                     text: format!("early {n}"),
+                    reply_to: None,
                 },
             },
         );

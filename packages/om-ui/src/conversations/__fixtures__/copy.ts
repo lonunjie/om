@@ -9,6 +9,10 @@ const rec = <K extends string>(keys: readonly K[], f: (k: K) => string): Readonl
 export const testCopy: ConversationCopy = {
   list: { label: "Conversations", empty: "No conversations", noActivity: "No activity", unread: (n) => `${String(n)} unread`, you: "You:", draft: "Draft:", securityNotice: "Security notice" },
   view: { label: "Messages", empty: "No messages", loadFailed: "Could not load", incoming: "Received:", outgoing: "Sent:", retry: "Retry sending", back: "Back to conversations", formatTime: (ms) => `t${String(ms)}` },
+  reply: {
+    action: "Reply", replyingTo: (n) => `Replying to ${n}`, replyingToSelf: "Replying to yourself", cancel: "Cancel reply",
+    inReplyTo: (n) => `In reply to ${n}`, inReplyToSelf: "In reply to you", unavailable: "Original message unavailable", attachment: "Attachment", jump: "Go to the original message",
+  },
   contact: {
     open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", nicknamePlaceholder: "A nickname only you see",
     nicknameHint: "Only you see this.", save: "Save", clear: "Remove nickname", saved: "Saved.", cleared: "Removed.", invalid: "That nickname could not be used.", failed: "Could not save.",

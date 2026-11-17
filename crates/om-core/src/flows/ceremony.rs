@@ -2237,6 +2237,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     attachments: vec![],
                     ext: None,
                     lane: false,
+                    social: Social::default(),
                 });
                 added += 1;
             }

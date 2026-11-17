@@ -119,7 +119,10 @@ fn send(p: &mut Pair, op: &str, text: &str, atts: Vec<AttachmentInput>) {
         op,
         IntentBody::SendAttachments {
             conversation_id: p.a_conv.clone(),
-            draft: Draft { text: text.into() },
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
             attachments: atts,
         },
     );
@@ -368,7 +371,10 @@ fn no_advertised_blob_store_means_no_attachments_and_text_still_works() {
         "t",
         IntentBody::SendMessage {
             conversation_id: p.a_conv.clone(),
-            draft: Draft { text: "hi".into() },
+            draft: Draft {
+                text: "hi".into(),
+                reply_to: None,
+            },
         },
     );
     settle(&mut p);

@@ -206,6 +206,7 @@ fn invite_introduction_and_two_way_messaging_with_ratcheting() {
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "hello bob".into(),
+                reply_to: None,
             },
         },
     );
@@ -237,7 +238,10 @@ fn invite_introduction_and_two_way_messaging_with_ratcheting() {
                 &op,
                 IntentBody::SendMessage {
                     conversation_id: p.b_conv.clone(),
-                    draft: Draft { text: text.into() },
+                    draft: Draft {
+                        text: text.into(),
+                        reply_to: None,
+                    },
                 },
             );
         } else {
@@ -246,7 +250,10 @@ fn invite_introduction_and_two_way_messaging_with_ratcheting() {
                 &op,
                 IntentBody::SendMessage {
                     conversation_id: p.a_conv.clone(),
-                    draft: Draft { text: text.into() },
+                    draft: Draft {
+                        text: text.into(),
+                        reply_to: None,
+                    },
                 },
             );
         }
@@ -335,6 +342,7 @@ fn state_survives_restart_and_messaging_continues() {
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "before restart".into(),
+                reply_to: None,
             },
         },
     );
@@ -356,6 +364,7 @@ fn state_survives_restart_and_messaging_continues() {
             conversation_id: p.b_conv.clone(),
             draft: Draft {
                 text: "after restart".into(),
+                reply_to: None,
             },
         },
     );
@@ -386,6 +395,7 @@ fn a_failed_host_commit_releases_nothing() {
                 conversation_id: p.a_conv.clone(),
                 draft: Draft {
                     text: "never persisted".into(),
+                    reply_to: None,
                 },
             },
         })
@@ -408,6 +418,7 @@ fn a_failed_host_commit_releases_nothing() {
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "persisted".into(),
+                reply_to: None,
             },
         },
     );
@@ -428,6 +439,7 @@ fn timeout_after_send_is_reconciled_not_rejected_and_not_duplicated() {
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "once".into(),
+                reply_to: None,
             },
         },
     );
@@ -474,6 +486,7 @@ fn timeout_after_send_is_reconciled_not_rejected_and_not_duplicated() {
             conversation_id: p.b_conv.clone(),
             draft: Draft {
                 text: "later".into(),
+                reply_to: None,
             },
         },
     );
@@ -497,6 +510,7 @@ fn replayed_relay_items_and_forged_envelopes_change_nothing() {
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "real".into(),
+                reply_to: None,
             },
         },
     );
@@ -697,7 +711,10 @@ fn destructive_and_unbuilt_intents_fail_closed() {
         "bad-msg",
         IntentBody::SendMessage {
             conversation_id: "nope".into(),
-            draft: Draft { text: "x".into() },
+            draft: Draft {
+                text: "x".into(),
+                reply_to: None,
+            },
         },
     );
     assert_eq!(
@@ -863,6 +880,7 @@ fn blocking_a_person_stops_delivery_locally() {
             conversation_id: p.b_conv.clone(),
             draft: Draft {
                 text: "are you there".into(),
+                reply_to: None,
             },
         },
     );
@@ -875,6 +893,7 @@ fn blocking_a_person_stops_delivery_locally() {
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "blocked".into(),
+                reply_to: None,
             },
         },
     );
@@ -924,12 +943,12 @@ mod props {
                 match act {
                     Act::AliceSends(n) => {
                         let t = format!("a{i}-{n}");
-                        p.alice.dispatch(&a, &format!("oa{i}"), IntentBody::SendMessage { conversation_id: p.a_conv.clone(), draft: Draft { text: t.clone() } });
+                        p.alice.dispatch(&a, &format!("oa{i}"), IntentBody::SendMessage { conversation_id: p.a_conv.clone(), draft: Draft { text: t.clone(), reply_to: None } });
                         sent_a.push(t);
                     }
                     Act::BobSends(n) => {
                         let t = format!("b{i}-{n}");
-                        p.bob.dispatch(&b, &format!("ob{i}"), IntentBody::SendMessage { conversation_id: p.b_conv.clone(), draft: Draft { text: t.clone() } });
+                        p.bob.dispatch(&b, &format!("ob{i}"), IntentBody::SendMessage { conversation_id: p.b_conv.clone(), draft: Draft { text: t.clone(), reply_to: None } });
                         sent_b.push(t);
                     }
                     Act::Pump => { p.alice.pump(&a); p.bob.pump(&b); }

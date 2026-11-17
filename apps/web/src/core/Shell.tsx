@@ -8,7 +8,7 @@ import {
   GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import type { ComposerCapture, StagedItem } from "@om/ui";
+import type { ComposerCapture, ReplyTarget, StagedItem } from "@om/ui";
 import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
@@ -83,6 +83,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const mode = useLayoutMode();
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   // Files and voice notes waiting to be sent. Memory only: they survive switching chats but never reach disk, and locking or switching identity drops them.
+  const [replies, setReplies] = useState<ReadonlyMap<ConversationId, ReplyTarget>>(() => new Map());
   const [staged, setStaged] = useState<ReadonlyMap<ConversationId, readonly StagedItem[]>>(() => new Map());
   // Drafts saved on an earlier visit (or before a lock) come back; anything typed since this screen opened wins.
   useEffect(() => {
@@ -454,7 +455,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
             />
           ) : (
-            <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
+            <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats}
+              onReply={(target) => { setReplies((m) => new Map(m).set(selected, target)); }} replyingTo={replies.get(selected)?.messageId ?? null} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
           )
         }
         composerZone={selected !== null && selectedIsGroup(selected) ? (
@@ -470,6 +472,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
             {...(capture === undefined ? {} : { capture })} staged={staged.get(selected) ?? NO_STAGED}
             onStagedChange={(next) => { setStaged((m) => new Map(m).set(selected, next)); }}
+            replyTo={replies.get(selected) ?? null} onCancelReply={() => { setReplies((m) => { const n = new Map(m); n.delete(selected); return n; }); }}
             trailing={<OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />}
           />
         )}

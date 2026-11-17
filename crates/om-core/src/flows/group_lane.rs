@@ -66,6 +66,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             attachments: vec![],
             ext: None,
             lane: true,
+            social: Social::default(),
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;

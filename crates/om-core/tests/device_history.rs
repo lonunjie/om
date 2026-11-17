@@ -41,6 +41,7 @@ fn the_new_device_gets_the_older_messages_in_order() {
             conversation_id: w.c_conv.clone(),
             draft: Draft {
                 text: "after the link".into(),
+                reply_to: None,
             },
         },
     );
@@ -63,6 +64,7 @@ fn a_big_history_is_bounded_and_newest_first() {
                 conversation_id: w.a_conv.clone(),
                 draft: Draft {
                     text: format!("{i:02}-{}", "x".repeat(1500)),
+                    reply_to: None,
                 },
             },
         );

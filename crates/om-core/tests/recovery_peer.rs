@@ -1150,7 +1150,10 @@ fn send_text(c: &mut Contact, op: &str, text: &str) -> Option<OutcomeClass> {
         op,
         IntentBody::SendMessage {
             conversation_id: id,
-            draft: Draft { text: text.into() },
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
         },
     )
 }

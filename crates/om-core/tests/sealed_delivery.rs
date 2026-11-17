@@ -103,7 +103,10 @@ fn text(
         op,
         IntentBody::SendMessage {
             conversation_id: conv.into(),
-            draft: Draft { text: t.into() },
+            draft: Draft {
+                text: t.into(),
+                reply_to: None,
+            },
         },
     );
     rt.outcome(ctx, op)
@@ -208,7 +211,10 @@ fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic
         "s",
         IntentBody::SendMessage {
             conversation_id: p.a_conv.clone(),
-            draft: Draft { text: "x".into() },
+            draft: Draft {
+                text: "x".into(),
+                reply_to: None,
+            },
         },
     );
     p.alice.dispatch(
@@ -218,6 +224,7 @@ fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic
             conversation_id: p.a_conv.clone(),
             draft: Draft {
                 text: "y".repeat(300),
+                reply_to: None,
             },
         },
     );

@@ -2098,7 +2098,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                                 .map(|m| {
                                     self.overlay_transfers(
                                         ctx,
-                                        timeline_item(m, &st.app.direct_offers),
+                                        timeline_item(m, &rel.messages, &st.app.direct_offers),
                                     )
                                 })
                                 .collect(),
@@ -2286,7 +2286,36 @@ fn peer_recovery_view(r: &Relationship, app: &AppState) -> Option<PeerRecoveryVi
     })
 }
 
-fn timeline_item(m: &Msg, offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineItem {
+/// The quoted block of a reply: the original is looked up in this conversation only, so a reply never reveals anything
+/// from elsewhere, and a missing or deleted original shows as unavailable with no text kept.
+fn reply_view(m: &Msg, all: &[Msg]) -> Option<ReplyView> {
+    let target = m.social.reply_to.as_deref()?;
+    let id = format!("msg-{target}");
+    Some(
+        match all
+            .iter()
+            .find(|o| o.id == id && !o.lane && !o.deleted && o.id != m.id)
+        {
+            Some(o) => ReplyView {
+                message_id: id,
+                available: true,
+                outgoing: o.outgoing,
+                preview: o.text.chars().take(REPLY_PREVIEW_CHARS).collect(),
+                has_attachment: !o.attachments.is_empty(),
+            },
+            None => ReplyView {
+                message_id: id,
+                available: false,
+                outgoing: false,
+                preview: String::new(),
+                has_attachment: false,
+            },
+        },
+    )
+}
+
+fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineItem {
+    let reply = reply_view(m, all);
     match (&m.operation_id, m.outgoing) {
         (Some(op), true) => TimelineItem::Outgoing {
             message_id: m.id.clone(),
@@ -2296,6 +2325,7 @@ fn timeline_item(m: &Msg, offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineIte
             delivery: m.delivery.clone(),
             attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
+            reply,
         },
         // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
         (None, true) => TimelineItem::Outgoing {
@@ -2306,6 +2336,7 @@ fn timeline_item(m: &Msg, offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineIte
             delivery: m.delivery.clone(),
             attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
+            reply,
         },
         _ => TimelineItem::Incoming {
             message_id: m.id.clone(),
@@ -2313,6 +2344,7 @@ fn timeline_item(m: &Msg, offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineIte
             sent_at: m.sent_at,
             attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
+            reply,
         },
     }
 }
@@ -2349,6 +2381,7 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
             },
             attachments: vec![],
             presentation: None,
+            reply: None,
         }
     } else {
         TimelineItem::Incoming {
@@ -2357,6 +2390,7 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
             sent_at: m.sent_at,
             attachments: vec![],
             presentation: None,
+            reply: None,
         }
     }
 }

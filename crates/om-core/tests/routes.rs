@@ -78,7 +78,10 @@ fn say(d: &mut Duo, from_alice: bool, text: &str) {
         &op,
         IntentBody::SendMessage {
             conversation_id: conv,
-            draft: Draft { text: text.into() },
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
         },
     );
     settle_all(&mut [(&mut d.alice, &d.a), (&mut d.bob, &d.b)]);
@@ -170,6 +173,7 @@ fn a_deposit_names_the_relay_and_carries_the_capability_not_the_mailbox() {
             conversation_id: conv,
             draft: Draft {
                 text: "route check".into(),
+                reply_to: None,
             },
         },
     );
@@ -425,6 +429,7 @@ fn an_active_version_3_relationship_migrates_to_explicit_legacy_routes_and_keeps
             conversation_id: conv,
             draft: Draft {
                 text: "still here".into(),
+                reply_to: None,
             },
         },
     );

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { ConversationId, ConversationTimelineItem, MessageId } from "@om/platform-api";
+import type { ConversationId, ConversationTimelineItem, MessageId, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -23,6 +23,15 @@ import { RichText, plainTextToRichText } from "./richtext";
 import { resolveIntent, type ConversationServices } from "./services";
 import "./conversations.css";
 
+/** What the composer needs to quote a message: its id and the bounded start of its text (read from the timeline, never from the wire). */
+export interface ReplyTarget {
+  readonly messageId: MessageId;
+  readonly preview: string;
+  readonly hasAttachment: boolean;
+  /** The original is our own message. */
+  readonly outgoing: boolean;
+}
+
 export interface ConversationViewProps {
   readonly services: ConversationServices;
   readonly conversationId: ConversationId;
@@ -40,6 +49,10 @@ export interface ConversationViewProps {
   /** This contact's place among contacts who show the same name or one that looks alike, and the words for it (ADR-0197). Null or missing: no cue. */
   readonly sameName?: SameName | null;
   readonly sameNameCopy?: SameNameCopy;
+  /** Starts a reply to a message (the composer owns the quote chip). Without it no Reply control is offered. */
+  readonly onReply?: (target: ReplyTarget) => void;
+  /** The message a reply is being written to, marked in the timeline. */
+  readonly replyingTo?: MessageId | null;
 }
 
 /** Messages from one person within this gap read as one run: the time (and the tail of the bubble) is shown once. */
@@ -55,7 +68,26 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
   return null;
 };
 
-export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId, sameName, sameNameCopy }: ConversationViewProps) {
+/** A short spoken name for a message, so "Reply" says which one: the start of its text, or that it is an attachment. */
+const messageGist = (item: ConversationTimelineItem, copy: ConversationCopy): string => {
+  const t = Array.from(item.text.trim()).slice(0, 40).join("");
+  return t === "" ? copy.reply.attachment : t;
+};
+
+/** The quoted block: who wrote the original and its first words, from the local copy. A tap moves to the original; a missing one is only said so. */
+function Quote({ reply, name, copy, onJump }: { readonly reply: ReplyView; readonly name: string; readonly copy: ConversationCopy["reply"]; readonly onJump: (id: MessageId) => void }) {
+  if (!reply.available) return <p className="om-quote" data-available="false">{copy.unavailable}</p>;
+  const who = reply.outgoing === true ? copy.inReplyToSelf : copy.inReplyTo(name);
+  const text = reply.preview === undefined || reply.preview === "" ? copy.attachment : reply.preview;
+  return (
+    <button type="button" className="om-quote" data-available="true" aria-label={`${who}: ${text}. ${copy.jump}`} onClick={() => { onJump(reply.messageId); }}>
+      <span className="om-quote__who" aria-hidden="true"><bdi>{who}</bdi></span>
+      <span className="om-quote__text" aria-hidden="true"><bdi>{text}</bdi></span>
+    </button>
+  );
+}
+
+export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId, sameName, sameNameCopy, onReply, replyingTo }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
@@ -98,6 +130,16 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
     const t = setTimeout(() => { setMarked(null); }, 2400);
     return () => { clearTimeout(t); setMarked(null); };
   }, [focusMessageId, hasFocus]);
+
+  /** Tap the quoted block: scroll to the original and mark it for a moment (nothing moves if reduced motion is asked for). */
+  const jumpTo = (target: MessageId): void => {
+    const el = document.getElementById(`om-msg-${target}`);
+    if (el === null) return;
+    const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+    setMarked(target);
+    setTimeout(() => { setMarked((m) => (m === target ? null : m)); }, 2400);
+  };
 
   if (state.status === "loading") return <div className="om-conv-view" aria-busy="true" />;
   if (state.status === "failed") return <div className="om-conv-view"><p role="alert">{copy.view.loadFailed}</p></div>;
@@ -151,9 +193,19 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
               return (
                 <li key={item.messageId} id={`om-msg-${item.messageId}`} className="om-conv-view__item" data-found={marked === item.messageId ? "true" : undefined} data-direction={item.direction} data-joined={joinsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
                   <VisuallyHidden>{outgoing ? copy.view.outgoing : copy.view.incoming}</VisuallyHidden>
+                  <div className="om-conv-view__row">
                   <div className="om-conv-view__bubble" data-state={delivery?.kind}>
+                    {item.reply === undefined ? null : <Quote reply={item.reply} name={shownName(view.summary)} copy={copy.reply} onJump={jumpTo} />}
                     <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />
                     <MessageAttachments services={services} item={item} copy={copy.attachments} />
+                  </div>
+                  {onReply === undefined || view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
+                    <IconButton
+                      className="om-conv-view__reply" label={`${copy.reply.action}: ${messageGist(item, copy)}`} icon={<Icon name="reply" size={18} />}
+                      aria-pressed={replyingTo === item.messageId}
+                      onClick={() => { onReply({ messageId: item.messageId, preview: Array.from(item.text).slice(0, 140).join(""), hasAttachment: (item.attachments?.length ?? 0) > 0, outgoing: outgoing }); }}
+                    />
+                  )}
                   </div>
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">

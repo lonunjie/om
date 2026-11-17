@@ -415,7 +415,10 @@ fn say(rt: &mut Runtime, ctx: &ProfileExecutionContext, op: &str, text: &str) {
         op,
         IntentBody::SendMessage {
             conversation_id: id,
-            draft: Draft { text: text.into() },
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
         },
     );
 }
@@ -509,7 +512,10 @@ fn a_fresh_device_can_read_the_old_history_and_nothing_else() {
         "try",
         IntentBody::SendMessage {
             conversation_id: old_id.clone(),
-            draft: Draft { text: "hi".into() },
+            draft: Draft {
+                text: "hi".into(),
+                reply_to: None,
+            },
         },
     );
     assert!(matches!(

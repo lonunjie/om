@@ -24,6 +24,24 @@ export interface ConversationCopy {
     readonly back: string;
     readonly formatTime: (epochMs: number) => string;
   };
+  /** Replying to a message (`reply_to`): the quoted block in a bubble and the chip above the composer. */
+  readonly reply: {
+    /** Accessible name of the per-message control that starts a reply. */
+    readonly action: string;
+    /** The chip above the composer: "Replying to Maria" / "Replying to yourself". */
+    readonly replyingTo: (name: string) => string;
+    readonly replyingToSelf: string;
+    readonly cancel: string;
+    /** The quoted block of a reply, by name of the person who wrote the original. */
+    readonly inReplyTo: (name: string) => string;
+    readonly inReplyToSelf: string;
+    /** Shown in place of the quote when the original is not on this device (never arrived, deleted, or expired). */
+    readonly unavailable: string;
+    /** Stands in for an attachment-only original. */
+    readonly attachment: string;
+    /** Accessible name of the quoted block: it moves to the original. */
+    readonly jump: string;
+  };
   /** The contact detail sheet and the nickname (ADR-0196). */
   readonly contact: {
     /** Accessible name of the header control that opens the sheet. */

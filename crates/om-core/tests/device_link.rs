@@ -164,7 +164,10 @@ impl World {
                     op,
                     IntentBody::SendMessage {
                         conversation_id: conv,
-                        draft: Draft { text: text.into() },
+                        draft: Draft {
+                            text: text.into(),
+                            reply_to: None,
+                        },
                     },
                 );
                 return;
@@ -175,7 +178,10 @@ impl World {
             op,
             IntentBody::SendMessage {
                 conversation_id: conv.clone(),
-                draft: Draft { text: text.into() },
+                draft: Draft {
+                    text: text.into(),
+                    reply_to: None,
+                },
             },
         );
     }

@@ -124,7 +124,10 @@ fn offer(p: &mut Pair, op: &str, text: &str, plain: &[u8]) -> String {
         op,
         IntentBody::SendAttachmentsDirect {
             conversation_id: p.a_conv.clone(),
-            draft: Draft { text: text.into() },
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
             attachments: vec![AttachmentInput {
                 blob_id: prep.blob_id.clone(),
                 voice_note: None,
@@ -382,7 +385,10 @@ fn withdrawing_or_lapsing_stops_serving_and_says_so() {
         "t",
         IntentBody::SendMessage {
             conversation_id: p.a_conv.clone(),
-            draft: Draft { text: "hi".into() },
+            draft: Draft {
+                text: "hi".into(),
+                reply_to: None,
+            },
         },
     );
     let v = view(&p.alice, &p.a, &p.a_conv);
@@ -489,7 +495,10 @@ fn a_claim_that_lapses_unconfirmed_says_so() {
         "t",
         IntentBody::SendMessage {
             conversation_id: p.a_conv.clone(),
-            draft: Draft { text: "hi".into() },
+            draft: Draft {
+                text: "hi".into(),
+                reply_to: None,
+            },
         },
     );
     let v = view(&p.alice, &p.a, &p.a_conv);

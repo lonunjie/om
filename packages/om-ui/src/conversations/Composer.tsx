@@ -7,6 +7,7 @@ import { IconButton } from "../shell/primitives/IconButton";
 import type { ConversationCopy } from "./copy";
 import { firstOutcome, resolveIntent, type ConversationServices } from "./services";
 import { safeFileName } from "./Attachments";
+import type { ReplyTarget } from "./ConversationView";
 import "./conversations.css";
 
 export interface InputPrivacy { readonly spellcheck: boolean; readonly autocomplete: "on" | "off" }
@@ -51,6 +52,10 @@ export interface ComposerProps {
   /** Controlled tray (the parent keeps it across remounts); without it the Composer keeps its own. */
   readonly staged?: readonly StagedItem[];
   readonly onStagedChange?: (next: readonly StagedItem[]) => void;
+  /** The message being answered: shown as a chip above the box and named in the send (`reply_to`). Controlled by the parent, like the draft. */
+  readonly replyTo?: ReplyTarget | null;
+  /** Ends the reply (the cancel control, Escape, or after a send). */
+  readonly onCancelReply?: () => void;
 }
 
 /** Clear the draft only for these; Rejected and NeedsUserAction leave it intact. */
@@ -81,7 +86,7 @@ function VoicePreview({ item, label }: { readonly item: StagedItem; readonly lab
   return url === null ? null : <audio className="om-staged__audio" controls src={url} aria-label={label} />;
 }
 
-export function Composer({ services, conversationId, copy, peerName, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing, capture, staged, onStagedChange }: ComposerProps) {
+export function Composer({ services, conversationId, copy, peerName, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing, capture, staged, onStagedChange, replyTo, onCancelReply }: ComposerProps) {
   const att = copy.attachments;
   const refusal = (reason: RejectReason): string => (reason === "peer_recovering" && peerName !== undefined ? copy.composer.peerRecovering(peerName) : copy.composer.rejected[reason]);
   const [busy, setBusy] = useState(false);
@@ -290,13 +295,13 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
           setItems(itemsRef.current.map((i) => (i.id === item.id ? { ...i, blobId: r.blobId } : i)));
         }
       }
-      const key = `${text}\u0000${resolved.map((i) => i.blobId ?? i.id).join(",")}`;
+      const key = `${text}\u0000${resolved.map((i) => i.blobId ?? i.id).join(",")}\u0000${replyTo?.messageId ?? ""}`;
       let intent = inflight.current?.key === key ? inflight.current.intent : null;
       if (intent === null) {
         const r = resolved.length === 0
-          ? resolveIntent(services, "send-message", { conversationId, text })
+          ? resolveIntent(services, "send-message", { conversationId, text, ...(replyTo ? { replyTo: replyTo.messageId } : {}) })
           : resolveIntent(services, direct ? "send-attachments-direct" : "send-attachments", {
-            conversationId, text,
+            conversationId, text, ...(replyTo ? { replyTo: replyTo.messageId } : {}),
             attachments: resolved.map((i) => ({ blobId: i.blobId ?? "", ...(i.kind === "voice" ? { voiceNote: {} } : {}) })),
           });
         if (r.status !== "intent") { setNotice(copy.composer.sendFailed); return; }
@@ -308,6 +313,7 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
       if (clearsDraft(outcome)) {
         inflight.current = null;
         if (draftRef.current === text) onDraftChange("");
+        onCancelReply?.();
         if (resolved.length > 0) setItems(itemsRef.current.filter((i) => !resolved.some((r) => r.id === i.id)));
         onSent?.(handle);
       } else if (outcome.kind === "Rejected") {
@@ -327,6 +333,7 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
 
   const onSubmit = (e: SyntheticEvent): void => { e.preventDefault(); void submit(); };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === "Escape" && replyTo && onCancelReply) { e.preventDefault(); onCancelReply(); return; }
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
   };
@@ -334,6 +341,15 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
   const tools = canAttach || canRecord || place !== undefined;
   return (
     <form className="om-composer" onSubmit={onSubmit}>
+      {replyTo ? (
+        <div className="om-composer__reply" role="group" aria-label={replyTo.outgoing ? copy.reply.replyingToSelf : copy.reply.replyingTo(peerName ?? "")}>
+          <span className="om-composer__reply-text">
+            <span className="om-composer__reply-who"><bdi>{replyTo.outgoing ? copy.reply.replyingToSelf : copy.reply.replyingTo(peerName ?? "")}</bdi></span>
+            <span className="om-composer__reply-preview"><bdi>{replyTo.preview === "" ? copy.reply.attachment : replyTo.preview}</bdi></span>
+          </span>
+          <IconButton label={copy.reply.cancel} icon={<Icon name="close" size={18} />} disabled={busy} onClick={() => { onCancelReply?.(); }} />
+        </div>
+      ) : null}
       {items.length === 0 ? null : (
         <ul className="om-staged" aria-label={att.tray}>
           {items.map((item) => (

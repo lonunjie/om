@@ -81,6 +81,17 @@ export const conversationCopy: ConversationCopy = {
     back: "Back to chats",
     formatTime: (ms) => sentAt(ms),
   },
+  reply: {
+    action: "Reply",
+    replyingTo: (name) => `Replying to ${name}`,
+    replyingToSelf: "Replying to yourself",
+    cancel: "Cancel reply",
+    inReplyTo: (name) => `In reply to ${name}`,
+    inReplyToSelf: "In reply to you",
+    unavailable: "Original message unavailable",
+    attachment: "Attachment",
+    jump: "Go to the original message",
+  },
   contact: {
     open: (name) => `About ${name}`,
     title: (name) => `About ${name}`,
