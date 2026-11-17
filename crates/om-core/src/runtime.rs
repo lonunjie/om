@@ -167,6 +167,20 @@ fn blob_read_cap(owner_cap: &[u8]) -> Vec<u8> {
     c
 }
 
+/// One record of the loopback RecoveryStore. The Home sees ciphertext only: it binds `SHA-256(write_cap)` at create,
+/// answers a put by `If-Match` (compare-and-swap on the `ETag` it computes over the bytes) and replays a repeated
+/// `request_id` with the same bytes without storing twice.
+struct RecoverySlot {
+    write_hash: [u8; 32],
+    bytes: Vec<u8>,
+    etag: String,
+    last_request: Option<(Vec<u8>, Vec<u8>, String)>,
+}
+
+fn recovery_etag(bytes: &[u8]) -> String {
+    crate::crypto::hex(&crate::crypto::sha256(&[bytes]))
+}
+
 #[derive(Default)]
 struct NetState {
     /// Ciphertext the hosts staged (what a real host keeps on its own disk); consumed by `PutBlob`.
@@ -179,6 +193,10 @@ struct NetState {
     /// Fetch capabilities each device owner granted (relationship fetch capabilities).
     fetch_grants: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
     invites: BTreeMap<Vec<u8>, Vec<u8>>,
+    /// The loopback RecoveryStore (ADR-0201 semantics a Core test needs): locator -> stored record.
+    recovery: BTreeMap<Vec<u8>, RecoverySlot>,
+    /// Every accepted or replayed put, for assertions: (locator, request id, bytes).
+    recovery_log: Vec<(Vec<u8>, Vec<u8>, Vec<u8>)>,
     mailboxes: BTreeMap<Vec<u8>, Mailbox>,
     faults: Vec<Fault>,
     /// Loopback Homes that are down: deposits to them are `unavailable`, and nothing can be drained from them.
@@ -285,6 +303,26 @@ impl LoopbackNetwork {
         if let (Some(x), Some(y)) = (s.invites.get(a).cloned(), s.invites.get(b).cloned()) {
             s.invites.insert(a.to_vec(), y);
             s.invites.insert(b.to_vec(), x);
+        }
+    }
+    /// The envelope the loopback RecoveryStore holds at `locator`, with its ETag.
+    pub fn recovery_record(&self, locator: &[u8]) -> Option<(String, Vec<u8>)> {
+        self.0
+            .borrow()
+            .recovery
+            .get(locator)
+            .map(|s| (s.etag.clone(), s.bytes.clone()))
+    }
+    /// Every put the loopback RecoveryStore stored (locator, request id, bytes), in order.
+    pub fn recovery_puts(&self) -> Vec<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+        self.0.borrow().recovery_log.clone()
+    }
+    /// Another writer replaces the record behind Core's back (the compare-and-swap tests).
+    pub fn recovery_replace(&self, locator: &[u8], bytes: Vec<u8>) {
+        if let Some(s) = self.0.borrow_mut().recovery.get_mut(locator) {
+            s.etag = recovery_etag(&bytes);
+            s.bytes = bytes;
+            s.last_request = None;
         }
     }
     pub fn revoke_all_invites(&self) {
@@ -546,6 +584,98 @@ impl LoopbackNetwork {
                     },
                 }
             }
+            NetCall::RecoveryPut {
+                locator,
+                write_cap,
+                request_id,
+                if_match,
+                bytes,
+                ..
+            } => {
+                let wh = crate::crypto::sha256(&[write_cap]);
+                let reject = |reason| NetResult::Err {
+                    error: NetError::Rejected { reason },
+                };
+                match s.recovery.get_mut(locator) {
+                    None => {
+                        if if_match.is_some() {
+                            reject(RejectReason::StaleState)
+                        } else {
+                            let etag = recovery_etag(bytes);
+                            s.recovery.insert(
+                                locator.clone(),
+                                RecoverySlot {
+                                    write_hash: wh,
+                                    bytes: bytes.clone(),
+                                    etag: etag.clone(),
+                                    last_request: Some((
+                                        request_id.clone(),
+                                        bytes.clone(),
+                                        etag.clone(),
+                                    )),
+                                },
+                            );
+                            s.recovery_log.push((
+                                locator.clone(),
+                                request_id.clone(),
+                                bytes.clone(),
+                            ));
+                            NetResult::Bytes {
+                                bytes: etag.into_bytes(),
+                            }
+                        }
+                    }
+                    Some(slot) if slot.write_hash != wh => reject(RejectReason::NotFound),
+                    Some(slot) => match &slot.last_request {
+                        Some((id, b, etag)) if id == request_id => {
+                            if b == bytes {
+                                // the same request id with the same bytes: the determined outcome, nothing stored twice
+                                NetResult::Bytes {
+                                    bytes: etag.clone().into_bytes(),
+                                }
+                            } else {
+                                reject(RejectReason::Conflict)
+                            }
+                        }
+                        _ if if_match.as_deref() != Some(slot.etag.as_str()) => {
+                            reject(RejectReason::StaleState)
+                        }
+                        _ => {
+                            let etag = recovery_etag(bytes);
+                            slot.bytes = bytes.clone();
+                            slot.etag = etag.clone();
+                            slot.last_request =
+                                Some((request_id.clone(), bytes.clone(), etag.clone()));
+                            s.recovery_log.push((
+                                locator.clone(),
+                                request_id.clone(),
+                                bytes.clone(),
+                            ));
+                            NetResult::Bytes {
+                                bytes: etag.into_bytes(),
+                            }
+                        }
+                    },
+                }
+            }
+            NetCall::RecoveryGet {
+                locator, read_cap, ..
+            } => match s.recovery.get(locator) {
+                Some(slot)
+                    if crate::recovery_record::locator_of(
+                        &read_cap.as_slice().try_into().unwrap_or([0; 32]),
+                    )
+                    .as_slice()
+                        == locator.as_slice() =>
+                {
+                    NetResult::Many {
+                        items: vec![slot.etag.clone().into_bytes(), slot.bytes.clone()],
+                    }
+                }
+                _ => NetResult::Err {
+                    error: NetError::NotFound,
+                },
+            },
             // No Home serves recovery fan-out yet (stub transport): refused, and Core drops the outbox entry.
             NetCall::RecoveryRequestFanout { .. } | NetCall::RecoveryVetoFanout { .. } => {
                 NetResult::Err {
@@ -697,6 +827,8 @@ pub struct Runtime {
     pub homes: Vec<u8>,
     /// What the host tells Core the BlobStore advertised (re-supplied after a restart, as a real host does at start).
     pub blob_limits: Option<crate::host::BlobLimits>,
+    /// Where this Home keeps recovery records (re-supplied after a restart). `None` unless a test opts in.
+    pub recovery_place: Option<crate::recovery_record::RecoveryPlace>,
 }
 
 impl Runtime {
@@ -722,6 +854,7 @@ impl Runtime {
                 max_spool_bytes: 32 * 1024 * 1024,
                 max_blobs: 64,
             }),
+            recovery_place: None,
         }
         .with_limits()
     }
@@ -729,6 +862,12 @@ impl Runtime {
     fn with_limits(mut self) -> Self {
         self.core.set_blob_limits(self.blob_limits);
         self
+    }
+
+    /// Tell Core where this Home keeps recovery records (`None`: it offers none).
+    pub fn set_recovery_place(&mut self, p: Option<crate::recovery_record::RecoveryPlace>) {
+        self.recovery_place = p.clone();
+        self.core.set_recovery_place(p);
     }
 
     /// Tell Core what the store advertises (`None`: it offers no blobs).
@@ -875,6 +1014,7 @@ impl Runtime {
             home(),
         );
         self.core.set_blob_limits(self.blob_limits);
+        self.core.set_recovery_place(self.recovery_place.clone());
         let open = self.open.clone();
         open.iter().map(|p| self.open(p)).collect()
     }

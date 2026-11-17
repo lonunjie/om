@@ -28,6 +28,7 @@ mod multi;
 mod owed;
 mod recovery_peer;
 mod recovery_watch;
+mod recovery_writer;
 pub(crate) mod social;
 
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
@@ -251,6 +252,8 @@ pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub offers: &'a mut Vec<RouteOffer>,
     /// What the BlobStore advertised (see `NetCall::PutBlob`); `None` until the host supplies it.
     pub blob_limits: Option<crate::host::BlobLimits>,
+    /// Where this Home keeps recovery records (host-supplied, like `blob_limits`); `None` when it offers none.
+    pub recovery_place: Option<crate::recovery_record::RecoveryPlace>,
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
@@ -773,6 +776,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(k) if &k.key_operation_id == key_operation_id => {
                         self.st.app.recovery_key = None;
                         self.st.app.recovery_key_saved = true;
+                        // The key is stored: the first RecoveryRecord write follows (ADR-0199 section 6).
+                        if self.st.app.recovery_kit.is_some() {
+                            self.st.app.recovery_writer.enabled = true;
+                            self.st.app.recovery_writer.authored = true;
+                        }
                         OutcomeClass::Committed
                     }
                     _ => rejected(RejectReason::NotFound),
@@ -1015,6 +1023,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let _ = chain;
         self.st.app.acs_chain.push(hex(&signed));
+        self.st.app.recovery_writer.authored = true;
         // Every contact learns the new head (K7 on their side); a revocation reaches them to stop new envelopes.
         self.broadcast_account_update();
         OutcomeClass::Committed
@@ -1069,13 +1078,38 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         self.st.device = Some(device);
         let groups = recovery_groups(root.expose());
+        let root_arr = zeroize::Zeroizing::new(*root.expose());
+        let root_bytes: &[u8; 32] = &root_arr;
         drop(root);
         self.st.app.recovery_policy = Some(hex(&policy.body()));
         self.st.app.label = label.to_string();
         self.st.app.created_at = self.now_ms;
+        // With a recovery place the account also gets the device-private kit and a key sheet that carries the place
+        // (ADR-0200); without one the key is shown alone and no record is written (an account with no place).
+        let (sheet, kit) = match self.recovery_place.clone() {
+            Some(p) => {
+                let sheet =
+                    crate::recovery_sheet::Sheet::full(*root_bytes, p.scope, p.port, &p.host)
+                        .ok()
+                        .map(|s| s.to_sheet_form());
+                let kit = crate::recovery_record::RecoveryKit::make(
+                    root_bytes,
+                    p.scope,
+                    &p.host,
+                    p.port,
+                    policy.epoch(),
+                    arr32(self.rng),
+                    true,
+                );
+                (sheet, Some(SecretHex::from(hex(&kit.to_bytes()))))
+            }
+            None => (None, None),
+        };
+        self.st.app.recovery_kit = kit;
         self.st.app.recovery_key = Some(RecoveryKeyRec {
             key_operation_id: op.clone(),
             groups,
+            sheet,
         });
         self.enqueue(call, Purpose::PublishKeys);
         OutcomeClass::Committed
@@ -1719,6 +1753,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let signed = control::sign_acs(&child.body(), &[(&me_id, &signer)], self.rng);
         self.st.app.acs_credentials.push(hex(credential_body));
         self.st.app.acs_chain.push(hex(&signed));
+        self.st.app.recovery_writer.authored = true;
         self.st.app.device_meta.insert(
             hex(&cred.device_id),
             DeviceMeta {
@@ -1760,6 +1795,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.st.app.acs_credentials.push(hex(body));
         }
         self.st.app.acs_chain.push(hex(&signed));
+        self.st.app.recovery_writer.authored = true;
         Ok(())
     }
 
@@ -2491,6 +2527,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some((operation_id.clone(), None, None))
                 }
                 Purpose::PublishKeys
+                | Purpose::RecoveryPut { .. }
+                | Purpose::RecoveryReconcile { .. }
                 | Purpose::RevokeKeyGeneration
                 | Purpose::Ack
                 | Purpose::DeleteBlob { .. }
@@ -2533,6 +2571,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             K::Terminal(reason) => {
                 self.st.app.outbox.remove(pos);
+                match &entry.purpose {
+                    Purpose::RecoveryPut { generation } => {
+                        self.recovery_put_refused(*generation, reason);
+                        return Ok(());
+                    }
+                    Purpose::RecoveryReconcile { generation }
+                        if reason == RejectReason::NotFound =>
+                    {
+                        // the record is gone from the Home: write ours again from nothing
+                        self.recovery_reconciled(*generation, None);
+                        return Ok(());
+                    }
+                    Purpose::RecoveryReconcile { .. } => return Ok(()),
+                    _ => {}
+                }
                 if let Purpose::OpenCeremonyQueue { operation_id }
                 | Purpose::DepositCeremony { operation_id, .. } = &entry.purpose
                 {
@@ -2610,6 +2663,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     ) -> Result<(), CoreError> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
+            Purpose::RecoveryPut { generation } => self.recovery_put_done(generation, bytes),
+            Purpose::RecoveryReconcile { generation } => {
+                let got = match <[Vec<u8>; 2]>::try_from(items) {
+                    Ok([etag, envelope]) => Some((etag, envelope)),
+                    Err(_) => None,
+                };
+                self.recovery_reconciled(generation, got);
+            }
             Purpose::Ack
             | Purpose::DeleteBlob { .. }
             | Purpose::RevokeKeyGeneration

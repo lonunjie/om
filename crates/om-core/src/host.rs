@@ -254,6 +254,37 @@ pub enum NetCall {
         #[serde(with = "hexs")]
         bytes: Vec<u8>,
     },
+    /// RecoveryStore put (ADR-0199 section 6, ADR-0201 section 1): store `bytes` (a sealed `RecoveryRecordEnvelope`) at
+    /// `locator` of the Home at `host[:port]`. The write capability is the bearer secret of the put; `if_match` is the
+    /// `ETag` of the stored envelope being replaced (absent on the first write), which makes writers compare-and-swap.
+    /// `request_id` is fixed per staged write: a retry after an unknown outcome sends the same id and the same bytes.
+    /// Result: `Bytes` carrying the new `ETag` (UTF-8); `Rejected{StaleState}` is `stale_generation` (reconcile).
+    RecoveryPut {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        locator: Vec<u8>,
+        #[serde(with = "hexs")]
+        write_cap: Vec<u8>,
+        #[serde(with = "hexs")]
+        request_id: Vec<u8>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        if_match: Option<String>,
+        #[serde(with = "hexs")]
+        bytes: Vec<u8>,
+    },
+    /// RecoveryStore get: read the envelope at `locator` with the read capability. Result: `Many{[etag (UTF-8), envelope]}`;
+    /// a wrong capability and an unknown locator are both `NotFound` (the Home answers them identically).
+    RecoveryGet {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        locator: Vec<u8>,
+        #[serde(with = "hexs")]
+        read_cap: Vec<u8>,
+    },
     /// STUB (recovery, work group E): deliver a `signed-RecoveryVeto` the same way. The Home API freezes no veto
     /// endpoint yet (see the recovery slice 3 report), so this is Core's intent only; adapters answer
     /// `Rejected{unsupported}` and the outbox drops it.

@@ -93,6 +93,7 @@ pub struct Core<R: RngCore + CryptoRng> {
     offers: Vec<RouteOffer>,
     /// What the BlobStore advertised; memory only (the host supplies it again at start).
     blob_limits: Option<BlobLimits>,
+    recovery_place: Option<crate::recovery_record::RecoveryPlace>,
     /// Direct offers being served, by (profile, BlobID hex). Memory only: they hold the sealed object, which is rebuilt
     /// from the person's file after a restart (`arm_direct_offer`); what must survive is `AppState.direct_offers`.
     direct_senders: BTreeMap<(ProfileId, String), crate::direct::DirectSender>,
@@ -153,6 +154,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             staged: None,
             offers: vec![],
             blob_limits: None,
+            recovery_place: None,
             direct_senders: BTreeMap::new(),
             direct_fetches: BTreeMap::new(),
             group_engines: BTreeMap::new(),
@@ -868,6 +870,12 @@ impl<R: RngCore + CryptoRng> Core<R> {
 
     /// The BlobStore's advertised limits (from `ProviderCapabilities.limits` of `om.blob.spool.v1`); `None` when the store
     /// offers no blobs. Without them Core refuses attachments (typed `unsupported`) and never sends bytes inline.
+    /// Where this Home keeps recovery records (its host, port and `recovery_scope_id`); `None` when it offers none, in
+    /// which case an account made now shows the key alone and writes no record (ADR-0200).
+    pub fn set_recovery_place(&mut self, place: Option<crate::recovery_record::RecoveryPlace>) {
+        self.recovery_place = place;
+    }
+
     pub fn set_blob_limits(&mut self, limits: Option<BlobLimits>) {
         self.blob_limits = limits;
     }
@@ -1492,8 +1500,10 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 open_profiles: &open,
                 offers: &mut self.offers,
                 blob_limits: self.blob_limits,
+                recovery_place: self.recovery_place.clone(),
             };
             let v = f(&mut tx)?;
+            tx.maintain_recovery_record();
             tx.maintain_relays();
             (v, tx.changed)
         };

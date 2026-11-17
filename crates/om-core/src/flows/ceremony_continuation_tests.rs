@@ -29,6 +29,7 @@ fn drive<T>(
         open_profiles: &open,
         offers: &mut offers,
         blob_limits: None,
+        recovery_place: None,
     };
     f(&mut tx)
 }

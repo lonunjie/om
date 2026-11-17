@@ -64,6 +64,10 @@ impl Drop for SecretHex {
 pub struct RecoveryKeyRec {
     pub key_operation_id: OperationId,
     pub groups: Vec<String>,
+    /// The key sheet text (sheet form, ADR-0200) shown with the key when this Home gave a recovery place; absent
+    /// otherwise. Shown once, dropped with the key when it is confirmed saved.
+    #[serde(default)]
+    pub sheet: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -599,6 +603,14 @@ pub struct OpRec {
 )]
 pub enum Purpose {
     PublishKeys,
+    /// The RecoveryRecord write of this generation (outcome is the Home's `ETag`).
+    RecoveryPut {
+        generation: u64,
+    },
+    /// The read that settles a refused compare-and-swap.
+    RecoveryReconcile {
+        generation: u64,
+    },
     PutInvite {
         operation_id: OperationId,
     },
@@ -725,6 +737,50 @@ pub struct Failover {
     pub device: Option<Hex>,
 }
 
+/// The staged write of the RecoveryRecord: sealed once, and resent with exactly these bytes until the Home answers.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StagedPut {
+    pub generation: u64,
+    pub request_id: Hex,
+    pub envelope: Hex,
+    pub if_match: Option<String>,
+    pub staged_at_ms: u64,
+}
+
+/// Writer bookkeeping for the RecoveryRecord (ADR-0199 section 6).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryWriter {
+    /// Set when the person confirmed the recovery key is stored: the first write follows.
+    pub enabled: bool,
+    /// Hash (hex) of the ACS head the writer last saw.
+    pub head_hash: Option<Hex>,
+    pub head_seen_ms: u64,
+    /// This device authored the head it has not yet written for (set where an ACS state is signed).
+    pub authored: bool,
+    /// A head this device did not author is awaiting the steward's catch-up delay.
+    pub steward_pending: bool,
+    /// Last refresh slot used for the current head (0 = the author's slot).
+    pub refresh: u32,
+    pub staged: Option<StagedPut>,
+    /// Highest generation the Home acknowledged, and the ETag it gave (the next compare-and-swap).
+    pub acked_generation: u64,
+    pub acked_etag: Option<String>,
+    pub last_write_ms: u64,
+    /// SHA-256 (hex) of the relationship snapshot last written.
+    pub last_content: Option<Hex>,
+}
+
+/// What Settings shows about the recovery record (ADR-0199 section 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecoveryRecordStatus {
+    Off,
+    FinishingSetup,
+    Ready,
+    NeedsAttention,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppState {
@@ -733,6 +789,11 @@ pub struct AppState {
     pub created_at: u64,
     pub recovery_key: Option<RecoveryKeyRec>,
     pub recovery_key_saved: bool,
+    /// The device-private `RecoveryKit` (hex of its type-38 bytes). Never in a backup, never sent to a Home.
+    #[serde(default)]
+    pub recovery_kit: Option<SecretHex>,
+    #[serde(default)]
+    pub recovery_writer: RecoveryWriter,
     /// The public RecoveryPolicy body (hex) whose hash the genesis commits to (ACS key 10). Absent on a profile made
     /// before recovery policies existed, which stays `pending`.
     #[serde(default)]

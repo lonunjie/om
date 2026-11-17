@@ -1024,6 +1024,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         sealed.extend(history.iter().cloned());
         self.st.app.acs_credentials.push(hex(&cred.body()));
         self.st.app.acs_chain.push(hex(&signed));
+        self.st.app.recovery_writer.authored = true;
         self.st.app.device_meta.insert(
             req.device_id.clone(),
             DeviceMeta {
@@ -2572,6 +2573,7 @@ mod tests {
             open_profiles: &open,
             offers: &mut offers,
             blob_limits: None,
+            recovery_place: None,
         };
         let mut digests = vec![];
         for k in 60..65 {
