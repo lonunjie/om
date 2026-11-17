@@ -77,3 +77,19 @@ A file shows "They have it" only once their device has checked it; until then it
 ## Traces
 
 Requirement R-433, threat T-177, decision D-210. Related: ADR-0150, ADR-0158, STORAGE_AND_BLOB_ARCHITECTURE AT-06, [`2026-11-13-direct-transfer.md`](../docs/reports/2026-11-13-direct-transfer.md).
+
+## 2026-11-18 implementation clarification: bounded receipt recovery
+
+The invalid-tag window is eight comparisons per transfer. The sender computes and caches the expected tag once for
+that transfer; eight invalid tags close its comparison window. An authenticated fetch with a fresh sender-generated
+transfer ID opens a new comparison window, so a later genuine receipt can confirm the retained object. Fetch alone
+performs no receipt hash and cannot confirm anything.
+
+Across the entire offer the sender computes at most eight whole-object receipt hashes, including every recovery
+transfer. This counter never resets on fetch. Once exhausted, a transfer with no cached expected tag remains unconfirmed
+until the offer ends or the person explicitly creates another offer. A repeated ID does not reopen its comparison
+window; a superseded claim cannot confirm a newer transfer. These are local work limits, with unchanged frame, MAC,
+expiry and durability meanings. The cached tag is erased on replacement, confirmation, withdrawal and drop.
+
+Authority stays with the existing content-key holder. No transport acknowledgement gains authority. Regression coverage
+is in `crates/om-core/tests/direct_receipt.rs` and `crates/om-core/src/direct.rs` (offer-wide work bound).

@@ -159,6 +159,19 @@ describe("group driver (scripted Core)", () => {
     expect(seen).toContainEqual({ kind: "undeliverable", count: 2 });
   });
 
+  it("keeps route distribution owed when the destination relay refuses the frame", async () => {
+    const core = scripted(); core.box = [item(1, dev(1), "route_update")];
+    const r = relay(); r.reject = true;
+    const d = mk(core, r, createMemoryKv());
+    await d.flush(ctx); d.dispose();
+    expect(core.box.map((i) => i.id)).toEqual([1]);
+    expect(d.dropped()).toBe(0);
+    r.reject = false;
+    const next = mk(core, r, createMemoryKv());
+    await next.flush(ctx); next.dispose();
+    expect(core.box).toEqual([]);
+  });
+
   it("Core keeps an Invite, Accept or Decline until its 1:1 queue takes it; the driver keeps nothing and asks again", async () => {
     const kv = createMemoryKv();
     const core = scripted({ lane: () => ({ ok: false, refused: "no_route_offer" }) });

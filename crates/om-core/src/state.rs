@@ -1101,11 +1101,100 @@ pub enum LinkState {
     Opening,
     WaitingForScan,
     AwaitingApproval,
+    /// Authorized; the bounded roster/history handoff is still in progress.
+    Transferring,
     Linked,
     Rejected,
     Expired,
     /// New device: the approval did not verify, or the ceremony was refused. Nothing was adopted.
     Failed,
+}
+
+impl LinkState {
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            Self::Linked | Self::Rejected | Self::Expired | Self::Failed
+        )
+    }
+}
+
+/// Local ceremony bookkeeping bounds; summaries expire 24 hours after the original ceremony deadline.
+pub const MAX_TERMINAL_LINK_OFFERS: usize = 32;
+pub const MAX_ACTIVE_LINK_OFFERS: usize = 4;
+pub const LINK_SUMMARY_RETENTION_MS: u64 = 24 * 60 * 60 * 1000;
+
+/// Apply wall-clock retention when the host supplies its current time; loading also enforces hard count bounds.
+pub fn prune_link_offers(app: &mut AppState, now_ms: u64) {
+    scrub_terminal_links(app);
+    app.link_offers.retain(|_, o| {
+        !o.state.is_terminal() || now_ms < o.expires_at.saturating_add(LINK_SUMMARY_RETENTION_MS)
+    });
+}
+
+/// A terminal ceremony retains only its status and public summary (ADR-0192 section 6.4).
+/// Shared by every terminal transition and record loading, including older records.
+pub fn scrub_terminal_links(app: &mut AppState) {
+    use zeroize::Zeroize;
+    // Older records can exceed the active bound. Keep the newest bounded set and end the others safely.
+    let mut active: Vec<_> = app
+        .link_offers
+        .iter()
+        .filter(|(_, o)| !o.state.is_terminal())
+        .map(|(id, o)| (o.created_ms, id.clone()))
+        .collect();
+    active.sort();
+    for (_, id) in active
+        .iter()
+        .take(active.len().saturating_sub(MAX_ACTIVE_LINK_OFFERS))
+    {
+        if let Some(o) = app.link_offers.get_mut(id) {
+            o.state = LinkState::Expired;
+        }
+    }
+    for o in app
+        .link_offers
+        .values_mut()
+        .filter(|o| o.state.is_terminal())
+    {
+        o.secret.zeroize();
+        o.link.zeroize();
+        o.link = None;
+        o.a_route.capability.zeroize();
+        o.b_route.capability.zeroize();
+        o.b_recv.zeroize();
+        if let Some(r) = o.request.as_mut() {
+            r.code.zeroize();
+            r.signing_pk.clear();
+            r.ik.clear();
+            r.nonce.clear();
+            r.request_digest.clear();
+        }
+        o.introduced.clear();
+    }
+    let mut terminal: Vec<_> = app
+        .link_offers
+        .iter()
+        .filter(|(_, o)| o.state.is_terminal())
+        .map(|(id, o)| (o.created_ms, id.clone()))
+        .collect();
+    terminal.sort();
+    for (_, id) in terminal
+        .iter()
+        .take(terminal.len().saturating_sub(MAX_TERMINAL_LINK_OFFERS))
+    {
+        app.link_offers.remove(id);
+    }
+    if let Some(j) = app.link_join.as_mut().filter(|j| j.state.is_terminal()) {
+        j.secret.zeroize();
+        j.a_cap.zeroize();
+        j.b_recv.zeroize();
+        j.code.zeroize();
+        j.cont = None;
+        if j.approved && j.history_done < j.history_expected {
+            j.history_degraded = true;
+        }
+    }
 }
 
 /// What the new device asked for, as the existing device holds it.
@@ -1383,6 +1472,7 @@ impl ProfileState {
             st.app =
                 serde_json::from_value(app).map_err(|_| CoreError::CorruptState("app state"))?;
         }
+        scrub_terminal_links(&mut st.app);
         Ok(st)
     }
 }

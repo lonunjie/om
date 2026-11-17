@@ -32,6 +32,7 @@ const wrap = (c: Cache): ShellCache => ({
   paths: async () => (await c.keys()).map((r) => new URL(r.url).pathname.slice(1)),
 });
 const storage: ShellStorage = {
+  exclusive: (job) => navigator.locks.request("om-shell", job),
   open: async (name) => wrap(await sw.caches.open(name)),
   delete: async (name) => {
     await sw.caches.delete(name);

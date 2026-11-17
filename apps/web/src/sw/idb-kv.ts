@@ -34,6 +34,7 @@ const run = async <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBReq
 };
 
 export const idbKv: KV = {
+  delete: async (key) => { await run("readwrite", (s) => s.delete(key)); },
   get: async (key) => {
     const v = await run<unknown>("readonly", (s) => s.get(key));
     return typeof v === "string" ? v : null;

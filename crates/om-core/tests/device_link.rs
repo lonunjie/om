@@ -424,10 +424,10 @@ fn a_refused_request_and_an_expired_ceremony_link_nothing() {
 fn nothing_the_ceremony_queues_carries_a_secret_in_the_clear() {
     let mut w = world();
     let request_id = w.offer_and_ask();
+    let link = w.offer().unwrap().link;
     assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
     w.settle();
     w.settle();
-    let link = w.offer().unwrap().link;
     let token = link.trim_start_matches("om:link/");
     let raw = common::b64_decode(token);
     let secret = &raw[5..21];
@@ -655,9 +655,230 @@ fn the_ceremony_key_is_gone_from_both_devices_when_the_link_is_done() {
     let alice_st = w.alice.core.debug_app_state(&w.a).unwrap();
     for o in alice_st["linkOffers"].as_object().unwrap().values() {
         assert_eq!(o["secret"], "", "the existing device holds no key");
+        assert!(o["link"].is_null());
+        assert_eq!(o["aRoute"]["capability"], serde_json::json!(""));
+        assert_eq!(o["bRoute"]["capability"], serde_json::json!(""));
+        assert_eq!(o["bRecv"], "");
     }
     assert_eq!(
         w.phone.core.debug_app_state(&w.n).unwrap()["linkJoin"]["secret"],
         ""
     );
+}
+
+#[test]
+fn terminal_link_views_and_records_are_scrubbed_across_restart() {
+    for reject in [false, true] {
+        let mut w = world();
+        let request_id = w.offer_and_ask();
+        if reject {
+            w.alice
+                .dispatch(&w.a, "no", IntentBody::RejectDeviceLink { request_id });
+        } else {
+            assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
+        }
+        w.settle();
+        w.settle();
+        w.settle();
+        for restart in [false, true] {
+            if restart {
+                w.a = w.alice.restart().remove(0);
+                w.n = w.phone.restart().remove(0);
+            }
+            assert!(w.offer().unwrap().link.is_empty());
+            for (rt, ctx, field) in [(&w.alice, &w.a, "linkOffers"), (&w.phone, &w.n, "linkJoin")] {
+                let app = rt.core.debug_app_state(ctx).unwrap();
+                let records = if field == "linkOffers" {
+                    app[field].as_object().unwrap().values().collect::<Vec<_>>()
+                } else {
+                    vec![&app[field]]
+                };
+                for r in records {
+                    assert_eq!(r["secret"], "");
+                    assert_eq!(r["bRecv"], "");
+                    if field == "linkOffers" {
+                        assert!(r["link"].is_null());
+                        assert_eq!(r["aRoute"]["capability"], serde_json::json!(""));
+                        assert_eq!(r["bRoute"]["capability"], serde_json::json!(""));
+                    } else {
+                        assert_eq!(r["aCap"], "");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn older_terminal_records_are_scrubbed_on_load() {
+    use om_core::crypto::cbor::{self, V};
+    let mut w = world();
+    w.offer_and_ask();
+    for state in ["linked", "rejected", "expired", "failed"] {
+        let original = w.alice.store.records("p-a");
+        let value = cbor::decode(&original[0].value).unwrap();
+        let mut app: serde_json::Value =
+            serde_json::from_slice(value.get(1).unwrap().b().unwrap()).unwrap();
+        app["linkOffers"]["offer"]["state"] = state.into();
+        let record = cbor::encode(&V::M(vec![
+            (0, value.get(0).unwrap().clone()),
+            (1, V::B(serde_json::to_vec(&app).unwrap())),
+        ]));
+        w.alice.store.replace_record("p-a", "state", record);
+        w.a = w.alice.restart().remove(0);
+        assert!(w.offer().unwrap().link.is_empty());
+        let loaded = w.alice.core.debug_app_state(&w.a).unwrap();
+        let r = &loaded["linkOffers"]["offer"];
+        assert_eq!(r["secret"], "");
+        assert!(r["link"].is_null());
+        assert_eq!(r["aRoute"]["capability"], "");
+        assert_eq!(r["bRoute"]["capability"], "");
+        assert_eq!(r["bRecv"], "");
+        // Restore the original live record for the next legacy terminal case.
+        w.alice
+            .store
+            .replace_record("p-a", "state", original[0].value.clone());
+        w.a = w.alice.restart().remove(0);
+    }
+}
+
+#[test]
+fn terminal_offer_retention_is_bounded_on_load_and_during_replacement() {
+    use om_core::crypto::cbor::{self, V};
+    let mut w = world();
+    w.offer_and_ask();
+    let original = w.alice.store.records("p-a");
+    let value = cbor::decode(&original[0].value).unwrap();
+    let mut app: serde_json::Value =
+        serde_json::from_slice(value.get(1).unwrap().b().unwrap()).unwrap();
+    let mut summary = app["linkOffers"]["offer"].clone();
+    summary["state"] = "rejected".into();
+    let offers = app["linkOffers"].as_object_mut().unwrap();
+    offers.clear();
+    for n in 0..5000 {
+        let mut r = summary.clone();
+        r["operationId"] = format!("old-{n}").into();
+        offers.insert(format!("old-{n}"), r);
+    }
+    let record = cbor::encode(&V::M(vec![
+        (0, value.get(0).unwrap().clone()),
+        (1, V::B(serde_json::to_vec(&app).unwrap())),
+    ]));
+    w.alice.store.replace_record("p-a", "state", record);
+    w.a = w.alice.restart().remove(0);
+    let loaded = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert!(loaded["linkOffers"].as_object().unwrap().len() <= 32);
+    assert!(serde_json::to_vec(&loaded["linkOffers"]).unwrap().len() < 64_000);
+    // Replacement cancels older unapproved offers and retains only the bounded summary window.
+    for n in 0..100 {
+        w.alice.supply_routes(4);
+        w.alice.dispatch(
+            &w.a,
+            &format!("replacement-{n}"),
+            IntentBody::OfferDeviceLink,
+        );
+    }
+    let loaded = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert!(loaded["linkOffers"].as_object().unwrap().len() <= 33);
+    w.alice.tick(24 * 60 * 60 * 1000 + 300_001);
+    w.alice
+        .dispatch(&w.a, "retention-tick", IntentBody::OfferDeviceLink);
+    w.a = w.alice.restart().remove(0);
+    assert!(
+        w.alice.core.debug_app_state(&w.a).unwrap()["linkOffers"]
+            .as_object()
+            .unwrap()
+            .len()
+            <= 1
+    );
+}
+
+#[test]
+fn expired_ceremonies_scrub_both_records_and_views_before_and_after_restart() {
+    let mut w = world();
+    let request_id = w.offer_and_ask();
+    w.alice.tick(300_001);
+    w.phone.tick(300_001);
+    w.approve(&request_id, "late");
+    w.phone.dispatch(&w.n, "expire", IntentBody::CreateInvite);
+    for restart in [false, true] {
+        if restart {
+            w.a = w.alice.restart().remove(0);
+            w.n = w.phone.restart().remove(0);
+        }
+        assert!(w.offer().unwrap().link.is_empty());
+        for (rt, ctx) in [(&w.alice, &w.a), (&w.phone, &w.n)] {
+            let app = rt.core.debug_app_state(ctx).unwrap();
+            let r = if app["linkJoin"].is_null() {
+                &app["linkOffers"]["offer"]
+            } else {
+                &app["linkJoin"]
+            };
+            assert_eq!(r["secret"], "");
+            assert_eq!(r["bRecv"], "");
+        }
+    }
+}
+
+#[test]
+fn active_offer_admission_is_bounded_and_legacy_overflow_is_purged() {
+    use om_core::crypto::cbor::{self, V};
+    let mut w = world();
+    w.offer_and_ask();
+    let original = w.alice.store.records("p-a");
+    let value = cbor::decode(&original[0].value).unwrap();
+    let mut app: serde_json::Value =
+        serde_json::from_slice(value.get(1).unwrap().b().unwrap()).unwrap();
+    let mut active = app["linkOffers"]["offer"].clone();
+    active["state"] = "transferring".into();
+    let offers = app["linkOffers"].as_object_mut().unwrap();
+    offers.clear();
+    for n in 0..100 {
+        let mut o = active.clone();
+        o["operationId"] = format!("active-{n}").into();
+        offers.insert(format!("active-{n}"), o);
+    }
+    let record = cbor::encode(&V::M(vec![
+        (0, value.get(0).unwrap().clone()),
+        (1, V::B(serde_json::to_vec(&app).unwrap())),
+    ]));
+    w.alice.store.replace_record("p-a", "state", record);
+    w.a = w.alice.restart().remove(0);
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert_eq!(
+        app["linkOffers"]
+            .as_object()
+            .unwrap()
+            .values()
+            .filter(|o| o["state"] == "transferring")
+            .count(),
+        4
+    );
+    w.alice
+        .dispatch(&w.a, "over-cap", IntentBody::OfferDeviceLink);
+    assert_eq!(
+        w.alice.outcome(&w.a, "over-cap"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::RateLimited
+        })
+    );
+}
+
+#[test]
+fn authorized_roster_transfer_resumes_after_restart_before_final_link_cleanup() {
+    let mut w = world();
+    let request_id = w.offer_and_ask();
+    assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert_eq!(app["linkOffers"]["offer"]["state"], "transferring");
+    assert_ne!(app["linkOffers"]["offer"]["secret"], "");
+    assert!(w.offer().unwrap().link.is_empty());
+    w.a = w.alice.restart().remove(0);
+    w.settle();
+    w.settle();
+    w.settle();
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert_eq!(app["linkOffers"]["offer"]["state"], "linked");
+    assert_eq!(app["linkOffers"]["offer"]["secret"], "");
+    assert_eq!(w.asked().unwrap().state, LinkRequestState::Approved);
 }

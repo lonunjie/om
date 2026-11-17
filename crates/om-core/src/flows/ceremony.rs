@@ -356,6 +356,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !head.control.contains(&me) || head.quarantined.contains(&me) {
             return rej(Unauthorized);
         }
+        if self
+            .st
+            .app
+            .link_offers
+            .values()
+            .filter(|o| o.state == LinkState::Transferring)
+            .count()
+            >= MAX_ACTIVE_LINK_OFFERS
+        {
+            return rej(RateLimited);
+        }
         // Both queues at the same Home: the most preferred one.
         let Some(uri) = self
             .offers
@@ -387,6 +398,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 o.state = LinkState::Expired;
             }
         }
+        scrub_terminal_links(&mut self.st.app);
         let secret = self.rand16();
         self.st.app.link_offers.insert(
             op.clone(),
@@ -461,63 +473,52 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 );
             }
         }
+
+        scrub_terminal_links(&mut self.st.app);
     }
 
     /// A ceremony deposit or queue creation was refused for good: the ceremony ends, nothing is half adopted.
     pub(super) fn ceremony_failed(&mut self, op: &str, approval: bool) {
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
-            if matches!(o.state, LinkState::Opening | LinkState::WaitingForScan) {
-                o.state = LinkState::Expired;
+            if !o.state.is_terminal() {
+                o.state = LinkState::Failed;
             }
-            // The approval committed here (the device is on the account) but never reached the new device: the
-            // Devices list shows it as not set up yet, and removing it is the way out.
-            if approval && o.state == LinkState::Linked {
+            if approval {
                 o.approval_undelivered = true;
             }
         }
         if let Some(j) = self.st.app.link_join.as_mut()
             && j.operation_id == op
-            && j.state == LinkState::AwaitingApproval
+            && !j.state.is_terminal()
         {
             j.state = LinkState::Failed;
-            j.secret = String::new().into();
-            j.cont = None;
         }
+        scrub_terminal_links(&mut self.st.app);
     }
 
-    /// Run with `expire_stale`: a ceremony past its deadline is over (the secrets are wiped).
+    /// A ceremony past its deadline ends; transfer time never extends the link's lifetime.
     pub(super) fn expire_ceremonies(&mut self) {
-        let now = self.now_ms;
         for o in self.st.app.link_offers.values_mut() {
-            if o.expires_at <= now {
-                if matches!(
-                    o.state,
-                    LinkState::Opening | LinkState::WaitingForScan | LinkState::AwaitingApproval
-                ) {
-                    o.state = LinkState::Expired;
-                }
-                o.secret = String::new().into();
-                o.b_recv = String::new(); // the capability to read the response queue goes with the key
-            } else if matches!(o.state, LinkState::Rejected | LinkState::Expired) {
-                o.secret = String::new().into();
-            }
-        }
-        if let Some(j) = self.st.app.link_join.as_mut()
-            && j.expires_at <= now
-        {
-            if j.state == LinkState::AwaitingApproval {
-                j.state = if j.approved {
-                    LinkState::Failed
+            if o.expires_at <= self.now_ms && !o.state.is_terminal() {
+                o.state = if o.state == LinkState::Transferring {
+                    LinkState::Linked
                 } else {
                     LinkState::Expired
                 };
             }
-            mark_history_degraded(j);
-            j.cont = None;
-            j.secret = String::new().into();
-            j.a_cap = String::new();
-            j.b_recv = String::new();
         }
+        if let Some(j) = self.st.app.link_join.as_mut()
+            && j.expires_at <= self.now_ms
+            && !j.state.is_terminal()
+        {
+            mark_history_degraded(j);
+            j.state = if j.approved {
+                LinkState::Linked
+            } else {
+                LinkState::Expired
+            };
+        }
+        prune_link_offers(&mut self.st.app, self.now_ms);
     }
 
     // ------------------------------------------------------------------------------------------ new device: request
@@ -651,7 +652,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Ok(M_REQUEST) if offer.state == LinkState::WaitingForScan => {
                 self.on_link_request(op, &v, &pt, &keys.code);
             }
-            Ok(M_INTRO) if offer.state == LinkState::Linked => self.on_link_intro(op, &v),
+            Ok(M_INTRO) if offer.state == LinkState::Transferring => self.on_link_intro(op, &v),
             _ => {}
         }
     }
@@ -729,9 +730,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
             o.introduced.push(conv.clone());
             if o.introduced.len() as u32 >= o.roster_sent {
-                o.secret = String::new().into(); // the last introduction is in: the ceremony key is gone
+                o.state = LinkState::Linked;
             }
         }
+        scrub_terminal_links(&mut self.st.app);
         self.flush_waiting(&conv);
         self.start_missing_sessions(&conv);
         // The contact learns the new device's routes and where to fetch its keys, authenticated by our head.
@@ -786,8 +788,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
             o.state = LinkState::Rejected;
-            o.secret = String::new().into();
         }
+        scrub_terminal_links(&mut self.st.app);
         OutcomeClass::Committed
     }
 
@@ -1052,13 +1054,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             );
         }
         if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
-            o.state = LinkState::Linked;
+            o.state = if roster.is_empty() {
+                LinkState::Linked
+            } else {
+                LinkState::Transferring
+            };
             o.history_sent = history.len() as u32;
             o.roster_sent = roster.len() as u32;
-            if roster.is_empty() {
-                o.secret = String::new().into(); // nothing more will arrive through the request queue
-            }
         }
+        scrub_terminal_links(&mut self.st.app);
         // Contacts learn the new head (K7 on their side); introductions follow when the new device sends them.
         self.broadcast_account_update();
         Ok(())
@@ -1240,8 +1244,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(join) = self.st.app.link_join.clone() else {
             return;
         };
-        let history_pending =
-            join.state == LinkState::Linked && join.history_done < join.history_expected;
+        let history_pending = join.state == LinkState::Transferring;
         if join.expires_at <= self.now_ms
             || !(matches!(join.state, LinkState::AwaitingApproval) || history_pending)
         {
@@ -1298,13 +1301,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     fn finish_join(&mut self, state: LinkState) {
         if let Some(j) = self.st.app.link_join.as_mut() {
-            j.state = state;
+            j.state = if state == LinkState::Linked
+                && (j.roster_done < j.roster_expected || j.history_done < j.history_expected)
+            {
+                LinkState::Transferring
+            } else {
+                state
+            };
             j.cont = None;
-            // Chunks of a history snapshot may still follow a completed link; the key stays until they are in.
-            if !(state == LinkState::Linked && j.history_done < j.history_expected) {
-                j.secret = String::new().into();
-            }
         }
+        scrub_terminal_links(&mut self.st.app);
     }
 
     /// Verify an approval completely before adopting any of it: the chain, our own entry in its head, the signed
@@ -1604,9 +1610,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             j.roster_expected = count as u32;
             j.history_expected = history_expected.min(HISTORY_MAX_CHUNKS as u64) as u32;
             j.approver = hex(&approver);
-            if count == 0 {
-                self.finish_join(LinkState::Linked);
-            }
+            self.finish_join(LinkState::Linked);
         }
         true
     }
@@ -2194,8 +2198,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 None => j.history_ignored += 1,
             }
             // Complete only when every index is present.
-            if j.history_done >= j.history_expected && j.state == LinkState::Linked {
-                j.secret = String::new().into();
+            if j.history_done >= j.history_expected && j.roster_done >= j.roster_expected {
+                self.finish_join(LinkState::Linked);
             }
         }
     }
@@ -2306,7 +2310,7 @@ pub fn poll_targets(st: &ProfileState, now_ms: u64) -> Vec<crate::host::PollTarg
         if o.expires_at > now_ms
             && matches!(
                 o.state,
-                LinkState::WaitingForScan | LinkState::AwaitingApproval | LinkState::Linked
+                LinkState::WaitingForScan | LinkState::AwaitingApproval | LinkState::Transferring
             )
             && let Ok(m) = unhex(&o.a_mailbox)
         {
@@ -2321,8 +2325,7 @@ pub fn poll_targets(st: &ProfileState, now_ms: u64) -> Vec<crate::host::PollTarg
     }
     if let Some(j) = &st.app.link_join
         && j.expires_at > now_ms
-        && (j.state == LinkState::AwaitingApproval
-            || (j.state == LinkState::Linked && j.history_done < j.history_expected))
+        && (j.state == LinkState::AwaitingApproval || j.state == LinkState::Transferring)
         && let (Ok(m), Ok(cap)) = (unhex(&j.b_mailbox), unhex(&j.b_recv))
     {
         out.push(crate::host::PollTarget {
@@ -2354,7 +2357,7 @@ fn offer_state(o: &LinkOffer, now_ms: u64) -> Option<LinkOfferState> {
         LinkState::Opening => return None,
         LinkState::WaitingForScan if live => LinkOfferState::WaitingForScan,
         LinkState::AwaitingApproval if live => LinkOfferState::AwaitingApproval,
-        LinkState::Linked => LinkOfferState::Linked,
+        LinkState::Linked | LinkState::Transferring => LinkOfferState::Linked,
         LinkState::Rejected => LinkOfferState::Rejected,
         _ => LinkOfferState::Expired,
     })
@@ -2364,7 +2367,14 @@ pub fn offer_view(st: &ProfileState, op: &str, now_ms: u64) -> Option<LinkOfferV
     let o = st.app.link_offers.get(op)?;
     Some(LinkOfferView {
         operation_id: o.operation_id.clone(),
-        link: o.link.clone()?,
+        link: if o.state.is_terminal()
+            || o.state == LinkState::Transferring
+            || o.expires_at <= now_ms
+        {
+            String::new()
+        } else {
+            o.link.clone()?
+        },
         expires_at: o.expires_at,
         verification_code: o.request.as_ref().map(|r| r.code.clone()),
         state: offer_state(o, now_ms)?,
@@ -2375,7 +2385,7 @@ pub fn offer_view(st: &ProfileState, op: &str, now_ms: u64) -> Option<LinkOfferV
 pub fn request_view(st: &ProfileState, op: &str, now_ms: u64) -> Option<LinkRequestView> {
     if let Some(j) = st.app.link_join.as_ref().filter(|j| j.operation_id == op) {
         let state = match j.state {
-            LinkState::Linked => LinkRequestState::Approved,
+            LinkState::Linked | LinkState::Transferring => LinkRequestState::Approved,
             LinkState::Rejected | LinkState::Failed => LinkRequestState::Rejected,
             LinkState::Expired => LinkRequestState::Expired,
             _ if j.approved => LinkRequestState::Approved,
@@ -2394,7 +2404,7 @@ pub fn request_view(st: &ProfileState, op: &str, now_ms: u64) -> Option<LinkRequ
     let o = st.app.link_offers.get(op)?;
     let r = o.request.as_ref()?;
     let state = match o.state {
-        LinkState::Linked => LinkRequestState::Approved,
+        LinkState::Linked | LinkState::Transferring => LinkRequestState::Approved,
         LinkState::Rejected => LinkRequestState::Rejected,
         LinkState::AwaitingApproval if o.expires_at > now_ms => LinkRequestState::AwaitingApproval,
         _ => LinkRequestState::Expired,

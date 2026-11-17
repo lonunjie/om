@@ -64,4 +64,22 @@ fn an_approval_with_a_bad_binding_adopts_nothing() {
         1,
         "only the existing device published keys"
     );
+    let mut ctx = n;
+    for restart in [false, true] {
+        if restart {
+            ctx = phone.restart().remove(0);
+        }
+        let app = phone.core.debug_app_state(&ctx).unwrap();
+        for field in ["secret", "aCap", "bRecv", "code"] {
+            assert_eq!(app["linkJoin"][field], "");
+        }
+        assert!(app["linkJoin"]["cont"].is_null());
+        let view: LinkRequestView = phone
+            .query::<Option<LinkRequestView>>(Query::GetLinkRequest {
+                ctx: ctx.clone(),
+                operation_id: "ask".into(),
+            })
+            .unwrap();
+        assert!(view.verification_code.is_empty());
+    }
 }

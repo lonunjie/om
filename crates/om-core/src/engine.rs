@@ -768,8 +768,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }
     }
 
-    /// Retired per-Room routes whose overlap has ended are dropped; the returned entries are the deposit capabilities
-    /// the host revokes (`DELETE /v1/relay/deposit-capabilities/{id}`).
+    /// Refresh queued advertisements from independent distribution debt, then drop retired per-Room routes whose
+    /// overlap has ended. The returned entries are the deposit capabilities the host revokes (`DELETE /v1/relay/deposit-capabilities/{id}`).
     pub fn group_routes_expire(
         &mut self,
         ctx: &ProfileExecutionContext,
@@ -1426,7 +1426,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
             return Err(CoreError::Busy);
         }
         let generation = format!("gen-{}-{}", self.boot, self.next_generation);
-        let state = ProfileState::decode(generation.clone(), records)?;
+        let mut state = ProfileState::decode(generation.clone(), records)?;
+        crate::state::prune_link_offers(&mut state.app, self.clock.now_ms());
         self.next_generation += 1;
         let committed = records
             .iter()

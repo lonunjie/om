@@ -784,7 +784,7 @@ pub const MAX_OUTBOX: usize = 256;
 pub const MAX_LANE_OUT: usize = 64;
 /// A lane item not taken by the 1:1 queue after this long is dropped and counted (same horizon as a held frame).
 pub const LANE_OUT_TTL_S: u64 = 7 * 24 * 60 * 60;
-/// A queued `route_update` is stale once the route it replaced has been revoked (the overlap ended): dropped then.
+/// Refresh a queued advertisement after the overlap; distribution debt survives this frame lifetime.
 pub const ROUTE_UPDATE_TTL_S: u64 = ROUTE_OVERLAP_S;
 
 /// A Welcome or a Commit with added devices that could not be verified yet because the head of an account it names is
@@ -855,6 +855,14 @@ impl OutItem {
     }
 }
 
+/// A current per-Room route still owed to one destination, independent of an in-flight frame.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteDebt {
+    pub room: String,
+    pub to: OutTarget,
+}
+
 /// Persisted in `AppState.group_carriage` (additive, serde default).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -875,6 +883,9 @@ pub struct GroupCarriageRec {
     /// Rooms where a member or device was removed: every remaining device owes a fresh route (ADR-0189 1.3).
     #[serde(default)]
     pub replace_owed: Vec<String>,
+    /// Distribution obligations, cleared only when the host reports the corresponding current frame deposited.
+    #[serde(default)]
+    pub route_debt: Vec<RouteDebt>,
     /// The newest controller-signed `AccountControlHead` of this account that a control device gave this device (hex).
     /// A messaging-only device cannot sign one, so it keeps the one it was handed with the enrollment notice and
     /// presents it in an Accept (ADR-0189 1.4(b); report D36). Verified against the own chain before use.

@@ -16,10 +16,13 @@ export interface ShellStorage {
   open(name: string): Promise<ShellCache>;
   delete(name: string): Promise<void>;
   names(): Promise<string[]>;
+  /** Origin-wide exclusion across worker instances for staging, switching and cleanup. */
+  exclusive<T>(job: () => Promise<T>): Promise<T>;
 }
 export interface KV {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
 }
 export interface ShellDeps {
   readonly storage: ShellStorage;
@@ -74,18 +77,16 @@ export const createShell = (deps: ShellDeps) => {
     getPqRequired: async () => (await kv.get(PQ_FLOOR_KEY)) !== null,
     setPqRequired: () => kv.set(PQ_FLOOR_KEY, "1"),
   };
-  let activeName: string | null | undefined;
 
   /** Download, verify and stage a new bundle into its own cache. Throws (leaving the live shell untouched) on any failure. */
-  const stage = async (): Promise<StageResult> => {
+  const stage = (): Promise<StageResult> => storage.exclusive(async () => {
     const res = await fetchFn(MANIFEST_PATH);
     if (!res.ok) throw new Error("manifest unavailable");
     const text = await res.text();
     const manifest = parseManifest(text);
     const accepted = await evaluateManifest(manifest, floor, trustRoot);
     if (!accepted.ok) throw new Error(`manifest refused: ${accepted.reason}`);
-    const cacheName = CACHE_PREFIX + (await sha256Hex(new TextEncoder().encode(text))).slice(0, 16);
-    await storage.delete(cacheName);
+    const cacheName = CACHE_PREFIX + (await sha256Hex(new TextEncoder().encode(text))).slice(0, 16) + "-" + crypto.randomUUID();
     const cache = await storage.open(cacheName);
     try {
       for (const f of manifest.files) {
@@ -96,37 +97,47 @@ export const createShell = (deps: ShellDeps) => {
       }
       const verdict = await verifyLoadedBundle(manifest, async (p) => (await cache.get(p))?.clone(), () => cache.paths());
       if (!verdict.ok) throw new Error(`bundle verification failed: ${verdict.reason} ${verdict.path}`);
+      // Seal all metadata before publishing the cache; readers never see a partially staged build.
+      await kv.set("entry:" + cacheName, manifest.entry);
+      await commitFloor(floor, accepted, manifest.version);
+      await kv.set("staged", cacheName);
+      return { version: manifest.version, cacheName, unsignedDev: accepted.unsignedDev };
     } catch (e) {
-      await storage.delete(cacheName);
+      if (await kv.get("active") !== cacheName) {
+        await storage.delete(cacheName);
+        await kv.delete("entry:" + cacheName);
+      }
       throw e;
     }
-    await kv.set("staged", cacheName);
-    await kv.set("entry:" + cacheName, manifest.entry);
-    await commitFloor(floor, accepted, manifest.version);
-    return { version: manifest.version, cacheName, unsignedDev: accepted.unsignedDev };
-  };
+  });
 
   /** Promote the staged cache and drop every other shell cache. Called only when the worker takes over. */
-  const activate = async (): Promise<void> => {
+  const activate = (): Promise<void> => storage.exclusive(async () => {
     const staged = await kv.get("staged");
-    if (staged === null) return;
+    if (staged === null || await kv.get("entry:" + staged) === null) return;
     await kv.set("active", staged);
-    activeName = staged;
-    for (const n of await storage.names()) if (n.startsWith(CACHE_PREFIX) && n !== staged) await storage.delete(n);
-  };
+    for (const n of await storage.names()) if (n.startsWith(CACHE_PREFIX) && n !== staged) {
+      await storage.delete(n);
+      await kv.delete("entry:" + n);
+    }
+  });
 
   /** Cached answer for same-origin GETs of precached files; `undefined` means "go to the network". */
   const respond = async (pathname: string, isNavigation: boolean): Promise<Response | undefined> => {
-    activeName ??= await kv.get("active");
-    if (activeName === null) return undefined;
     const path = pathname.replace(/^\//, "");
     if (path === MANIFEST_PATH) return undefined;
-    const cache = await storage.open(activeName);
-    const hit = path === "" ? undefined : await cache.get(path);
-    if (hit) return plain(hit);
-    if (isNavigation) {
-      const entry = await cache.get((await kv.get("entry:" + activeName)) ?? "index.html");
-      return entry && plain(entry);
+    // Activation may retire the cache after this reader obtains the old pointer. Retry once against the new build.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const activeName = await kv.get("active");
+      if (activeName === null) return undefined;
+      const cache = await storage.open(activeName);
+      const hit = path === "" ? undefined : await cache.get(path);
+      if (hit) return plain(hit);
+      if (isNavigation) {
+        const entry = await cache.get((await kv.get("entry:" + activeName)) ?? "index.html");
+        if (entry) return plain(entry);
+      }
+      if (await kv.get("active") === activeName) return undefined;
     }
     return undefined;
   };

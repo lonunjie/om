@@ -246,7 +246,7 @@ fn forged_replayed_and_misbound_tags_are_ignored_without_failing_the_transfer() 
 }
 
 #[test]
-fn invalid_receipts_are_bounded_per_offer_not_per_claim() {
+fn invalid_receipt_comparisons_are_bounded_for_one_transfer() {
     let (_r, _ct, mut s, _f, rc) = claimed(20_000);
     let bad = DirectFrame::Receipt {
         transfer_id: tid(&rc),
@@ -255,7 +255,7 @@ fn invalid_receipts_are_bounded_per_offer_not_per_claim() {
     for _ in 0..MAX_BAD_RECEIPTS {
         s.handle(&bad, [0; 16]);
     }
-    // the work spent on forgeries is capped; the cap is not renewed by asking for the object again
+    // This transfer's comparison window closes; recovery requires a fresh transfer ID.
     s.handle(&rc, [0; 16]);
     assert_eq!(s.state(), OfferState::PeerClaimsReceived);
 }
@@ -274,10 +274,10 @@ fn claim_again(s: &mut DirectSender, f: &mut DirectFetch, ids: u8) -> DirectFram
 }
 
 #[test]
-fn asking_again_does_not_renew_the_invalid_receipt_budget() {
+fn asking_again_does_not_renew_the_whole_object_hash_budget() {
     let (_r, _ct, mut s, mut f, rc) = claimed(20_000);
     let mut latest = rc;
-    for round in 0..4u8 {
+    for round in 0..MAX_RECEIPT_HASHES {
         let bad = DirectFrame::Receipt {
             transfer_id: tid(&latest),
             tag: [round + 1; 32],
@@ -288,7 +288,7 @@ fn asking_again_does_not_renew_the_invalid_receipt_budget() {
         latest = claim_again(&mut s, &mut f, 20 + round);
         assert_eq!(s.state(), OfferState::PeerClaimsReceived);
     }
-    // the budget was spent in the first round: the genuine receipt of a later claim is no longer checked
+    // Each distinct claim costs at most one whole-object hash; the offer-wide budget is now exhausted.
     s.handle(&latest, [0; 16]);
     assert_eq!(s.state(), OfferState::PeerClaimsReceived);
 }
@@ -438,4 +438,25 @@ fn a_verified_receiver_is_never_failed_by_odd_frames() {
         assert_eq!(f.state(), FetchState::Committed);
     }
     assert!(f.open().is_ok());
+}
+
+#[test]
+fn eight_wrong_receipts_can_recover_on_a_fresh_transfer() {
+    let (_r, _ct, mut s, mut f, rc) = claimed(100_000);
+    for _ in 0..MAX_BAD_RECEIPTS {
+        s.handle(
+            &DirectFrame::Receipt {
+                transfer_id: tid(&rc),
+                tag: [0; 32],
+            },
+            [0; 16],
+        );
+    }
+    assert_eq!(s.state(), OfferState::PeerClaimsReceived);
+    let req = f.request([7; 16]).unwrap();
+    let receipts = run(&mut s, &mut f, req, 20, None);
+    assert_eq!(receipts.len(), 1);
+    assert_ne!(tid(&receipts[0]), tid(&rc));
+    s.handle(&receipts[0], [0; 16]);
+    assert_eq!(s.state(), OfferState::Confirmed);
 }

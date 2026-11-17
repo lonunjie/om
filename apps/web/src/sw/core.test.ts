@@ -17,12 +17,16 @@ const rig = () => {
   const kvm = new Map<string, string>();
   const net = new Map<string, string>();
   const fetched: string[] = [];
+  let lock: Promise<unknown> = Promise.resolve();
   const storage: ShellStorage = {
+    exclusive: <T>(job: () => Promise<T>): Promise<T> => {
+      const next = lock.then(job); lock = next.catch(() => undefined); return next;
+    },
     open: (n) => Promise.resolve(caches.get(n) ?? (caches.set(n, memCache()), caches.get(n) as ReturnType<typeof memCache>)),
     delete: (n) => Promise.resolve(void caches.delete(n)),
     names: () => Promise.resolve([...caches.keys()]),
   };
-  const kv: KV = { get: (k) => Promise.resolve(kvm.get(k) ?? null), set: (k, v) => Promise.resolve(void kvm.set(k, v)) };
+  const kv: KV = { delete: (k) => Promise.resolve(void kvm.delete(k)), get: (k) => Promise.resolve(kvm.get(k) ?? null), set: (k, v) => Promise.resolve(void kvm.set(k, v)) };
   const publish = async (version: string, files: Record<string, string>, tamper?: Record<string, string>) => {
     net.clear();
     const m = await buildManifest({ version, dev: true, files: Object.entries(files).map(([path, d]) => ({ path, data: enc(d) })) });
@@ -137,4 +141,72 @@ describe("a worker that serves a shell browsers refuse", () => {
     r.kvm.set("worker-version", "0.0.2");
     expect(await r.shell.replacesBrokenShell()).toBe(false);
   });
+});
+
+describe("immutable shell staging", () => {
+  it("keeps an identical active manifest available after an interrupted restage", async () => {
+    const r = rig();
+    await r.publish("1.0.0", V1);
+    const first = await r.shell.stage(); await r.shell.activate();
+    const worker = createShell({ storage: r.storage, kv: r.kv,
+      trustRoot: { roots: { keys: {}, threshold: 1 }, allowUnsignedDev: true },
+      fetchFn: (p) => p === "index.html" ? Promise.reject(new Error("offline")) : r.fetchFn(p),
+    });
+    await expect(worker.stage()).rejects.toThrow("offline");
+    expect(r.caches.has(first.cacheName)).toBe(true);
+    expect(await (await r.shell.respond("/chat/offline", true))?.text()).toBe(V1["index.html"]);
+    const second = await r.shell.stage();
+    expect(second.cacheName).not.toBe(first.cacheName);
+    await r.shell.activate();
+    expect(await (await r.shell.respond("/chat/offline", true))?.text()).toBe(V1["index.html"]);
+  });
+
+  it.each([0, 1, 3])("preserves the shell when interrupted after %i writes", async (writes) => {
+    const r = rig(); await r.publish("1.0.0", V1);
+    const active = await r.shell.stage(); await r.shell.activate();
+    let count = 0;
+    const worker = createShell({
+      storage: { ...r.storage, open: async (n) => {
+        const c = await r.storage.open(n);
+        return { ...c, put: async (p, res) => {
+          if (count++ === writes) throw new Error("interrupted");
+          await c.put(p, res);
+        } };
+      } },
+      kv: { ...r.kv, set: async (k, v) => {
+        if (writes === 3 && k.startsWith("entry:")) throw new Error("interrupted");
+        await r.kv.set(k, v);
+      } },
+      fetchFn: r.fetchFn, trustRoot: { roots: { keys: {}, threshold: 1 }, allowUnsignedDev: true },
+    });
+    await expect(worker.stage()).rejects.toThrow("interrupted");
+    expect(r.kvm.get("active")).toBe(active.cacheName);
+    expect(await (await r.shell.respond("/offline", true))?.text()).toBe(V1["index.html"]);
+  });
+
+  it("serializes concurrent workers' stage and activation without deleting their live shell", async () => {
+    const r = rig(); await r.publish("1.0.0", V1);
+    const worker = createShell({ storage: r.storage, kv: r.kv, fetchFn: r.fetchFn,
+      trustRoot: { roots: { keys: {}, threshold: 1 }, allowUnsignedDev: true } });
+    const [a, b] = await Promise.all([r.shell.stage(), worker.stage()]);
+    expect(a.cacheName).not.toBe(b.cacheName);
+    await Promise.all([r.shell.activate(), worker.activate()]);
+    expect(r.caches.has(r.kvm.get("active") ?? "")).toBe(true);
+    expect(await (await r.shell.respond("/offline", true))?.text()).toBe(V1["index.html"]);
+    expect(await (await worker.respond("/offline", true))?.text()).toBe(V1["index.html"]);
+  });
+});
+
+it("retries the active pointer when activation retires a cache during navigation", async () => {
+  const r = rig(); await r.publish("1.0.0", V1);
+  const old = await r.shell.stage(); await r.shell.activate();
+  await r.publish("1.1.0", { ...V1, "index.html": "new shell" });
+  await r.shell.stage();
+  let switchNow = true;
+  const reader = createShell({ storage: { ...r.storage, open: async (name) => {
+    if (switchNow && name === old.cacheName) { switchNow = false; await r.shell.activate(); }
+    return r.storage.open(name);
+  } }, kv: r.kv, fetchFn: r.fetchFn,
+    trustRoot: { roots: { keys: {}, threshold: 1 }, allowUnsignedDev: true } });
+  expect(await (await reader.respond("/offline", true))?.text()).toBe("new shell");
 });

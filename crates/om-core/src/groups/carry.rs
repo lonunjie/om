@@ -1023,6 +1023,16 @@ impl AppState {
                 conversation_id, ..
             } = &o.wire
             {
+                let debt = cg::RouteDebt {
+                    room: conversation_id.clone(),
+                    to: to.clone(),
+                };
+                if !self.group_carriage.route_debt.contains(&debt) {
+                    if self.group_carriage.route_debt.len() >= cg::MAX_OUTBOX {
+                        return err("route_debt_full");
+                    }
+                    self.group_carriage.route_debt.push(debt);
+                }
                 // A newer route supersedes a queued older one for the same Room and device: only the latest is worth sending.
                 self.group_carriage.outbox.retain(|q| {
                     !(q.to == to
@@ -1073,14 +1083,69 @@ impl AppState {
         Ok(n)
     }
 
-    /// Drop a `route_update` that waited longer than the overlap: the route it replaced is revoked by then, and the next
-    /// removal or refresh mints a newer one. Counted nowhere: a stale route is replaced, never reported.
+    /// Expire transport frames without forgetting their destinations, then advertise the current valid route.
+    /// Old receive capabilities still expire on their original overlap schedule.
     pub fn carry_outbox_expire(&mut self, now_s: u64) {
+        // Additive migration for queued advertisements from records written before independent debt existed.
+        for o in &self.group_carriage.outbox {
+            if let GroupWire::RouteUpdate {
+                conversation_id, ..
+            } = &o.wire
+            {
+                let debt = cg::RouteDebt {
+                    room: conversation_id.clone(),
+                    to: o.to.clone(),
+                };
+                if !self.group_carriage.route_debt.contains(&debt)
+                    && self.group_carriage.route_debt.len() < cg::MAX_OUTBOX
+                {
+                    self.group_carriage.route_debt.push(debt);
+                }
+            }
+        }
         self.group_carriage.outbox.retain(|o| {
             !(matches!(o.wire, GroupWire::RouteUpdate { .. })
-                && o.since_s > 0
                 && now_s >= o.since_s.saturating_add(cg::ROUTE_UPDATE_TTL_S))
         });
+        self.group_carriage.route_debt.retain(|d| match &d.to {
+            cg::OutTarget::Device { account, device } => self
+                .group_devices
+                .get(&d.room)
+                .and_then(|roster| roster.get(device))
+                .is_some_and(|r| &r.account == account),
+            cg::OutTarget::Relationship(_) => false,
+        });
+        for d in self.group_carriage.route_debt.clone() {
+            if self.group_carriage.outbox.iter().any(|o| o.to == d.to
+                && matches!(&o.wire, GroupWire::RouteUpdate { conversation_id, .. } if conversation_id == &d.room))
+            { continue; }
+            let current = self.group_carriage.mine.get(&d.room).and_then(|v| {
+                v.iter()
+                    .rev()
+                    .find(|r| r.retired_at.is_none() && r.expires_at > now_s)
+            });
+            let Some(route) = current else {
+                if !self.group_carriage.replace_owed.contains(&d.room) {
+                    self.group_carriage.replace_owed.push(d.room);
+                }
+                continue;
+            };
+            if self.group_carriage.outbox.len() >= cg::MAX_OUTBOX {
+                break;
+            }
+            let id = self.group_carriage.next_out;
+            self.group_carriage.next_out += 1;
+            self.group_carriage.outbox.push(cg::OutItem {
+                id,
+                intent_id: None,
+                to: d.to,
+                wire: GroupWire::RouteUpdate {
+                    conversation_id: d.room,
+                    routes: vec![route.record.clone()],
+                },
+                since_s: now_s,
+            });
+        }
     }
 
     /// The lane item the 1:1 queue just took (or that a caller sent directly): drop its keeper.
@@ -1097,6 +1162,24 @@ impl AppState {
 
     /// The host deposited these outbox frames: drop them (transport progress, never acceptance).
     pub fn carry_outbox_done(&mut self, ids: &[u64]) {
+        let completed: Vec<cg::RouteDebt> = self
+            .group_carriage
+            .outbox
+            .iter()
+            .filter(|o| ids.contains(&o.id))
+            .filter_map(|o| match &o.wire {
+                GroupWire::RouteUpdate {
+                    conversation_id, ..
+                } => Some(cg::RouteDebt {
+                    room: conversation_id.clone(),
+                    to: o.to.clone(),
+                }),
+                _ => None,
+            })
+            .collect();
+        self.group_carriage
+            .route_debt
+            .retain(|d| !completed.contains(d));
         self.group_carriage.outbox.retain(|o| !ids.contains(&o.id));
     }
 

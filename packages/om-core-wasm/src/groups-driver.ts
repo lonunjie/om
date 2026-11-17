@@ -129,15 +129,14 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
 
   // ------------------------------------------------------------------------------------------ deposit
 
-  type Deposited = "done" | "retry";
+  type Deposited = "done" | "retry" | "refused";
   /** Deposit one sealed wrapper. A relay that refuses it for good (a revoked or unknown route) ends it; an outage repeats it. */
   async function deposit(s: SealedFrame): Promise<Deposited> {
     let r;
     try { r = await provider.perform({ call: "deposit", mailbox: s.entry.capability, relayUri: s.entry.relayUri, bytes: s.wrapper }); } catch { return "retry"; }
     if (r.result !== "err") return "done";
     if (r.error.kind === "unavailable" || r.error.kind === "timeout") return "retry";
-    dropped++;
-    return "done";
+    return "refused";
   }
 
   /** Core's outbox, oldest first: seal, deposit every wrapper, then report the item done. Order is kept per destination. */
@@ -157,7 +156,11 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
         continue;
       }
       let ok = true;
-      for (const s of sealed.sealed) if ((await deposit(s)) === "retry") { ok = false; break; }
+      for (const s of sealed.sealed) {
+        const result = await deposit(s);
+        if (result === "retry" || (result === "refused" && item.wire.t === "route_update")) { ok = false; break; }
+        if (result === "refused") dropped++;
+      }
       if (!ok) { retry = true; blocked.add(key); break; } // the provider is down: every later deposit would fail alike
       await core.outboxDone(ctx, [item.id]);
       moved = true;
@@ -224,7 +227,7 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     }
     // After a removal each remaining device mints a fresh route and tells the new roster (ADR-0189 section 1.3).
     for (const room of core.status(ctx).routeOwed) {
-      const u = await core.routeUpdate(ctx, room); // queued in Core's outbox in the same commit that clears the owed mark
+      const u = await core.routeUpdate(ctx, room); // route generation and per-destination distribution debt are committed together
       if (!u.ok) { if (u.refused === "no_route_offer") retry = true; continue; }
       moved = true;
     }

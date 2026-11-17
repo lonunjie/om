@@ -1358,15 +1358,17 @@ fn a_newer_route_update_replaces_the_queued_one_and_a_stale_one_expires() {
         .collect();
     assert_eq!(updates.len(), 1, "only the latest route is worth sending");
     assert!(!first.contains(&updates[0].id));
-    // after the overlap the route it replaced is revoked, so the stale update is dropped with it
+    // After the overlap the old capability is revoked; a fresh frame still advertises the current route.
     ps[1].rt.tick((ROUTE_OVERLAP_S + 1) * 1000);
     let (_revoke, step) = core!(ps[1], group_routes_expire).unwrap();
     assert!(ps[1].rt.settle(&step));
-    assert!(
+    assert_eq!(
         ps[1]
             .outbox()
             .iter()
-            .all(|x| !matches!(x.wire, GroupWire::RouteUpdate { .. }))
+            .filter(|x| matches!(x.wire, GroupWire::RouteUpdate { .. }))
+            .count(),
+        1
     );
 }
 
@@ -1392,4 +1394,53 @@ fn a_route_update_that_cannot_be_minted_leaves_the_room_owed() {
     let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
     assert!(ps[1].rt.settle(&step));
     assert!(r.is_ok());
+}
+
+#[test]
+fn route_distribution_survives_offline_expiry_and_restart_with_two_survivors() {
+    let (mut ps, conv) = remove_carol();
+    ps[1].rt.tick(2000);
+    ps[1].rt.supply_routes(4);
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(r, Ok(1));
+    let queued = ps[1]
+        .outbox()
+        .into_iter()
+        .find(|o| matches!(o.wire, GroupWire::RouteUpdate { .. }))
+        .unwrap();
+    ps[1].rt.tick((ROUTE_OVERLAP_S + 1) * 1000);
+    ps[1].restart();
+    let (revoke, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(!revoke.is_empty());
+    ps[1].restart();
+    let retry = ps[1]
+        .outbox()
+        .into_iter()
+        .find(|o| matches!(o.wire, GroupWire::RouteUpdate { .. }))
+        .expect("current route still owed");
+    assert_ne!(queued.id, retry.id);
+    assert_eq!(queued.wire, retry.wire);
+    let sealed = ps[1].seal(&retry.to_outbound().unwrap()).unwrap();
+    ps[0].open(&sealed[0].wrapper).unwrap();
+    let step = core!(ps[1], group_outbox_done, &[queued.id]).unwrap();
+    assert!(ps[1].rt.settle(&step)); // a late completion of the expired item cannot clear the debt
+    assert_eq!(ps[1].carriage()["routeDebt"].as_array().unwrap().len(), 1);
+    let step = core!(ps[1], group_outbox_done, &[retry.id]).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(ps[1].carriage()["routeDebt"].as_array().unwrap().is_empty());
+    // The other surviving device can now advertise its replacement through the route it just learned.
+    ps[0].rt.tick((ROUTE_OVERLAP_S + 3) * 1000);
+    ps[0].rt.supply_routes(4);
+    let (r, step) = core!(ps[0], group_route_update, &conv).unwrap();
+    assert!(ps[0].rt.settle(&step));
+    assert_eq!(r, Ok(1));
+    let update = ps[0]
+        .outbox()
+        .into_iter()
+        .find(|o| matches!(o.wire, GroupWire::RouteUpdate { .. }))
+        .unwrap();
+    let sealed = ps[0].seal(&update.to_outbound().unwrap()).unwrap();
+    ps[1].open(&sealed[0].wrapper).unwrap();
 }

@@ -258,12 +258,16 @@ describe("service worker: the PQ floor survives in storage and refuses a later E
     const caches = new Map<string, ReturnType<typeof memCache>>();
     const kvm = new Map<string, string>();
     const net = new Map<string, string>();
+    let lock: Promise<unknown> = Promise.resolve();
     const storage: ShellStorage = {
+      exclusive: <T>(job: () => Promise<T>): Promise<T> => {
+        const next = lock.then(job); lock = next.catch(() => undefined); return next;
+      },
       open: (n) => Promise.resolve(caches.get(n) ?? (caches.set(n, memCache()), caches.get(n) as ReturnType<typeof memCache>)),
       delete: (n) => Promise.resolve(void caches.delete(n)),
       names: () => Promise.resolve([...caches.keys()]),
     };
-    const kv: KV = { get: (k) => Promise.resolve(kvm.get(k) ?? null), set: (k, v) => Promise.resolve(void kvm.set(k, v)) };
+    const kv: KV = { delete: (k) => Promise.resolve(void kvm.delete(k)), get: (k) => Promise.resolve(kvm.get(k) ?? null), set: (k, v) => Promise.resolve(void kvm.set(k, v)) };
     const fetchFn = (p: string): Promise<Response> => Promise.resolve(net.has(p) ? new Response(net.get(p)) : new Response("", { status: 404 }));
     const publish = async (version: string, delegation: unknown) => {
       net.clear();

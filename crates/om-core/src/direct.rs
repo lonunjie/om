@@ -179,9 +179,12 @@ pub struct DirectSender {
     xfer: Option<Xfer>,
     /// The transfer whose final ack made the claim; a receipt must name it.
     claim_id: Option<[u8; TRANSFER_ID_LEN]>,
-    /// Receipts that failed the tag check over the life of this offer (each costs a hash of the object, so the count is
-    /// bounded for good: a new claim does not start it again).
+    /// Invalid tags on the current transfer; a fresh transfer has a bounded recovery window.
     bad_receipts: u8,
+    receipt_id: Option<[u8; TRANSFER_ID_LEN]>,
+    /// Whole-object hashes across the offer, never reset by fetch. One cached tag serves one transfer's checks.
+    receipt_hashes: u8,
+    expected_receipt: Option<zeroize::Zeroizing<[u8; 32]>>,
     /// The hash of the whole object announced in `object_begin`, computed once.
     begin_sha: Option<[u8; 32]>,
 }
@@ -192,8 +195,10 @@ impl Drop for DirectSender {
     }
 }
 
-/// Invalid receipts checked per offer; further ones are dropped unread.
+/// Invalid tags checked per transfer; whole-object work is separately bounded for the entire offer.
 pub const MAX_BAD_RECEIPTS: u8 = 8;
+/// Maximum whole-object receipt hashes over one offer, including all fresh-transfer recovery attempts.
+pub const MAX_RECEIPT_HASHES: u8 = 8;
 
 impl DirectSender {
     /// `ciphertext` is the sealed object; `digest` must be its `ciphertext_digest` (checked), `read_cap` the capability the
@@ -229,6 +234,9 @@ impl DirectSender {
             xfer: None,
             claim_id: None,
             bad_receipts: 0,
+            receipt_id: None,
+            receipt_hashes: 0,
+            expected_receipt: None,
             begin_sha: None,
         })
     }
@@ -255,6 +263,7 @@ impl DirectSender {
 
     /// Withdraw the offer and drop the ciphertext. Later fetches answer `unavailable`.
     pub fn withdraw(&mut self) {
+        self.expected_receipt = None;
         self.state = OfferState::Withdrawn;
         self.xfer = None;
         self.claim_id = None;
@@ -289,6 +298,12 @@ impl DirectSender {
                         code: ErrorCode::Unavailable,
                     }];
                 }
+                if self.receipt_id != Some(fresh_id) {
+                    self.receipt_id = Some(fresh_id);
+                    self.bad_receipts = 0;
+                    self.expected_receipt = None;
+                }
+                self.claim_id = None;
                 // A new request supersedes an open transfer (the old channel is gone: resume). A standing claim stays
                 // a claim: the exchange runs again so the receiver can confirm it.
                 if self.state != OfferState::PeerClaimsReceived {
@@ -352,14 +367,25 @@ impl DirectSender {
                 {
                     return vec![];
                 }
-                let want = receipt_tag(
-                    &self.key,
-                    &self.digest,
-                    &self.blob_id,
-                    transfer_id,
-                    &self.ciphertext,
-                );
-                if ct_eq(&want, tag) {
+                if self.expected_receipt.is_none() {
+                    if self.receipt_hashes >= MAX_RECEIPT_HASHES {
+                        return vec![];
+                    }
+                    self.receipt_hashes += 1;
+                    self.expected_receipt = Some(zeroize::Zeroizing::new(receipt_tag(
+                        &self.key,
+                        &self.digest,
+                        &self.blob_id,
+                        transfer_id,
+                        &self.ciphertext,
+                    )));
+                }
+                if self
+                    .expected_receipt
+                    .as_ref()
+                    .is_some_and(|want| ct_eq(want.as_ref(), tag))
+                {
+                    self.expected_receipt = None;
                     self.state = OfferState::Confirmed;
                     self.xfer = None;
                     self.claim_id = None;
@@ -777,5 +803,49 @@ mod tests {
                 max: HARD_MAX_PLAINTEXT
             })
         );
+    }
+}
+
+#[cfg(test)]
+mod receipt_work_tests {
+    use super::*;
+    #[test]
+    fn repeated_fetches_and_bad_tags_never_reset_the_whole_object_work_bound() {
+        let ciphertext = vec![7; 65536];
+        let digest = attach::ciphertext_digest(&ciphertext);
+        let mut s = DirectSender::new([3; 32], digest, vec![4; 32], ciphertext, [5; 32]).unwrap();
+        for round in 0..1000u64 {
+            let mut id = [0; 16];
+            id[..8].copy_from_slice(&round.to_be_bytes());
+            s.handle(
+                &DirectFrame::FetchBlob {
+                    request_id: id,
+                    read_cap: vec![4; 32],
+                    blob_id: [3; 32],
+                    digest,
+                },
+                id,
+            );
+            let ack = DirectFrame::Ack {
+                transfer_id: id,
+                offset: 65536,
+            };
+            s.handle(&ack, id);
+            s.pump(0);
+            s.handle(&ack, id);
+            for _ in 0..100 {
+                s.handle(
+                    &DirectFrame::Receipt {
+                        transfer_id: id,
+                        tag: [0; 32],
+                    },
+                    id,
+                );
+            }
+            assert!(s.receipt_hashes <= MAX_RECEIPT_HASHES);
+            assert!(s.bad_receipts <= MAX_BAD_RECEIPTS);
+            assert_eq!(s.state(), OfferState::PeerClaimsReceived);
+        }
+        assert_eq!(s.receipt_hashes, MAX_RECEIPT_HASHES);
     }
 }
