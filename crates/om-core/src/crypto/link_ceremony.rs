@@ -22,6 +22,11 @@ pub const LBL_AEAD_AD: &str = "OM-DEVICE-LINK-CEREMONY-AEAD-AD-v1";
 /// `hash`: the local polling id of the response queue.
 pub const LBL_MAILBOX: &str = "OM-DEVICE-LINK-CEREMONY-MAILBOX-HASH-v1";
 
+/// `hash`: the digest of the full chain and credential set that a continuation approval's manifest names (ADR-0195).
+pub const LBL_MANIFEST: &str = "OM-DEVICE-LINK-CEREMONY-MANIFEST-HASH-v1";
+/// `mac`: the continuation binding, which ties the approval binding to its manifest (ADR-0195).
+pub const LBL_CONT_MAC: &str = "OM-DEVICE-LINK-CEREMONY-CONTINUATION-MAC-v1";
+
 /// The link payload version this construction defines. Version 1 (the provisional derivation) is refused.
 pub const LINK_VERSION: u8 = 2;
 /// Message direction in the associated data: new device to existing device, and back.
@@ -176,6 +181,37 @@ pub fn binding(
         V::U(history_count),
     ]));
     hmac_sha256(k_bind, &mac_in(MAC_ROLE_BINDING, &body))
+}
+
+/// `manifest_digest = DS-HASH(LBL_MANIFEST, OM-CBOR [ [state, ...], [credential, ...] ])` over the chain states and the
+/// credential bodies, each in the order the approver holds them (ADR-0195).
+pub fn manifest_digest(states: &[Vec<u8>], creds: &[Vec<u8>]) -> [u8; 32] {
+    let list = |l: &[Vec<u8>]| V::A(l.iter().cloned().map(V::B).collect());
+    ds_hash(
+        LBL_MANIFEST,
+        &cbor::encode(&V::A(vec![list(states), list(creds)])),
+    )
+}
+
+/// `cont_binding = HMAC(K_bind, OM-CBOR [ LBL_CONT_MAC, OM-CBOR [ binding, digest, n_states, n_creds, n_chunks ] ])`:
+/// the approval binding (key 11) and the manifest it carries, authenticated together (ADR-0195).
+pub fn cont_binding(
+    k_bind: &[u8; 32],
+    binding: &[u8],
+    digest: &[u8; 32],
+    n_states: u64,
+    n_creds: u64,
+    n_chunks: u64,
+) -> [u8; 32] {
+    let body = cbor::encode(&V::A(vec![
+        V::B(binding.to_vec()),
+        V::B(digest.to_vec()),
+        V::U(n_states),
+        V::U(n_creds),
+        V::U(n_chunks),
+    ]));
+    let input = cbor::encode(&V::A(vec![V::T(LBL_CONT_MAC.into()), V::B(body)]));
+    hmac_sha256(k_bind, &input)
 }
 
 /// Constant-time equality of a received tag with a recomputed one.

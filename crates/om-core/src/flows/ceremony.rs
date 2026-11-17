@@ -46,6 +46,19 @@ const M_REJECT: u64 = 3;
 const M_ROSTER: u64 = 5;
 /// Existing -> new: one chunk of the `DeviceHistorySnapshot` (multi-device phase 5).
 const M_HISTORY: u64 = 6;
+/// A continuation chunk of the chain and credentials (ADR-0195): `{0: 7, 1: index, 2: [states], 3: [credentials]}`.
+const M_CHAIN: u64 = 7;
+/// Most chunks a continuation approval may announce, and the target size of one chunk's items.
+pub const CONT_MAX_CHUNKS: usize = 64;
+const CONT_CHUNK_BODY: usize = 50_000;
+/// An approval whose inline form is larger than this is sent in the continuation form instead.
+const INLINE_APPROVAL_MAX: usize = MAX_MSG - 1024;
+/// Receive bounds of the whole set: the longest chain and the most credentials a verifiable chain reaches.
+const MAX_STATES: usize = 65;
+const MAX_CREDS: usize = 320;
+const MAX_ITEM: usize = 65_536;
+/// A chain's states and its credential bodies.
+type ChainSet = (Vec<Vec<u8>>, Vec<Vec<u8>>);
 /// The 32-byte random `codec_id` of this implementation's `DeviceHistorySnapshot` codec family, chosen once and never
 /// reassigned to incompatible semantics (ADR-0156/0157, MULTI_DEVICE_SYNC "ADR-0156/0157 implementation namespacing").
 const HISTORY_CODEC_ID: &str = "c3cb99a3a24d06c6178626672c4557d746938b453380526711411f7e6fb3794e";
@@ -468,6 +481,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         {
             j.state = LinkState::Failed;
             j.secret = String::new().into();
+            j.cont = None;
         }
     }
 
@@ -499,6 +513,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 };
             }
             mark_history_degraded(j);
+            j.cont = None;
             j.secret = String::new().into();
             j.a_cap = String::new();
             j.b_recv = String::new();
@@ -581,6 +596,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             history_messages: 0,
             history_seen: vec![],
             history_degraded: false,
+            cont: None,
         });
         self.st.device = Some(device);
         self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed, false);
@@ -927,9 +943,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         } else {
             vec![]
         };
+        // ADR-0195: an approval that does not fit one message goes out in the continuation form: the same message
+        // without the chain and credentials, carrying a manifest of them, followed by indexed chunks.
+        let use_cont = approval.len() > INLINE_APPROVAL_MAX;
+        let (chunk_msgs, manifest) = if use_cont {
+            let chunks = cont_chunks(&chain_all, &creds_all).ok_or(TooLarge)?;
+            let digest = lc::manifest_digest(&chain_all, &creds_all);
+            (
+                chunks,
+                Some((digest, chain_all.len() as u64, creds_all.len() as u64)),
+            )
+        } else {
+            (vec![], None)
+        };
         let approval = {
             let mut v = cbor::decode(&approval).map_err(|_| Invalid)?;
             if let V::M(m) = &mut v {
+                if use_cont {
+                    m.retain(|(k, _)| *k != 2 && *k != 3);
+                }
                 m.push((9, V::U(history.len() as u64)));
                 if let Some(h) = &head_sig {
                     m.push((10, V::B(h.clone())));
@@ -953,6 +985,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     tag[0] ^= 1;
                 }
                 m.push((11, V::B(tag.to_vec())));
+                if let Some((digest, n_states, n_creds)) = &manifest {
+                    let n_chunks = chunk_msgs.len() as u64;
+                    let cont_tag =
+                        lc::cont_binding(&keys.bind, &tag, digest, *n_states, *n_creds, n_chunks);
+                    m.push((
+                        12,
+                        V::A(vec![
+                            V::B(digest.to_vec()),
+                            V::U(*n_states),
+                            V::U(*n_creds),
+                            V::U(n_chunks),
+                        ]),
+                    ));
+                    m.push((13, V::B(cont_tag.to_vec())));
+                }
             }
             cbor::encode(&v)
         };
@@ -960,6 +1007,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.seal_msg(&keys, ROLE_RESP, &approval, offer.expires_at / 1000)
                 .ok_or(TooLarge)?,
         ];
+        for chunk in &chunk_msgs {
+            sealed.push(
+                self.seal_msg(&keys, ROLE_RESP, chunk, offer.expires_at / 1000)
+                    .ok_or(TooLarge)?,
+            );
+        }
         for entry in &roster {
             let msg = cbor::encode(&V::M(vec![(0, V::U(M_ROSTER)), (1, V::B(entry.clone()))]));
             sealed.push(
@@ -1207,9 +1260,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     self.finish_join(LinkState::Rejected);
                 }
             }
-            Ok(M_APPROVE) if !join.approved => {
+            Ok(M_APPROVE) if !join.approved && join.cont.is_none() => {
                 if !self.on_approval(&v, &nonce, &keys, &join.request_digest) {
                     // Anything short of a fully verified approval (including a missing notice) ends the ceremony.
+                    self.finish_join(LinkState::Failed);
+                }
+            }
+            Ok(M_CHAIN) if !join.approved && join.cont.is_some() => {
+                if !self.on_chain_chunk(&v, &nonce, &keys, &join.request_digest) {
                     self.finish_join(LinkState::Failed);
                 }
             }
@@ -1240,6 +1298,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     fn finish_join(&mut self, state: LinkState) {
         if let Some(j) = self.st.app.link_join.as_mut() {
             j.state = state;
+            j.cont = None;
             // Chunks of a history snapshot may still follow a completed link; the key stays until they are in.
             if !(state == LinkState::Linked && j.history_done < j.history_expected) {
                 j.secret = String::new().into();
@@ -1256,10 +1315,148 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         keys: &CeremonyKeys,
         request_digest: &str,
     ) -> bool {
-        let (Ok(account), Some(chain), Some(creds), Ok(notice), Ok(approver), Ok(echo), Ok(count)) = (
-            v.get(1).and_then(|x| x.b32()),
+        match v.opt(12) {
+            Some(manifest) => self.on_manifest_approval(v, manifest, keys),
+            None => self.verify_and_adopt(v, nonce, keys, request_digest, None),
+        }
+    }
+
+    /// ADR-0195: an approval in the continuation form carries a manifest (`[digest, states, credentials, chunks]`) and
+    /// its tag instead of the chain and credentials. Only the shape, the bounds and the tag are checked here; nothing is
+    /// adopted until every chunk is in and the whole approval verifies.
+    fn on_manifest_approval(&mut self, v: &V, manifest: &V, keys: &CeremonyKeys) -> bool {
+        let Ok([d, s, c, n]) = manifest.a() else {
+            return false;
+        };
+        let (Ok(digest), Ok(n_states), Ok(n_creds), Ok(n_chunks)) = (d.b32(), s.u(), c.u(), n.u())
+        else {
+            return false;
+        };
+        let (Ok(tag11), Ok(tag13)) = (v.get(11).and_then(|x| x.b()), v.get(13).and_then(|x| x.b()))
+        else {
+            return false;
+        };
+        if v.opt(2).is_some()
+            || v.opt(3).is_some()
+            || !(2..=MAX_STATES as u64).contains(&n_states)
+            || n_creds > MAX_CREDS as u64
+            || !(1..=CONT_MAX_CHUNKS as u64).contains(&n_chunks)
+            || n_chunks > n_states + n_creds
+        {
+            return false;
+        }
+        let expect = lc::cont_binding(&keys.bind, tag11, &digest, n_states, n_creds, n_chunks);
+        if !lc::tag_eq(tag13, &expect) {
+            return false;
+        }
+        let approval = cbor::encode(v);
+        if let Some(j) = self.st.app.link_join.as_mut() {
+            j.cont = Some(crate::state::LinkCont {
+                approval: hex(&approval),
+                digest: hex(&digest),
+                states: n_states as u32,
+                creds: n_creds as u32,
+                chunks: n_chunks as u32,
+                got: vec![],
+            });
+        }
+        true
+    }
+
+    /// One continuation chunk. Counted once per index; a stray, malformed or repeated one changes nothing. When the last
+    /// index arrives the set is assembled in index order, checked against the manifest, and only then verified as an
+    /// ordinary approval. `false` ends the ceremony with nothing adopted.
+    fn on_chain_chunk(
+        &mut self,
+        v: &V,
+        nonce: &[u8],
+        keys: &CeremonyKeys,
+        request_digest: &str,
+    ) -> bool {
+        let Some(cont) = self.st.app.link_join.as_ref().and_then(|j| j.cont.clone()) else {
+            return true;
+        };
+        let (Ok(index), Some(states), Some(creds)) = (
+            v.get(1)
+                .and_then(|x| x.u())
+                .map(u32::try_from)
+                .map(|i| i.unwrap_or(u32::MAX)),
             bytes_list(v.get(2)),
             bytes_list(v.get(3)),
+        ) else {
+            return true; // malformed: ignored whole, the transfer stays incomplete and ends at expiry
+        };
+        if index >= cont.chunks
+            || cont.got.iter().any(|(i, _)| *i == index)
+            || states.iter().chain(&creds).any(|x| x.len() > MAX_ITEM)
+        {
+            return true; // a replay or a stray changes nothing
+        }
+        let mut got = cont.got.clone();
+        got.push((index, hex(&cbor::encode(v))));
+        if (got.len() as u32) < cont.chunks {
+            if let Some(c) = self.st.app.link_join.as_mut().and_then(|j| j.cont.as_mut()) {
+                c.got = got;
+            }
+            return true;
+        }
+        // Every index is present: assemble in index order.
+        got.sort_by_key(|(i, _)| *i);
+        let (mut chain, mut cred_list) = (vec![], vec![]);
+        for (_, h) in &got {
+            let Some(c) = unhex(h).ok().and_then(|b| cbor::decode(&b).ok()) else {
+                return false;
+            };
+            let (Some(s), Some(k)) = (bytes_list(c.get(2)), bytes_list(c.get(3))) else {
+                return false;
+            };
+            chain.extend(s);
+            cred_list.extend(k);
+            if chain.len() > MAX_STATES || cred_list.len() > MAX_CREDS {
+                return false;
+            }
+        }
+        let want = unhex(&cont.digest).ok();
+        if chain.len() as u32 != cont.states
+            || cred_list.len() as u32 != cont.creds
+            || want.as_deref() != Some(lc::manifest_digest(&chain, &cred_list).as_slice())
+        {
+            return false;
+        }
+        let Some(approval) = unhex(&cont.approval)
+            .ok()
+            .and_then(|b| cbor::decode(&b).ok())
+        else {
+            return false;
+        };
+        if let Some(j) = self.st.app.link_join.as_mut() {
+            j.cont = None;
+        }
+        self.verify_and_adopt(
+            &approval,
+            nonce,
+            keys,
+            request_digest,
+            Some((chain, cred_list)),
+        )
+    }
+
+    fn verify_and_adopt(
+        &mut self,
+        v: &V,
+        nonce: &[u8],
+        keys: &CeremonyKeys,
+        request_digest: &str,
+        assembled: Option<ChainSet>,
+    ) -> bool {
+        let max_creds = if assembled.is_some() { MAX_CREDS } else { 64 };
+        let Some((chain, creds)) =
+            assembled.or_else(|| Some((bytes_list(v.get(2))?, bytes_list(v.get(3))?)))
+        else {
+            return false;
+        };
+        let (Ok(account), Ok(notice), Ok(approver), Ok(echo), Ok(count)) = (
+            v.get(1).and_then(|x| x.b32()),
             v.get(4).and_then(|x| x.b()).map(<[u8]>::to_vec),
             v.get(5).and_then(|x| x.b()).map(<[u8]>::to_vec),
             v.get(6).and_then(|x| x.b()).map(<[u8]>::to_vec),
@@ -1276,7 +1473,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if echo != nonce
             || chain.len() < 2
             || chain.len() > 65
-            || creds.len() > 64
+            || creds.len() > max_creds
             || chain.iter().chain(creds.iter()).any(|x| x.len() > 65_536)
             || count > MAX_ROSTER as u64
             || notice.is_empty()
@@ -1747,6 +1944,50 @@ pub(super) fn stage_enrollment(
     })
 }
 
+/// ADR-0195: the chain states and then the credentials, in order, packed into chunks of about `CONT_CHUNK_BODY` bytes
+/// of items: `{0: 7, 1: index, 2: [states], 3: [credentials]}`. `None` when the set needs more than `CONT_MAX_CHUNKS`.
+fn cont_chunks(states: &[Vec<u8>], creds: &[Vec<u8>]) -> Option<Vec<Vec<u8>>> {
+    let mut groups: Vec<(Vec<V>, Vec<V>)> = vec![(vec![], vec![])];
+    let mut size = 0usize;
+    for (item, is_state) in states
+        .iter()
+        .map(|s| (s, true))
+        .chain(creds.iter().map(|c| (c, false)))
+    {
+        let empty = groups
+            .last()
+            .is_none_or(|g| g.0.is_empty() && g.1.is_empty());
+        if !empty && size + item.len() > CONT_CHUNK_BODY {
+            groups.push((vec![], vec![]));
+            size = 0;
+        }
+        size += item.len() + 8;
+        let g = groups.last_mut()?;
+        if is_state {
+            g.0.push(V::B(item.clone()));
+        } else {
+            g.1.push(V::B(item.clone()));
+        }
+    }
+    if groups.len() > CONT_MAX_CHUNKS {
+        return None;
+    }
+    Some(
+        groups
+            .into_iter()
+            .enumerate()
+            .map(|(i, (s, c))| {
+                cbor::encode(&V::M(vec![
+                    (0, V::U(M_CHAIN)),
+                    (1, V::U(i as u64)),
+                    (2, V::A(s)),
+                    (3, V::A(c)),
+                ]))
+            })
+            .collect(),
+    )
+}
+
 /// The index a history chunk may be counted under: its own field 3, inside `0..expected`, not yet seen.
 /// Anything else is a replay, a stray or a malformed frame and changes nothing.
 fn history_index(v: &V, expected: u32, seen: &[u32]) -> Option<u32> {
@@ -2188,6 +2429,10 @@ pub fn notice_views(st: &ProfileState) -> Vec<DeviceNoticeView> {
         })
         .collect()
 }
+
+#[cfg(test)]
+#[path = "ceremony_continuation_tests.rs"]
+mod continuation_tests;
 
 #[cfg(test)]
 mod tests {
@@ -2745,6 +2990,7 @@ mod tests {
             history_messages: 4,
             history_seen: vec![0, 2],
             history_degraded: false,
+            cont: None,
         };
         let live = receiver_view(&j);
         assert_eq!(live.state, HistoryTransferState::InProgress);

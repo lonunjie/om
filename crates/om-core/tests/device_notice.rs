@@ -460,7 +460,7 @@ fn more_than_the_bound_owed_refuses_with_quota_and_changes_nothing() {
 }
 
 #[test]
-fn an_account_too_large_for_one_message_is_refused_as_too_large_and_changes_nothing() {
+fn an_account_too_large_for_one_message_links_through_continuation_chunks() {
     let mut f = Fleet::bare("big");
     // A long chain of real signed states (one device per state), well past what one 100 kB message carries.
     for _ in 0..30 {
@@ -470,19 +470,28 @@ fn an_account_too_large_for_one_message_is_refused_as_too_large_and_changes_noth
             .unwrap();
         f.rts[0].settle(&step);
     }
-    let before = f.devices(0).devices.len();
-    let (_, out) = f.link(0, "late");
+    let (new, out) = f.link(0, "late");
     assert_eq!(
         out,
-        Some(OutcomeClass::Rejected {
-            reason: RejectReason::TooLarge
-        }),
-        "the cause is the size, not the number of devices still to be told"
+        Some(OutcomeClass::Committed),
+        "the approval is sent as a manifest and chunks (ADR-0195)"
     );
-    assert_eq!(f.devices(0).devices.len(), before, "nothing was changed");
+    f.settle();
+    let st = f.rts[new].core.debug_app_state(&f.ctxs[new]).unwrap();
+    assert_eq!(
+        st["acsChain"].as_array().unwrap().len(),
+        32,
+        "the new device holds the whole chain it was sent in pieces"
+    );
+    assert_eq!(f.devices(new).devices.len(), f.devices(0).devices.len());
     assert!(
-        f.owed(0).is_empty(),
-        "no notice was recorded for a link that did not happen"
+        f.net
+            .all_deposited_bytes()
+            .iter()
+            .filter(|b| b.len() > 60_000)
+            .count()
+            >= 3,
+        "the account travelled in several sealed messages"
     );
 }
 

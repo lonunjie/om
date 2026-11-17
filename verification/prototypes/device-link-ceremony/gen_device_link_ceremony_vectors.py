@@ -19,6 +19,8 @@ LBL_MAC = "OM-DEVICE-LINK-CEREMONY-MAC-v1"
 LBL_KDF = "OM-DEVICE-LINK-CEREMONY-KDF-v1"
 LBL_AD = "OM-DEVICE-LINK-CEREMONY-AEAD-AD-v1"
 LBL_MBX = "OM-DEVICE-LINK-CEREMONY-MAILBOX-HASH-v1"
+LBL_MANIFEST = "OM-DEVICE-LINK-CEREMONY-MANIFEST-HASH-v1"  # ADR-0195
+LBL_CONT = "OM-DEVICE-LINK-CEREMONY-CONTINUATION-MAC-v1"  # ADR-0195
 
 
 class B(bytes):
@@ -91,6 +93,15 @@ def code_of(k_code: bytes, request: bytes):
 def binding(k_bind, req_digest, approver, state_hash, notice_digest, roster, hist) -> bytes:
     body = enc([B(req_digest), B(approver), B(state_hash), B(notice_digest), roster, hist])
     return hmac.new(k_bind, macin(2, body), hashlib.sha256).digest()
+
+
+def manifest_digest(states, creds) -> bytes:
+    return ds_hash(LBL_MANIFEST, enc([[B(x) for x in states], [B(x) for x in creds]]))
+
+
+def cont_binding(k_bind, tag, digest, n_states, n_creds, n_chunks) -> bytes:
+    body = enc([B(tag), B(digest), n_states, n_creds, n_chunks])
+    return hmac.new(k_bind, enc([LBL_CONT, B(body)]), hashlib.sha256).digest()
 
 
 # ------------------------------------------------------------ ChaCha20-Poly1305 and HChaCha20 (RFC 8439, XChaCha draft)
@@ -239,6 +250,32 @@ def main(out: str) -> None:
         "binding_other_approver": hx(binding(k["bind"], req_digest, bytes([8] * 16), state_hash, notice_digest, 2, 3)),
         "sealed_req_under_resp_ad": hx(xchacha_seal(k["req"], nonce, ad(k["ceremony_id"], 2), pt)),
         "sealed_req_under_resp_key": hx(xchacha_seal(k["resp"], nonce, ad(k["ceremony_id"], 1), pt)),
+    }
+    # ADR-0195: the continuation form's manifest digest and tag over a fixed (opaque) state and credential set.
+    states = [bytes([0x50 + i]) * (40 + i) for i in range(3)]
+    creds = [bytes([0x60 + i]) * (30 + i) for i in range(4)]
+    dg = manifest_digest(states, creds)
+    ctag = cont_binding(k["bind"], bind, dg, 3, 4, 2)
+    v["labels"]["manifest"] = LBL_MANIFEST
+    v["labels"]["continuation_mac"] = LBL_CONT
+    v["continuation"] = {
+        "states": [hx(x) for x in states], "credentials": [hx(x) for x in creds], "chunks": 2,
+        "digest": hx(dg), "cont_binding": hx(ctag),
+        "negatives": {
+            "digest_states_reordered": hx(manifest_digest([states[1], states[0], states[2]], creds)),
+            "digest_creds_reordered": hx(manifest_digest(states, [creds[1], creds[0]] + creds[2:])),
+            "digest_state_dropped": hx(manifest_digest(states[:2], creds)),
+            "digest_cred_dropped": hx(manifest_digest(states, creds[:3])),
+            "digest_state_moved_to_creds": hx(manifest_digest(states[:2], [states[2]] + creds)),
+            "digest_byte_changed": hx(manifest_digest([states[0][:-1] + b"\x00"] + states[1:], creds)),
+            "cont_binding_other_digest": hx(cont_binding(k["bind"], bind, manifest_digest(states[:2], creds), 3, 4, 2)),
+            "cont_binding_other_states": hx(cont_binding(k["bind"], bind, dg, 2, 4, 2)),
+            "cont_binding_other_creds": hx(cont_binding(k["bind"], bind, dg, 3, 5, 2)),
+            "cont_binding_other_chunks": hx(cont_binding(k["bind"], bind, dg, 3, 4, 3)),
+            "cont_binding_other_binding": hx(cont_binding(k["bind"], hashlib.sha256(b"x").digest(), dg, 3, 4, 2)),
+            "binding_used_as_cont_binding": hx(bind),
+            "cont_binding_under_code_key": hx(cont_binding(k["code"], bind, dg, 3, 4, 2)),
+        },
     }
     json.dump(v, open(out, "w"), indent=1, sort_keys=True)
     open(out, "a").write("\n")

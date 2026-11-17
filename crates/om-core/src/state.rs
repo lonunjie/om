@@ -1070,6 +1070,24 @@ pub struct LinkJoin {
     /// Nothing is retried; the device keeps what arrived and the person is told the history is partial.
     #[serde(default)]
     pub history_degraded: bool,
+    /// A continuation approval (ADR-0195) waiting for the rest of the chain and credentials. Nothing is adopted while
+    /// this is set; it is cleared at every end of the ceremony.
+    #[serde(default)]
+    pub cont: Option<LinkCont>,
+}
+
+/// The new device's buffer for a continuation approval: the approval as received, its manifest, and the chunks so far.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkCont {
+    /// The approval message plaintext (hex); it is verified in full only when every chunk is in.
+    pub approval: Hex,
+    pub digest: Hex,
+    pub states: u32,
+    pub creds: u32,
+    pub chunks: u32,
+    /// `(index, chunk plaintext hex)`, one per index.
+    pub got: Vec<(u32, Hex)>,
 }
 
 /// Where a notice owed to another device stands. An acknowledged notice is deleted, and so is one whose device a

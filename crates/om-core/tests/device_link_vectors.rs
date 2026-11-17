@@ -185,3 +185,86 @@ fn every_bound_input_changes_every_key() {
         &a32(&e["binding"])
     ));
 }
+
+#[test]
+fn the_continuation_manifest_and_tag_match_the_independent_vectors() {
+    let v = vectors();
+    let (e, c) = (&v["expected"], &v["continuation"]);
+    let list = |k: &str| -> Vec<Vec<u8>> { c[k].as_array().unwrap().iter().map(hx).collect() };
+    let (states, creds) = (list("states"), list("credentials"));
+    let k = lc::keys(
+        v["inputs"]["expiry_s"].as_u64().unwrap(),
+        &hx(&v["inputs"]["home_uri"]),
+        &hx(&v["inputs"]["secret"]),
+        &hx(&v["inputs"]["a_cap"]),
+        &hx(&v["inputs"]["b_recv"]),
+    );
+    let digest = lc::manifest_digest(&states, &creds);
+    assert_eq!(digest, a32(&c["digest"]));
+    let binding = hx(&e["binding"]);
+    let chunks = c["chunks"].as_u64().unwrap();
+    let tag = |key: &[u8; 32], b: &[u8], d: &[u8; 32], s: u64, cr: u64, ch: u64| {
+        lc::cont_binding(key, b, d, s, cr, ch)
+    };
+    assert_eq!(
+        tag(&k.bind, &binding, &digest, 3, 4, chunks),
+        a32(&c["cont_binding"])
+    );
+
+    let n = &c["negatives"];
+    let swap = |l: &[Vec<u8>], i: usize, j: usize| {
+        let mut o = l.to_vec();
+        o.swap(i, j);
+        o
+    };
+    assert_eq!(
+        lc::manifest_digest(&swap(&states, 0, 1), &creds),
+        a32(&n["digest_states_reordered"])
+    );
+    assert_eq!(
+        lc::manifest_digest(&states, &swap(&creds, 0, 1)),
+        a32(&n["digest_creds_reordered"])
+    );
+    assert_eq!(
+        lc::manifest_digest(&states[..2], &creds),
+        a32(&n["digest_state_dropped"])
+    );
+    assert_eq!(
+        lc::manifest_digest(&states, &creds[..3]),
+        a32(&n["digest_cred_dropped"])
+    );
+    let moved: Vec<Vec<u8>> = std::iter::once(states[2].clone())
+        .chain(creds.iter().cloned())
+        .collect();
+    assert_eq!(
+        lc::manifest_digest(&states[..2], &moved),
+        a32(&n["digest_state_moved_to_creds"])
+    );
+    let other = lc::manifest_digest(&states[..2], &creds);
+    assert_eq!(
+        tag(&k.bind, &binding, &other, 3, 4, chunks),
+        a32(&n["cont_binding_other_digest"])
+    );
+    assert_eq!(
+        tag(&k.bind, &binding, &digest, 2, 4, chunks),
+        a32(&n["cont_binding_other_states"])
+    );
+    assert_eq!(
+        tag(&k.bind, &binding, &digest, 3, 5, chunks),
+        a32(&n["cont_binding_other_creds"])
+    );
+    assert_eq!(
+        tag(&k.bind, &binding, &digest, 3, 4, chunks + 1),
+        a32(&n["cont_binding_other_chunks"])
+    );
+    assert_eq!(
+        tag(&k.code, &binding, &digest, 3, 4, chunks),
+        a32(&n["cont_binding_under_code_key"])
+    );
+    // The inner binding is not a continuation tag, and the continuation tag is not the inner binding.
+    assert_ne!(
+        a32(&n["binding_used_as_cont_binding"]),
+        a32(&c["cont_binding"])
+    );
+    assert!(!lc::tag_eq(&binding, &a32(&c["cont_binding"])));
+}

@@ -718,6 +718,22 @@
       "object": "direct-transfer integrity receipt possession hash",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-MANIFEST-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, OM-CBOR [ [state bstr, ...], [credential bstr, ...] ]), raw 32 bytes: the digest a continuation approval's manifest names over the chain states then the credential bodies, in order (ADR-0195)",
+      "object": "device link ceremony continuation manifest",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-CONTINUATION-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256(K_bind, OM-CBOR [label, OM-CBOR [binding, digest, n_states, n_creds, n_chunks] as bstr]) where binding is the ADR-0192 approval binding; ties the binding to the continuation manifest (ADR-0195)",
+      "object": "device link ceremony continuation approval",
+      "wave": "W0",
+      "status": "frozen"
     }
   ]
 }

@@ -83,5 +83,24 @@ for (const c of v.context_changes) {
 const n = v.negatives;
 for (const [k, val] of Object.entries(n)) if (k.startsWith("binding_") || k.startsWith("sealed_") || k === "code_mac_replayed_as_binding_differs") { if (val === e.binding || val === e.sealed_req) { console.error("NOT DIFFERENT", k); bad++; } }
 if (n.reencoded_request_code_mac === e.code_mac) { console.error("NOT DIFFERENT reencoded"); bad++; }
+// ADR-0195 continuation manifest and tag.
+const mdig = (st, cr) => dsHash(L.manifest, A(A(...st.map(Bs)), A(...cr.map(Bs))));
+const cbind = (key, tag, dg, ns, nc, nch) => hmac(key, A(T(L.continuation_mac), Bs(A(Bs(tag), Bs(dg), U(ns), U(nc), U(nch)))));
+const ct = v.continuation;
+const sts = ct.states.map(h), crs = ct.credentials.map(h);
+eq("manifest digest", mdig(sts, crs), ct.digest);
+eq("cont binding", cbind(K.bind, h(e.binding), h(ct.digest), sts.length, crs.length, ct.chunks), ct.cont_binding);
+const cn = ct.negatives;
+eq("digest_states_reordered", mdig([sts[1], sts[0], sts[2]], crs), cn.digest_states_reordered);
+eq("digest_creds_reordered", mdig(sts, [crs[1], crs[0], ...crs.slice(2)]), cn.digest_creds_reordered);
+eq("digest_state_dropped", mdig(sts.slice(0, 2), crs), cn.digest_state_dropped);
+eq("digest_cred_dropped", mdig(sts, crs.slice(0, 3)), cn.digest_cred_dropped);
+eq("digest_state_moved_to_creds", mdig(sts.slice(0, 2), [sts[2], ...crs]), cn.digest_state_moved_to_creds);
+eq("cont_binding_other_digest", cbind(K.bind, h(e.binding), mdig(sts.slice(0, 2), crs), 3, 4, 2), cn.cont_binding_other_digest);
+eq("cont_binding_other_states", cbind(K.bind, h(e.binding), h(ct.digest), 2, 4, 2), cn.cont_binding_other_states);
+eq("cont_binding_other_creds", cbind(K.bind, h(e.binding), h(ct.digest), 3, 5, 2), cn.cont_binding_other_creds);
+eq("cont_binding_other_chunks", cbind(K.bind, h(e.binding), h(ct.digest), 3, 4, 3), cn.cont_binding_other_chunks);
+eq("cont_binding_under_code_key", cbind(K.code, h(e.binding), h(ct.digest), 3, 4, 2), cn.cont_binding_under_code_key);
+for (const [k, val] of Object.entries(cn)) if (val === ct.digest || val === ct.cont_binding) { console.error("NOT DIFFERENT", k); bad++; }
 console.log(bad === 0 ? "device-link-ceremony node cross-check: PASS" : "FAIL");
 process.exit(bad ? 1 : 0);

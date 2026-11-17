@@ -1663,6 +1663,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/ceremony_continuation_tests.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows/group_lane.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
