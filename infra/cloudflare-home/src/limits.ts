@@ -2,8 +2,6 @@
 // Operational limits of this Home. They are implementation parameters, never protocol constants (CLOUDFLARE_REFERENCE_DEPLOYMENT.md);
 // they are advertised in ProviderCapabilities.limits and every one fails with a typed `quota`, `payload_too_large` or `rate_limited`.
 
-import type { Env } from "./env";
-
 export const DAY = 86_400;
 
 export const LIMITS = {
@@ -91,12 +89,17 @@ export const USAGE_CONFIG = {
   hardRatio: 0.95,
 } as const;
 
+/** The only binding the limits read; a structural subset of Env so this module (and the tests of the pure rules) does not pull in the Durable Object classes. */
+export interface ProfileEnv {
+  readonly OM_PROFILE?: string;
+}
+
 export type ProfileName = "default" | "personal";
 
 /** `personal` selects the personal profile. Unset, empty or `default` is the default profile. Any other value is a typo and gets the stricter personal profile, never silently the looser one. */
-export const profileOf = (env: Env): ProfileName => {
+export const profileOf = (env: ProfileEnv): ProfileName => {
   const p = (env.OM_PROFILE ?? "").trim().toLowerCase();
   return p === "" || p === "default" ? "default" : "personal";
 };
 
-export const limitsOf = (env: Env): Limits => (profileOf(env) === "personal" ? { ...LIMITS, ...PERSONAL_LIMITS } : LIMITS);
+export const limitsOf = (env: ProfileEnv): Limits => (profileOf(env) === "personal" ? { ...LIMITS, ...PERSONAL_LIMITS } : LIMITS);
