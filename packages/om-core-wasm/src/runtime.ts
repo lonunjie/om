@@ -9,7 +9,7 @@ import type {
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
-import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
+import type { BackupHeader, BackupPlan, BlobLimits, RecoveryPlace, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
@@ -210,6 +210,16 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     limits = found === null ? null : { maxBlobBytes: found.maxBlobBytes, ...(found.maxSpoolBytes === undefined ? {} : { maxSpoolBytes: found.maxSpoolBytes }), ...(found.maxBlobs === undefined ? {} : { maxBlobs: found.maxBlobs }) };
     core.call({ cmd: "set_blob_limits", limits: found === null ? null : { maxBlobBytes: found.maxBlobBytes, maxSpoolBytes: found.maxSpoolBytes ?? 0, maxBlobs: found.maxBlobs ?? 0 } });
     return limits;
+  }
+  // The recovery place (ADR-0200): read once from the Home's capabilities and handed to Core, so an account made now carries it on its key
+  // sheet and writes its record (ADR-0199). Failure to find out leaves the last answer (none at first: the key is then shown alone).
+  let placeKnown = false;
+  async function ensureRecoveryPlace(): Promise<void> {
+    if (placeKnown || !provider.recoveryPlace) return;
+    let found: RecoveryPlace | null;
+    try { found = await provider.recoveryPlace(); } catch { return; }
+    placeKnown = true;
+    core.call({ cmd: "set_recovery_place", place: found === null ? null : { host: found.host, ...(found.port === undefined ? {} : { port: found.port }), scope: found.scope } });
   }
   const ensureLimits = async (): Promise<void> => { if (limits === null || Date.now() - limitsAt > LIMITS_TTL_MS) await refreshLimits(); };
   async function stage(profileId: ProfileId, blobId: string, ciphertext: Uint8Array): Promise<boolean> {
@@ -468,6 +478,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     dispatch(intent: CoreIntent) {
       return exclusive(async () => {
+        if (intent.kind === "CreateIdentityProfile") await ensureRecoveryPlace();
         await topUpRoutes();
         const step = core.call({ cmd: "dispatch", intent }) as StepJson;
         await commit(step.commit, intent.ctx);

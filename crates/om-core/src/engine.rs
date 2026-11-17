@@ -2166,6 +2166,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .map(|k| RecoveryKeyView {
                                 key_operation_id: k.key_operation_id.clone(),
                                 groups: k.groups.clone(),
+                                sheet: k.sheet.clone(),
                             });
                         Ok(to(&v))
                     }
@@ -2660,5 +2661,17 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             home: j.home.clone(),
             restricted: true,
         }),
+        record: match st.app.recovery_record_status(now_ms) {
+            crate::state::RecoveryRecordStatus::Off => None,
+            crate::state::RecoveryRecordStatus::FinishingSetup => {
+                Some(crate::api::RecoveryRecordCode::FinishingSetup)
+            }
+            crate::state::RecoveryRecordStatus::Ready => {
+                Some(crate::api::RecoveryRecordCode::Ready)
+            }
+            crate::state::RecoveryRecordStatus::NeedsAttention => {
+                Some(crate::api::RecoveryRecordCode::NeedsAttention)
+            }
+        },
     }
 }

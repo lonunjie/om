@@ -966,6 +966,9 @@ pub struct ProfileSummary {
 pub struct RecoveryKeyView {
     pub key_operation_id: OperationId,
     pub groups: Vec<String>,
+    /// The key sheet text (ADR-0200) when this account has a recovery place; absent when the key is shown alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sheet: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1228,6 +1231,18 @@ pub struct RecoveryStatusView {
     /// Absent otherwise, so existing readers are unaffected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovering: Option<RecoveringView>,
+    /// How far this account's recovery record is: present only when the account keeps one (it has a recovery place).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<RecoveryRecordCode>,
+}
+
+/// The state of the recovery record kept at the Home (ADR-0199 section 6), in the words Settings uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryRecordCode {
+    FinishingSetup,
+    Ready,
+    NeedsAttention,
 }
 
 /// The restricted recovery state of a device that has entered a recovery key but has no account yet.

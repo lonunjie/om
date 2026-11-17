@@ -39,6 +39,15 @@ export type NetCall =
   | { readonly call: "delete_blob"; readonly blobId: string; readonly ownerCap: string; readonly location: string }
   /** Device-link ceremony (D24): make sure the short-lived queue exists at `relayUri` and answer its receive capability as `bytes` (hex). */
   | { readonly call: "open_queue"; readonly mailbox: string; readonly relayUri: string }
+  /**
+   * RecoveryStore put (ADR-0199 section 6, ADR-0201): store the sealed record envelope `bytes` at `locator` of the Home at `host[:port]`,
+   * with `writeCap` as the bearer. `ifMatch` is the ETag string of the envelope being replaced (absent on the first write).
+   * `requestId` is fixed per staged write: a retry sends the same id and the same bytes. Answer `bytes` = the new ETag as the UTF-8 hex of
+   * its string; `rejected` `stale_state` when the ETag moved (Core then reads the record to settle it).
+   */
+  | { readonly call: "recovery_put"; readonly host: string; readonly port?: number; readonly locator: string; readonly writeCap: string; readonly requestId: string; readonly ifMatch?: string; readonly bytes: string }
+  /** RecoveryStore get: answer `many` = [ETag string (UTF-8 hex), envelope (hex)]; a wrong capability and an absent record are both `not_found`. */
+  | { readonly call: "recovery_get"; readonly host: string; readonly port?: number; readonly locator: string; readonly readCap: string }
   /** STUB (recovery): deliver a signed RecoveryRequest (`bytes`, hex) to the account's Home(s). No Home serves it yet: answer `rejected` `unsupported`. */
   | { readonly call: "recovery_request_fanout"; readonly bytes: string }
   /** STUB (recovery): deliver a signed RecoveryVeto (`bytes`, hex) the same way. Answer `rejected` `unsupported`. */
@@ -81,6 +90,11 @@ export interface Provider {
    * means "could not find out": the last answer stays in force. Core refuses attachments until this answers.
    */
   blobLimits?(): Promise<BlobLimits | null>;
+  /**
+   * Where this person's Home keeps recovery records (`om.recovery.store.v1`): its address and `recovery_scope_id` (hex), or `null`
+   * when it offers none. A rejected promise means "could not find out". The runtime hands it to Core before an account is created.
+   */
+  recoveryPlace?(): Promise<RecoveryPlace | null>;
   poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string, capability?: string): Promise<readonly Inbound[]>;
   /**
    * Allocates routes for `count` new mailboxes: a fresh random 16-byte `mailbox` id (hex) for Core to poll, and the
@@ -122,6 +136,9 @@ export type DirectFrame =
 
 /** Where a direct fetch stands (`null` from the runtime when none is open). */
 export interface DirectFetchProgress { readonly state: "idle" | "requested" | "receiving" | "complete" | "committed" | "failed"; readonly held: number }
+
+/** The Home's recovery place (maps to `set_recovery_place`): host name, optional port, 32-byte scope id (hex). */
+export interface RecoveryPlace { readonly host: string; readonly port?: number; readonly scope: string }
 
 /** What the store advertises (maps to `set_blob_limits`). `maxBlobBytes` is the largest single ciphertext object. */
 export interface BlobLimits { readonly maxBlobBytes: number; readonly maxSpoolBytes?: number; readonly maxBlobs?: number }

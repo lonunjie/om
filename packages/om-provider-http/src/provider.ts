@@ -20,16 +20,17 @@
 //
 // Failure classes follow Core's contract: `unavailable` = definitely not performed; `timeout` = may have been performed
 // (every mutating request carries a content-derived request_id, so Core's exact retry is idempotent at the Home).
-import type { BlobLimits, Inbound, MailboxKind, NetCall, NetError, NetResult, PerformExtra, Provider, RouteOffer } from "@om/core-wasm";
+import type { BlobLimits, RecoveryPlace, Inbound, MailboxKind, NetCall, NetError, NetResult, PerformExtra, Provider, RouteOffer } from "@om/core-wasm";
 import {
   API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
-  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeQueueCreate, encodeTicketParams, fromHex, toHex,
+  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeQueueCreate, encodeTicketParams, fromHex, toHex, fromBase64Url, toBase64Url,
   FEATURES, UNKNOWN_USAGE, USAGE_PATH, encode, map, parseUsageState, type HomeErrorBody, type ProviderUsageState, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
 import { depositCap, descriptorPublishCap, installSecret, introServiceCap, keyPublishCap, mailboxCaps, requestId } from "./derive";
 import type { SecretStore } from "./secrets";
 import { checkProviderUrl, type ProviderConfig } from "./config";
+import { createRecoveryStoreClient, type RecoveryFailure, type RecoveryStoreClient } from "./recovery";
 import { createWakeHub, type WakeHubOptions, type WakeSocketFactory, type WakeStats } from "./wake";
 
 export interface HttpProviderOptions {
@@ -217,6 +218,42 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     if (r.kind === "network" || r.kind === "gateway") { if (t.own) reach = "unreachable"; return UNAVAILABLE; }
     if (t.own) reach = "reachable";
     return r;
+  }
+
+  // ------------------------------------------------------------------------------------------ recovery record (om.recovery.store.v1)
+
+  /** The store at the Home a recovery call names: the configured Home (with the admission secret, for a create), or another that passes the peer rules. */
+  function recoveryClient(host: string, port: number | undefined): { readonly client: RecoveryStoreClient; readonly t: Target } | undefined {
+    const authority = port === undefined ? host : `${host}:${String(port)}`;
+    const t = homeOf(`${new URL(base).protocol}//${authority}`);
+    if (t === undefined) return undefined;
+    const config = checkProviderUrl(t.base, { allowLoopbackHttp: true });
+    if (!config.ok) return undefined;
+    return { client: createRecoveryStoreClient({ config: config.config, fetch: http.fetch, timeoutMs: http.timeoutMs, ...(t.own && opts.admission ? { admission: opts.admission } : {}) }), t };
+  }
+  const fromFailure = async (f: RecoveryFailure, t: Target, mutating: boolean): Promise<NetResult> => {
+    if (f.kind === "home") return mapError({ name: f.name, code: 0, retryable: f.retryable, ...(f.retryAfterSeconds === undefined ? {} : { retryAfterSeconds: f.retryAfterSeconds }) });
+    return mutating ? unknownOutcome(t) : UNAVAILABLE; // an unknown outcome of a write is retried with the same id and bytes
+  };
+  async function recoveryPut(c: Extract<NetCall, { call: "recovery_put" }>): Promise<NetResult> {
+    const r = recoveryClient(c.host, c.port);
+    if (r === undefined) return rejected("invalid");
+    const res = await r.client.putRecord({ locator: fromHex(c.locator), writeCap: fromHex(c.writeCap), envelope: fromHex(c.bytes), requestId: fromHex(c.requestId), ...(c.ifMatch === undefined ? {} : { ifMatch: fromBase64Url(c.ifMatch) }) });
+    if (!res.ok) { if (res.failure.kind === "home" && res.failure.name === "admission_denied" && r.t.own) admissionDenied = true; return fromFailure(res.failure, r.t, true); }
+    return { result: "bytes", bytes: toHex(new TextEncoder().encode(toBase64Url(res.value))) };
+  }
+  async function recoveryGet(c: Extract<NetCall, { call: "recovery_get" }>): Promise<NetResult> {
+    const r = recoveryClient(c.host, c.port);
+    if (r === undefined) return rejected("invalid");
+    const res = await r.client.getRecord(fromHex(c.readCap));
+    if (!res.ok) return fromFailure(res.failure, r.t, false);
+    return { result: "many", items: [toHex(new TextEncoder().encode(toBase64Url(res.value.etag))), toHex(res.value.envelope)] };
+  }
+  async function recoveryPlace(): Promise<RecoveryPlace | null> {
+    const info = await createRecoveryStoreClient({ config: opts.config, fetch: http.fetch, timeoutMs: http.timeoutMs }).info();
+    if (info === undefined) return null;
+    const u = new URL(base);
+    return { host: u.hostname, ...(u.port === "" ? {} : { port: Number(u.port) }), scope: toHex(info.scopeId) };
   }
 
   async function advertisedFeatures(): Promise<readonly unknown[] | undefined> {
@@ -686,6 +723,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     wakeStats: () => hub.stats(),
     dispose: () => { hub.dispose(); },
     blobLimits,
+    recoveryPlace,
     async perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
       try {
         switch (call.call) {
@@ -703,6 +741,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
           case "put_blob": return await putBlob(call, extra?.ciphertext);
           case "get_blob": return await getBlob(call);
           case "delete_blob": return await deleteBlob(call);
+          case "recovery_put": return await recoveryPut(call);
+          case "recovery_get": return await recoveryGet(call);
           // No Home endpoint exists for recovery fan-out yet (stub): refused, Core drops it.
           case "recovery_request_fanout":
           case "recovery_veto_fanout": return rejected("unsupported");

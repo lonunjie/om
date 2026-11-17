@@ -1,7 +1,7 @@
 // TEST ONLY: an in-memory provider (key material, introduction service, relay mailboxes) and an in-memory
 // EncryptedKv. Never import this from application code: tools/web_guard.py and the production bundle check refuse it.
 import type { EncryptedKv, KvGetResult, KvListResult, KvResult } from "@om/platform-api";
-import type { BlobLimits, Inbound, MailboxKind, NetCall, NetResult, PerformExtra, Provider, RouteOffer } from "./types";
+import type { BlobLimits, RecoveryPlace, Inbound, MailboxKind, NetCall, NetResult, PerformExtra, Provider, RouteOffer } from "./types";
 
 export const TEST_PROVIDER_MARKER = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
 /** The test relay's name and capability shape: a fixed prefix plus the mailbox id, unlike the id itself. */
@@ -47,6 +47,12 @@ export interface MemoryProvider extends Provider {
   inject(fault: Fault): void;
   /** What the store advertises from now on (`null`: it holds no files). Default {@link TEST_BLOB_LIMITS}. */
   setBlobLimits(limits: BlobLimits | null): void;
+  /** Where this store keeps recovery records from now on (`null`: it offers no RecoveryStore). Default none. */
+  setRecoveryPlace(place: RecoveryPlace | null): void;
+  /** The recovery records held, by locator: sealed envelope and ETag (ciphertext only). */
+  recoveryRecords(): ReadonlyMap<string, { readonly envelope: string; readonly etag: string }>;
+  /** Every recovery write the store accepted, in order (locator, request id): an exact retry is not repeated here. */
+  recoveryWrites(): readonly { readonly locator: string; readonly requestId: string }[];
   /** Every object the store holds, by locator: ciphertext only, for confinement assertions. */
   blobs(): ReadonlyMap<string, Uint8Array>;
   /** Make the store forget an object (expiry). */
@@ -73,6 +79,9 @@ export function createMemoryProvider(): MemoryProvider {
   let blobLimits: BlobLimits | null = TEST_BLOB_LIMITS;
   const objects = new Map<string, { owner: string; read: string; bytes: Uint8Array; digest: string }>(); // by locator (32 hex)
   const puts = new Map<string, string>(); // requestId -> receipt hex (an exact retry answers alike)
+  let place: RecoveryPlace | null = null;
+  const records = new Map<string, { writeCap: string; envelope: string; etag: string; requestId: string }>(); // RecoveryStore (loopback of ADR-0201)
+  const recordLog: { locator: string; requestId: string }[] = [];
   const log: string[] = []; // every deposit ever received: acks free relay storage, not this record of what it saw
   return {
     marker: TEST_PROVIDER_MARKER,
@@ -83,6 +92,10 @@ export function createMemoryProvider(): MemoryProvider {
     expireBlobs: () => { objects.clear(); },
     corruptBlobs: () => { for (const o of objects.values()) o.bytes[10] = (o.bytes[10] ?? 0) ^ 1; },
     blobLimits: () => Promise.resolve(blobLimits),
+    recoveryPlace: () => Promise.resolve(place),
+    setRecoveryPlace: (p) => { place = p; },
+    recoveryRecords: () => new Map([...records].map(([k, v]) => [k, { envelope: v.envelope, etag: v.etag }])),
+    recoveryWrites: () => [...recordLog],
     allocateRoutes(count): Promise<readonly RouteOffer[]> {
       const out: RouteOffer[] = [];
       for (let i = 0; i < count; i++) {
@@ -189,6 +202,24 @@ export function createMemoryProvider(): MemoryProvider {
           // A ceremony queue: its receive capability names it, like a real Home's derived capability.
           boxes.set(call.mailbox, boxes.get(call.mailbox) ?? { next: 0, items: [] });
           r = { result: "bytes", bytes: `${"d5".repeat(16)}${call.mailbox}${"5d".repeat(16)}` };
+          break;
+        }
+        case "recovery_put": {
+          if (place === null) { r = { result: "err", error: { kind: "rejected", reason: "unsupported" } }; break; }
+          const held = records.get(call.locator);
+          const reject = (reason: "stale_state" | "not_found" | "conflict"): NetResult => reason === "not_found" ? { result: "err", error: { kind: "not_found" } } : { result: "err", error: { kind: "rejected", reason } };
+          if (held !== undefined && held.writeCap !== call.writeCap) { r = reject("not_found"); break; }
+          if (held !== undefined && held.requestId === call.requestId) { r = held.envelope === call.bytes ? { result: "bytes", bytes: held.etag } : reject("conflict"); break; }
+          if (held === undefined ? call.ifMatch !== undefined : held.etag !== toHexStr(new TextEncoder().encode(call.ifMatch ?? ""))) { r = reject("stale_state"); break; }
+          const etag = toHexStr(new TextEncoder().encode(`etag-${call.locator.slice(0, 8)}-${await blobDigest(fromHexStr(call.bytes))}`));
+          records.set(call.locator, { writeCap: call.writeCap, envelope: call.bytes, etag, requestId: call.requestId });
+          recordLog.push({ locator: call.locator, requestId: call.requestId });
+          r = { result: "bytes", bytes: etag };
+          break;
+        }
+        case "recovery_get": {
+          const held = records.get(call.locator);
+          r = held === undefined ? { result: "err", error: { kind: "not_found" } } : { result: "many", items: [held.etag, held.envelope] };
           break;
         }
         case "recovery_request_fanout":

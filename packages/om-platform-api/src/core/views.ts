@@ -160,7 +160,12 @@ export interface ConversationView { readonly summary: ConversationSummary; reado
 export interface PendingOperationView { readonly operationId: OperationId; readonly intentKind: CoreIntentKind; readonly outcome: OutcomeClass }
 
 /** Display-once secret. Core returns it only until ConfirmRecoveryKeyStored; UI must never persist or log it. */
-export interface RecoveryKeyView { readonly keyOperationId: OperationId; readonly groups: readonly string[] }
+export interface RecoveryKeyView {
+  readonly keyOperationId: OperationId;
+  readonly groups: readonly string[];
+  /** The key sheet text (ADR-0200: the key with its place) when this account has a recovery place; absent when the key is shown alone. */
+  readonly sheet?: string;
+}
 export interface InviteView { readonly operationId: OperationId; readonly link: string; readonly expiresAt: number }
 
 /** Machine codes only (who can see what at this Home tier); the UI owns the wording. */

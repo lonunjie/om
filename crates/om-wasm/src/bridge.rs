@@ -18,6 +18,15 @@ use om_core::route::RouteOffer;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+/// The recovery place a host supplies (`SetRecoveryPlace`): host name, optional port, scope id (hex, 32 bytes).
+#[derive(Deserialize)]
+struct RecoveryPlaceArg {
+    host: String,
+    #[serde(default)]
+    port: Option<u16>,
+    scope: String,
+}
+
 #[derive(Deserialize)]
 #[serde(
     tag = "cmd",
@@ -109,6 +118,12 @@ enum Command {
     /// refused (`unsupported`), never sent inline.
     SetBlobLimits {
         limits: Option<BlobLimits>,
+    },
+    /// Where this account keeps its recovery record (the Home's address and its `recovery_scope_id`), as the host read
+    /// it from the Home's capabilities document; `null` when the Home offers no RecoveryStore. Must be set before the
+    /// account is created for its key sheet to carry the place (ADR-0200); without one no record is written.
+    SetRecoveryPlace {
+        place: Option<RecoveryPlaceArg>,
     },
     /// Seal an attachment on this device (`plaintext` hex). Answers `{prepared, commit}`, or `{refused}` with the typed
     /// reason (`too_large` with the largest size, `storage_full`, `no_blob_store`, ...) before anything is sent. The host
@@ -797,6 +812,20 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::SupplyRoutes { routes } => Ok(json!(self.core()?.supply_routes(routes))),
             Command::SetBlobLimits { limits } => {
                 self.core()?.set_blob_limits(limits);
+                Ok(Value::Null)
+            }
+            Command::SetRecoveryPlace { place } => {
+                let place = match place {
+                    None => None,
+                    Some(p) => Some(om_core::recovery_record::RecoveryPlace {
+                        host: p.host,
+                        port: p.port,
+                        scope: unhex(&p.scope)?
+                            .try_into()
+                            .map_err(|_| CoreError::Invalid("scope"))?,
+                    }),
+                };
+                self.core()?.set_recovery_place(place);
                 Ok(Value::Null)
             }
             Command::PrepareAttachment {

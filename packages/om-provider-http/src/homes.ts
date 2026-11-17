@@ -59,6 +59,7 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
       return out;
     },
     // Files live at the active Home; an object of ours is deleted at the Home whose address its location carries.
+    recoveryPlace: () => (first.recoveryPlace ? first.recoveryPlace() : Promise.resolve(null)),
     blobLimits: () => (first.blobLimits ? first.blobLimits() : Promise.resolve(null)),
     perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
       switch (call.call) {
@@ -67,6 +68,8 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
         case "deposit": return (call.relayUri === undefined ? first : homeFor(call.relayUri)).perform(call);
         case "ack": return (call.kind === "intro" ? first : homeFor(call.relayUri)).perform(call);
         case "open_queue": return homeFor(call.relayUri).perform(call);
+        case "recovery_put":
+        case "recovery_get": return first.perform(call);
         default: return first.perform(call);
       }
     },

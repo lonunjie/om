@@ -128,6 +128,8 @@ export interface RecoveryStatusView {
   readonly requests: readonly RecoveryRequestView[];
   /** Set only on a recovering device that has entered its key (`BeginRecovery`): the restricted recovery state. */
   readonly recovering?: RecoveringView;
+  /** How far the recovery record kept at the Home is; absent when the account keeps none (no recovery place). */
+  readonly record?: "finishing_setup" | "ready" | "needs_attention";
 }
 
 /** A device that entered a recovery key but has no account yet: it cannot send as the identity. */

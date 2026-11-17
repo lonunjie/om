@@ -6,7 +6,8 @@ import {
   HomeError, FEATURES, decode, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, decodeVetoPost, encodeHomeError, encodeInboxDrainResponse, encodeRecordGetResponse, encodeVetoList, fromBase64Url, recoveryEtag, recoveryInboxId, recoveryLocator, toBase64Url, toHex, ADMISSION_HEADER,
 } from "@om/home-wire";
 import { describe, expect, it } from "vitest";
-import { createRecoveryStoreClient, fanOutToAll, parseProviderUrl, recordLocator, recoveryStoreFor, type RecoveryStoreClient } from "./index";
+import type { NetCall } from "@om/core-wasm";
+import { createHttpProvider, createMemorySecretStore, createRecoveryStoreClient, type HttpProvider, fanOutToAll, parseProviderUrl, recordLocator, recoveryStoreFor, type RecoveryStoreClient } from "./index";
 
 const rand = (n: number): Uint8Array => crypto.getRandomValues(new Uint8Array(n));
 const BASE = "https://home.example";
@@ -217,5 +218,50 @@ describe("capabilities (is there a RecoveryStore here)", () => {
     expect(recoveryStoreFor("https://home.example", {})).toBeDefined();
     expect(recoveryStoreFor("http://127.0.0.1:8787", { allowLoopbackHttp: true })).toBeDefined();
     expect(recoveryStoreFor("https://home.example/?cap=1", {})).toBeUndefined();
+  });
+});
+
+describe("the Core transport adapter for the record (recovery_put, recovery_get, recoveryPlace)", () => {
+  const typedErr = (name: ConstructorParameters<typeof HomeError>[0], status = 409): Response =>
+    new Response(encodeHomeError(new HomeError(name)) as BodyInit, { status, headers: { "content-type": "application/cbor" } });
+  const provider = (handler: (s: { url: string; method: string; headers: Headers }) => Response, admission?: Uint8Array): HttpProvider =>
+    createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), timeoutMs: 1000, ...(admission ? { admission } : {}), fetch: (i, init) => Promise.resolve(handler({ url: urlOf(i), method: init?.method ?? "GET", headers: new Headers(init?.headers) })) });
+  const put = (extra: object = {}): NetCall => ({ call: "recovery_put", host: "home.example", locator: toHex(rand(32)), writeCap: toHex(rand(32)), requestId: toHex(rand(16)), bytes: toHex(rand(64)), ...extra });
+
+  it("a put answers the new ETag as the hex of its string, and a moved ETag is stale_state (Core reads to settle it)", async () => {
+    const etag = rand(32);
+    const ok = await provider(() => empty(etag)).perform(put());
+    expect(ok).toEqual({ result: "bytes", bytes: toHex(new TextEncoder().encode(toBase64Url(etag))) });
+    expect(await provider(() => typedErr("stale_generation")).perform(put({ ifMatch: toBase64Url(rand(32)) }))).toEqual({ result: "err", error: { kind: "rejected", reason: "stale_state" } });
+  });
+
+  it("the ETag Core hands back is sent as a quoted If-Match; a first write is If-None-Match", async () => {
+    const seen: Headers[] = [];
+    const p = provider((s) => { seen.push(s.headers); return empty(rand(32)); });
+    const tag = toBase64Url(rand(32));
+    await p.perform(put({ ifMatch: tag }));
+    await p.perform(put());
+    expect(seen[0]?.get("if-match")).toBe(`"${tag}"`);
+    expect(seen[1]?.get("if-none-match")).toBe("*");
+  });
+
+  it("an unreachable Home is unavailable for a read, never a rejection", async () => {
+    const p = createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), timeoutMs: 100, fetch: () => Promise.reject(new Error("down")) });
+    expect(await p.perform({ call: "recovery_get", host: "home.example", locator: toHex(rand(32)), readCap: toHex(rand(32)) })).toEqual({ result: "err", error: { kind: "unavailable" } });
+  });
+
+  it("a read of an absent record is not_found, a found one answers [etag, envelope]", async () => {
+    const env = rand(50);
+    const etag = rand(32);
+    const found = await provider(() => new Response(encodeRecordGetResponse(env) as BodyInit, { status: 200, headers: { ETag: `"${toBase64Url(etag)}"` } })).perform({ call: "recovery_get", host: "home.example", locator: toHex(rand(32)), readCap: toHex(rand(32)) });
+    expect(found).toEqual({ result: "many", items: [toHex(new TextEncoder().encode(toBase64Url(etag))), toHex(env)] });
+    expect(await provider(() => typedErr("not_found", 404)).perform({ call: "recovery_get", host: "home.example", locator: toHex(rand(32)), readCap: toHex(rand(32)) })).toEqual({ result: "err", error: { kind: "not_found" } });
+  });
+
+  it("recoveryPlace is the configured Home's address and scope when it advertises the store, and null when it does not", async () => {
+    const scope = rand(32);
+    const doc = (features: string[]): Response => new Response(JSON.stringify({ features, recovery_scope_id: toBase64Url(scope), limits: {} }), { status: 200 });
+    expect(await provider(() => doc([FEATURES.recoveryStore])).recoveryPlace?.()).toEqual({ host: "home.example", scope: toHex(scope) });
+    expect(await provider(() => doc([])).recoveryPlace?.()).toBeNull();
   });
 });
