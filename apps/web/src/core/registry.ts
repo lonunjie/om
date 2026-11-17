@@ -22,6 +22,12 @@ const done = (tx: IDBTransaction): Promise<void> =>
     tx.onabort = () => { reject(new Error("registry write aborted")); };
   });
 
+const request = <T,>(q: IDBRequest<T>): Promise<T> =>
+  new Promise((resolve, reject) => {
+    q.onsuccess = () => { resolve(q.result); };
+    q.onerror = () => { reject(new Error("registry read failed")); };
+  });
+
 export interface ProfileRegistry {
   list(): Promise<readonly ProfileId[]>;
   add(profileId: ProfileId): Promise<void>;
@@ -33,12 +39,12 @@ export function createProfileRegistry(idb: IDBFactory): ProfileRegistry {
       const db = await open(idb);
       try {
         const tx = db.transaction(STORE, "readonly");
-        const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
-          const q = tx.objectStore(STORE).getAllKeys();
-          q.onsuccess = () => { resolve(q.result); };
-          q.onerror = () => { reject(new Error("registry read failed")); };
-        });
-        return keys.filter((k): k is string => typeof k === "string").sort().map(asProfileId);
+        const store = tx.objectStore(STORE);
+        const [keys, times] = await Promise.all([request(store.getAllKeys()), request(store.getAll())]);
+        // Oldest first (the stored value is the creation time), so the first identity stays first after a reload; the id only breaks a tie.
+        const rows = keys.flatMap((k, i) => (typeof k === "string" ? [{ id: k, at: typeof times[i] === "number" ? times[i] : 0 }] : []));
+        rows.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        return rows.map((r) => asProfileId(r.id));
       } finally {
         db.close();
       }

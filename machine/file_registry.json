@@ -1061,6 +1061,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/registry.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/registry.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
