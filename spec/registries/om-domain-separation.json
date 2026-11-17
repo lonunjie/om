@@ -741,7 +741,7 @@
       "construction": "DS-HASH (body = every byte of the recovery sheet string before its check); check = first 4 bytes of the digest value",
       "object": "recovery sheet string v1 whole-string checksum (ADR-0200, spec/protocol/recovery-sheet.md)",
       "wave": "W1",
-      "status": "documented"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-SHEET-LINE-CHECK-v1",
@@ -749,7 +749,7 @@
       "construction": "DS-HASH (body = line index (1 byte) || the line's payload characters, upper case, no separators); line check = first 10 bits of the digest value as two base32 characters",
       "object": "recovery sheet string v1 per-line transcription check (ADR-0200)",
       "wave": "W1",
-      "status": "documented"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-INBOX-ID-v1",

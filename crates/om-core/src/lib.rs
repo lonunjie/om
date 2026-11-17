@@ -30,6 +30,7 @@ pub mod intro;
 pub mod present;
 pub mod recovery;
 pub mod recovery_record;
+pub mod recovery_sheet;
 pub mod relayset;
 pub mod route;
 pub mod state;
