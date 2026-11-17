@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { ConversationId, ConversationTimelineItem, MessageId, ReplyView } from "@om/platform-api";
+import type { ConversationId, ConversationTimelineItem, MessageId, ReactionView, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -16,11 +16,12 @@ import { contactsLine, type SameNameCopy } from "./nameCues";
 import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
+import { DEFAULT_REACTIONS } from "./reactions";
 import { PeerRecovery } from "./PeerRecovery";
 import { SecurityNotices } from "./notices";
 import type { RecoveryContactCopy } from "../recovery/copy";
 import { RichText, plainTextToRichText } from "./richtext";
-import { resolveIntent, type ConversationServices } from "./services";
+import { firstOutcome, resolveIntent, type ConversationServices } from "./services";
 import "./conversations.css";
 
 /** What the composer needs to quote a message: its id and the bounded start of its text (read from the timeline, never from the wire). */
@@ -92,6 +93,8 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
   const [contactOpen, setContactOpen] = useState(false);
+  const [picking, setPicking] = useState<MessageId | null>(null);
+  const [reactFailed, setReactFailed] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const seen = useRef<{ readonly count: number } | null>(null);
   const timeline = state.status === "loading" || state.status === "failed" ? null : state.value.view.timeline;
@@ -130,6 +133,16 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
     const t = setTimeout(() => { setMarked(null); }, 2400);
     return () => { clearTimeout(t); setMarked(null); };
   }, [focusMessageId, hasFocus]);
+
+  /** Set or remove our reaction on a message. A refusal is said once, plainly; the chip simply does not change. */
+  const react = (messageId: MessageId, reaction: string, present: boolean): void => {
+    const r = resolveIntent(services, "react-message", { conversationId, messageId, reaction, present });
+    if (r.status !== "intent") return;
+    setReactFailed(false);
+    setPicking(null);
+    const fail = (): void => { setReactFailed(true); };
+    services.client.dispatch(r.intent).then((h) => firstOutcome(services, h.operationId)).then((o) => { if (o.kind === "Rejected") fail(); }, fail);
+  };
 
   /** Tap the quoted block: scroll to the original and mark it for a moment (nothing moves if reduced motion is asked for). */
   const jumpTo = (target: MessageId): void => {
@@ -178,6 +191,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
           <SecurityNotices notices={view.summary.notices} copy={copy.notices} />
         </div>
       )}
+      {reactFailed ? <p className="om-conv-view__relationship" role="status">{copy.react.failed}</p> : null}
       <div role="log" aria-label={copy.view.label} className="om-conv-view__log">
         {view.timeline.length === 0 ? <p className="om-conv-view__empty">{copy.view.empty}</p> : (
           <ol className="om-conv-view__timeline">
@@ -199,6 +213,23 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                     <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />
                     <MessageAttachments services={services} item={item} copy={copy.attachments} />
                   </div>
+                  {view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
+                    <span className="om-react" onKeyDown={(e) => { if (e.key === "Escape" && picking === item.messageId) { e.stopPropagation(); setPicking(null); } }}>
+                      <IconButton
+                        className="om-conv-view__reply" label={`${copy.react.action}: ${messageGist(item, copy)}`} icon={<Icon name="smile" size={18} />}
+                        aria-expanded={picking === item.messageId} onClick={() => { setPicking((p) => (p === item.messageId ? null : item.messageId)); }}
+                      />
+                      {picking === item.messageId ? (
+                        <div role="group" aria-label={copy.react.picker} className="om-react__picker">
+                          {DEFAULT_REACTIONS.map((key) => (
+                            <button key={key} type="button" className="om-react__choice" aria-label={copy.react.set(key)} onClick={() => { react(item.messageId, key, !(item.reactions?.some((r) => r.key === key && r.mine) ?? false)); }}>
+                              <span aria-hidden="true">{key}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </span>
+                  )}
                   {onReply === undefined || view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
                     <IconButton
                       className="om-conv-view__reply" label={`${copy.reply.action}: ${messageGist(item, copy)}`} icon={<Icon name="reply" size={18} />}
@@ -207,6 +238,17 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                     />
                   )}
                   </div>
+                  {item.reactions === undefined || item.reactions.length === 0 ? null : (
+                    <ul className="om-react__chips" aria-label={copy.react.list}>
+                      {item.reactions.map((r: ReactionView) => (
+                        <li key={r.key}>
+                          <button type="button" className="om-react__chip" data-mine={r.mine ? "true" : undefined} aria-pressed={r.mine} aria-label={copy.react.chip(r.key, r.count, r.mine)} onClick={() => { react(item.messageId, r.key, !r.mine); }}>
+                            <span aria-hidden="true">{r.key}{r.count > 1 ? ` ${String(r.count)}` : ""}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">
                       <time dateTime={new Date(item.sentAt).toISOString()}>{copy.view.formatTime(item.sentAt)}</time>

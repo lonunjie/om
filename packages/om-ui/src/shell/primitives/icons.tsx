@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni" | "attach" | "mic" | "pin" | "file" | "play" | "users" | "user" | "reply";
+  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni" | "attach" | "mic" | "pin" | "file" | "play" | "users" | "user" | "reply" | "smile";
 
 const PATHS: Readonly<Record<IconName, ReactNode>> = {
   back: <path d="M19 12H5M11 5l-7 7 7 7" />,
@@ -32,6 +32,7 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
   file: <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></>,
   play: <path d="M8 5l11 7-11 7z" />,
   // A bent arrow pointing back: reply. Mirrors with reading direction (ICON_SYSTEM_CONSTITUTION: directional relations may mirror).
+  smile: <><circle cx="12" cy="12" r="9" /><path d="M8.5 14.2a4.2 4.2 0 0 0 7 0" /><path d="M9 9.5v.01M15 9.5v.01" /></>,
   reply: <><path d="M9 8L4 12l5 4" /><path d="M5 12h7c4 0 7 2 8 6" /></>,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6" /></>,
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.7a3.5 3.5 0 0 1 0 6.6M18.5 14.4c1.9.8 3 2.7 3 5.6" /></>,

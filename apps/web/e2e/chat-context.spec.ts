@@ -33,3 +33,27 @@ test("a reply quotes the original for both people, and a tap on the quote moves 
   await alice.getByRole("textbox", { name: /message/i }).press("Escape");
   await expect(alice.getByText("Replying to Bob")).toHaveCount(0);
 });
+
+test("a reaction reaches the other person, counts both people, and either can remove their own", async ({ browser }) => {
+  const { alice, bob } = await inviteAndChat(browser, BASE);
+  const thumbs = "\u{1F44D}";
+
+  // Bob reacts to Alice's "hello bob" from the picker.
+  await bob.getByRole("button", { name: "React: hello bob" }).click();
+  await expect(bob.getByRole("group", { name: "Choose a reaction" }).getByRole("button")).toHaveCount(6);
+  await bob.getByRole("button", { name: `React with ${thumbs}` }).click();
+  await expect(bob.getByRole("button", { name: `${thumbs} 1, including you. Remove your reaction` })).toBeVisible({ timeout: 30_000 });
+  // Alice sees it on her own message, as someone else's.
+  const theirs = alice.getByRole("button", { name: `${thumbs} 1. Add yours` });
+  await expect(theirs).toBeVisible({ timeout: 60_000 });
+
+  // Alice adds hers by tapping the chip: both sides count two.
+  await theirs.click();
+  await expect(alice.getByRole("button", { name: `${thumbs} 2, including you. Remove your reaction` })).toBeVisible({ timeout: 30_000 });
+  await expect(bob.getByRole("button", { name: `${thumbs} 2, including you. Remove your reaction` })).toBeVisible({ timeout: 60_000 });
+
+  // Bob removes his: Alice's chip is hers alone again.
+  await bob.getByRole("button", { name: `${thumbs} 2, including you. Remove your reaction` }).click();
+  await expect(alice.getByRole("button", { name: `${thumbs} 1, including you. Remove your reaction` })).toBeVisible({ timeout: 60_000 });
+  await expect(bob.getByRole("button", { name: `${thumbs} 1. Add yours` })).toBeVisible({ timeout: 30_000 });
+});

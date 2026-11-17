@@ -243,14 +243,28 @@ pub struct Msg {
     pub social: Social,
 }
 
-/// What other events say about a message: the message it replies to. Reactions and the edited marker join it as their
-/// transitions land. Never part of the canonical create bytes beyond `reply_to`; a view is derived from it.
+/// What other events say about a message: the message it replies to and the reactions on it. Never part of the canonical create bytes beyond `reply_to`; a view is derived from it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Social {
     /// `reply_to` of the create: the EventID (hex) of a message in the same conversation (EVENT_MODEL `message.create`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reply_to: Option<Hex>,
+    /// One register per (actor, reaction key): the latest `reaction.set` by `(EventClock)` wins, a removal is kept as a
+    /// tombstone so a late older add cannot revive it (EVENT_MODEL `reaction.set`; 1:1 has one epoch, so clock order alone).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reactions: Vec<ReactionRec>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactionRec {
+    /// Whether the actor is us (any of our devices) rather than the other person.
+    pub mine: bool,
+    pub key: String,
+    pub present: bool,
+    pub clock_ms: u64,
+    pub clock_logical: u32,
 }
 
 /// One attachment of a message. `reference` is the canonical `attachment-ref` and contains the content key, so it is

@@ -116,3 +116,42 @@ describe("reply", () => {
     await waitFor(() => { expect(document.querySelector("[data-found='true']")).not.toBeNull(); });
   });
 });
+
+describe("reactions", () => {
+  function Plain({ services }: { readonly services: ConversationServices }) {
+    return <ConversationView services={services} conversationId={CONV} copy={testCopy} />;
+  }
+  const withTheirs = () => {
+    const h = createHarness({ env: {}, clock: () => 1000 });
+    h.seedProfile({ profileId: ME, label: "Me", conversations: [{ id: CONV, personId: asPersonId("maria"), displayName: "Maria", messages: [{ text: "Big news", direction: "incoming", reactions: ["❤️"] }] }] });
+    return { h, services: { client: h, registry: createActionRegistry({}), ctx: h.contextFor(ME) } as ConversationServices };
+  };
+
+  it("shows their reaction as a chip, and tapping it adds yours (count 2) and again removes it", async () => {
+    const { services } = withTheirs();
+    const { container } = render(<Plain services={services} />);
+    const chip = await screen.findByRole("button", { name: "❤️ 1. Add yours" });
+    expect(chip.getAttribute("aria-pressed")).toBe("false");
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(chip);
+    const mine = await screen.findByRole("button", { name: "❤️ 2, including you. Remove your reaction" });
+    expect(mine.getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(mine);
+    expect(await screen.findByRole("button", { name: "❤️ 1. Add yours" })).toBeTruthy();
+  });
+
+  it("the picker offers a small set, closes on Escape, and a pick sets one reaction", async () => {
+    const { services } = withTheirs();
+    const { container } = render(<Plain services={services} />);
+    await userEvent.click(await screen.findByRole("button", { name: "React: Big news" }));
+    const picker = screen.getByRole("group", { name: "Choose a reaction" });
+    expect(picker.querySelectorAll("button")).toHaveLength(6);
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("group", { name: "Choose a reaction" })).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: "React: Big news" }));
+    await userEvent.click(screen.getByRole("button", { name: "React with \u{1F44D}" }));
+    expect(await screen.findByRole("button", { name: "\u{1F44D} 1, including you. Remove your reaction" })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Choose a reaction" })).toBeNull();
+  });
+});

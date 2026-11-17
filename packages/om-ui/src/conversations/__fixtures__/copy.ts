@@ -13,6 +13,10 @@ export const testCopy: ConversationCopy = {
     action: "Reply", replyingTo: (n) => `Replying to ${n}`, replyingToSelf: "Replying to yourself", cancel: "Cancel reply",
     inReplyTo: (n) => `In reply to ${n}`, inReplyToSelf: "In reply to you", unavailable: "Original message unavailable", attachment: "Attachment", jump: "Go to the original message",
   },
+  react: {
+    action: "React", picker: "Choose a reaction", list: "Reactions", set: (k) => `React with ${k}`,
+    chip: (k, n, mine) => (mine ? `${k} ${String(n)}, including you. Remove your reaction` : `${k} ${String(n)}. Add yours`), failed: "The reaction could not be sent.",
+  },
   contact: {
     open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", nicknamePlaceholder: "A nickname only you see",
     nicknameHint: "Only you see this.", save: "Save", clear: "Remove nickname", saved: "Saved.", cleared: "Removed.", invalid: "That nickname could not be used.", failed: "Could not save.",

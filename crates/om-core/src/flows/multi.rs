@@ -1153,6 +1153,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if r.equivocated.contains(&eid) {
             return false;
         }
+        if ev.kind == events::K_REACTION {
+            // Our own other device reacted: the same register, set as ours.
+            let Some((target, key, present)) = super::social::read_reaction(ev) else {
+                return false;
+            };
+            super::social::apply_reaction(&mut r.messages, &target, true, &key, present, ev.clock);
+            return true;
+        }
         if ev.kind != events::K_CREATE {
             return true;
         }
@@ -1188,6 +1196,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             lane: false,
             social: Social {
                 reply_to: parts.reply_to,
+                ..Social::default()
             },
         });
         true

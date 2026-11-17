@@ -28,12 +28,21 @@ describe("Action Registry", () => {
     expect(registry.resolve({ actionId: "send-message", params: { conversationId: "c1", text: "yes", replyTo: 5 }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
   });
 
+  it("react-message sets or removes one reaction and refuses a key Core would refuse", () => {
+    const base = { conversationId: "c1", messageId: "msg-1", present: true };
+    expect(intentOf(registry.resolve({ actionId: "react-message", params: { ...base, reaction: "\u{1F44D}" }, ctx, origin: "direct" }))).toMatchObject({ kind: "SetReaction", messageId: "msg-1", reaction: "\u{1F44D}", present: true });
+    for (const reaction of ["", "  ", "x".repeat(65), "a\u0007b", 5]) {
+      expect(registry.resolve({ actionId: "react-message", params: { ...base, reaction }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    expect(registry.resolve({ actionId: "react-message", params: { ...base, reaction: "x", present: "yes" }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+  });
+
   it("every intent-producing action emits a known CoreIntent kind", () => {
     const samples: Record<string, unknown> = {
       "send-message": { conversationId: "c1", text: "x" },
       "send-attachments": { conversationId: "c1", text: "", attachments: [{ blobId: "a".repeat(64) }] },
       "send-attachments-direct": { conversationId: "c1", text: "", attachments: [{ blobId: "a".repeat(64) }] }, "withdraw-direct-offer": { messageId: "m1" },
-      "send-location": { conversationId: "c1", latE7: 515_000_000, lonE7: -1_000_000 }, "retry-message": { messageId: "m1" }, "switch-profile": { profileId: "p2" },
+      "send-location": { conversationId: "c1", latE7: 515_000_000, lonE7: -1_000_000 }, "retry-message": { messageId: "m1" }, "react-message": { conversationId: "c1", messageId: "m1", reaction: "\u{1F44D}", present: true }, "switch-profile": { profileId: "p2" },
       "accept-introduction": { requestId: "r1" }, "share-contact": { personId: "u1", scope: "full" }, "clear-adaptive-navigation": {},
       "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
       "create-invite": {}, "accept-invitation": { link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" },

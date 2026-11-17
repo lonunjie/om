@@ -42,6 +42,19 @@ export interface ConversationCopy {
     /** Accessible name of the quoted block: it moves to the original. */
     readonly jump: string;
   };
+  /** Reactions (`reaction.set`): the picker beside a message and the chips under it. */
+  readonly react: {
+    /** Accessible name of the per-message control that opens the picker. */
+    readonly action: string;
+    readonly picker: string;
+    /** Accessible name of the list of reactions under a message. */
+    readonly list: string;
+    /** Accessible name of one choice in the picker. */
+    readonly set: (key: string) => string;
+    /** Accessible name of a chip under a message: it adds your reaction, or removes it when it is yours. */
+    readonly chip: (key: string, count: number, mine: boolean) => string;
+    readonly failed: string;
+  };
   /** The contact detail sheet and the nickname (ADR-0196). */
   readonly contact: {
     /** Accessible name of the header control that opens the sheet. */

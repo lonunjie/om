@@ -68,6 +68,17 @@
 .om-conv-view__reply { flex: none; opacity: 0; transition: opacity var(--om-motion-quick) var(--om-ease-enter); }
 .om-conv-view__item:hover .om-conv-view__reply, .om-conv-view__item:focus-within .om-conv-view__reply, .om-conv-view__reply[aria-pressed="true"] { opacity: 1; }
 @media (hover: none) { .om-conv-view__reply { opacity: 1; } }
+/* Reactions: the picker opens beside the message, the chips sit under the bubble. Targets stay at the minimum size. */
+.om-react { position: relative; flex: none; display: inline-flex; }
+.om-react__picker { position: absolute; inset-block-end: 100%; inset-inline-start: 0; z-index: var(--om-z-sticky); display: flex; gap: var(--om-space-1); padding: var(--om-space-1); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-lg); background: var(--om-color-bg-surface); box-shadow: var(--om-elevation-1); }
+.om-conv-view__item[data-direction="outgoing"] .om-react__picker { inset-inline-start: auto; inset-inline-end: 0; }
+.om-react__choice, .om-react__chip { font: inherit; cursor: pointer; color: var(--om-color-text-primary); }
+.om-react__choice { min-inline-size: var(--om-target-min); min-block-size: var(--om-target-min); border: 0; border-radius: var(--om-radius-md); background: transparent; font-size: 1.25rem; }
+.om-react__choice:focus-visible, .om-react__chip:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
+@media (hover: hover) { .om-react__choice:hover { background: var(--om-color-bg-sunken); } }
+.om-react__chips { display: flex; flex-wrap: wrap; gap: var(--om-space-1); margin: 0; padding: 0; list-style: none; }
+.om-react__chip { min-block-size: var(--om-target-min); padding: 0 var(--om-space-3); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-lg); background: var(--om-color-bg-surface); }
+.om-react__chip[data-mine="true"] { border-color: var(--om-color-accent); background: var(--om-color-accent-soft); }
 .om-quote { display: grid; gap: 2px; inline-size: 100%; box-sizing: border-box; margin: 0 0 var(--om-space-2); padding: var(--om-space-1) var(--om-space-2); border: 0; border-inline-start: 3px solid var(--om-color-accent); border-radius: var(--om-radius-sm); background: var(--om-color-bg-sunken); color: var(--om-color-text-primary); font: inherit; text-align: start; }
 button.om-quote { cursor: pointer; min-block-size: var(--om-target-min); }
 button.om-quote:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }

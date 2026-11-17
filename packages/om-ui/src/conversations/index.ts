@@ -15,3 +15,4 @@ export * from "./Attachments";
 export * from "./shownName";
 export * from "./ContactDetail";
 export * from "./nameCues";
+export * from "./reactions";

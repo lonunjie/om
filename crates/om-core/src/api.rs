@@ -222,6 +222,14 @@ pub enum IntentBody {
     RetryDelivery {
         message_id: MessageId,
     },
+    /// Add or remove one of our reactions on a message of the conversation (`reaction.set`). The state is per person,
+    /// message and reaction key, so repeating it is harmless and the latest wins on every device.
+    SetReaction {
+        conversation_id: ConversationId,
+        message_id: MessageId,
+        reaction: String,
+        present: bool,
+    },
     /// A message whose content is attachments the host prepared with `Core::prepare_attachment` (optionally with text).
     /// The objects are uploaded first and the message goes out only once every one is stored.
     SendAttachments {
@@ -405,6 +413,7 @@ impl IntentBody {
         match self {
             IntentBody::SendMessage { .. } => "SendMessage",
             IntentBody::RetryDelivery { .. } => "RetryDelivery",
+            IntentBody::SetReaction { .. } => "SetReaction",
             IntentBody::SendAttachments { .. } => "SendAttachments",
             IntentBody::SendAttachmentsDirect { .. } => "SendAttachmentsDirect",
             IntentBody::WithdrawDirectOffer { .. } => "WithdrawDirectOffer",
@@ -728,6 +737,8 @@ pub enum TimelineItem {
         presentation: Option<PresentationView>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reply: Option<ReplyView>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        reactions: Vec<ReactionView>,
     },
     Incoming {
         message_id: MessageId,
@@ -739,6 +750,8 @@ pub enum TimelineItem {
         presentation: Option<PresentationView>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reply: Option<ReplyView>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        reactions: Vec<ReactionView>,
     },
 }
 
@@ -759,6 +772,15 @@ pub struct ReplyView {
     /// The original carries at least one attachment.
     #[serde(default)]
     pub has_attachment: bool,
+}
+
+/// One reaction on a message: how many people have it set (at most two in a one-to-one chat) and whether we are one.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactionView {
+    pub key: String,
+    pub count: u32,
+    pub mine: bool,
 }
 
 /// Characters of the original shown in a quoted block.

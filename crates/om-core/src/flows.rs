@@ -28,6 +28,7 @@ mod multi;
 mod owed;
 mod recovery_peer;
 mod recovery_watch;
+mod social;
 
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;
@@ -40,6 +41,7 @@ use owed::KIND_ENROLLED_ACK;
 use recovery_peer::KIND_RECOVERY_VETO;
 pub use recovery_peer::{MAX_NOTICE_BYTES, build_notice};
 pub(crate) use recovery_watch::request_views;
+pub(crate) use social::reaction_views;
 
 pub const INVITE_TTL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 pub const BUNDLE_TTL_S: u64 = 90 * 24 * 60 * 60;
@@ -830,6 +832,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     draft.reply_to.as_deref(),
                 );
             }
+            IntentBody::SetReaction {
+                conversation_id,
+                message_id,
+                reaction,
+                present,
+            } => return self.set_reaction(op, conversation_id, message_id, reaction, *present),
             IntentBody::WithdrawDirectOffer { message_id } => {
                 return self.withdraw_direct_offer(op, message_id);
             }
@@ -1537,6 +1545,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             lane: false,
             social: Social {
                 reply_to: reply_id.map(|r| hex(&r)),
+                ..Social::default()
             },
         });
         rel.hlc_ms = clock.physical_ms;
@@ -4011,6 +4020,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     lane: false,
                     social: Social {
                         reply_to: parts.reply_to,
+                        ..Social::default()
                     },
                 });
                 true
@@ -4047,8 +4057,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
                 true
             }
-            // Reactions have no UI surface in Core's view types yet: validated and accepted, no state kept.
-            events::K_REACTION => true,
+            // A reaction of the other person on a message of this conversation; one aimed at a message that is not here is
+            // accepted and has no effect (held-and-never-displayed is unbuilt, as for edits).
+            events::K_REACTION => {
+                let Some((target, key, present)) = social::read_reaction(&ev) else {
+                    return false;
+                };
+                social::apply_reaction(&mut r.messages, &target, false, &key, present, ev.clock);
+                true
+            }
             events::K_RECEIPT => {
                 // `delivered` and `read` both settle an outgoing message at Delivered (the view has no read state).
                 if let Ok(ids) = ev.body.get(1).and_then(|x| x.a()) {

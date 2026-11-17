@@ -92,6 +92,14 @@ export const conversationCopy: ConversationCopy = {
     attachment: "Attachment",
     jump: "Go to the original message",
   },
+  react: {
+    action: "React",
+    picker: "Choose a reaction",
+    list: "Reactions",
+    set: (key) => `React with ${key}`,
+    chip: (key, count, mine) => (mine ? `${key} ${String(count)}, including you. Remove your reaction` : `${key} ${String(count)}. Add yours`),
+    failed: "The reaction could not be sent.",
+  },
   contact: {
     open: (name) => `About ${name}`,
     title: (name) => `About ${name}`,

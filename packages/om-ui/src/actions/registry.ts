@@ -214,6 +214,12 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (label === null || note === null) return null;
     return { intent: (ctx, op) => ({ kind: "SendLocation", ctx, operationId: op, conversationId: asConversationId(c), latE7: lat, lonE7: lon, ...(acc === undefined ? {} : { accuracyM: acc }), ...(label === undefined ? {} : { label }), ...(note === undefined ? {} : { note }) }) };
   } },
+  // One reaction of ours on a message: set or removed. The key is a Unicode token; Core validates it again (1 to 64 bytes, no control characters).
+  "react-message": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]); const m = id(p["messageId"]); const k = p["reaction"]; const present = p["present"];
+    if (!exactly(p, ["conversationId", "messageId", "reaction", "present"]) || !c || !m || typeof k !== "string" || k.trim() === "" || new TextEncoder().encode(k).length > 64 || /\p{Cc}/u.test(k) || typeof present !== "boolean") return null;
+    return { intent: (ctx, op) => ({ kind: "SetReaction", ctx, operationId: op, conversationId: asConversationId(c), messageId: asMessageId(m), reaction: k, present }) };
+  } },
   "retry-message": { destructive: false, parse: (p) => {
     const m = id(p["messageId"]);
     if (m === null) return null;

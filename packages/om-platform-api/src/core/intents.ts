@@ -48,6 +48,8 @@ export interface SendLocation extends IntentBase {
   readonly label?: string;
   readonly note?: string;
 }
+/** Add or remove your reaction (a Unicode token, 1 to 64 bytes) on a message of the conversation. Per person, message and key; the latest wins on every device. */
+export interface SetReaction extends IntentBase { readonly kind: "SetReaction"; readonly conversationId: ConversationId; readonly messageId: MessageId; readonly reaction: string; readonly present: boolean }
 export interface RetryDelivery extends IntentBase { readonly kind: "RetryDelivery"; readonly messageId: MessageId }
 export interface SwitchIdentityProfile extends IntentBase { readonly kind: "SwitchIdentityProfile"; readonly targetProfileId: ProfileId }
 export interface AcceptIntroduction extends IntentBase { readonly kind: "AcceptIntroduction"; readonly requestId: string }
@@ -104,7 +106,7 @@ export interface ConfirmPeerRecovery extends IntentBase { readonly kind: "Confir
 export interface BeginRecovery extends IntentBase { readonly kind: "BeginRecovery"; readonly recoveryKey: string; readonly home: string }
 
 export type CoreIntent =
-  | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
+  | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
@@ -113,7 +115,7 @@ export type CoreIntent =
 export type CoreIntentKind = CoreIntent["kind"];
 
 export const INTENT_KINDS: readonly CoreIntentKind[] = [
-  "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
+  "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",

@@ -313,3 +313,238 @@ fn the_reply_body_is_canonical_w0() {
         .check("ConversationEvent", &bytes, false)
         .expect("a reply is a valid W0 ConversationEvent");
 }
+
+// ---------------------------------------------------------------------------------------------- reactions
+
+fn react(p: &mut Pair, from_alice: bool, op: &str, msg: &str, key: &str, present: bool) {
+    let intent = |conv: &str| IntentBody::SetReaction {
+        conversation_id: conv.into(),
+        message_id: msg.into(),
+        reaction: key.into(),
+        present,
+    };
+    if from_alice {
+        let c = p.a_conv.clone();
+        p.alice.dispatch(&p.a, op, intent(&c));
+    } else {
+        let c = p.b_conv.clone();
+        p.bob.dispatch(&p.b, op, intent(&c));
+    }
+    settle(p);
+}
+
+fn reactions_of(items: &[TimelineItem], text: &str) -> Vec<ReactionView> {
+    items
+        .iter()
+        .find_map(|i| match i {
+            TimelineItem::Outgoing {
+                text: t, reactions, ..
+            }
+            | TimelineItem::Incoming {
+                text: t, reactions, ..
+            } if t == text => Some(reactions.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("no message {text}"))
+}
+
+fn rv(key: &str, count: u32, mine: bool) -> ReactionView {
+    ReactionView {
+        key: key.into(),
+        count,
+        mine,
+    }
+}
+
+#[test]
+fn a_reaction_reaches_the_other_person_and_can_be_replaced_or_removed() {
+    let mut p = active_pair();
+    send(&mut p, true, "m1", "big news", None);
+    let on_bob = id_of(&timeline(&p.bob, &p.b, &p.b_conv), "big news");
+    react(&mut p, false, "r1", &on_bob, "\u{1F44D}", true);
+    assert_eq!(
+        p.bob.outcome(&p.b, "r1"),
+        Some(OutcomeClass::Committed),
+        "accepted by the delivery service"
+    );
+
+    // Bob sees his own; Alice sees one from someone else on her message.
+    let bob = timeline(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(
+        reactions_of(&bob, "big news"),
+        vec![rv("\u{1F44D}", 1, true)]
+    );
+    let alice = timeline(&p.alice, &p.a, &p.a_conv);
+    assert_eq!(
+        reactions_of(&alice, "big news"),
+        vec![rv("\u{1F44D}", 1, false)]
+    );
+    // The reaction is not a message: nothing was added to either timeline.
+    assert_eq!((bob.len(), alice.len()), (1, 1));
+
+    // Alice reacts the same way: one key, two people.
+    let on_alice = id_of(&alice, "big news");
+    react(&mut p, true, "r2", &on_alice, "\u{1F44D}", true);
+    let alice = timeline(&p.alice, &p.a, &p.a_conv);
+    assert_eq!(
+        reactions_of(&alice, "big news"),
+        vec![rv("\u{1F44D}", 2, true)]
+    );
+    let bob = timeline(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(
+        reactions_of(&bob, "big news"),
+        vec![rv("\u{1F44D}", 2, true)]
+    );
+
+    // Bob replaces his thumbs-up by a heart (remove, then add): the key is the register.
+    react(&mut p, false, "r3", &on_bob, "\u{1F44D}", false);
+    react(&mut p, false, "r4", &on_bob, "\u{2764}\u{FE0F}", true);
+    let alice = timeline(&p.alice, &p.a, &p.a_conv);
+    assert_eq!(
+        reactions_of(&alice, "big news"),
+        vec![rv("\u{1F44D}", 1, true), rv("\u{2764}\u{FE0F}", 1, false)]
+    );
+
+    // Removing the last one of a key drops it from the view.
+    react(&mut p, true, "r5", &on_alice, "\u{1F44D}", false);
+    let bob = timeline(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(
+        reactions_of(&bob, "big news"),
+        vec![rv("\u{2764}\u{FE0F}", 1, true)]
+    );
+}
+
+#[test]
+fn a_reaction_to_something_that_is_not_there_is_refused_and_a_bad_key_is_invalid() {
+    let mut p = active_pair();
+    send(&mut p, true, "m1", "hi", None);
+    let on_bob = id_of(&timeline(&p.bob, &p.b, &p.b_conv), "hi");
+    let bogus = format!("msg-{}", "cd".repeat(16));
+    react(&mut p, false, "r1", &bogus, "\u{1F44D}", true);
+    assert_eq!(
+        p.bob.outcome(&p.b, "r1"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::NotFound
+        })
+    );
+    for (i, k) in ["", "  ", &"x".repeat(65), "a\u{0007}b"].iter().enumerate() {
+        react(&mut p, false, &format!("bad{i}"), &on_bob, k, true);
+        assert_eq!(
+            p.bob.outcome(&p.b, &format!("bad{i}")),
+            Some(OutcomeClass::Rejected {
+                reason: RejectReason::Invalid
+            }),
+            "{k:?}"
+        );
+    }
+}
+
+fn reaction_event(
+    au: &Author,
+    id: u8,
+    ms: u64,
+    target: [u8; 16],
+    key: &str,
+    present: bool,
+) -> Vec<u8> {
+    Header {
+        event_id: [id; 16],
+        conversation_id: au.canon,
+        author_account: au.acct,
+        author_device: au.dev,
+        clock: Hlc {
+            physical_ms: ms,
+            logical: 0,
+        },
+        kind: events::K_REACTION,
+        body: V::M(vec![
+            (0, V::B(target.to_vec())),
+            (1, V::T(key.into())),
+            (2, V::Bool(present)),
+        ]),
+    }
+    .encode()
+}
+
+#[test]
+fn reordered_and_repeated_reactions_converge_and_a_dangling_one_changes_nothing() {
+    let mut p = active_pair();
+    let au = alice_as_author(&p);
+    send(&mut p, false, "m1", "from bob", None);
+    let on_alice = id_of(&timeline(&p.alice, &p.a, &p.a_conv), "from bob");
+    let target: [u8; 16] = unhex(on_alice.trim_start_matches("msg-"))
+        .unwrap()
+        .try_into()
+        .unwrap();
+    // Alice's remove (later clock) arrives before her add (earlier clock): the later one wins, the add cannot revive it.
+    alice_sends(
+        &mut p,
+        &reaction_event(&au, 21, 1_790_000_000_500, target, "\u{1F389}", false),
+    );
+    alice_sends(
+        &mut p,
+        &reaction_event(&au, 22, 1_790_000_000_100, target, "\u{1F389}", true),
+    );
+    assert!(reactions_of(&timeline(&p.bob, &p.b, &p.b_conv), "from bob").is_empty());
+    // A newer add wins again; sending the same event twice changes nothing.
+    let again = reaction_event(&au, 23, 1_790_000_000_900, target, "\u{1F389}", true);
+    alice_sends(&mut p, &again);
+    alice_sends(&mut p, &again);
+    assert_eq!(
+        reactions_of(&timeline(&p.bob, &p.b, &p.b_conv), "from bob"),
+        vec![rv("\u{1F389}", 1, false)]
+    );
+    // Aimed at a message that does not exist: accepted, no effect, nothing shown.
+    alice_sends(
+        &mut p,
+        &reaction_event(&au, 24, 1_790_000_001_000, [0xee; 16], "\u{1F389}", true),
+    );
+    assert_eq!(timeline(&p.bob, &p.b, &p.b_conv).len(), 1);
+}
+
+#[test]
+fn a_person_cannot_make_us_keep_an_unbounded_number_of_reactions() {
+    let mut p = active_pair();
+    let au = alice_as_author(&p);
+    send(&mut p, false, "m1", "from bob", None);
+    let on_alice = id_of(&timeline(&p.alice, &p.a, &p.a_conv), "from bob");
+    let target: [u8; 16] = unhex(on_alice.trim_start_matches("msg-"))
+        .unwrap()
+        .try_into()
+        .unwrap();
+    for i in 0..40u8 {
+        let key = format!("k{i}");
+        alice_sends(
+            &mut p,
+            &reaction_event(
+                &au,
+                30 + i,
+                1_790_000_002_000 + u64::from(i),
+                target,
+                &key,
+                true,
+            ),
+        );
+    }
+    let shown = reactions_of(&timeline(&p.bob, &p.b, &p.b_conv), "from bob");
+    assert_eq!(shown.len(), 16);
+}
+
+#[test]
+fn a_reaction_event_is_canonical_w0() {
+    let ev = reaction_event(
+        &Author {
+            canon: [1; 32],
+            acct: [2; 32],
+            dev: [3; 16],
+        },
+        4,
+        1_790_000_000_000,
+        [5; 16],
+        "\u{1F44D}",
+        true,
+    );
+    om_codec::Registry::load()
+        .check("ConversationEvent", &ev, false)
+        .expect("a reaction is a valid W0 ConversationEvent");
+}

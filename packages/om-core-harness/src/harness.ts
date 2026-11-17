@@ -51,6 +51,8 @@ export interface SeedMessage {
   /** Index into `attachments` of the voice note. */
   readonly voiceNote?: number;
   readonly locationCard?: Omit<LocationCardView, "geo">;
+  /** Reaction keys the other person has set on this message. */
+  readonly reactions?: readonly string[];
   /** Index of an earlier message of the same conversation this one replies to. */
   readonly replyTo?: number;
 }
@@ -117,6 +119,9 @@ interface MutableMessage {
   attachments?: AttachmentView[];
   presentation?: PresentationView;
   replyTo?: MessageId;
+  /** Reaction keys set by us and by the other person; a person has each key once. */
+  mine?: Set<string>;
+  theirs?: Set<string>;
 }
 interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; nickname?: string; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
 const peerLive = (c: ConversationState): boolean => c.peerRecovery?.state === "waiting" || c.peerRecovery?.state === "ready";
@@ -218,7 +223,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   }
   function view(m: MutableMessage, all: readonly MutableMessage[]): ConversationTimelineItem {
     const reply = replyView(m, all);
-    const extras = { ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}) };
+    const keys = [...new Set([...(m.mine ?? []), ...(m.theirs ?? [])])];
+    const reactions = keys.map((key) => ({ key, count: (m.mine?.has(key) === true ? 1 : 0) + (m.theirs?.has(key) === true ? 1 : 0), mine: m.mine?.has(key) === true }));
+    const extras = { ...(reactions.length > 0 ? { reactions } : {}), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}) };
     return m.direction === "outgoing" && m.operationId !== null
       ? { direction: "outgoing", messageId: m.messageId, operationId: m.operationId, text: m.text, sentAt: m.sentAt, delivery: m.delivery, ...extras }
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
@@ -417,6 +424,18 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         });
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, held ? { kind: "PendingNetwork" } : armed ? { kind: "PendingReconciliation" } : { kind: "Committed" }, messageId);
+      }
+      case "SetReaction": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        // Core's rule: a Unicode token of 1 to 64 bytes without control characters, on a shown message of this conversation.
+        if (intent.reaction.trim() === "" || new TextEncoder().encode(intent.reaction).length > 64 || /\p{Cc}/u.test(intent.reaction)) return rejected("invalid");
+        const target = conv.messages.find((m) => m.messageId === intent.messageId);
+        if (target === undefined) return rejected("not_found");
+        const mine = target.mine ?? new Set<string>();
+        if (intent.present) mine.add(intent.reaction); else mine.delete(intent.reaction);
+        target.mine = mine;
+        return record(intent, { kind: "Committed" });
       }
       case "SendAttachments": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
@@ -617,6 +636,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           const target = m.replyTo === undefined ? undefined : seededIds[m.replyTo];
           if (target !== undefined) msg.replyTo = target;
           seededIds.push(messageId);
+          if (m.reactions !== undefined && m.reactions.length > 0) msg.theirs = new Set(m.reactions);
           if (m.attachments !== undefined) {
             msg.attachments = m.attachments.map((a, index): AttachmentView => {
               const blobId = newBlobId();
