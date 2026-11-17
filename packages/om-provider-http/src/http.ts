@@ -5,7 +5,7 @@
 import { ADMISSION_HEADER, decodeHomeError, toBase64Url, type HomeErrorBody } from "@om/home-wire";
 
 export type Exchange =
-  | { readonly kind: "ok"; readonly status: number; readonly body: Uint8Array }
+  | { readonly kind: "ok"; readonly status: number; readonly body: Uint8Array; readonly headers: Headers }
   | { readonly kind: "home"; readonly error: HomeErrorBody }
   /** The Home answered, but not with a typed error (a CDN or gateway page): the operation's outcome is unknown. */
   | { readonly kind: "gateway"; readonly status: number }
@@ -48,7 +48,7 @@ export async function exchange(
   }
   let body: Uint8Array;
   try { body = new Uint8Array(await res.arrayBuffer()); } catch { return { kind: "network" }; }
-  if (res.ok) return { kind: "ok", status: res.status, body };
+  if (res.ok) return { kind: "ok", status: res.status, body, headers: res.headers };
   if ((res.headers.get("content-type") ?? "").startsWith("application/cbor")) {
     try { return { kind: "home", error: decodeHomeError(body) }; } catch { /* fall through: a malformed error body is not a typed answer */ }
   }

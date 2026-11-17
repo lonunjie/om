@@ -4,11 +4,11 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
-  ADMISSION_HEADER, BLOB_DIGEST_HEADER, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
+  ADMISSION_HEADER, BLOB_DIGEST_HEADER, RECOVERY_CAP_BYTES, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, checkRecordEnvelope, checkSignedRequest, checkSignedVeto, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, toBase64Url, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, wakeOn } from "./capabilities";
+import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, recoveryOn, wakeOn } from "./capabilities";
 import type { Env } from "./env";
-import { bearer, fail, fromReply, json, ok, preflight, privateJson, readBody } from "./http";
+import { bearer, fail, fromReply, json, ok, okEtag, preflight, privateJson, readBody } from "./http";
 import { LIMITS } from "./limits";
 import { UsageMeter, ceilings, classify, usageDocument, usageOn, type UsageSnapshot } from "./usage";
 import type { Reply } from "./util";
@@ -17,8 +17,9 @@ import { DescriptorStore } from "./descriptors";
 import { IntroGate } from "./intro";
 import { KeyPool } from "./keys";
 import { MailboxQueue } from "./queue";
+import { RecoveryStore } from "./recovery";
 
-export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue, UsageMeter };
+export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue, RecoveryStore, UsageMeter };
 
 const hex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const queueOf = (env: Env, cap: Uint8Array): DurableObjectStub<MailboxQueue> => env.QUEUES.get(env.QUEUES.idFromName(`q:${hex(cap.slice(0, 16))}`));
@@ -28,6 +29,22 @@ const BODY_MAX = LIMITS.maxDepositBytes + 2048;
 const BLOB_BODY_MAX = LIMITS.maxBlobBytes + 2048;
 /** One spool for the whole Home: the spool quota is the Home's, and the owner is the only one who can create into it. */
 const spoolOf = (env: Env): DurableObjectStub<BlobSpool> | undefined => env.BLOBS?.get(env.BLOBS.idFromName("spool"));
+
+/** One RecoveryStore for the whole Home: the per-Home caps and the Home-wide rate buckets need one view (ADR-0201). */
+const recoveryOf = (env: Env): DurableObjectStub<RecoveryStore> | undefined => env.RECOVERY?.get(env.RECOVERY.idFromName("store"));
+/** The public scope id of the store is made once by the store and cached for the life of this isolate. */
+let recoveryScope: string | undefined;
+async function scopeOf(env: Env): Promise<string | undefined> {
+  if (!recoveryOn(env)) return undefined;
+  if (recoveryScope !== undefined) return recoveryScope;
+  const store = recoveryOf(env);
+  if (!store) return undefined;
+  try {
+    recoveryScope = toBase64Url(await store.scopeId());
+    await chargeCalls(env, 1); // this capabilities read made a Durable Object call the front door did not count up front
+  } catch { /* the document is still served; a client that needs the scope asks again */ }
+  return recoveryScope;
+}
 
 /** A capability carries its routing prefix (16 bytes for a queue, 8 for an IntroGate service) plus at least 16 secret bytes. */
 const wellFormed = (cap: Uint8Array, prefix: number): boolean => cap.length >= prefix + 16 && cap.length <= 96;
@@ -112,7 +129,7 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
   const m = request.method;
 
   if (m === "OPTIONS") return preflight();
-  if (path === "/.well-known/om-provider-capabilities") return m === "GET" ? json(capabilitiesDocument(env)) : fail("invalid_request");
+  if (path === "/.well-known/om-provider-capabilities") return m === "GET" ? json(capabilitiesDocument(env, await scopeOf(env))) : fail("invalid_request");
   if (counted?.state === "hard" && addsWork(request, path)) return fail("quota", { detail: quotaDetail(3, true) });
   if (path === USAGE_PATH) {
     // Owner-only: the admin capability of any queue this Home holds. Never public, never in a URL.
@@ -196,6 +213,13 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     return fail("invalid_request");
   }
 
+  // ----------------------------------------------------------------------------------------------- RecoveryStore (om.recovery.store.v1, ADR-0201)
+  if (path.startsWith("/v1/recovery/")) {
+    const store = recoveryOn(env) ? recoveryOf(env) : undefined;
+    if (!store) return fail("not_found"); // not offered here (no binding, switched off, or no owner admission)
+    return recovery(request, path, store, env);
+  }
+
   // ----------------------------------------------------------------------------------------------- descriptors
   const desc = /^\/v1\/discovery\/descriptors\/([0-9a-f]{32})$/.exec(path);
   if (desc) {
@@ -276,6 +300,125 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     const req = parse(decodeIntroDrainRequest, await body(request, 1024));
     if (!wellFormed(req.cap, 8)) return fail("unauthorized");
     return fromReply(await introOf(env, req.cap).drain(req));
+  }
+  return fail("not_found");
+}
+
+// ------------------------------------------------------------------------------------------------------------------- RecoveryStore routes
+
+/** base64url, no padding, exactly 32 bytes in canonical form (one path per value). */
+function id32(s: string): Uint8Array | undefined {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(s)) return undefined;
+  try {
+    const b = fromBase64Url(s);
+    return b.length === 32 && toBase64Url(b) === s ? b : undefined;
+  } catch { return undefined; }
+}
+
+/** The capability of a store operation: exactly 256 bits in the Authorization header, never in a URL (home-api.md 3.1). */
+const storeCap = (request: Request): Uint8Array | undefined => {
+  const c = bearer(request);
+  return c !== undefined && c.length === RECOVERY_CAP_BYTES ? c : undefined;
+};
+
+/** A body whose payload has a CDDL bound: the raw size is capped before decoding, and a payload past its bound is `payload_too_large`, not a malformed body. */
+async function boundedBody(request: Request, payloadMax: number): Promise<Uint8Array> {
+  const b = await body(request, payloadMax + 64);
+  if (b.length > payloadMax + 27) throw new Bad("payload_too_large"); // the wrapper around the payload is at most 27 bytes
+  return b;
+}
+
+/** `If-Match: "<base64url SHA-256>"` as the 32 bytes it names. */
+function parseEtag(h: string): Uint8Array | undefined {
+  const m = /^"([A-Za-z0-9_-]{43})"$/.exec(h.trim());
+  return m?.[1] === undefined ? undefined : id32(m[1]);
+}
+
+/** The optional `OM-Request-Id` header of a body-less GET: 16 bytes, base64url. A malformed one is refused; its value is not otherwise used by a read. */
+function requestIdHeaderOk(request: Request): boolean {
+  const h = request.headers.get(REQUEST_ID_HEADER);
+  if (h === null) return true;
+  try { return fromBase64Url(h.trim()).length === 16; } catch { return false; }
+}
+
+async function recovery(request: Request, path: string, store: DurableObjectStub<RecoveryStore>, env: Env): Promise<Response> {
+  const m = request.method;
+  const rec = /^\/v1\/recovery\/records\/([^/]+)$/.exec(path);
+  if (rec) {
+    const locator = id32(rec[1] ?? "");
+    if (!locator) return fail("not_found");
+    if (m === "GET") {
+      const cap = storeCap(request);
+      if (!cap) return fail("not_found"); // a missing or malformed capability is answered like a wrong one
+      if (!requestIdHeaderOk(request)) return fail("invalid_request");
+      const r = await store.getRecord(locator, cap);
+      return r.ok ? okEtag(r.body.slice(32), toBase64Url(r.body.slice(0, 32))) : fromReply(r);
+    }
+    if (m === "PUT") {
+      const cap = storeCap(request);
+      if (!cap) return fail("unauthorized");
+      const inm = request.headers.get("if-none-match");
+      const im = request.headers.get("if-match");
+      if ((inm === null) === (im === null)) return fail("invalid_request"); // exactly one precondition: create or replace
+      let ifMatch: Uint8Array | undefined;
+      if (inm !== null) {
+        if (inm.trim() !== "*") return fail("invalid_request");
+        if (!(await admitted(request, env))) return fail("admission_denied"); // before the body is read: a stranger costs no memory
+      } else {
+        ifMatch = parseEtag(im ?? "");
+        if (!ifMatch) return fail("invalid_request");
+      }
+      const req = parse(decodeRecordPut, await boundedBody(request, RECOVERY_RECORD_MAX_BYTES));
+      parse(checkRecordEnvelope, req.envelope);
+      const r = await store.putRecord({ locator, writeCap: cap, requestId: req.requestId, envelope: req.envelope, create: inm !== null, ...(ifMatch ? { ifMatch } : {}) });
+      return r.ok ? okEtag(new Uint8Array(0), toBase64Url(r.body)) : fromReply(r);
+    }
+    if (m === "DELETE") {
+      const cap = storeCap(request);
+      return cap ? fromReply(await store.deleteRecord(locator, cap)) : fail("not_found");
+    }
+    return fail("invalid_request");
+  }
+
+  if (path === "/v1/recovery/requests") {
+    if (m !== "POST") return fail("invalid_request");
+    const req = parse(decodeFanout, await boundedBody(request, RECOVERY_SIGNED_OBJECT_MAX_BYTES));
+    const shape = parse(checkSignedRequest, req.signed);
+    return fromReply(await store.fanout({ requestId: req.requestId, signed: req.signed, accountId: shape.accountId, body: shape.body }));
+  }
+  if (path === "/v1/recovery/vetoes") {
+    if (m !== "POST") return fail("invalid_request");
+    const req = parse(decodeFanout, await boundedBody(request, RECOVERY_SIGNED_OBJECT_MAX_BYTES));
+    const shape = parse(checkSignedVeto, req.signed);
+    return fromReply(await store.postVeto({ requestId: req.requestId, signed: req.signed, accountId: shape.accountId, requestDigest: shape.requestDigest, body: shape.body }));
+  }
+  const board = /^\/v1\/recovery\/requests\/([^/]+)\/vetoes$/.exec(path);
+  if (board) {
+    if (m !== "GET") return fail("invalid_request");
+    const digest = id32(board[1] ?? "");
+    if (!digest) return fail("not_found");
+    const r = await store.vetoes(digest);
+    return r.ok ? ok(r.body) : fromReply(r);
+  }
+  const inbox = /^\/v1\/recovery\/inbox\/([^/]+?)(\/drain|\/ack)?$/.exec(path);
+  if (inbox) {
+    const inboxId = id32(inbox[1] ?? "");
+    if (!inboxId) return fail("not_found");
+    const sub = inbox[2];
+    if (sub === undefined) {
+      if (m !== "PUT") return fail("invalid_request");
+      if (!(await admitted(request, env))) return fail("admission_denied");
+      const req = parse(decodeInboxRegister, await body(request, 512));
+      if (req.cap.length !== RECOVERY_CAP_BYTES) return fail("invalid_request");
+      return fromReply(await store.registerInbox(inboxId, req.cap, req.requestId));
+    }
+    if (m !== "POST") return fail("invalid_request");
+    if (sub === "/drain") {
+      const req = parse(decodeInboxDrain, await body(request, 512));
+      return req.cap.length === RECOVERY_CAP_BYTES ? fromReply(await store.drain(inboxId, req.cap, req.pageSize)) : fail("unauthorized");
+    }
+    const req = parse(decodeInboxAck, await body(request, 2048));
+    return req.cap.length === RECOVERY_CAP_BYTES ? fromReply(await store.ack(inboxId, req.cap, req.itemIds)) : fail("unauthorized");
   }
   return fail("not_found");
 }

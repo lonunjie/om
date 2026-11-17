@@ -23,6 +23,7 @@
       { "name": "DESCRIPTORS", "class_name": "DescriptorStore" },
       { "name": "INTRO", "class_name": "IntroGate" },
       { "name": "BLOBS", "class_name": "BlobSpool" },
+      { "name": "RECOVERY", "class_name": "RecoveryStore" },
       { "name": "USAGE", "class_name": "UsageMeter" }
     ]
   },
@@ -32,6 +33,8 @@
     // v2 adds the optional blob spool (om.blob.spool.v1). A deployment that predates it keeps working: the feature is only offered where BLOBS is bound.
     { "tag": "v2", "new_sqlite_classes": ["BlobSpool"] },
     // v3 adds the usage counter of the personal limits profile (OM_PROFILE=personal). Unused, and not advertised, under the default profile.
-    { "tag": "v3", "new_sqlite_classes": ["UsageMeter"] }
+    { "tag": "v3", "new_sqlite_classes": ["UsageMeter"] },
+    // v4 adds the RecoveryStore (om.recovery.store.v1, ADR-0201). Unused, and not advertised, until the owner has admission configured (and OM_RECOVERY_STORE is not 0).
+    { "tag": "v4", "new_sqlite_classes": ["RecoveryStore"] }
   ]
 }

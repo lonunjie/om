@@ -58,6 +58,38 @@ export const LIMITS = {
   maxPendingRequests: 256,
   submitBurst: 20,
   submitRefillPerSecond: 2,
+  /**
+   * RecoveryStore (feature om.recovery.store.v1, ADR-0201, home-api.md section 8.4). Starting points scaled from the numbers above,
+   * not measurements: one record per recovery lineage (a few at most), a put pace of the fetch refill, an inbox that holds a handful of
+   * signed objects. Operational values, never protocol constants; advertised in ProviderCapabilities.limits.
+   */
+  maxRecoveryRecordBytes: 1_048_576,
+  maxRecoveryRecords: 16,
+  maxRecoveryInboxes: 16,
+  recoveryPutBurst: 6,
+  recoveryPutRefillSeconds: 600,
+  recoveryGetBurst: 10,
+  recoveryGetRefillSeconds: 30,
+  /** Failed gets (wrong capability or unknown locator), whole Home: bounds guessing without per-locator state for locators that do not exist. */
+  recoveryFailedGetBurst: 30,
+  recoveryFailedGetRefillSeconds: 10,
+  /** Per inbox. */
+  recoveryRequestsPerDay: 3,
+  recoveryPendingRequests: 8,
+  recoveryPendingVetoes: 32,
+  recoveryPendingVetoesPerDigest: 16,
+  recoveryVetoesPerHour: 8,
+  /** Fan-out and veto posts, whole Home (the only recovery limits that answer `rate_limited` to a poster). */
+  recoveryPostBurst: 10,
+  recoveryPostRefillSeconds: 60,
+  recoveryDrainBurst: 20,
+  recoveryDrainRefillSeconds: 5,
+  recoveryVetoReadBurst: 10,
+  recoveryVetoReadRefillSeconds: 10,
+  /** A signed RecoveryRequest or RecoveryVeto (the registry maximum of object types 4 and 5). */
+  maxRecoveryObjectBytes: 16_384,
+  recoveryRecordRetentionSeconds: 400 * DAY,
+  recoveryInboxRetentionSeconds: 400 * DAY,
 } as const;
 
 export type Limits = { readonly [K in keyof typeof LIMITS]: number };
@@ -73,6 +105,8 @@ export const PERSONAL_LIMITS: Partial<Limits> = {
   maxDepositCapabilities: 16,
   maxBlobSpoolBytes: 16 * 1024 * 1024,
   maxBlobs: 32,
+  maxRecoveryRecords: 4,
+  maxRecoveryInboxes: 4,
 };
 
 /**

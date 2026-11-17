@@ -9,7 +9,9 @@ export * from "./sealed";
 export * from "./bundle";
 export * from "./blob";
 export * from "./usage";
+export * from "./recovery";
 import { USAGE_FEATURE } from "./usage";
+import { RECOVERY_FEATURE } from "./recovery";
 export { Obj } from "./fields";
 
 /** Optional-feature ids a Home advertises in ProviderCapabilities.features (home-api.md section 1). */
@@ -29,4 +31,6 @@ export const FEATURES = {
   blobSpool: "om.blob.spool.v1",
   /** The usage read of the personal limits profile (admin capability; see usage.ts). */
   relayUsage: USAGE_FEATURE,
+  /** RecoveryRecord store, recovery inbox and veto board (ADR-0201); offered only where the Home has owner admission. */
+  recoveryStore: RECOVERY_FEATURE,
 } as const;

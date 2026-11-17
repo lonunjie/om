@@ -12,18 +12,23 @@ const BASE_HEADERS: Readonly<Record<string, string>> = {
   "X-Content-Type-Options": "nosniff",
   "Cross-Origin-Resource-Policy": "cross-origin",
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Expose-Headers": "Retry-After",
+  "Access-Control-Expose-Headers": "Retry-After, ETag",
   "Vary": "Origin",
 };
 
 export const preflight = (): Response =>
   new Response(null, {
     status: 204,
-    headers: { ...BASE_HEADERS, "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "authorization, content-type, om-admission, om-ciphertext-digest", "Access-Control-Max-Age": "86400" },
+    headers: { ...BASE_HEADERS, "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "authorization, content-type, om-admission, om-ciphertext-digest, if-match, if-none-match, om-request-id", "Access-Control-Max-Age": "86400" },
   });
 
 export function ok(body: Uint8Array, contentType = CBOR): Response {
   return new Response(body.length === 0 ? null : body, { status: body.length === 0 ? 204 : 200, headers: { ...BASE_HEADERS, "Content-Type": contentType } });
+}
+
+/** An answer that carries the stored object's ETag (home-api.md 8.1): a hash of the bytes, never a time. An empty body is `204`. */
+export function okEtag(body: Uint8Array, etag: string, contentType = CBOR): Response {
+  return new Response(body.length === 0 ? null : body, { status: body.length === 0 ? 204 : 200, headers: { ...BASE_HEADERS, "Content-Type": contentType, ETag: `"${etag}"` } });
 }
 
 export function json(value: unknown): Response {

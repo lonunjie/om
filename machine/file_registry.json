@@ -8677,6 +8677,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/src/recovery.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/src/rules.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -8762,6 +8769,34 @@
     },
     {
       "path": "infra/cloudflare-home/test/provider-adapter.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/recovery-kit.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/recovery.client.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/recovery.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/recovery.unit.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",
@@ -9405,6 +9440,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-home-wire/src/recovery.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-home-wire/src/recovery.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-home-wire/src/route.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9700,6 +9749,20 @@
     },
     {
       "path": "packages/om-provider-http/src/provider.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/recovery.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/recovery.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
