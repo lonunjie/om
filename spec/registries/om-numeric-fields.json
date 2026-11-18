@@ -7708,6 +7708,288 @@
           "req": true
         }
       ]
+    },
+    "OwnerRecoveryCheckpoint": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "acs_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryApprovalProposal": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "request",
+          "type": {
+            "signed": "RecoveryRequest"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "successor",
+          "type": {
+            "ref": "RecoverySuccessorBundle"
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryApprovalReply": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "descriptor",
+          "type": {
+            "ref": "RecoveryApprovalDescriptor"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "binding",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryApprovalChunk": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "evidence_digest",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "index",
+          "type": {
+            "uint": [
+              0,
+              63
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "bytes",
+          "type": {
+            "bstr": [
+              1,
+              50000
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryApprovalEvidence": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "states",
+          "type": {
+            "array": {
+              "signed": "AccountControlState"
+            },
+            "n": [
+              1,
+              65
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "credentials",
+          "type": {
+            "array": {
+              "bstr": [
+                1,
+                32768
+              ]
+            },
+            "n": [
+              1,
+              320
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "dossiers",
+          "type": {
+            "array": {
+              "ref": "RecoveryDossierEntry"
+            },
+            "n": [
+              0,
+              4
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "vetoes",
+          "type": {
+            "array": {
+              "signed": "RecoveryVeto"
+            },
+            "n": [
+              0,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "successor",
+          "type": {
+            "ref": "RecoverySuccessorBundle"
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoveryApprovalDescriptor": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "request_digest",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "parent_hash",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "target_hash",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "controller",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "child_hash",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "evidence_digest",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "evidence_length",
+          "type": {
+            "uint": [
+              1,
+              3200000
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "chunk_count",
+          "type": {
+            "uint": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        }
+      ]
     }
   },
   "extensions": [

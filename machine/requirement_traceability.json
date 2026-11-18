@@ -2867,7 +2867,8 @@
       "requirement": "R-441",
       "verified_by": [
         "V-002",
-        "review:ADR-0202-owner-recovery-evidence-and-controller-approval.md"
+        "review:ADR-0202-owner-recovery-evidence-and-controller-approval.md",
+        "review:ADR-0203-owner-recovery-carriage.md"
       ]
     }
   ]

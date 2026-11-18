@@ -69,7 +69,8 @@
         "D-169",
         "D-176",
         "D-211",
-        "D-219"
+        "D-219",
+        "D-220"
       ],
       "evidence": [
         "V-002"
@@ -78,7 +79,8 @@
         "docs/architecture/safety/SECURITY_INVARIANTS.md",
         "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md",
         "decisions/ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md",
-        "decisions/ADR-0202-owner-recovery-evidence-and-controller-approval.md"
+        "decisions/ADR-0202-owner-recovery-evidence-and-controller-approval.md",
+        "decisions/ADR-0203-owner-recovery-carriage.md"
       ]
     },
     {

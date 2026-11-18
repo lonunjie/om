@@ -209,3 +209,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0200 — The recovery key sheet carries its own place: one checksummed string, no URL ever typed (accepted by operator delegation 2026-11-18)](ADR-0200-recovery-key-sheet-carries-its-place.md)
 - [ADR-0201 — Home RecoveryStore API: capability binding, request inbox, veto board and limits (accepted by operator delegation 2026-11-18)](ADR-0201-home-recoverystore-api-inbox-veto-and-limits.md)
 - [ADR-0202 — Owner recovery evidence, stale requests and controller approval (accepted by operator delegation 2026-11-18)](ADR-0202-owner-recovery-evidence-and-controller-approval.md)
+- [ADR-0203 — Owner recovery checkpoint and approval carriage](ADR-0203-owner-recovery-carriage.md)

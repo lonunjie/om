@@ -3763,6 +3763,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0203-owner-recovery-carriage.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -12828,6 +12835,41 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/owner-recovery-wire/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/owner-recovery-wire/check_cddl.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/owner-recovery-wire/check_transcript.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/owner-recovery-wire/gen_owner_recovery_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/owner-recovery-wire/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/recovery-notice-wire/.gitignore",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -15657,6 +15699,13 @@
     },
     {
       "path": "verification/vectors/one-to-one-session-regression-vectors.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/owner-recovery-vectors.json.gz",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

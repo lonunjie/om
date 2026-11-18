@@ -766,6 +766,46 @@
       "object": "AEAD associated data for the Maximum Privacy second-layer relationship snapshot of a RecoveryRecord v1 (ADR-0199)",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-KDF-v1",
+      "use": "kdf",
+      "construction": "id = DS-HASH(label, OM-CBOR [\"recovery_approval\", 1, expiry_s, home_uri bstr, A_cap, B_recv]); HKDF-SHA256(salt = id, IKM = S, info = OM-CBOR [label, purpose tstr], L = 32) for req, resp, code, bind (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "OM-CBOR [label, id bstr, role], 1 for restricted device to controller and 2 for reverse; XChaCha20-Poly1305 with a fresh 24-byte nonce (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 over OM-CBOR [label, role, bytes bstr]; role 1 with K_code and exact proposal bytes; role 2 with K_bind and OM-CBOR [id bstr, SHA-256(proposal_bytes) bstr, canonical descriptor bytes bstr] (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-MAILBOX-HASH-v1",
+      "use": "hash",
+      "construction": "First 16 raw bytes of DS-HASH(label, B_recv), the local polling ID (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-EVIDENCE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, canonical RecoveryApprovalEvidence bytes) (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

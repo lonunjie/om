@@ -580,6 +580,61 @@
       "max_bytes": 4096,
       "source": "ADR-0199 section 5 (CDDL: spec/cddl/recovery-record.cddl); device-private, in-session only, class om.recovery_secret",
       "logical_schema": null
+    },
+    {
+      "type_id": 39,
+      "name": "OwnerRecoveryCheckpoint",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 90,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 40,
+      "name": "RecoveryApprovalProposal",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 98976,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 41,
+      "name": "RecoveryApprovalReply",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1024,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 42,
+      "name": "RecoveryApprovalChunk",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 50128,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 43,
+      "name": "RecoveryApprovalEvidence",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 3200000,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
     }
   ]
 }
