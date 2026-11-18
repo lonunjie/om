@@ -47,7 +47,7 @@ const standIn = (): void => {
     },
   };
   Object.defineProperty(navigator.serviceWorker, "ready", { configurable: true, get: () => Promise.resolve({ pushManager: pm }) });
-  (window as unknown as { PushManager: unknown }).PushManager = (window as unknown as { PushManager?: unknown }).PushManager ?? class {};
+  (window as unknown as { PushManager: unknown }).PushManager = (window as unknown as { PushManager?: unknown }).PushManager ?? function PushManager() { return undefined; };
   Object.defineProperty(window, "Notification", {
     configurable: true,
     value: { get permission() { return read().perm; }, requestPermission: () => { const s = read(); write({ ...s, perm: "granted", asked: s.asked + 1 }); return Promise.resolve("granted"); } },
