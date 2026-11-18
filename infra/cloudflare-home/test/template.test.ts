@@ -173,7 +173,7 @@ describe("wrangler accepts the template and uploads the released bytes", () => {
     const uploaded = readdirSync(out).filter((f) => f.endsWith(".js"));
     expect(uploaded.length).toBe(1);
     expect(readFileSync(join(out, uploaded[0] ?? "missing"))).toEqual(readFileSync(join(rel, "relay/worker.js")));
-    for (const b of ["env.QUEUES (MailboxQueue)", "env.KEYS (KeyPool)", "env.DESCRIPTORS (DescriptorStore)", "env.INTRO (IntroGate)", "env.BLOBS (BlobSpool)", "env.RECOVERY (RecoveryStore)"]) expect(r.stdout).toContain(b);
+    for (const b of ["env.QUEUES (MailboxQueue)", "env.KEYS (KeyPool)", "env.DESCRIPTORS (DescriptorStore)", "env.INTRO (IntroGate)", "env.BLOBS (BlobSpool)", "env.RECOVERY (RecoveryStore)", "env.PUSH (PushHub)"]) expect(r.stdout).toContain(b);
     expect(r.stdout).not.toMatch(/R2 Bucket|KV Namespace|D1 Database|Queue\s{2,}|Service Binding/);
   }, 60_000);
 });

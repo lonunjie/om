@@ -4,9 +4,9 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
-  ADMISSION_HEADER, BLOB_DIGEST_HEADER, RECOVERY_CAP_BYTES, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, checkRecordEnvelope, checkSignedRequest, checkSignedVeto, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, toBase64Url, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
+  ADMISSION_HEADER, BLOB_DIGEST_HEADER, RECOVERY_CAP_BYTES, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, checkRecordEnvelope, checkSignedRequest, checkSignedVeto, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, toBase64Url, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, PUSH_PATHS, parsePushRequest, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, recoveryOn, wakeOn } from "./capabilities";
+import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, pushOn, recoveryOn, wakeOn } from "./capabilities";
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, okEtag, preflight, privateJson, readBody } from "./http";
 import { LIMITS } from "./limits";
@@ -17,9 +17,10 @@ import { DescriptorStore } from "./descriptors";
 import { IntroGate } from "./intro";
 import { KeyPool } from "./keys";
 import { MailboxQueue } from "./queue";
+import { PushHub } from "./push";
 import { RecoveryStore } from "./recovery";
 
-export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue, RecoveryStore, UsageMeter };
+export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue, PushHub, RecoveryStore, UsageMeter };
 
 const hex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const queueOf = (env: Env, cap: Uint8Array): DurableObjectStub<MailboxQueue> => env.QUEUES.get(env.QUEUES.idFromName(`q:${hex(cap.slice(0, 16))}`));
@@ -213,6 +214,26 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     return fail("invalid_request");
   }
 
+  // ----------------------------------------------------------------------------------------------- push wake (om.relay.push.v1, ADR-0210)
+  if (path === PUSH_PATHS.key || path === PUSH_PATHS.subscription) {
+    const hub = pushOn(env) ? env.PUSH?.get(env.PUSH.idFromName("hub")) : undefined;
+    if (!hub) return fail("not_found"); // not offered here (no binding, switched off, or no owner admission)
+    if (path === PUSH_PATHS.key) return m === "GET" ? privateJson({ key: await hub.publicKey() }) : fail("invalid_request");
+    if (m !== "PUT" && m !== "DELETE") return fail("invalid_request");
+    // Registering is an owner act (admission) by the holder of the mailbox's receive capability; removing needs the capability only, so a device can always leave.
+    const cap = bearer(request);
+    if (!cap || !wellFormed(cap, 16) || (m === "PUT" && !(await admitted(request, env)))) return fail("unauthorized");
+    const raw = await readBody(request, 1024);
+    if (raw === undefined) return fail("payload_too_large");
+    const endpoint = parsePushRequest(new TextDecoder().decode(raw));
+    const armed = await queueOf(env, cap).pushArm(cap);
+    if (!armed.ok) return fromReply(armed);
+    if (endpoint === undefined) return fail("invalid_request");
+    const label = hex(cap.slice(0, 16));
+    if (m === "DELETE") { await hub.unregister(label, endpoint); return ok(new Uint8Array(0)); }
+    const r = await hub.register(label, endpoint, env.OM_PUSH_SUBJECT ?? url.origin);
+    return r.ok ? privateJson({ id: r.id, expires_at: r.expiresAt }) : fail(r.error);
+  }
   // ----------------------------------------------------------------------------------------------- RecoveryStore (om.recovery.store.v1, ADR-0201)
   if (path.startsWith("/v1/recovery/")) {
     const store = recoveryOn(env) ? recoveryOf(env) : undefined;

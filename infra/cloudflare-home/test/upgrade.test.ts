@@ -29,13 +29,14 @@ const readConfig = (file: string, comments: boolean): Config => {
 
 describe("migrations are append-only (upgrade from 0.1.1)", () => {
   for (const [file, comments] of [["wrangler.jsonc", true], ["release/template/wrangler.json", false]] as const) {
-    it(`${file}: v1 is exactly what 0.1.1 shipped, v2 only adds BlobSpool, v3 only adds UsageMeter, v4 only adds RecoveryStore, a fresh deploy applies v1 to v4`, () => {
+    it(`${file}: v1 is exactly what 0.1.1 shipped, v2 only adds BlobSpool, v3 only adds UsageMeter, v4 only adds RecoveryStore, v5 only adds PushHub, a fresh deploy applies v1 to v5`, () => {
       const m = readConfig(file, comments).migrations;
       expect(m.slice(0, MIGRATIONS_0_1_1.length)).toEqual(MIGRATIONS_0_1_1); // the applied history is unchanged
-      expect(m.map((x) => x.tag)).toEqual(["v1", "v2", "v3", "v4"]); // ordered, unique
+      expect(m.map((x) => x.tag)).toEqual(["v1", "v2", "v3", "v4", "v5"]); // ordered, unique
       expect(m[1]).toEqual({ tag: "v2", new_sqlite_classes: ["BlobSpool"] });
       expect(m[2]).toEqual({ tag: "v3", new_sqlite_classes: ["UsageMeter"] });
       expect(m[3]).toEqual({ tag: "v4", new_sqlite_classes: ["RecoveryStore"] });
+      expect(m[4]).toEqual({ tag: "v5", new_sqlite_classes: ["PushHub"] });
       for (const x of m) for (const destructive of ["deleted_classes", "renamed_classes", "transferred_classes", "new_classes"] as const) expect(x, `${x.tag} ${destructive}`).not.toHaveProperty(destructive); // nothing that drops, moves or makes a non-SQLite class
     });
 

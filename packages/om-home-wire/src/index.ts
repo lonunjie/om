@@ -10,8 +10,10 @@ export * from "./bundle";
 export * from "./blob";
 export * from "./usage";
 export * from "./recovery";
+export * from "./push";
 import { USAGE_FEATURE } from "./usage";
 import { RECOVERY_FEATURE } from "./recovery";
+import { PUSH_FEATURE } from "./push";
 export { Obj } from "./fields";
 
 /** Optional-feature ids a Home advertises in ProviderCapabilities.features (home-api.md section 1). */
@@ -33,4 +35,6 @@ export const FEATURES = {
   relayUsage: USAGE_FEATURE,
   /** RecoveryRecord store, recovery inbox and veto board (ADR-0201); offered only where the Home has owner admission. */
   recoveryStore: RECOVERY_FEATURE,
+  /** Optional push wake: an empty, signed push to a browser endpoint the owner registered, only when nobody is listening (ADR-0210). Offered only where the Home has owner admission. */
+  relayPush: PUSH_FEATURE,
 } as const;

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // GET /.well-known/om-provider-capabilities (spec/protocol/provider-capabilities.logical.schema.json). Public, no secrets,
 // no per-user data: the same document for every caller.
-import { FEATURES, WAKE_AUTH_SECONDS } from "@om/home-wire";
+import { FEATURES, PUSH_LIMITS, WAKE_AUTH_SECONDS } from "@om/home-wire";
 import type { Env } from "./env";
 import { LIMITS, limitsOf, profileOf } from "./limits";
+import { pushPacing } from "./push";
 import { usageOn } from "./usage";
 
 /** The optional wake channel is on unless the deployment sets OM_WAKE=0. */
@@ -22,6 +23,12 @@ export const blobsOn = (env: Env): boolean => env.BLOBS !== undefined && env.OM_
  */
 export const recoveryOn = (env: Env): boolean => env.RECOVERY !== undefined && env.OM_RECOVERY_STORE !== "0" && admissionHashes(env).length > 0;
 
+/**
+ * The push wake (om.relay.push.v1, ADR-0210) is offered only where all three hold: the deployment bound it, the owner did not switch it off,
+ * and the Home has owner admission (registering an address this Home will call is an owner act), so an open Home never becomes a free push sender.
+ */
+export const pushOn = (env: Env): boolean => env.PUSH !== undefined && env.OM_PUSH !== "0" && admissionHashes(env).length > 0;
+
 /** The hashes of the admission secrets this deployment accepts; empty and not `admissionConfigured` means resource creation is open (a shared or test Home). */
 export const admissionHashes = (env: Env): readonly string[] =>
   (env.OM_ADMISSION ?? "").split(",").map((h) => h.trim().toLowerCase()).filter((h) => /^[0-9a-f]{64}$/.test(h));
@@ -39,7 +46,7 @@ export function capabilitiesDocument(env: Env, recoveryScopeId?: string): Record
     provider_id: env.OM_PROVIDER_ID ?? "om-reference-home",
     provider_kinds: ["relay", "key_material", "discovery_relay", "intro_gate", ...(blobsOn(env) ? ["blob"] : []), ...(recoveryOn(env) ? ["recovery"] : [])],
     durability_class: "durable",
-    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0) && (f !== FEATURES.blobSpool || blobsOn(env)) && (f !== FEATURES.relayUsage || usageOn(env)) && (f !== FEATURES.recoveryStore || recoveryOn(env))).sort(),
+    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0) && (f !== FEATURES.blobSpool || blobsOn(env)) && (f !== FEATURES.relayPush || pushOn(env)) && (f !== FEATURES.relayUsage || usageOn(env)) && (f !== FEATURES.recoveryStore || recoveryOn(env))).sort(),
     api_versions: ["1"],
     health: "healthy",
     ...(recoveryOn(env) && recoveryScopeId !== undefined ? { recovery_scope_id: recoveryScopeId } : {}),
@@ -67,6 +74,7 @@ export function capabilitiesDocument(env: Env, recoveryScopeId?: string): Record
         max_recovery_object_bytes: L.maxRecoveryObjectBytes, recovery_item_retention_seconds: L.maxRetentionSeconds,
         recovery_record_retention_seconds: L.recoveryRecordRetentionSeconds, recovery_inbox_retention_seconds: L.recoveryInboxRetentionSeconds,
       } : {}),
+      ...(pushOn(env) ? { push_subscriptions_per_queue: PUSH_LIMITS.perQueue, push_subscriptions_per_home: PUSH_LIMITS.perHome, push_lifetime_seconds: PUSH_LIMITS.lifetimeSeconds, push_min_interval_seconds: pushPacing(env).minInterval, push_per_day: pushPacing(env).perDay } : {}),
       ...(wakeOn(env) ? { wake_sockets_per_queue: LIMITS.maxWakeSockets, wake_auth_seconds: WAKE_AUTH_SECONDS } : {}),
     },
     abuse_controls: {

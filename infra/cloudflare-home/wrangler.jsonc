@@ -24,7 +24,8 @@
       { "name": "INTRO", "class_name": "IntroGate" },
       { "name": "BLOBS", "class_name": "BlobSpool" },
       { "name": "RECOVERY", "class_name": "RecoveryStore" },
-      { "name": "USAGE", "class_name": "UsageMeter" }
+      { "name": "USAGE", "class_name": "UsageMeter" },
+      { "name": "PUSH", "class_name": "PushHub" }
     ]
   },
   // SQLite-backed Durable Objects are available on the Workers Free plan; no R2, KV or Queues binding is needed.
@@ -35,6 +36,8 @@
     // v3 adds the usage counter of the personal limits profile (OM_PROFILE=personal). Unused, and not advertised, under the default profile.
     { "tag": "v3", "new_sqlite_classes": ["UsageMeter"] },
     // v4 adds the RecoveryStore (om.recovery.store.v1, ADR-0201). Unused, and not advertised, until the owner has admission configured (and OM_RECOVERY_STORE is not 0).
-    { "tag": "v4", "new_sqlite_classes": ["RecoveryStore"] }
+    { "tag": "v4", "new_sqlite_classes": ["RecoveryStore"] },
+    // v5 adds the PushHub (om.relay.push.v1, ADR-0210). Unused, and not advertised, until the owner has admission configured (and OM_PUSH is not 0). It holds this Home's own push signing key, made on first use.
+    { "tag": "v5", "new_sqlite_classes": ["PushHub"] }
   ]
 }

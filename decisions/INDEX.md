@@ -216,3 +216,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0207 — Room rejoin after owner recovery](ADR-0207-room-rejoin-after-owner-recovery.md)
 - [ADR-0208 — The local search index at rest](ADR-0208-local-search-index-at-rest.md)
 - [ADR-0209 — A change feed for group screens](ADR-0209-group-change-feed.md)
+- [ADR-0210 — Push wake through the person's own Home (`om.relay.push.v1`)](ADR-0210-push-wake-through-the-persons-own-home.md)

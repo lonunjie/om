@@ -4,6 +4,7 @@ import type { IntroGate } from "./intro";
 import type { KeyPool } from "./keys";
 import type { BlobSpool } from "./blobs";
 import type { MailboxQueue } from "./queue";
+import type { PushHub } from "./push";
 import type { RecoveryStore } from "./recovery";
 import type { UsageMeter } from "./usage";
 
@@ -17,6 +18,8 @@ export interface Env {
   readonly BLOBS?: DurableObjectNamespace<BlobSpool>;
   /** The RecoveryStore (om.recovery.store.v1, ADR-0201): one object for the whole Home. Absent in a deployment whose configuration predates it: the feature is then neither advertised nor served. */
   readonly RECOVERY?: DurableObjectNamespace<RecoveryStore>;
+  /** The push hub (om.relay.push.v1, ADR-0210): one object for the whole Home. Absent in a deployment whose configuration predates it: the feature is then neither advertised nor served. */
+  readonly PUSH?: DurableObjectNamespace<PushHub>;
   /** The self-kept usage counter of the personal profile (one object for the whole Home). Absent: the usage read is neither advertised nor served and nothing is shed. */
   readonly USAGE?: DurableObjectNamespace<UsageMeter>;
   /** `personal` selects the personal limits profile (smaller limits, usage counter, deposits shed at `hard`). Unset or `default`: the ordinary limits. */
@@ -32,6 +35,15 @@ export interface Env {
   readonly OM_WAKE?: string;
   /** `0` turns the blob spool off even where it is bound and admission is configured. */
   readonly OM_BLOB_SPOOL?: string;
+  /** `0` turns the push wake off even where it is bound and admission is configured. */
+  readonly OM_PUSH?: string;
+  /** Extra places the Home may send a push to: exact origins (`https://up.example.org`, `http://127.0.0.1:4545`) or bare hosts, comma-separated. The default is the push services of the major browsers only. */
+  readonly OM_PUSH_HOSTS?: string;
+  /** The `sub` claim of the push signature. Default: this Home's own origin (no operator identity). */
+  readonly OM_PUSH_SUBJECT?: string;
+  /** Non-negative integers overriding the pacing of pushes per registration (seconds between pushes; pushes per UTC day). */
+  readonly OM_PUSH_MIN_INTERVAL_SECONDS?: string;
+  readonly OM_PUSH_PER_DAY?: string;
   /** `0` turns the RecoveryStore off even where it is bound and admission is configured. */
   readonly OM_RECOVERY_STORE?: string;
   /** Owner admission (om.admission.v1): comma-separated lowercase-hex `admissionHash` values. Public hashes, not secrets. When set, only a request carrying a matching admission secret may create resources. */

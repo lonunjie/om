@@ -8,6 +8,7 @@ import {
 } from "@om/home-wire";
 import type { Env } from "./env";
 import { fail } from "./http";
+import { pushOn } from "./capabilities";
 import { LIMITS, limitsOf } from "./limits";
 import { depositCapStatus, receiveStatus, sealedExpiry } from "./rules";
 import { MAILBOX_SCHEMA, ack, cursorOf, enqueue, nextExpiry, page, purgeExpired } from "./mailbox";
@@ -133,7 +134,7 @@ export class MailboxQueue extends DurableObject<Env> {
       }
       purgeExpired(this.sql, now);
       const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard, maxItems: limitsOf(this.env).maxQueueItems, maxBytes: limitsOf(this.env).maxQueueBytes });
-      if (!q.duplicate) this.wake(q.seq);
+      if (!q.duplicate && this.wake(q.seq) === 0) this.pushWake();
       const out = encodeDepositReceipt({ itemId: q.id, seq: q.seq });
       await this.remember(req.requestId, fp, out, LIMITS.idempotencySeconds);
       await this.schedule();
@@ -265,12 +266,35 @@ export class MailboxQueue extends DurableObject<Env> {
   }
 
   /** Tells every authenticated socket that item `seq` arrived. A socket that cannot be written to is dropped; the client falls back to its slow poll. */
-  private wake(seq: number): void {
+  private wake(seq: number): number {
     const frame = encodeWakeEvent({ kind: "wake", seq });
+    let sent = 0;
     for (const ws of this.ctx.getWebSockets()) {
       if (!this.wakeState(ws).authed) continue;
-      try { ws.send(frame); } catch { try { ws.close(1011, "error"); } catch { /* gone */ } }
+      try { ws.send(frame); sent++; } catch { try { ws.close(1011, "error"); } catch { /* gone */ } }
     }
+    return sent;
+  }
+
+  /**
+   * Nobody is listening on the wake channel, so an item that just arrived may be seen only if the owner's device is told (om.relay.push.v1, ADR-0210).
+   * Only a queue whose owner registered a push address (`pushArm`) says anything; the call carries the routing label and nothing else, is not waited
+   * for, and can never fail or slow the deposit.
+   */
+  private pushWake(): void {
+    const label = metaString(this.sql, "push_label");
+    if (label === undefined || !pushOn(this.env) || this.env.PUSH === undefined) return;
+    const hub = this.env.PUSH.get(this.env.PUSH.idFromName("hub"));
+    this.ctx.waitUntil(hub.notify(label).catch(() => undefined));
+  }
+
+  /** Receive-capability proof for a push registration; also remembers the routing label so a later deposit can name this mailbox to the hub. */
+  pushArm(cap: Uint8Array): Promise<Reply> {
+    return reply(async () => {
+      await this.receiveAuth(cap, false);
+      setMeta(this.sql, "push_label", Array.from(cap.slice(0, 16), (x) => x.toString(16).padStart(2, "0")).join(""));
+      return new Uint8Array(0);
+    });
   }
 
   private closeWake(code: number): void {
