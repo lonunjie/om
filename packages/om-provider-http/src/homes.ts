@@ -24,6 +24,12 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
   /** The Home a route name belongs to; anything else (a peer's Home, no name) is handled by the active Home. */
   const homeFor = (relayUri: string | undefined): HttpProvider => (relayUri === undefined ? first : homes.find((h) => `${h.baseUrl}/` === relayUri) ?? first);
 
+  /** The Home a recovery call names by host and port; any other (a contact's Home) is reached by the active Home's client. */
+  const homeNamed = (host: string, port: number | undefined): HttpProvider => {
+    const authority = port === undefined ? host : `${host}:${String(port)}`;
+    return homes.find((h) => new URL(h.baseUrl).host === authority) ?? first;
+  };
+
   return {
     baseUrl: first.baseUrl,
     admissionRefused: () => homes.some((h) => h.admissionRefused()),
@@ -68,8 +74,17 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
         case "deposit": return (call.relayUri === undefined ? first : homeFor(call.relayUri)).perform(call);
         case "ack": return (call.kind === "intro" ? first : homeFor(call.relayUri)).perform(call);
         case "open_queue": return homeFor(call.relayUri).perform(call);
+        // Owner recovery calls name the Home they are for (the record's place, the Home an inbox was registered at). The Home's own client
+        // performs them: it holds that Home's admission secret and treats it as its own store. After a move the record's Home may no longer
+        // be the active one, and the active Home's client would reach it as a stranger and be refused.
         case "recovery_put":
-        case "recovery_get": return first.perform(call);
+        case "recovery_get":
+        case "recovery_veto_read":
+        case "recovery_veto_post":
+        case "recovery_request_post":
+        case "recovery_inbox_register":
+        case "recovery_inbox_drain":
+        case "recovery_inbox_ack": return homeNamed(call.host, call.port).perform(call);
         default: return first.perform(call);
       }
     },

@@ -64,3 +64,18 @@ describe("several Homes of one person", () => {
     expect(uris(await homes.allocateRoutes(1, ["https://a.example/", "https://a.example/"]))).toEqual(["https://b.example/1"]);
   });
 });
+
+describe("recovery calls go to the Home they name", () => {
+  it("a call naming the Home the person is leaving is performed by that Home's own client (its admission secret, its own store), not by the new main Home", async () => {
+    const main = fake("https://main.example"); const gone = fake("https://old.example:8789");
+    const homes = createHomesProvider([main.p], [gone.p]);
+    const at = { accountId: "ab".repeat(32), cap: "cd".repeat(32) };
+    await homes.perform({ call: "recovery_inbox_register", host: "old.example", port: 8789, ...at });
+    await homes.perform({ call: "recovery_inbox_drain", host: "old.example", port: 8789, ...at });
+    await homes.perform({ call: "recovery_inbox_drain", host: "main.example", ...at });
+    await homes.perform({ call: "recovery_request_post", host: "peer.example", bytes: "00" }); // a Home that is not ours: the active Home's client reaches it
+    await homes.perform({ call: "recovery_put", host: "old.example", port: 8789, locator: "00", writeCap: "00", requestId: "00", bytes: "00" });
+    expect(gone.seen.calls.map((c) => c.call)).toEqual(["recovery_inbox_register", "recovery_inbox_drain", "recovery_put"]);
+    expect(main.seen.calls.map((c) => c.call)).toEqual(["recovery_inbox_drain", "recovery_request_post"]);
+  });
+});
