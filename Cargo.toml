@@ -22,6 +22,7 @@ lto = "thin"
 codegen-units = 1
 debug = false
 panic = "abort"
+strip = "symbols"
 
 # Crypto dependencies are slow unoptimised (ML-DSA/ML-KEM); keep tests quick without touching first-party debug info.
 [profile.dev.package."*"]
