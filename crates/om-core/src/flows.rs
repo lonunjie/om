@@ -26,6 +26,7 @@ mod ceremony;
 mod group_lane;
 mod multi;
 mod owed;
+pub(crate) mod preferences;
 mod recovery_approval;
 mod recovery_attempt;
 mod recovery_inbox;
@@ -256,6 +257,7 @@ pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub open_profiles: &'a [String],
     /// Single-use route offers from the host's provider adapter (see `crate::route`).
     pub offers: &'a mut Vec<RouteOffer>,
+    pub room_offers: &'a mut Vec<crate::route::RoomRouteOffer>,
     /// What the BlobStore advertised (see `NetCall::PutBlob`); `None` until the host supplies it.
     pub blob_limits: Option<crate::host::BlobLimits>,
     /// Where this Home keeps recovery records (host-supplied, like `blob_limits`); `None` when it offers none.
@@ -992,7 +994,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         OutcomeClass::Committed
     }
 
-    /// `SetContactNickname` (ADR-0196): local contact state only. No network call, no outbox entry, no event.
+    /// Change the local display name and record a distinct account-private mutation for a bound chat.
     fn set_contact_nickname(&mut self, conv: &str, nickname: Option<&str>) -> OutcomeClass {
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let value = match nickname.map(str::trim) {
@@ -1000,8 +1002,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Some(n) if crate::state::valid_nickname(n) => Some(n.to_string()),
             Some(_) => return rejected(RejectReason::Invalid),
         };
-        if let Some(r) = self.st.app.relationships.get_mut(conv) {
-            r.nickname = value;
+        if let Some(r) = self.st.app.relationships.get(conv) {
+            if r.nickname != value {
+                self.record_nickname(conv, value.clone());
+                self.st
+                    .app
+                    .relationships
+                    .get_mut(conv)
+                    .expect("known chat")
+                    .nickname = value;
+            }
             OutcomeClass::Committed
         } else if let Some(r) = self.st.app.restored.get_mut(conv) {
             r.nickname = value;
@@ -2294,6 +2304,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// each of the person's other Homes the host has offered (a single-Home person is never affected).
     pub fn maintain_relays(&mut self) {
         self.sync_own_head();
+        self.prune_preference_outbox();
         self.retry_dirty_heads();
         self.drop_closed_routes();
         if self.offers.is_empty() {
@@ -2590,6 +2601,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 | Purpose::FetchDeviceKeys { .. }
                 | Purpose::DepositKeys { .. }
                 | Purpose::DepositAcs { .. }
+                | Purpose::DepositPreference { .. }
                 | Purpose::DepositRecoveryNotice { .. }
                 | Purpose::DepositRelaySet { .. }
                 | Purpose::GrantKeyFetch { .. }
@@ -2814,6 +2826,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             Purpose::DepositKeys { .. }
             | Purpose::DepositAcs { .. }
+            | Purpose::DepositPreference { .. }
             | Purpose::DepositRecoveryNotice { .. }
             | Purpose::DepositRelaySet { .. }
             | Purpose::GrantKeyFetch { .. }
@@ -3749,6 +3762,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     }
             }
             KIND_ENROLLED_ACK => sibling && self.on_enrolled_ack(&sender, &p),
+            preferences::KIND_PREFERENCE => sibling && self.on_preference(&sender, &p),
             events::OBJECT_TYPE if crate::groups::carriage::is_lane_event(&pt) => {
                 match self.on_group_lane(conv, &pt, sender, sibling) {
                     Inner::Accepted => true,

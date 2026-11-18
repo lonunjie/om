@@ -20,10 +20,10 @@
 //
 // Failure classes follow Core's contract: `unavailable` = definitely not performed; `timeout` = may have been performed
 // (every mutating request carries a content-derived request_id, so Core's exact retry is idempotent at the Home).
-import type { BlobLimits, RecoveryPlace, Inbound, MailboxKind, NetCall, NetError, NetResult, PerformExtra, Provider, RouteOffer } from "@om/core-wasm";
+import type { BlobLimits, RecoveryPlace, Inbound, MailboxKind, NetCall, NetError, NetResult, PerformExtra, Provider, RouteOffer, RoomRouteMint, RoomRouteOffer, DepositRevocation } from "@om/core-wasm";
 import {
-  API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
-  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeQueueCreate, encodeTicketParams, fromHex, toHex, fromBase64Url, toBase64Url,
+  API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeDepositCapabilityRecord, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
+  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeMintRequest, encodeQueueCreate, encodeTicketParams, fromHex, toHex, fromBase64Url, toBase64Url,
   FEATURES, UNKNOWN_USAGE, USAGE_PATH, encode, map, parseUsageState, type HomeErrorBody, type ProviderUsageState, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
@@ -61,6 +61,9 @@ export type Reachability = "unknown" | "reachable" | "unreachable";
 export interface HttpProvider extends Provider {
   /** Routes for new mailboxes at this Home (Provider.allocateRoutes, always present here). */
   allocateRoutes(count: number, held?: readonly string[]): Promise<readonly RouteOffer[]>;
+  prepareRoomRoute(): RoomRouteMint;
+  mintRoomRoute(plan: RoomRouteMint): Promise<RoomRouteOffer | undefined>;
+  revokeDeposit(grant: DepositRevocation): Promise<void>;
   readonly baseUrl: string;
   /** True once this Home refused to create a resource because it asks for the owner's admission secret and this client's was missing or wrong. */
   admissionRefused(): boolean;
@@ -727,6 +730,15 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     }
   }
 
+  async function revokeDeposit(grant: DepositRevocation): Promise<void> {
+    if (grant.relayUri !== `${base}/` || !/^[0-9a-f]{32}$/.test(grant.id)) throw new Error("invalid room grant");
+    const caps = await mailboxCaps(await secret(), fromHex(grant.mailbox));
+    const r = await mutate(`${base}/v1/relay/deposit-capabilities/${grant.id}`, {
+      method: "DELETE", bearer: caps.admin,
+    });
+    if (isResult(r) || (r.kind !== "ok" && r.error.name !== "not_found")) throw new Error("room grant revoke unavailable");
+  }
+
   // ------------------------------------------------------------------------------------------ Provider
 
   return {
@@ -744,6 +756,32 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       }
       return out;
     },
+    prepareRoomRoute: () => ({
+      mailbox: toHex(crypto.getRandomValues(new Uint8Array(16))),
+      relayUri: `${base}/`,
+      requestId: toHex(crypto.getRandomValues(new Uint8Array(16))),
+      // Keep enough headroom to supersede another route minted in the same second.
+      ttlSeconds: 30 * 86400 + 300,
+    }),
+    async mintRoomRoute(plan) {
+      if (plan.relayUri !== `${base}/`) return undefined;
+      const mailbox = fromHex(plan.mailbox);
+      if ((await ensureQueue(mailbox, plan.mailbox)) !== "ok") return undefined;
+      const caps = await mailboxCaps(await secret(), mailbox);
+      // A success-equivalent DELETE for an unassigned ID checks this queue's targeted revocation path.
+      await revokeDeposit({ relayUri: plan.relayUri, mailbox: plan.mailbox, id: plan.requestId });
+      const r = await mutate(`${base}/v1/relay/deposit-capabilities`, {
+        method: "POST",
+        bearer: caps.admin,
+        body: encodeMintRequest({ requestId: fromHex(plan.requestId), label: new Uint8Array(0), ttlSeconds: plan.ttlSeconds }),
+      });
+      if (isResult(r) || r.kind !== "ok") return undefined;
+      const grant = decodeDepositCapabilityRecord(r.body);
+      if (grant.expiresAt === undefined || grant.expiresAt <= Math.floor(Date.now() / 1000)
+        || grant.cap.length < 32 || grant.cap.length > 64 || toHex(grant.cap) === toHex(caps.deposit)) return undefined;
+      return { mailbox: plan.mailbox, relayUri: plan.relayUri, capability: toHex(grant.cap), id: toHex(grant.id), expiresAt: grant.expiresAt };
+    },
+    revokeDeposit,
     usageState,
     async capabilities() {
       const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });

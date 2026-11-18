@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it } from "vitest";
-import type { NetCall, NetResult } from "@om/core-wasm";
+import type { NetCall, NetResult, RoomRouteMint } from "@om/core-wasm";
 import { createHomesProvider } from "./homes";
 import type { HttpProvider } from "./provider";
 
@@ -21,6 +21,9 @@ function fake(baseUrl: string): { p: HttpProvider; seen: Seen } {
     onWake: () => () => undefined,
     wakeStats: () => ({ sockets: 0, live: 0, wakes: 0, connects: 0 }),
     dispose: () => undefined,
+    prepareRoomRoute: () => ({ relayUri: `${baseUrl}/`, mailbox: "m", requestId: "r", ttlSeconds: 600 }),
+    mintRoomRoute: (plan: RoomRouteMint) => Promise.resolve({ ...plan, capability: "minted", id: "grant", expiresAt: 999 }),
+    revokeDeposit: () => Promise.resolve(),
     allocateRoutes: (count: number) => Promise.resolve(Array.from({ length: count }, () => ({ mailbox: `m${String(n++)}`, relayUri: `${baseUrl}/`, capability: "cap" }))),
     perform: (call: NetCall): Promise<NetResult> => { seen.calls.push(call); return Promise.resolve({ result: "ok" }); },
     poll: (mailbox: string) => { seen.polls.push(mailbox); return Promise.resolve([]); },

@@ -84,6 +84,7 @@ export function createMemoryProvider(): MemoryProvider {
   const grants = new Map<string, Set<string>>(); // device id -> fetch capabilities its owner granted
   const boxes = new Map<string, { next: number; items: { seq: number; bytes: string }[] }>();
   const faults: Fault[] = [];
+  const revoked = new Set<string>();
   let blobLimits: BlobLimits | null = TEST_BLOB_LIMITS;
   const objects = new Map<string, { owner: string; read: string; bytes: Uint8Array; digest: string }>(); // by locator (32 hex)
   const puts = new Map<string, string>(); // requestId -> receipt hex (an exact retry answers alike)
@@ -114,6 +115,20 @@ export function createMemoryProvider(): MemoryProvider {
         out.push({ mailbox, relayUri: TEST_RELAY_URI, capability: CAP_PREFIX + mailbox });
       }
       return Promise.resolve(out);
+    },
+    prepareRoomRoute: () => ({
+      mailbox: toHexStr(crypto.getRandomValues(new Uint8Array(16))),
+      relayUri: TEST_RELAY_URI,
+      requestId: toHexStr(crypto.getRandomValues(new Uint8Array(16))),
+      ttlSeconds: 30 * 86400 + 300,
+    }),
+    mintRoomRoute: (plan) => Promise.resolve({
+      mailbox: plan.mailbox, relayUri: plan.relayUri, capability: CAP_PREFIX + plan.mailbox,
+      id: plan.mailbox, expiresAt: Math.floor(Date.now() / 1000) + plan.ttlSeconds,
+    }),
+    revokeDeposit: (grant) => {
+      revoked.add(grant.mailbox);
+      return Promise.resolve();
     },
     revokeAllInvites: () => { invites.clear(); },
     async perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
@@ -184,6 +199,7 @@ export function createMemoryProvider(): MemoryProvider {
         }
         case "revoke_invite": invites.delete(call.inviteId); break;
         case "deposit": {
+          if (revoked.has(call.mailbox.slice(-32))) return { result: "err", error: { kind: "rejected", reason: "revoked" } };
           // A routed destination is this relay's capability (prefix + mailbox id); a legacy one is the bare mailbox id.
           let id = call.mailbox;
           if (call.relayUri !== undefined) {

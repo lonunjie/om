@@ -122,12 +122,12 @@ export interface Provider {
    * calls the listener (or has no wake channel) behaves exactly as before. Returns the unsubscribe.
    */
   onWake?(listener: () => void): () => void;
-  /**
-   * Optional: revoke a deposit capability this install minted for a per-Room route that was replaced after a removal (ADR-0189
-   * section 1.3, `DELETE /v1/relay/deposit-capabilities/{id}` on the reference Home), so a removed member's copy stops working.
-   * Without it the retired capability only stops at its own expiry. A rejected promise is ignored.
-   */
-  revokeDeposit?(relayUri: string, capability: string): Promise<void>;
+  /** Prepare a fresh, single-use Room queue and mint request without performing I/O. */
+  prepareRoomRoute?(): RoomRouteMint;
+  /** Retry this exact request at its named Home. An unavailable answer leaves its outcome unknown. */
+  mintRoomRoute?(plan: RoomRouteMint): Promise<RoomRouteOffer | undefined>;
+  /** Resolve only on success or success-equivalent not-found at the owning Home. */
+  revokeDeposit?(grant: DepositRevocation): Promise<void>;
 }
 
 export interface PerformExtra { readonly ciphertext?: Uint8Array }
@@ -162,6 +162,23 @@ export interface RouteOffer {
   readonly capability: string;
   /** How much the person prefers this Home: 0 (the default) is their active Home, higher numbers are fallbacks. */
   readonly priority?: number;
+}
+
+export interface RoomRouteMint {
+  readonly mailbox: string;
+  readonly relayUri: string;
+  readonly requestId: string;
+  readonly ttlSeconds: number;
+}
+
+export interface DepositRevocation {
+  readonly relayUri: string;
+  readonly mailbox: string;
+  readonly id: string;
+}
+
+export interface RoomRouteOffer extends RouteOffer, DepositRevocation {
+  readonly expiresAt: number;
 }
 
 /** Password-hashing settings for a backup file (Argon2id). The host derives the key with exactly these. */

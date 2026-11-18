@@ -3,7 +3,7 @@
 // OpenMLS over the in-memory provider (needs `pnpm --filter @om/core-wasm build:wasm:groups`; skipped, loudly, only if absent).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { asConversationId, asGroupId, asOperationId, asProfileId, captureProfileContext } from "@om/platform-api";
 import type { ConversationId, GroupEvent, GroupStep, GroupTarget, GroupWire, HomeSummary, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { createCoreRuntime, instantiateCore } from "./index";
@@ -14,7 +14,7 @@ import { createGroupFaults } from "./groups-loopback";
 import type { GroupFaults } from "./groups-loopback";
 import { createMemoryKv, createMemoryProvider, TEST_RELAY_URI } from "./test-support";
 import type { MemoryKv, MemoryProvider } from "./test-support";
-import type { Inbound, NetCall, NetResult, Provider } from "./types";
+import type { DepositRevocation, Inbound, RoomRouteMint, NetCall, NetResult, Provider } from "./types";
 
 const P = asProfileId("p1");
 const ctx: ProfileExecutionContext = captureProfileContext(P, "g1" as never);
@@ -60,7 +60,8 @@ function scripted(over: { steps?: GroupStep[]; lane?: (rel: string, wire: GroupW
     routeUpdate: (_c: ProfileExecutionContext, room: string) => { c.calls.push(`route_update:${room}`); c.routeOwed = c.routeOwed.filter((r) => r !== room); c.box.push(item(900, { device: "d9", account: "a9" }, "route_update")); return Promise.resolve({ ok: true as const, queued: 1 }); },
     held: () => ({ invitations: [], overflow: { invites: 0, replies: 0 } }),
     ackHeldOverflow: () => Promise.resolve(),
-    routesExpire: () => { c.calls.push("expire"); return Promise.resolve([] as { relayUri: string; capability: string }[]); },
+    routeRevoked: (_ctx: ProfileExecutionContext, grant: DepositRevocation) => { c.calls.push(`revoked:${grant.id}`); return Promise.resolve(); },
+    routesExpire: () => { c.calls.push("expire"); return Promise.resolve([] as { relayUri: string; mailbox: string; id: string }[]); },
   };
   return c;
 }
@@ -80,7 +81,7 @@ function relay(): Provider & { deposits: string[]; fail: Set<number>; boxes: Map
       return Promise.resolve({ result: "ok" });
     },
     poll: (mailbox: string, after: number): Promise<readonly Inbound[]> => Promise.resolve((r.boxes.get(mailbox) ?? []).filter((i) => i.seq > after)),
-    revokeDeposit: (_u: string, cap: string): Promise<void> => { r.revoked.push(cap); return Promise.resolve(); },
+    revokeDeposit: (grant: DepositRevocation): Promise<void> => { r.revoked.push(grant.id); return Promise.resolve(); },
   };
   return r;
 }
@@ -244,9 +245,10 @@ describe("group driver (scripted Core)", () => {
     expect(core.box).toEqual([]);
     expect(core.calls.filter((c) => c === "route_update:room1").length).toBe(1);
     const third = scripted();
-    third.routesExpire = () => Promise.resolve([{ relayUri: TEST_RELAY_URI, capability: "cap1" }]);
+    third.routesExpire = () => Promise.resolve([{ relayUri: TEST_RELAY_URI, mailbox: "mailbox1", id: "cap1" }]);
     await mk(third, r, createMemoryKv()).flush(ctx);
     expect(r.revoked).toEqual(["cap1"]);
+    expect(third.calls).toContain("revoked:cap1");
   });
 
   it("reports background events to a listener", async () => {
@@ -371,6 +373,81 @@ describe.skipIf(!existsSync(WITH_GROUPS))("the driver over two real wasm Cores w
     await settle(again, bob);
     expect(again.rt.groups.get(again.ctx, conv)?.summary.members).toBe(1);
     expect(await bob.rt.groups.do(bob.ctx, { kind: "send_text", conversationId: conv, text: "late" })).toMatchObject({ ok: false });
+  });
+
+  it("retries the exact mint after an ambiguous response and a runtime restart", async () => {
+    const relay = createMemoryProvider();
+    const mint = (plan: RoomRouteMint) => relay.mintRoomRoute?.(plan);
+    if (!relay.mintRoomRoute) throw new Error("test provider has no mint");
+    const plans: unknown[] = [];
+    const provider = { ...relay, async mintRoomRoute(plan: RoomRouteMint) {
+      plans.push(plan);
+      const grant = await mint(plan);
+      if (plans.length === 1) throw new Error("response lost after mint");
+      return grant;
+    } };
+    const id = asProfileId("mint-retry");
+    const before = await boot(provider, id);
+    await before.rt.dispatch({ kind: "CreateIdentityProfile", ctx: before.ctx, operationId: op("mint-create"), label: "Mint test" });
+    await before.rt.flush(id);
+    expect(plans).toHaveLength(0);
+    expect((await before.rt.groups.do(before.ctx, { kind: "create", name: "Mint test", relationshipIds: [] })).ok).toBe(true);
+    await before.rt.idle();
+    expect(plans).toHaveLength(1);
+    before.rt.dispose();
+
+    const after = await boot(provider, id, before.kv);
+    await after.rt.flush(id);
+    await after.rt.idle();
+    expect(plans).toHaveLength(2);
+    expect(plans[1]).toEqual(plans[0]);
+    after.rt.dispose();
+  });
+
+  it.each(["remove", "leave"] as const)("revokes the old Room route after %s, overlap and restart", async (action) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { alice, bob, faults, relay } = await connect();
+      expect((await alice.rt.groups.do(alice.ctx, { kind: "create", name: "Room", relationshipIds: [alice.rel] })).ok).toBe(true);
+      await settle(alice, bob);
+      const [invite] = bob.rt.groups.invites(bob.ctx);
+      expect((await bob.rt.groups.do(bob.ctx, { kind: "accept", inviteId: invite?.id ?? "" })).ok).toBe(true);
+      await settle(alice, bob);
+      const room = asGroupId(alice.rt.groups.list(alice.ctx)[0]?.conversationId ?? "");
+      await bob.rt.groups.do(bob.ctx, { kind: "send_text", conversationId: room, text: "before removal" });
+      await settle(alice, bob);
+      const sent = faults.log.filter((x) => x.from === "bob").at(-1);
+      if (!sent) throw new Error("no Room deposit");
+      const old = { call: "deposit", mailbox: sent.mailbox, relayUri: TEST_RELAY_URI, bytes: sent.bytes } as const;
+
+      const account = alice.rt.groups.get(alice.ctx, room)?.people.find((x) => x.roles.includes("Member"))?.account ?? "";
+      const transition = action === "remove"
+        ? await alice.rt.groups.do(alice.ctx, { kind: "remove", conversationId: room, account })
+        : await bob.rt.groups.do(bob.ctx, { kind: "leave", conversationId: room });
+      expect(transition.ok).toBe(true);
+      await settle(alice, bob);
+      expect(alice.rt.groups.get(alice.ctx, room)?.summary.members).toBe(1);
+      expect((await relay.perform(old)).result).toBe("ok"); // overlap
+
+      vi.setSystemTime(Date.now() + 3_601_000);
+      const provider = faults.provider("alice");
+      const unavailable = { ...provider, revokeDeposit: () => Promise.reject(new Error("DELETE response missing")) };
+      alice.rt.dispose();
+      const during = await boot(unavailable, alice.id, alice.kv);
+      await during.rt.flush(alice.id);
+      expect((await relay.perform(old)).result).toBe("ok");
+      during.rt.dispose();
+
+      const after = await boot(provider, alice.id, alice.kv);
+      await after.rt.flush(alice.id);
+      expect(await relay.perform(old)).toEqual({ result: "err", error: { kind: "rejected", reason: "revoked" } });
+      expect(await relay.perform(old)).toEqual({ result: "err", error: { kind: "rejected", reason: "revoked" } });
+      expect(after.rt.groups.get(after.ctx, room)?.canSend).toBe(true);
+      after.rt.dispose();
+      bob.rt.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("a host without the driver keeps the bare engine, and a shipped module reports unavailable", async () => {

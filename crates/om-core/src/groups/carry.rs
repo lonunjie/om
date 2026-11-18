@@ -22,7 +22,7 @@ use crate::crypto::delivery;
 use crate::crypto::rng::{CryptoRng, RngCore};
 use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
-use crate::route::{RelayEntry, RouteOffer};
+use crate::route::{DepositRevocation, RelayEntry, RoomRouteOffer};
 use crate::state::{AppState, RelState};
 use std::collections::BTreeSet;
 
@@ -34,7 +34,7 @@ pub struct CarryEnv<'a, Rg: RngCore + CryptoRng> {
     pub rng: &'a mut Rg,
     /// Single-use route offers: each is a deposit capability the host's provider adapter minted with
     /// `POST /v1/relay/deposit-capabilities` on this device's own queue (ADR-0189 1.3).
-    pub offers: &'a mut Vec<RouteOffer>,
+    pub offers: &'a mut Vec<RoomRouteOffer>,
     pub now_s: u64,
 }
 
@@ -53,22 +53,25 @@ impl AppState {
 
     fn carry_take_offer<Rg: RngCore + CryptoRng>(
         env: &mut CarryEnv<'_, Rg>,
-    ) -> R<([u8; 16], RelayEntry)> {
+        min_expiry: u64,
+    ) -> R<([u8; 16], RelayEntry, String, u64)> {
         let at = env
             .offers
             .iter()
             .enumerate()
-            .filter(|(_, o)| o.is_valid())
-            .min_by_key(|(i, o)| (o.priority, *i))
+            .filter(|(_, o)| o.expires_at > env.now_s.max(min_expiry))
+            .min_by_key(|(i, o)| (o.route.priority, *i))
             .map(|(i, _)| i)
             .ok_or(GroupError("no_route_offer"))?;
-        let o = env.offers.remove(at);
+        let offer = env.offers.remove(at);
+        let o = offer.route;
         let mailbox =
             <[u8; 16]>::try_from(o.mailbox.as_slice()).map_err(|_| GroupError("no_route_offer"))?;
-        let mut e = RelayEntry::new(&o.relay_uri, &o.capability, env.now_s + cg::ROUTE_TTL_S)
+        let expiry = (env.now_s + cg::ROUTE_TTL_S).max(min_expiry.saturating_add(1));
+        let mut e = RelayEntry::new(&o.relay_uri, &o.capability, expiry.min(offer.expires_at))
             .ok_or(GroupError("no_route_offer"))?;
         e.priority = o.priority;
-        Ok((mailbox, e))
+        Ok((mailbox, e, hex(&offer.id), offer.expires_at))
     }
 
     /// Mint this device's route for `room`: a fresh delivery key bound to a fresh deposit capability from the host's
@@ -79,8 +82,13 @@ impl AppState {
         env: &mut CarryEnv<'_, Rg>,
         room: &str,
     ) -> R<Vec<u8>> {
-        let (mailbox, entry) = Self::carry_take_offer(env)?;
-        let (seed, km) = delivery::new_key(entry.binding(), env.now_s + cg::ROUTE_TTL_S, env.rng);
+        let routes = self.group_carriage.mine.get(room);
+        if routes.is_some_and(|r| r.len() >= cg::MAX_MINE_PER_ROOM) {
+            return err("route_slots_full");
+        }
+        let min_expiry = routes.and_then(|v| v.last()).map_or(0, |r| r.expires_at);
+        let (mailbox, entry, grant_id, grant_expires_at) = Self::carry_take_offer(env, min_expiry)?;
+        let (seed, km) = delivery::new_key(entry.binding(), entry.expires_at, env.rng);
         let seed = zeroize::Zeroizing::new(seed);
         let rec = RouteRecord {
             device_id: env.device_id,
@@ -101,6 +109,8 @@ impl AppState {
                 expires_at: km.expires_at,
                 minted_at: env.now_s,
                 retired_at: None,
+                grant_id: Some(grant_id),
+                grant_expires_at,
             },
         );
         Ok(signed)
@@ -141,8 +151,8 @@ impl AppState {
         Ok(fresh)
     }
 
-    /// Retired routes whose overlap is over: dropped here, returned so the host revokes each deposit capability.
-    pub fn carry_routes_expire(&mut self, now_s: u64) -> Vec<RelayEntry> {
+    /// Return durable revocation debt for routes whose overlap has ended.
+    pub fn carry_routes_expire(&mut self, now_s: u64) -> Vec<DepositRevocation> {
         self.group_carriage.expire_retired(now_s)
     }
 
@@ -1506,6 +1516,7 @@ impl AppState {
         let (room, route) = self
             .group_carriage
             .mine_by_key(&key_id)
+            .filter(|(_, route)| route.receiving(now_s))
             .map(|(r, m)| (r.to_string(), m.clone()))
             .ok_or(GroupError("unknown_route"))?;
         let entry = route.entries.first().ok_or(GroupError("record_corrupt"))?;

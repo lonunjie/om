@@ -220,4 +220,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0211 — SQLite Home runtime and local usage accounting](ADR-0211-sqlite-home-runtime-and-local-usage.md)
 - [ADR-0212 — Room admission evidence and frame retry](ADR-0212-room-admission-evidence-and-frame-retry.md)
 - [ADR-0213 — Compare a contact's AccountID from the contact sheet](ADR-0213-contact-account-id-comparison.md)
-- [ADR-0214 — Mint and revoke per-Room deposit capabilities (proposed)](ADR-0214-minted-room-route-revocation.md)
+- [ADR-0214 — Mint and revoke per-Room deposit capabilities](ADR-0214-minted-room-route-revocation.md)
+- [ADR-0215 — Sync contact nicknames between eligible devices](ADR-0215-account-private-contact-nickname-sync.md)

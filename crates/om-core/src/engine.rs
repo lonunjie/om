@@ -17,7 +17,7 @@ use crate::groups::flow::{
 };
 use crate::groups::mls::GroupCrypto;
 use crate::host::*;
-use crate::route::{MAX_OFFERS, RouteOffer};
+use crate::route::{DepositRevocation, MAX_OFFERS, RoomRouteOffer, RouteOffer};
 use crate::state::*;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
@@ -54,7 +54,7 @@ pub struct HeldInvitations {
 }
 
 /// A removal means every remaining device owes the Room a fresh route (ADR-0189 1.3).
-fn note_removals(app: &mut AppState, r: &GroupReply) {
+fn note_removals(app: &mut AppState, r: &GroupReply, now_s: u64) {
     for e in &r.events {
         if let crate::groups::flow::GroupEvent::MemberRemoved {
             conversation_id, ..
@@ -63,10 +63,15 @@ fn note_removals(app: &mut AppState, r: &GroupReply) {
         {
             app.carry_note_removal(conversation_id);
         }
+        if let crate::groups::flow::GroupEvent::NoLongerMember { conversation_id } = e {
+            app.group_carriage
+                .retire_room(&crate::crypto::hex(conversation_id), now_s);
+        }
     }
 }
 
 struct Slot {
+    room_offers: Vec<RoomRouteOffer>,
     state: ProfileState,
     /// Exactly what the host has durably stored for this profile.
     committed: BTreeMap<String, Vec<u8>>,
@@ -176,6 +181,37 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.offers.len()
     }
 
+    /// Add single-use, Home-minted Room offers to this open profile's pool.
+    pub fn supply_room_routes(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        offers: Vec<RoomRouteOffer>,
+    ) -> Result<usize, CoreError> {
+        self.slot(ctx)?;
+        let now = self.clock.now_ms() / 1000;
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .ok_or(CoreError::ProfileAccess("unknown profile"))?;
+        slot.room_offers.retain(|o| o.expires_at > now);
+        for offer in offers {
+            if slot.room_offers.len() >= MAX_OFFERS {
+                break;
+            }
+            if offer.route.is_valid()
+                && offer.id.len() == 16
+                && offer.expires_at > now
+                && !slot
+                    .room_offers
+                    .iter()
+                    .any(|o| o.route.mailbox == offer.route.mailbox)
+            {
+                slot.room_offers.push(offer);
+            }
+        }
+        Ok(slot.room_offers.len())
+    }
+
     /// The person stopped using the Home `relay_uri`: every relationship with another route publishes a new RelaySet
     /// version without it and keeps polling the dropped route for the overlap (immediately closed when `emergency`).
     /// Returns how many relationships had no other route and so stay on that Home.
@@ -248,7 +284,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }
         self.group_step(ctx, |app, gctx| {
             let r = app.group_do(gctx, intent)?;
-            note_removals(app, &r);
+            note_removals(app, &r, gctx.now_ms / 1000);
             app.carry_outbox_add(&r, gctx.now_ms / 1000)?;
             Ok(r)
         })
@@ -275,7 +311,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.group_step(ctx, |app, gctx| {
             let reps = app.group_settle(gctx)?;
             for r in &reps {
-                note_removals(app, r);
+                note_removals(app, r, gctx.now_ms / 1000);
             }
             Ok(reps)
         })
@@ -319,7 +355,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             let now_s = gctx.now_ms / 1000;
             let reps = app.carry_pending_retry(gctx, now_s)?;
             for r in &reps {
-                note_removals(app, r);
+                note_removals(app, r, gctx.now_ms / 1000);
             }
             Ok(reps)
         })
@@ -369,7 +405,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 device_id: dev.device_id,
                 account_id: dev.account_id,
                 rng: &mut *tx.rng,
-                offers: &mut *tx.offers,
+                offers: &mut *tx.room_offers,
                 now_s,
             };
             match st.app.carry_route_update_queue(&mut env, &room) {
@@ -404,7 +440,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
     ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
         self.group_step(ctx, |app, gctx| {
             let r = app.group_receive(gctx, from, wire)?;
-            note_removals(app, &r);
+            note_removals(app, &r, gctx.now_ms / 1000);
             app.carry_outbox_add(&r, gctx.now_ms / 1000)?;
             Ok(r)
         })
@@ -486,7 +522,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     device_id: dev.device_id,
                     account_id: dev.account_id,
                     rng: &mut *tx.rng,
-                    offers: &mut *tx.offers,
+                    offers: &mut *tx.room_offers,
                     now_s,
                 };
                 st.app.carry_lane_body(&mut env, wire)
@@ -560,7 +596,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         device_id: dev.device_id,
                         account_id: dev.account_id,
                         rng: &mut *tx.rng,
-                        offers: &mut *tx.offers,
+                        offers: &mut *tx.room_offers,
                         now_s,
                     };
                     st.app.carry_lane_body(&mut env, &item.wire)
@@ -681,7 +717,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 device_id: dev.device_id,
                 account_id: dev.account_id,
                 rng: &mut *tx.rng,
-                offers: &mut *tx.offers,
+                offers: &mut *tx.room_offers,
                 now_s,
             };
             match st.app.carry_frame_out(&mut env, out) {
@@ -717,7 +753,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.group_step(ctx, |app, gctx| {
             let now_s = gctx.now_ms / 1000;
             let r = app.carry_frame_in(gctx, now_s, wrapper)?;
-            note_removals(app, &r);
+            note_removals(app, &r, gctx.now_ms / 1000);
             app.carry_outbox_add(&r, gctx.now_ms / 1000)?;
             Ok(r)
         })
@@ -745,7 +781,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 device_id: dev.device_id,
                 account_id: dev.account_id,
                 rng: &mut *tx.rng,
-                offers: &mut *tx.offers,
+                offers: &mut *tx.room_offers,
                 now_s,
             };
             match st.app.carry_route_replace(&mut env, &room) {
@@ -776,7 +812,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
     pub fn group_routes_expire(
         &mut self,
         ctx: &ProfileExecutionContext,
-    ) -> Result<(Vec<crate::route::RelayEntry>, Step), CoreError> {
+    ) -> Result<(Vec<DepositRevocation>, Step), CoreError> {
         self.slot(ctx)?;
         let (revoke, commit) = self.txn(&ctx.profile_id, |tx| {
             let now_s = tx.now_ms / 1000;
@@ -799,10 +835,16 @@ impl<R: RngCore + CryptoRng> Core<R> {
         &self,
         ctx: &ProfileExecutionContext,
     ) -> Result<GroupCarriageStatus, CoreError> {
-        let rec = &self.slot(ctx)?.state.app.group_carriage;
+        let slot = self.slot(ctx)?;
+        let app = &slot.state.app;
+        let rec = &app.group_carriage;
+        let now = self.clock.now_ms() / 1000;
         let mut mailboxes: Vec<GroupMailbox> = vec![];
         for routes in rec.mine.values() {
             for r in routes {
+                if !r.receiving(now) {
+                    continue;
+                }
                 let Some(e) = r.entries.first() else { continue };
                 let Ok(mailbox) = crate::crypto::unhex(&r.mailbox) else {
                     continue;
@@ -815,13 +857,46 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 }
             }
         }
+        let mut route_owed = rec.replace_owed.clone();
+        if let Some(me) = slot.state.device.as_ref() {
+            let device = crate::crypto::hex(&me.device_id);
+            for (room, roster) in &app.group_devices {
+                if roster.contains_key(&device)
+                    && !route_owed.contains(room)
+                    && !rec.mine.get(room).is_some_and(|routes| {
+                        routes.iter().any(|r| {
+                            r.retired_at.is_none() && r.grant_id.is_some() && r.expires_at > now
+                        })
+                    })
+                {
+                    route_owed.push(room.clone());
+                }
+            }
+        }
         Ok(GroupCarriageStatus {
             mailboxes,
-            route_owed: rec.replace_owed.clone(),
+            route_owed,
             outbox: rec.outbox.len(),
             pending: rec.pending.len(),
             lane_out: rec.lane_out.len(),
             lane_lost: rec.lane_out_lost,
+        })
+    }
+
+    /// Drop revocation debt after the owning Home confirms the idempotent DELETE.
+    pub fn group_route_revoked(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        revoke: &DepositRevocation,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.st.app.group_carriage.revoked(revoke, tx.now_ms / 1000);
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
         })
     }
 
@@ -1443,8 +1518,14 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .iter()
             .map(|r| (r.key.clone(), r.value.clone()))
             .collect();
-        self.profiles
-            .insert(profile_id.to_string(), Slot { state, committed });
+        self.profiles.insert(
+            profile_id.to_string(),
+            Slot {
+                state,
+                committed,
+                room_offers: vec![],
+            },
+        );
         Ok(ProfileExecutionContext {
             profile_id: profile_id.to_string(),
             generation,
@@ -1499,7 +1580,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         let open: Vec<String> = self.profiles.keys().cloned().collect();
         let slot = self
             .profiles
-            .get(profile)
+            .get_mut(profile)
             .ok_or(CoreError::ProfileAccess("unknown profile"))?;
         let mut next = slot.state.clone();
         let (value, changed) = {
@@ -1510,6 +1591,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 changed: vec![],
                 open_profiles: &open,
                 offers: &mut self.offers,
+                room_offers: &mut slot.room_offers,
                 blob_limits: self.blob_limits,
                 recovery_place: self.recovery_place.clone(),
             };
@@ -1802,6 +1884,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.slot(ctx)?;
         let (_, commit) = self.txn(&ctx.profile_id, |tx| {
             tx.owed_tick();
+            tx.maintain_preferences();
             Ok(())
         })?;
         Ok(Step {

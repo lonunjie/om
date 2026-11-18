@@ -2836,7 +2836,8 @@
     {
       "requirement": "R-436",
       "verified_by": [
-        "review:ADR-0196-local-contact-nickname.md"
+        "review:ADR-0196-local-contact-nickname.md",
+        "review:ADR-0215-account-private-contact-nickname-sync.md"
       ]
     },
     {

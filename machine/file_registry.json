@@ -1831,6 +1831,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/preferences.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows/recovery_approval.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -4009,6 +4016,13 @@
     },
     {
       "path": "decisions/ADR-0214-minted-room-route-revocation.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0215-account-private-contact-nickname-sync.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",

@@ -5,6 +5,6 @@ export { createGroupDriver } from "./groups-driver";
 export type { FrameSend, GroupCarriageStatus, GroupCore, GroupDriver, GroupDriverOptions, GroupOutItem, SealedFrame } from "./groups-driver";
 export type { CoreRuntimeOptions, WasmCoreClient } from "./runtime";
 export { BACKUP_REFUSALS, CoreCallError, CoreStorageError, backupRefusal, fromHex, toHex } from "./types";
-export type { BackupHeader, BackupKdf, BackupPlan, BackupRefusal, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, MailboxKind, NetCall, NetError, NetOp, NetResult, PerformExtra, BlobLimits, RecoveryPlace, PollTarget, Provider, RouteOffer, Write } from "./types";
+export type { BackupHeader, BackupKdf, BackupPlan, BackupRefusal, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, MailboxKind, NetCall, NetError, NetOp, NetResult, PerformExtra, BlobLimits, RecoveryPlace, PollTarget, Provider, RouteOffer, RoomRouteMint, RoomRouteOffer, DepositRevocation, Write } from "./types";
 export { createDirectDriver } from "./direct-driver";
 export type { DirectCiphertextCache, DirectChannel, DirectDriver, DirectDriverOptions, DirectFetchFailure, DirectFetchResult, DirectTransport, PickedFile, SendAgainResult } from "./direct-driver";

@@ -9,7 +9,7 @@ import type {
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
-import type { BackupHeader, BackupPlan, BlobLimits, RecoveryPlace, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
+import type { BackupHeader, BackupPlan, BlobLimits, RecoveryPlace, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, DepositRevocation, RoomRouteMint, RoomRouteOffer, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
@@ -197,6 +197,35 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       core.call({ cmd: "supply_routes", routes: await provider.allocateRoutes(OFFER_TARGET - held, core.call({ cmd: "offer_homes" }) as string[]) });
     } catch { /* no routes: Core refuses what needs a mailbox as unavailable; nothing is invented */ }
   }
+  const ROOM_MINT = "gdrv/room-mint/v1";
+  const MINT_REPLAY_MS = 600_000;
+  type MintJournal = { readonly startedAt: number; readonly plan: RoomRouteMint; readonly offer?: RoomRouteOffer };
+
+  /** A Room mint is single-use. Persist before I/O and retire its journal entry before handing it to Core. */
+  const topUpRoomRoutes = (ctx: ProfileExecutionContext): Promise<void> => exclusive(async () => {
+    if (!provider.prepareRoomRoute || !provider.mintRoomRoute || !provider.revokeDeposit) return;
+    const args = { cmd: "supply_room_routes", ctx: ctxOf(ctx) };
+    if ((core.call({ ...args, routes: [] }) as number) > 0) return;
+    const kv = opts.storage(ctx.profileId);
+    const read = await kv.get(ROOM_MINT);
+    if (!read.ok) return;
+    let pending = read.value === undefined ? undefined : JSON.parse(new TextDecoder().decode(read.value)) as MintJournal;
+    const now = Date.now();
+    if (pending === undefined || pending.startedAt > now
+      || (pending.offer === undefined ? now >= pending.startedAt + MINT_REPLAY_MS : pending.offer.expiresAt <= now / 1000)) {
+      pending = { startedAt: now, plan: provider.prepareRoomRoute() };
+      if (!(await kv.put(ROOM_MINT, new TextEncoder().encode(JSON.stringify(pending)))).ok) return;
+    }
+    let offer = pending.offer;
+    if (offer === undefined) {
+      try { offer = await provider.mintRoomRoute(pending.plan); } catch { return; }
+      if (offer === undefined) return;
+      if (!(await kv.put(ROOM_MINT, new TextEncoder().encode(JSON.stringify({ ...pending, offer })))).ok) return;
+    }
+    if (!(await kv.delete(ROOM_MINT)).ok) return;
+    core.call({ ...args, routes: [offer] });
+  }).catch(() => undefined);
+
   const query = (q: CoreQuery): unknown => core.call({ cmd: "query", query: q });
 
   // ---------------------------------------------------------------------------------------------- files
@@ -452,9 +481,12 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       return { ok: true as const, queued: r.queued };
     }),
     routesExpire: (ctx) => exclusive(async () => {
-      const r = core.call({ cmd: "group_routes_expire", ctx: ctxOf(ctx) }) as { revoke: { relayUri: string; capability: string }[]; commit?: Commit | null };
+      const r = core.call({ cmd: "group_routes_expire", ctx: ctxOf(ctx) }) as { revoke: DepositRevocation[]; commit?: Commit | null };
       await kvCommit(r, ctx);
       return r.revoke;
+    }),
+    routeRevoked: (ctx, revoke) => exclusive(async () => {
+      await kvCommit(core.call({ cmd: "group_route_revoked", ctx: ctxOf(ctx), revoke }) as { commit?: Commit | null }, ctx);
     }),
   };
   const groupDriver: GroupDriver | undefined = opts.groupDriver === undefined ? undefined : createGroupDriver({
@@ -462,7 +494,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     provider,
     storage: opts.storage,
     contextFor: (profileId) => { const c = core.call({ cmd: "context_for", profileId }) as { profileId: string; generation: string }; return captureProfileContext(asProfileId(c.profileId), asProfileGeneration(c.generation)); },
-    topUp: topUpRoutes,
+    topUp: topUpRoomRoutes,
     wake: (profileId) => { kick(asProfileId(profileId)); },
     ...(opts.groupDriver.retryMs === undefined ? {} : { retryMs: opts.groupDriver.retryMs }),
   });

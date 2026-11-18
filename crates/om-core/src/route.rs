@@ -160,3 +160,23 @@ impl RouteOffer {
             && self.relay_uri != CORE_ROUTE_URI
     }
 }
+
+/// Single-use Room offer. Grant bookkeeping is local and never part of the signed route.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomRouteOffer {
+    #[serde(flatten)]
+    pub route: RouteOffer,
+    #[serde(with = "hexs")]
+    pub id: Vec<u8>,
+    pub expires_at: u64,
+}
+
+/// Idempotent revocation at the Home owning this queue.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DepositRevocation {
+    pub relay_uri: String,
+    pub mailbox: String,
+    pub id: String,
+}

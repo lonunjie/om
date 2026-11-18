@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it } from "vitest";
-import { HomeError, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
+import { HomeError, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, decodeMintRequest, decodeQueueCreate, encodeDepositCapabilityRecord, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
 import type { NetCall } from "@om/core-wasm";
 import { createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "./index";
 
@@ -109,6 +109,43 @@ describe("routes (audit M1)", () => {
       expect(o.capability).toBe(toHex(entry.capability));
       expect(o.capability).toHaveLength(64);
     }
+  });
+
+  it("mints on the scoped queue and revokes the returned ID at its own Home", async () => {
+    const id = rand(16);
+    const cap = rand(48);
+    const reply = encodeDepositCapabilityRecord({ id, cap, expiresAt: Math.floor(Date.now() / 1000) + 600 });
+    const deletes: string[] = [];
+    let admin = "";
+    let mintRequest = "";
+    const p = createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(),
+      fetch: (i, init) => {
+        const path = new URL(urlOf(i)).pathname;
+        const auth = new Headers(init?.headers).get("authorization");
+        if (path === "/v1/relay/queues") {
+          const create = decodeQueueCreate(init?.body as Uint8Array);
+          admin = toBase64Url(create.adminCap ?? new Uint8Array());
+        } else {
+          expect(auth).toBe(`Bearer ${admin}`);
+          if (init?.method === "POST") {
+            mintRequest = toHex(decodeMintRequest(init.body as Uint8Array).requestId);
+            return Promise.resolve(new Response(reply as BodyInit));
+          }
+          deletes.push(path);
+        }
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    const plan = p.prepareRoomRoute();
+    expect(await p.mintRoomRoute({ ...plan, relayUri: "https://other.example/" })).toBeUndefined();
+    const offer = await p.mintRoomRoute(plan);
+    expect(offer).toMatchObject({ mailbox: plan.mailbox, relayUri: plan.relayUri, id: toHex(id), capability: toHex(cap) });
+    expect(mintRequest).toBe(plan.requestId);
+    if (!offer) throw new Error("no grant");
+    await expect(p.revokeDeposit({ ...offer, relayUri: "https://other.example/" })).rejects.toThrow();
+    await p.revokeDeposit(offer);
+    expect(deletes).toEqual([`/v1/relay/deposit-capabilities/${plan.requestId}`, `/v1/relay/deposit-capabilities/${toHex(id)}`]);
   });
 
   it("deposits to a route's capability as given when the route is at this Home; derives for a legacy destination", async () => {

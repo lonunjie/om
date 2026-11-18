@@ -7,7 +7,7 @@
 use crate::api::*;
 use crate::crypto::rng::insecure_test_rng::InsecureTestRng;
 use crate::host::*;
-use crate::route::RouteOffer;
+use crate::route::{DepositRevocation, RoomRouteOffer, RouteOffer};
 use crate::{Core, crypto::hex};
 use rand_core::RngCore as _;
 use std::cell::{Cell, RefCell};
@@ -218,6 +218,7 @@ struct NetState {
     faults: Vec<Fault>,
     /// Loopback Homes that are down: deposits to them are `unavailable`, and nothing can be drained from them.
     blocked: Vec<String>,
+    revoked_room_grants: std::collections::BTreeSet<(String, String)>,
     deposits: u64,
     /// Every deposit a relay ever received, in order (the relay-visible byte stream; mailboxes are drained by acks).
     log: Vec<(Vec<u8>, Vec<u8>)>,
@@ -382,6 +383,15 @@ impl LoopbackNetwork {
         self.0.borrow_mut().invites.clear();
     }
 
+    pub fn revoke_deposit(&self, grant: &DepositRevocation) {
+        if grant.id == grant.mailbox {
+            self.0
+                .borrow_mut()
+                .revoked_room_grants
+                .insert((grant.relay_uri.clone(), grant.id.clone()));
+        }
+    }
+
     pub fn perform(&self, call: &NetCall) -> NetResult {
         let mut s = self.0.borrow_mut();
         let fault = if s.faults.is_empty() {
@@ -512,6 +522,16 @@ impl LoopbackNetwork {
                 bytes,
             } => {
                 let mailbox = mailbox_of_deposit(mailbox, relay_uri.as_deref());
+                if let Some(uri) = relay_uri
+                    && s.revoked_room_grants
+                        .contains(&(uri.clone(), hex(&mailbox)))
+                {
+                    return NetResult::Err {
+                        error: NetError::Rejected {
+                            reason: RejectReason::Revoked,
+                        },
+                    };
+                }
                 s.deposits += 1;
                 s.log.push((mailbox.clone(), bytes.clone()));
                 let m = s.mailboxes.entry(mailbox).or_default();
@@ -1087,6 +1107,22 @@ impl Runtime {
             })
             .collect();
         self.core.supply_routes(offers);
+        for profile in &self.open {
+            let ctx = self.core.context_for(profile).unwrap();
+            let expiry = self.clock.get() / 1000 + crate::groups::carriage::ROUTE_TTL_S + 300;
+            let offers = (0..n)
+                .map(|i| {
+                    let mut mailbox = [0u8; 16];
+                    self.offer_rng.fill_bytes(&mut mailbox);
+                    RoomRouteOffer {
+                        route: loopback_offer_at(mailbox, homes[i % homes.len()]),
+                        id: mailbox.to_vec(),
+                        expires_at: expiry,
+                    }
+                })
+                .collect();
+            self.core.supply_room_routes(&ctx, offers).unwrap();
+        }
     }
 
     /// Recovery observations as a host would hand them in (see `Core::recovery_observe_*`): `session` names the host's

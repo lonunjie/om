@@ -1143,6 +1143,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Put `payload` into the session with our other device `dev`, through any active conversation that reaches it.
     pub(super) fn deliver_enrolled(&mut self, dev: &str, payload: &[u8]) -> bool {
+        self.deliver_sibling(dev, payload, false)
+    }
+
+    pub(super) fn deliver_sibling(&mut self, dev: &str, payload: &[u8], preference: bool) -> bool {
         let convs: Vec<String> = self
             .st
             .app
@@ -1155,8 +1159,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             if !self.ensure_dev(&conv, dev, true) {
                 continue;
             }
-            let purpose = Purpose::DepositAcs {
-                conversation_id: conv.clone(),
+            let purpose = if preference {
+                Purpose::DepositPreference {
+                    conversation_id: conv.clone(),
+                    device_id: dev.to_string(),
+                }
+            } else {
+                Purpose::DepositAcs {
+                    conversation_id: conv.clone(),
+                }
             };
             if self
                 .with_dev(&conv, dev, |tx| tx.send_control(&conv, payload, purpose))
@@ -1203,6 +1214,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             stripped.my_mailbox = String::new();
             stripped.bootstrap = None;
             stripped.pending_bind = None;
+            stripped.nickname = None; // ADR-0215 preferences have their own causal records.
             stripped.route_health.clear();
             stripped.head_asked_ms = 0;
             stripped.head_dirty = false;
@@ -2615,6 +2627,7 @@ mod tests {
             changed: vec![],
             open_profiles: &open,
             offers: &mut offers,
+            room_offers: &mut vec![],
             blob_limits: None,
             recovery_place: None,
         };

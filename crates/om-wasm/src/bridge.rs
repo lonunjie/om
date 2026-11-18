@@ -14,7 +14,7 @@ use om_core::groups::flow::{
 };
 use om_core::groups::room::Setting;
 use om_core::host::{BlobLimits, Clock, CoreError, Inbound, NetResult, Record};
-use om_core::route::RouteOffer;
+use om_core::route::{DepositRevocation, RoomRouteOffer, RouteOffer};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -111,6 +111,10 @@ enum Command {
     /// Routes the provider adapter allocated for mailboxes Core has not created yet. Answers how many Core holds.
     SupplyRoutes {
         routes: Vec<RouteOffer>,
+    },
+    SupplyRoomRoutes {
+        ctx: ProfileExecutionContext,
+        routes: Vec<RoomRouteOffer>,
     },
     /// The Home (relay_uri) of each route offer Core still holds.
     OfferHomes,
@@ -292,6 +296,10 @@ enum Command {
     /// Retired routes whose overlap ended are dropped: `{revoke: [relay entries], commit}`.
     GroupRoutesExpire {
         ctx: ProfileExecutionContext,
+    },
+    GroupRouteRevoked {
+        ctx: ProfileExecutionContext,
+        revoke: DepositRevocation,
     },
     /// `{mailboxes: [{mailbox, relayUri}], routeOwed: [room], outbox, pending}`: what the host watches for the device lane.
     GroupCarriageStatus {
@@ -834,6 +842,9 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             }
             Command::OfferHomes => Ok(json!(self.core()?.offer_homes())),
             Command::SupplyRoutes { routes } => Ok(json!(self.core()?.supply_routes(routes))),
+            Command::SupplyRoomRoutes { ctx, routes } => {
+                Ok(json!(self.core()?.supply_room_routes(&ctx, routes)?))
+            }
             Command::SetBlobLimits { limits } => {
                 self.core()?.set_blob_limits(limits);
                 Ok(Value::Null)
@@ -1152,6 +1163,10 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     "revoke": serde_json::to_value(&revoke).unwrap_or(Value::Null),
                     "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null),
                 }))
+            }
+            Command::GroupRouteRevoked { ctx, revoke } => {
+                let step = self.core()?.group_route_revoked(&ctx, &revoke)?;
+                Ok(json!({ "commit": step.commit }))
             }
             Command::GroupCarriageStatus { ctx } => {
                 let st = self.core()?.group_carriage_status(&ctx)?;

@@ -28,6 +28,7 @@ fn drive<T>(
         changed: vec![],
         open_profiles: &open,
         offers: &mut offers,
+        room_offers: &mut vec![],
         blob_limits: None,
         recovery_place: None,
     };

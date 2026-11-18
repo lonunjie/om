@@ -46,7 +46,10 @@ export class MailboxQueue extends DurableObject<Env> {
 
   /** Idempotency: the same request_id and the same operation fingerprint returns the stored outcome; a different one is invalid_request. */
   private async replay(requestId: Uint8Array, fp: string): Promise<Uint8Array | undefined> {
-    const rid = await fingerprint(requestId);
+    return this.replayById(await fingerprint(requestId), fp);
+  }
+
+  private replayById(rid: string, fp: string): Uint8Array | undefined {
     const r = one<{ fp: string; result: Uint8Array }>(this.sql, "SELECT fp, result FROM ops WHERE request_id = ?", rid);
     if (!r) return undefined;
     if (r.fp !== fp) throw new HomeError("invalid_request", { hint: "request_id reused with different operation" });
@@ -54,7 +57,10 @@ export class MailboxQueue extends DurableObject<Env> {
   }
 
   private async remember(requestId: Uint8Array, fp: string, result: Uint8Array, ttl: number): Promise<void> {
-    const rid = await fingerprint(requestId);
+    this.rememberById(await fingerprint(requestId), fp, result, ttl);
+  }
+
+  private rememberById(rid: string, fp: string, result: Uint8Array, ttl: number): void {
     run(this.sql, "INSERT OR REPLACE INTO ops (request_id, fp, result, expires_at) VALUES (?, ?, ?, ?)", rid, fp, result, nowSeconds() + ttl);
     run(this.sql, "DELETE FROM ops WHERE rowid <= (SELECT MAX(rowid) FROM ops) - ?", LIMITS.maxReplayRows);
   }
@@ -316,22 +322,28 @@ export class MailboxQueue extends DurableObject<Env> {
   mint(adminCap: Uint8Array, req: MintDepositCapabilityRequest): Promise<Reply> {
     return reply(async () => {
       await this.adminAuth(adminCap);
-      const fp = await fingerprint(req.label, new TextEncoder().encode(`${String(req.ttlSeconds)}:${String(req.maxItems)}`));
-      const done = await this.replay(req.requestId, fp);
-      if (done) return done;
-      const count = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps WHERE revoked = 0")?.n ?? 0;
-      const rows = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps")?.n ?? 0; // revoked tombstones count too
-      if (count >= limitsOf(this.env).maxDepositCapabilities || rows >= LIMITS.maxCapabilityRows) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
-      const now = nowSeconds();
       const cap = concat(adminCapPrefix(adminCap), randomBytes(32));
       const id = randomBytes(16);
-      const expiresAt = req.ttlSeconds === undefined ? null : now + Math.min(req.ttlSeconds, LIMITS.maxRetentionSeconds * 4);
-      run(this.sql, "INSERT INTO dcaps (hash, id, generation, expires_at, max_items, tokens, tokens_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        await capHash(cap), id, metaNumber(this.sql, "generation"), expiresAt, req.maxItems ?? null, LIMITS.depositBurst, now);
-      const rec: DepositCapabilityRecord = { id, cap, ...(expiresAt === null ? {} : { expiresAt }) };
-      const out = encodeDepositCapabilityRecord(rec);
-      await this.remember(req.requestId, fp, out, LIMITS.rotateResultSeconds);
-      return out;
+      const [rid, fp, hash] = await Promise.all([
+        fingerprint(req.requestId),
+        fingerprint(req.label, new TextEncoder().encode(`${String(req.ttlSeconds)}:${String(req.maxItems)}`)),
+        capHash(cap),
+      ]);
+      return this.ctx.storage.transactionSync(() => {
+        const done = this.replayById(rid, fp);
+        if (done) return done;
+        const count = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps WHERE revoked = 0")?.n ?? 0;
+        const rows = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps")?.n ?? 0;
+        if (count >= limitsOf(this.env).maxDepositCapabilities || rows >= LIMITS.maxCapabilityRows) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
+        const now = nowSeconds();
+        const expiresAt = req.ttlSeconds === undefined ? null : now + Math.min(req.ttlSeconds, LIMITS.maxRetentionSeconds * 4);
+        run(this.sql, "INSERT INTO dcaps (hash, id, generation, expires_at, max_items, tokens, tokens_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          hash, id, metaNumber(this.sql, "generation"), expiresAt, req.maxItems ?? null, LIMITS.depositBurst, now);
+        const rec: DepositCapabilityRecord = { id, cap, ...(expiresAt === null ? {} : { expiresAt }) };
+        const out = encodeDepositCapabilityRecord(rec);
+        this.rememberById(rid, fp, out, LIMITS.rotateResultSeconds);
+        return out;
+      });
     });
   }
 

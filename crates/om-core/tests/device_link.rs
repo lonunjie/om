@@ -201,6 +201,75 @@ fn texts(rt: &Runtime, ctx: &ProfileExecutionContext, conv: &str) -> Vec<String>
 }
 
 #[test]
+fn contact_nickname_syncs_only_to_eligible_sibling_devices_and_clears_after_restart() {
+    let mut w = world();
+    let request = w.offer_and_ask();
+    assert_eq!(w.approve(&request, "ok"), Some(OutcomeClass::Committed));
+    w.settle();
+    let nickname = |rt: &Runtime, ctx: &ProfileExecutionContext| {
+        rt.query::<Vec<ConversationSummary>>(Query::GetConversationList { ctx: ctx.clone() })[0]
+            .nickname
+            .clone()
+    };
+    w.alice.dispatch(
+        &w.a,
+        "nickname",
+        IntentBody::SetContactNickname {
+            conversation_id: w.a_conv.clone(),
+            nickname: Some("Carol from work".into()),
+        },
+    );
+    assert!(
+        w.alice.core.net_ops(&w.a).unwrap().is_empty(),
+        "the local intent does not send"
+    );
+    w.settle();
+    assert_eq!(nickname(&w.phone, &w.n).as_deref(), Some("Carol from work"));
+    assert_eq!(nickname(&w.carol, &w.c), None);
+
+    w.n = w.phone.restart().remove(0);
+    w.phone.dispatch(
+        &w.n,
+        "clear-nickname",
+        IntentBody::SetContactNickname {
+            conversation_id: conv_of(&w.phone, &w.n),
+            nickname: None,
+        },
+    );
+    w.settle();
+    assert_eq!(nickname(&w.alice, &w.a), None);
+    assert_eq!(nickname(&w.carol, &w.c), None);
+
+    let id = w
+        .devices(false)
+        .devices
+        .into_iter()
+        .find(|d| d.is_current)
+        .unwrap()
+        .id;
+    let confirmation = nonce(&mut w.alice, &w.a, "RevokeDevice", &id);
+    w.alice.dispatch(
+        &w.a,
+        "revoke-nickname-reader",
+        IntentBody::RevokeDevice {
+            device_id: id,
+            confirmation,
+        },
+    );
+    w.settle();
+    w.alice.dispatch(
+        &w.a,
+        "nickname-after-revoke",
+        IntentBody::SetContactNickname {
+            conversation_id: w.a_conv.clone(),
+            nickname: Some("Never on the old phone".into()),
+        },
+    );
+    w.settle();
+    assert_eq!(nickname(&w.phone, &w.n), None);
+}
+
+#[test]
 fn two_cores_link_and_both_send_and_receive_with_a_third() {
     let mut w = world();
     let request_id = w.offer_and_ask();

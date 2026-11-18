@@ -27,7 +27,7 @@ use crate::crypto::sig::{
 };
 use crate::crypto::{PROFILE_V1, hex};
 use crate::events::{self, Hlc};
-use crate::route::RelayEntry;
+use crate::route::{DepositRevocation, RelayEntry};
 use crate::state::SecretHex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -731,6 +731,28 @@ pub struct MyRoute {
     /// Set when a newer route replaced this one: it keeps receiving until `retired_at + ROUTE_OVERLAP_S`.
     #[serde(default)]
     pub retired_at: Option<u64>,
+    /// Home-issued, resource-scoped grant ID. Absent on pre-ADR-0214 persisted routes.
+    #[serde(default)]
+    pub grant_id: Option<String>,
+    #[serde(default)]
+    pub grant_expires_at: u64,
+}
+
+impl MyRoute {
+    pub fn receiving(&self, now_s: u64) -> bool {
+        self.expires_at > now_s
+            && self
+                .retired_at
+                .is_none_or(|t| now_s < t.saturating_add(ROUTE_OVERLAP_S))
+    }
+
+    fn revocation(&self) -> Option<DepositRevocation> {
+        Some(DepositRevocation {
+            relay_uri: self.entries.first()?.relay_uri.clone(),
+            mailbox: self.mailbox.clone(),
+            id: self.grant_id.clone()?,
+        })
+    }
 }
 
 /// A verified route of another device of a Room.
@@ -967,10 +989,7 @@ impl GroupCarriageRec {
 
     /// Record a minted route; older routes of the room stay (overlapping) until [`Self::retire_and_expire`].
     pub fn add_mine(&mut self, room: &str, r: MyRoute) {
-        let v = self.mine.entry(room.to_string()).or_default();
-        v.push(r);
-        let over = v.len().saturating_sub(MAX_MINE_PER_ROOM);
-        v.drain(..over);
+        self.mine.entry(room.to_string()).or_default().push(r);
     }
 
     /// Route replacement: mark every older route of `room` retired at `now_s` (after a removal, ADR-0189 1.3).
@@ -984,21 +1003,43 @@ impl GroupCarriageRec {
         self.replace_owed.retain(|x| x != room);
     }
 
-    /// Drop retired routes whose overlap has ended and return their entries: the host revokes each deposit
-    /// capability (`DELETE /v1/relay/deposit-capabilities/{id}`), after which a removed member's copy stops working.
-    pub fn expire_retired(&mut self, now_s: u64) -> Vec<RelayEntry> {
+    /// A device leaving or losing membership no longer needs any of its routes.
+    pub fn retire_room(&mut self, room: &str, now_s: u64) {
+        if let Some(routes) = self.mine.get_mut(room) {
+            for route in routes {
+                route.retired_at.get_or_insert(now_s);
+            }
+        }
+        self.replace_owed.retain(|r| r != room);
+    }
+
+    /// A retired route stops receiving at the boundary, but its grant metadata survives until DELETE
+    /// succeeds or the Home's expiry (including clock skew). Legacy routes have no DELETE target.
+    pub fn expire_retired(&mut self, now_s: u64) -> Vec<DepositRevocation> {
         let mut revoke = vec![];
-        for v in self.mine.values_mut() {
-            v.retain(|r| match r.retired_at {
-                Some(t) if now_s >= t.saturating_add(ROUTE_OVERLAP_S) => {
-                    revoke.extend(r.entries.iter().cloned());
-                    false
+        for routes in self.mine.values_mut() {
+            routes.retain(|r| {
+                if r.receiving(now_s) {
+                    return true;
                 }
-                _ => true,
+                if now_s <= r.grant_expires_at.saturating_add(300)
+                    && let Some(debt) = r.revocation()
+                {
+                    revoke.push(debt);
+                    return true;
+                }
+                false
             });
         }
-        self.mine.retain(|_, v| !v.is_empty());
+        self.mine.retain(|_, routes| !routes.is_empty());
         revoke
+    }
+
+    pub fn revoked(&mut self, done: &DepositRevocation, now_s: u64) {
+        for routes in self.mine.values_mut() {
+            routes.retain(|r| r.receiving(now_s) || r.revocation().as_ref() != Some(done));
+        }
+        self.mine.retain(|_, routes| !routes.is_empty());
     }
 
     /// Move a room's records to a new room key (the invite room becomes the Room once the Welcome gives its id).

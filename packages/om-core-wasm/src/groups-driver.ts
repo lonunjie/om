@@ -17,7 +17,7 @@
 import type {
   EncryptedKv, GroupApi, GroupEvent, GroupId, GroupIntent, GroupSender, GroupStep, GroupTarget, GroupWire, HeldGroupInvitations, ProfileExecutionContext, ProfileId,
 } from "@om/platform-api";
-import type { Provider } from "./types";
+import type { DepositRevocation, Provider } from "./types";
 
 /** One sealed frame for one destination device: deposit `wrapper` (hex) at `entry`. */
 export interface SealedFrame {
@@ -59,8 +59,9 @@ export interface GroupCore extends GroupApi {
   pendingRetry(ctx: ProfileExecutionContext): Promise<GroupStep>;
   /** Mint this device's fresh route and queue the `route_update` frames in Core's outbox (`queued` of them). */
   routeUpdate(ctx: ProfileExecutionContext, conversationId: string): Promise<{ readonly ok: true; readonly queued: number } | { readonly ok: false; readonly refused: string }>;
-  /** Retired routes whose overlap ended; the host revokes each deposit capability. */
-  routesExpire(ctx: ProfileExecutionContext): Promise<readonly { readonly relayUri: string; readonly capability: string }[]>;
+  /** Due revocations remain durable until the owning Home confirms DELETE. */
+  routesExpire(ctx: ProfileExecutionContext): Promise<readonly DepositRevocation[]>;
+  routeRevoked(ctx: ProfileExecutionContext, grant: DepositRevocation): Promise<void>;
 }
 
 export interface GroupDriverOptions {
@@ -69,7 +70,7 @@ export interface GroupDriverOptions {
   readonly storage: (profileId: ProfileId) => EncryptedKv;
   readonly contextFor: (profileId: ProfileId) => ProfileExecutionContext;
   /** Keep a few route offers in Core (a route is minted for each Accept, Welcome and Room route update). */
-  readonly topUp: () => Promise<void>;
+  readonly topUp: (ctx: ProfileExecutionContext) => Promise<void>;
   /** Called after a step that queued something on the 1:1 (the runtime then performs it). */
   readonly wake?: (profileId: ProfileId) => void;
   /** Wait before repeating a pass that could not finish (default 2000 ms; 0 = only when `flush` is called). */
@@ -148,7 +149,7 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
       const key = destKey(item.to);
       if (blocked.has(key)) continue; // nothing later goes ahead of an earlier frame for the same destination
       let sealed = await core.frameSend(ctx, item.to, item.wire);
-      if (!sealed.ok && sealed.refused === "no_route_offer") { await opts.topUp(); sealed = await core.frameSend(ctx, item.to, item.wire); }
+      if (!sealed.ok && sealed.refused === "no_route_offer") { await opts.topUp(ctx); sealed = await core.frameSend(ctx, item.to, item.wire); }
       if (!sealed.ok) {
         // A route that is missing or stale waits for the member's route update (ADR-0142 section 9: queue, never fall back).
         blocked.add(key);
@@ -173,7 +174,7 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     let moved = false;
     for (let i = 0; i < 128; i++) {
       let r = await core.laneFlush(ctx);
-      if (!r.ok && r.refused === "no_route_offer") { await opts.topUp(); r = await core.laneFlush(ctx); }
+      if (!r.ok && r.refused === "no_route_offer") { await opts.topUp(ctx); r = await core.laneFlush(ctx); }
       // Every kept item waits (no route offer, relationship not usable yet): Core keeps them and we try again later.
       if (!r.ok) return { moved, retry: true };
       if (!r.moved) return { moved, retry: false };
@@ -211,10 +212,16 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     let moved = false;
     let retry = false;
     const note = (r: { moved: boolean; retry: boolean }): void => { moved = moved || r.moved; retry = retry || r.retry; };
-    await opts.topUp();
     // Start-up and after a crash: a Commit that was durable is finished before anything else.
     const first = await core.settle(ctx);
     if (first.ok && (first.events.length > 0 || first.out.length > 0)) { emit(ctx.profileId, first.events); moved = true; }
+    for (const grant of await core.routesExpire(ctx)) {
+      if (!provider.revokeDeposit) continue;
+      try {
+        await provider.revokeDeposit(grant);
+        await core.routeRevoked(ctx, grant);
+      } catch { retry = true; }
+    }
     if (await pollRooms(ctx)) moved = true;
     const pumped = await core.lanePump(ctx);
     if (pumped.ok && (pumped.events.length > 0 || pumped.out.length > 0)) { emit(ctx.profileId, (await settled(ctx, pumped)).events); moved = true; }
@@ -227,11 +234,11 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     }
     // After a removal each remaining device mints a fresh route and tells the new roster (ADR-0189 section 1.3).
     for (const room of core.status(ctx).routeOwed) {
+      await opts.topUp(ctx);
       const u = await core.routeUpdate(ctx, room); // route generation and per-destination distribution debt are committed together
-      if (!u.ok) { if (u.refused === "no_route_offer") retry = true; continue; }
+      if (!u.ok) { if (u.refused === "no_route_offer" || u.refused === "route_slots_full") retry = true; continue; }
       moved = true;
     }
-    for (const e of await core.routesExpire(ctx)) { try { await provider.revokeDeposit?.(e.relayUri, e.capability); } catch { /* a capability that is not revoked expires on its own */ } }
     note(await drainLane(ctx));
     note(await drainOutbox(ctx));
     // A deposit a relay refused for good ended its item: tell the client so it can say "could not deliver" (never silent).
@@ -280,7 +287,6 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     available,
     do: async (ctx, intent: GroupIntent) => {
       if (!available()) return refused("groups_unavailable");
-      await opts.topUp(); // an Accept, an Invite or a Welcome mints a route and needs an offer
       return run(ctx, () => core.do(ctx, intent));
     },
     receive: (ctx, from: GroupSender, wire) => (available() ? run(ctx, () => core.receive(ctx, from, wire)) : Promise.resolve(refused("groups_unavailable"))),

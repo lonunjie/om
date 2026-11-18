@@ -1627,6 +1627,37 @@ fn route_distribution_survives_offline_expiry_and_restart_with_two_survivors() {
     assert!(ps[1].rt.settle(&step));
     assert!(!revoke.is_empty());
     ps[1].restart();
+    let (recovered, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(
+        recovered, revoke,
+        "retirement must survive a crash before DELETE"
+    );
+    let old_cap = [vec![0xc4; 16], om_codec::cbor::unhex(&recovered[0].mailbox)].concat();
+    let net = ps[1].rt.net.clone();
+    let old_deposit = om_core::host::NetCall::Deposit {
+        mailbox: old_cap,
+        relay_uri: Some(recovered[0].relay_uri.clone()),
+        bytes: vec![1, 2, 3],
+    };
+    assert_eq!(net.perform(&old_deposit), om_core::host::NetResult::Ok);
+    for grant in recovered {
+        net.revoke_deposit(&grant);
+        net.revoke_deposit(&grant); // exact DELETE retry
+        let step = core!(ps[1], group_route_revoked, &grant).unwrap();
+        assert!(ps[1].rt.settle(&step));
+    }
+    assert_eq!(
+        net.perform(&old_deposit),
+        om_core::host::NetResult::Err {
+            error: om_core::host::NetError::Rejected {
+                reason: RejectReason::Revoked
+            },
+        }
+    );
+    let (cleared, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(cleared.is_empty());
     let retry = ps[1]
         .outbox()
         .into_iter()

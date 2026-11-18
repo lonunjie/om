@@ -218,6 +218,28 @@ describe("relay semantics", () => {
     expect(!over.ok && over.error.name).toBe("quota");
   });
 
+  it("Room queue grants replay exactly and are revocable only at the owning queue", async () => {
+    const old = await queue();
+    const fresh = await queue();
+    const requestId = rand(16);
+    const mints = await Promise.all(Array.from({ length: 4 }, () =>
+      relay.mint(home, old.admin, { ttlSeconds: 3600 }, requestId)));
+    const mint = mints[0];
+    if (!mint?.ok) throw new Error("mint failed");
+    for (const replay of mints) expect(replay).toEqual(mint);
+    expect(errorOf(await relay.mint(home, old.admin, { ttlSeconds: 7200 }, requestId)).name).toBe("invalid_request");
+    const replacement = await relay.mint(home, fresh.admin, { ttlSeconds: 3600 });
+    if (!replacement.ok) throw new Error("replacement mint failed");
+    expect(equalBytes(mint.value.cap.slice(0, 16), replacement.value.cap.slice(0, 16))).toBe(false);
+    expect(errorOf(await relay.revoke(home, old.receive, mint.value.id)).name).toBe("unauthorized");
+    expect((await relay.revoke(home, fresh.admin, mint.value.id)).ok).toBe(true);
+    expect((await relay.deposit(home, mint.value.cap, sealed())).ok).toBe(true);
+    expect((await relay.revoke(home, old.admin, mint.value.id)).ok).toBe(true);
+    expect(await relay.mint(home, old.admin, { ttlSeconds: 3600 }, requestId)).toEqual(mint);
+    expect(errorOf(await relay.deposit(home, mint.value.cap, sealed())).name).toBe("revoked");
+    expect((await relay.deposit(home, replacement.value.cap, sealed())).ok).toBe(true);
+  });
+
   it("queue creation is idempotent for identical input and refuses a second claimant", async () => {
     const c = newCaps();
     const rid = rand(16);

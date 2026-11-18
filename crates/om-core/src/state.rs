@@ -4,6 +4,8 @@
 //! (versioned JSON: conversations, invites, operation log, network outbox). Nothing here is ever shared
 //! between profiles, and there is no identifier linking two profiles (ADR-0148).
 
+pub use crate::flows::preferences::Preferences;
+
 use crate::api::{DeliveryState, OperationId, OutcomeClass};
 use crate::crypto::cbor::{self, V};
 use crate::crypto::store::Device;
@@ -462,7 +464,7 @@ pub struct Relationship {
     pub id: String,
     pub person_id: String,
     pub display_name: String,
-    /// The name this device's person gave the contact (ADR-0196): local, never sent, shown instead of `display_name`.
+    /// The owner's nickname (ADR-0196/0215): account-private display state, shown in place of `display_name`.
     #[serde(default)]
     pub nickname: Option<String>,
     pub state: RelState,
@@ -708,6 +710,10 @@ pub enum Purpose {
     DepositAcs {
         conversation_id: String,
     },
+    DepositPreference {
+        conversation_id: String,
+        device_id: String,
+    },
     /// Our next signed RelaySet version with the delivery keys of its routes, sent inside the relationship.
     /// A `RecoveryNotice` sealed to a contact's route (ADR-0190 3.1; no user operation owns it).
     DepositRecoveryNotice {
@@ -782,6 +788,9 @@ impl Purpose {
             }
             | Self::DepositKeys { conversation_id }
             | Self::DepositAcs { conversation_id }
+            | Self::DepositPreference {
+                conversation_id, ..
+            }
             | Self::DepositRecoveryNotice { conversation_id }
             | Self::DepositRelaySet { conversation_id }
             | Self::DepositMessage {
@@ -895,6 +904,8 @@ pub struct AppState {
     pub accepted_invites: BTreeSet<Hex>,
     pub intros: BTreeMap<String, IntroRec>,
     pub relationships: BTreeMap<String, Relationship>,
+    #[serde(default)]
+    pub preferences: Preferences,
     /// History restored from a backup file: read-only, additive to version 4 (absent in older records).
     #[serde(default)]
     pub restored: BTreeMap<String, RestoredChat>,

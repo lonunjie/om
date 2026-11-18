@@ -446,6 +446,8 @@ fn route_replacement_retires_older_routes_and_returns_the_capabilities_to_revoke
         expires_at: at + 9999,
         minted_at: at,
         retired_at: None,
+        grant_id: Some(hex(&[k; 16])),
+        grant_expires_at: at + 9999,
     };
     rec.add_mine("room", mk(1, 10));
     rec.replace_owed.push("room".into());
@@ -458,7 +460,10 @@ fn route_replacement_retires_older_routes_and_returns_the_capabilities_to_revoke
     assert!(rec.expire_retired(20 + ROUTE_OVERLAP_S - 1).is_empty());
     let revoke = rec.expire_retired(20 + ROUTE_OVERLAP_S);
     assert_eq!(revoke.len(), 1);
-    assert_eq!(revoke[0].capability, vec![1; 32]);
+    assert_eq!(revoke[0].id, hex(&[1; 16]));
+    assert!(!rec.mine["room"][0].receiving(20 + ROUTE_OVERLAP_S));
+    assert_eq!(rec.expire_retired(20 + ROUTE_OVERLAP_S), revoke);
+    rec.revoked(&revoke[0], 20 + ROUTE_OVERLAP_S);
     assert_eq!(rec.mine["room"].len(), 1);
 }
 
