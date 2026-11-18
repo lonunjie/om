@@ -98,16 +98,17 @@ test("a mention names the other person, reaches them marked as for them, and sta
   const mention = bob.getByRole("log").locator(".om-richtext__mention");
   await expect(mention).toHaveText(/@Bob/, { timeout: 60_000 });
   await expect(mention).toHaveAttribute("data-me", "true");
-  await expect(bob.getByRole("log")).toContainText("hi @Bob lunch?");
+  await expect(bob.getByRole("log")).toContainText("hi @Bob (mentions you) lunch?");
   await expect(alice.getByRole("log").locator(".om-richtext__mention")).toHaveText(/@Bob/);
   await expect(alice.getByRole("log").locator(".om-richtext__mention[data-me]")).toHaveCount(0);
 });
 
 test("a scheduled message is held on this device and goes out at the chosen time as an ordinary message", async ({ browser }) => {
+  test.setTimeout(300_000);
   const { alice, bob } = await inviteAndChat(browser, BASE);
   const box = alice.getByRole("textbox", { name: /message/i });
   await box.fill("scheduled hello");
-  await alice.getByRole("button", { name: "Schedule send" }).click();
+  await alice.getByRole("button", { name: "Schedule for later" }).click();
   const form = alice.getByRole("form", { name: "Schedule this message" });
   await expect(form).toContainText("only while OM is open on this device");
   const at = new Date(Date.now() + 50_000);

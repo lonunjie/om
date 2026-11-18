@@ -125,6 +125,9 @@ export async function createGroup(p: Person, group: string, others: readonly str
 /** The invitation card for `group` on this person's screen, joined with one tap; then the Room is open and it is possible to send. */
 export async function joinGroup(p: Person, group: string, inviter: string): Promise<void> {
   const card = p.page.getByRole("region", { name: "Group invitations", exact: true }).locator(".om-group-invite").filter({ hasText: group });
+  // On a device that has not loaded the groups module yet the invitation is first held; opening it loads the module.
+  const held = p.page.getByRole("region", { name: "Group invitations waiting" });
+  await held.getByRole("button", { name: "Open invitation" }).click({ timeout: 20_000 }).catch(() => undefined);
   await expect(card.getByText(`${inviter} invited you to ${group}`)).toBeVisible({ timeout: 60_000 });
   await card.getByRole("button", { name: "Join" }).click();
   await openGroup(p, group);

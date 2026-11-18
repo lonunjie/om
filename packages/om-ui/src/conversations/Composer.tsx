@@ -355,9 +355,10 @@ export function Composer({ services, conversationId, copy, peerName, peerAccount
 
   const tools = canAttach || canRecord || place !== undefined;
   return (
-    <form className="om-composer" onSubmit={onSubmit}>
+    <>
       {schedule === undefined ? null : <ScheduledList control={schedule} conversationId={conversationId} onEdit={(item) => { schedule.cancel(item.id); onDraftChange(item.text); }} />}
       {schedule !== undefined && scheduling ? <ScheduleForm control={schedule} conversationId={conversationId} text={draft} held={schedule.items.length} onDone={() => { setScheduling(false); onDraftChange(""); mentions.reset(); }} onCancel={() => { setScheduling(false); }} /> : null}
+    <form className="om-composer" onSubmit={onSubmit}>
       {replyTo ? <ReplyChip copy={copy.reply} who={peerName ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
       {items.length === 0 ? null : (
         <ul className="om-staged" aria-label={att.tray}>
@@ -416,5 +417,6 @@ export function Composer({ services, conversationId, copy, peerName, peerAccount
       <IconButton type="submit" className="om-composer__send" data-variant="primary" label={copy.composer.send} icon={<Icon name="send" />} disabled={busy || recording !== null || !sendable} />
       {notice === null ? null : <p className="om-composer__notice" role="alert">{notice}</p>}
     </form>
+    </>
   );
 }

@@ -117,11 +117,11 @@ test("in a Room: a mention picks a member from the list, reaches every member, a
   const box = alice.page.getByRole("textbox", { name: "Message the group" });
   await box.fill("thanks @Bo");
   await expect(alice.page.getByRole("listbox", { name: "People you can mention" })).toBeVisible();
-  await alice.page.getByRole("option", { name: "Bob" }).click();
+  await alice.page.getByRole("listbox", { name: "People you can mention" }).getByRole("option", { name: "Bob" }).click();
   await box.pressSequentially("for the lift");
   await alice.page.getByRole("button", { name: "Send" }).click();
 
-  await hears(bob, "thanks @Bob for the lift");
+  await expect(roomLog(bob)).toContainText("thanks @Bob (mentions you) for the lift", { timeout: 60_000 });
   await expect(roomLog(bob).locator(".om-richtext__mention[data-me='true']")).toHaveText(/@Bob/);
   await expect(roomLog(alice).locator(".om-richtext__mention")).toHaveText(/@Bob/);
   await expect(roomLog(alice).locator(".om-richtext__mention[data-me]")).toHaveCount(0);

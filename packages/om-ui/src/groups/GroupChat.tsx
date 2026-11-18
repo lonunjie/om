@@ -298,20 +298,10 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
     if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
   };
   return (
+    <>
     <form className="om-composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
       {replyTo ? <ReplyChip copy={c.reply} who={replyTo.who ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
       <IconButton label={copy.poll.create} icon={<Icon name="check" />} disabled={busy} onClick={() => { setPollOpen(true); }} />
-      {pollOpen ? (
-        <Sheet title={copy.poll.title} closeLabel={copy.poll.cancel} onClose={() => { setPollOpen(false); }}>
-          <PollForm copy={copy.poll} busy={busy} onCancel={() => { setPollOpen(false); }} onCreate={(poll) => {
-            setBusy(true);
-            void runGroupAction(services, "group-create-poll", { conversationId: groupId, ...poll }).then((r) => {
-              setBusy(false);
-              if (r.ok) { setPollOpen(false); onSent?.(); } else setNotice(copy.poll.failed);
-            });
-          }} />
-        </Sheet>
-      ) : null}
       {mentions.picker}
       <textarea
         ref={input} className="om-composer__input" aria-label={c.composerLabel} placeholder={c.placeholder} rows={1} value={draft}
@@ -321,5 +311,17 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
       <IconButton type="submit" className="om-composer__send" data-variant="primary" label={c.send} icon={<Icon name="send" />} disabled={busy || draft.trim() === ""} />
       {notice === null ? null : <p className="om-composer__notice" role="alert">{notice}</p>}
     </form>
+        {pollOpen ? (
+          <Sheet title={copy.poll.title} closeLabel={copy.poll.cancel} onClose={() => { setPollOpen(false); }}>
+            <PollForm copy={copy.poll} busy={busy} onCancel={() => { setPollOpen(false); }} onCreate={(poll) => {
+              setBusy(true);
+              void runGroupAction(services, "group-create-poll", { conversationId: groupId, ...poll }).then((r) => {
+                setBusy(false);
+                if (r.ok) { setPollOpen(false); onSent?.(); } else setNotice(copy.poll.failed);
+              });
+            }} />
+          </Sheet>
+        ) : null}
+    </>
   );
 }

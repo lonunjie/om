@@ -59,9 +59,9 @@ describe("scheduled send", () => {
     }
     const { container } = render(<Screen />);
     const box = await screen.findByRole("textbox", { name: "Message" });
-    expect(screen.getByRole("button", { name: "Schedule send" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Schedule for later" }).hasAttribute("disabled")).toBe(true);
     await userEvent.type(box, "happy birthday");
-    await userEvent.click(screen.getByRole("button", { name: "Schedule send" }));
+    await userEvent.click(screen.getByRole("button", { name: "Schedule for later" }));
     const form = screen.getByRole("form", { name: "Schedule this message" });
     expect(form.textContent).toContain("only while OM is open on this device");
     const r = await axe.run(container, { rules: { "color-contrast": { enabled: false }, region: { enabled: false } } });

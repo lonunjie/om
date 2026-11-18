@@ -268,7 +268,7 @@ export const conversationCopy: ConversationCopy = {
     mentionsYou: "(mentions you)",
   },
   schedule: {
-    action: "Schedule send", title: "Schedule this message", when: "Send at", confirm: "Schedule", cancel: "Cancel",
+    action: "Schedule for later", title: "Schedule this message", when: "Send at", confirm: "Schedule", cancel: "Cancel",
     deviceNote: "OM sends this from this device. It goes out at that time only while OM is open on this device. If OM is closed then, it goes out the next time you open OM, and you are told it went out late. Other people just see a normal message.",
     pastTime: "Choose a time at least a minute from now.", tooMany: "You have too many scheduled messages. Cancel one first.", listLabel: "Scheduled messages",
     item: (when) => `scheduled for ${when}`, cancelItem: (excerpt) => `Cancel scheduled message: ${excerpt}`, editItem: (excerpt) => `Edit scheduled message: ${excerpt}`,
