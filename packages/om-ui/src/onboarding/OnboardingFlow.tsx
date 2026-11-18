@@ -45,6 +45,8 @@ export interface OnboardingFlowProps {
   readonly scanQr?: () => Promise<string | null>;
   /** The same camera, with the wording for a device-link code ("I already use OM"). Without it the link is typed. */
   readonly scanLinkQr?: () => Promise<string | null>;
+  /** Scans the approval link another device shows when it helps get the account back. The recovery key is only typed or pasted: the app shows no QR for it. */
+  readonly scanApprovalQr?: () => Promise<string | null>;
   /** See `InviteFirst`: the form of an invite that is shown, shared and put in the QR code. */
   readonly shareLink?: (coreLink: string) => string;
   /** The token of an invitation link this person opened to get here: the last step offers to accept it instead of inviting. */
@@ -68,7 +70,7 @@ export interface OnboardingFlowProps {
   readonly onJoinRestart?: () => void;
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, scanLinkQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs, addingIdentity, allowJoin = false, onJoinRestart }: OnboardingFlowProps) {
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, scanLinkQr, scanApprovalQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs, addingIdentity, allowJoin = false, onJoinRestart }: OnboardingFlowProps) {
   const joinCopy = allowJoin && addingIdentity === undefined && incomingInvite === null ? copy.join : undefined;
   const [flow, dispatch] = useReducer(flowReducer, joinCopy !== undefined ? choosingFlow : skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [protectedAs, setProtectedAs] = useState<{ readonly keyOperationId: OperationId; readonly wrapping: VaultWrappingInfo } | null>(null);
@@ -134,7 +136,7 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
       return (
         <OnboardingFrame copy={copy.frame} stepKey={flow.step} progress={{ n: 2, total: 2 }}>
           <LostDevices
-            services={services} copy={rc.lost}
+            services={services} copy={rc.lost} {...(scanApprovalQr ? { scanLink: scanApprovalQr } : {})}
             onRecovered={() => { onDone({ safetyCodePending: null, inviteAccepted: false }); }}
             onCancel={() => { onJoinRestart?.(); }}
           />

@@ -48,7 +48,7 @@ const dev = process.env["OM_BUNDLE_DEV"] === "1";
 // Local end-to-end only: the preview server may additionally allow loopback http origins (and their ws origins, for the wake channel) for the local reference Homes
 // (one, or several separated by spaces: a person with a backup delivery service has two). Never applied to the emitted `_headers`, and anything that is not a loopback origin is ignored.
 function localRelayCsp(): Record<string, string> {
-  const origins = (process.env["OM_E2E_CONNECT_SRC"] ?? "").split(/\s+/).filter((o) => /^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(o));
+  const origins = (process.env["OM_E2E_CONNECT_SRC"] ?? "").split(/\s+/).filter((o) => /^http:\/\/(127\.0\.0\.1|([a-z0-9-]+\.)?localhost)(:\d{2,5})?$/.test(o));
   if (origins.length === 0) return {};
   const extra = origins.flatMap((o) => [o, o.replace(/^http/, "ws")]).join(" ");
   return { "Content-Security-Policy": cspHeader().replace("connect-src 'self' https: wss:", `connect-src 'self' https: wss: ${extra}`) };

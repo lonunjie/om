@@ -22,7 +22,7 @@ export function checkProviderUrl(input: string, opts: { readonly allowLoopbackHt
   if (u.protocol !== "https:" && u.protocol !== "http:") return { ok: false, reason: "malformed" };
   if (u.username !== "" || u.password !== "") return { ok: false, reason: "credentials" };
   if (u.search !== "" || u.hash !== "") return { ok: false, reason: "query_or_fragment" };
-  const loopbackHttp = u.protocol === "http:" && opts.allowLoopbackHttp === true && LOOPBACK.has(u.hostname);
+  const loopbackHttp = u.protocol === "http:" && opts.allowLoopbackHttp === true && (LOOPBACK.has(u.hostname) || u.hostname.endsWith(".localhost")); // RFC 6761: any name under .localhost is the local machine; it gives a test Home a name with a dot (a recovery key sheet cannot name a bare address)
   if (u.protocol !== "https:" && !loopbackHttp) return { ok: false, reason: "not_https" };
   if (u.hostname === "") return { ok: false, reason: "malformed" };
   return { ok: true, config: { baseUrl: (u.origin + u.pathname).replace(/\/+$/, "") } };

@@ -385,7 +385,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />
-                  : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy }} />}
+                  : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy, renderQr: (payload) => <QrCode payload={payload} /> }} />}
               </SubPage>
             </div>
           )}

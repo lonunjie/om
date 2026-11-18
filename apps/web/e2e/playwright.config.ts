@@ -48,7 +48,7 @@ export default defineConfig({
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8789", cwd: "..", url: `${LOCKED_RELAY}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH } },
     // ... and a second locked Home, which is where the backup delivery service is added (apps/web/e2e/backup-service.spec.ts).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8790", cwd: "..", url: `${LOCKED_RELAY_2}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH_2 } },
-    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: `${LOCKED_RELAY} ${LOCKED_RELAY_2}` } },
+    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: `${LOCKED_RELAY} ${LOCKED_RELAY_2} http://home.localhost:8789` } },
     ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true, env: { ...(/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(process.env["OM_LIVE_RELAY_URL"] ?? "") ? { OM_E2E_CONNECT_SRC: process.env["OM_LIVE_RELAY_URL"] ?? "" } : {}) } }] : []),
   ],
   projects: [

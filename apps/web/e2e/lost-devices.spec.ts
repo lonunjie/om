@@ -1,8 +1,7 @@
 // "I lost my devices" (ADR-0200, ADR-0202, ADR-0203): the first run offers it quietly beside the two equal choices, the device is
 // protected first, and the key screen asks for the recovery key in plain words. The real Core runs against the local reference Home.
 // This covers the entry path in a real browser. The full owner recovery (record found, timer, approval by a surviving device) is
-// covered by the om-core loopback tests (crates/om-core/tests/recovery_approval_flow.rs); the local reference Home in this
-// harness does not implement the recovery store, so the ceremony is not driven end to end here.
+// covered end to end by lost-devices-full.spec.ts and by the om-core loopback tests (crates/om-core/tests/recovery_approval_flow.rs).
 import { expect, test } from "@playwright/test";
 import { newDevice } from "./invite-flow.ts";
 import { injectAxe } from "./helpers.ts";

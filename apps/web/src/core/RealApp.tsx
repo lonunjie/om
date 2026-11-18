@@ -13,7 +13,7 @@ import type { ComposerCapture } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { clearExpectedNewChat, clearPendingInvite, expectNewChat, useExpectedNewChat, usePendingInvite } from "../invite/pendingInvite";
 import { Landing } from "../landing/Landing";
-import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, scannerCopy, unlockCopy } from "../copy/en";
+import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, recoveryScannerCopy, scannerCopy, unlockCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
@@ -288,6 +288,7 @@ interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreCli
 function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart, relaySetup, onDone, onCancel }: OnboardProps) {
   const { scanQr, dialog } = useQrScanner(scannerCopy);
   const linkScan = useQrScanner(deviceScannerCopy);
+  const approvalScan = useQrScanner(recoveryScannerCopy);
   const token = usePendingInvite();
   // The very first run opens with the landing page; adding a further identity, or opening an invite link, goes straight into setup.
   // Setting up the delivery service restarts the app against it; the person has already seen the landing page by then.
@@ -300,12 +301,13 @@ function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart
     <>
       <OnboardingFlow
         key={pending.id} client={rt} registry={registry} ctx={pending.ctx} vault={vault} platform={platform} copy={onboardingCopy}
-        renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} scanLinkQr={linkScan.scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
+        renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} scanLinkQr={linkScan.scanQr} scanApprovalQr={approvalScan.scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
         allowJoin={allowJoin} onJoinRestart={onJoinRestart}
         skipWelcome onDone={onDone} {...(first ? {} : { addingIdentity: { backLabel: t.backToSettings, onBack: onCancel } })}
       />
       {dialog}
       {linkScan.dialog}
+      {approvalScan.dialog}
     </>
   );
 }

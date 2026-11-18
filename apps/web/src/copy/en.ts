@@ -1365,6 +1365,12 @@ export const deviceScannerCopy = {
   cameraFailed: "The camera could not start. You can type the link from your other device instead.",
 } as const;
 
+export const recoveryScannerCopy = {
+  ...scannerCopy,
+  hint: "Hold your camera steady in front of the QR code on your other device. Nothing is recorded or saved.",
+  cameraFailed: "The camera could not start. You can type the link from your other device instead.",
+} as const;
+
 /** The landing page. Rendered twice from this one source: prerendered into index.html (for visitors and crawlers without JS) and in the app. */
 export interface LandingLink { readonly label: string; readonly url: string }
 

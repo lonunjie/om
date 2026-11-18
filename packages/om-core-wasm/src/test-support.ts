@@ -39,6 +39,12 @@ function receiptCbor(readCap: Uint8Array, locations: readonly string[], digest: 
   return Uint8Array.from(parts.flat());
 }
 
+/** Canonical CBOR of one inbox item `{0: id (16 bytes), 1: kind, 2: signed bytes}` (see the drain call in types.ts). */
+function inboxItemCbor(i: { readonly id: string; readonly kind: 1 | 2; readonly bytes: string }): Uint8Array {
+  const bstr = (b: Uint8Array): number[] => [...(b.length < 24 ? [0x40 | b.length] : b.length < 256 ? [0x58, b.length] : [0x59, b.length >> 8, b.length & 255]), ...b];
+  return Uint8Array.from([0xa3, 0x00, ...bstr(fromHexStr(i.id)), 0x01, i.kind, 0x02, ...bstr(fromHexStr(i.bytes))]);
+}
+
 export type Fault = "unavailable" | "timeout_after_effect" | "timeout_before_effect";
 
 export interface MemoryProvider extends Provider {
@@ -53,6 +59,8 @@ export interface MemoryProvider extends Provider {
   recoveryRecords(): ReadonlyMap<string, { readonly envelope: string; readonly etag: string }>;
   /** Every recovery write the store accepted, in order (locator, request id): an exact retry is not repeated here. */
   recoveryWrites(): readonly { readonly locator: string; readonly requestId: string }[];
+  /** Every owner recovery request and veto the store accepted, in order (signed bytes, hex). It does not decode them: a request or veto reaches every registered inbox. */
+  recoveryPosts(): { readonly requests: readonly string[]; readonly vetoes: readonly string[] };
   /** Every object the store holds, by locator: ciphertext only, for confinement assertions. */
   blobs(): ReadonlyMap<string, Uint8Array>;
   /** Make the store forget an object (expiry). */
@@ -82,6 +90,8 @@ export function createMemoryProvider(): MemoryProvider {
   let place: RecoveryPlace | null = null;
   const records = new Map<string, { writeCap: string; envelope: string; etag: string; requestId: string }>(); // RecoveryStore (loopback of ADR-0201)
   const recordLog: { locator: string; requestId: string }[] = [];
+  const posted: { requests: string[]; vetoes: string[] } = { requests: [], vetoes: [] };
+  const inboxes = new Map<string, { cap: string; items: { id: string; kind: 1 | 2; bytes: string }[] }>(); // by account id
   const log: string[] = []; // every deposit ever received: acks free relay storage, not this record of what it saw
   return {
     marker: TEST_PROVIDER_MARKER,
@@ -96,6 +106,7 @@ export function createMemoryProvider(): MemoryProvider {
     setRecoveryPlace: (p) => { place = p; },
     recoveryRecords: () => new Map([...records].map(([k, v]) => [k, { envelope: v.envelope, etag: v.etag }])),
     recoveryWrites: () => [...recordLog],
+    recoveryPosts: () => ({ requests: [...posted.requests], vetoes: [...posted.vetoes] }),
     allocateRoutes(count): Promise<readonly RouteOffer[]> {
       const out: RouteOffer[] = [];
       for (let i = 0; i < count; i++) {
@@ -220,6 +231,32 @@ export function createMemoryProvider(): MemoryProvider {
         case "recovery_get": {
           const held = records.get(call.locator);
           r = held === undefined ? { result: "err", error: { kind: "not_found" } } : { result: "many", items: [held.etag, held.envelope] };
+          break;
+        }
+        case "recovery_request_post":
+        case "recovery_veto_post": {
+          const kind = call.call === "recovery_request_post" ? 1 : 2;
+          (kind === 1 ? posted.requests : posted.vetoes).push(call.bytes);
+          const id = toHexStr(new Uint8Array(await crypto.subtle.digest("SHA-256", fromHexStr(call.bytes) as Uint8Array<ArrayBuffer>))).slice(0, 32);
+          for (const box of inboxes.values()) if (!box.items.some((i) => i.id === id)) box.items.push({ id, kind, bytes: call.bytes });
+          r = { result: "ok" };
+          break;
+        }
+        case "recovery_veto_read": r = { result: "many", items: posted.vetoes.slice(0, 16) }; break; // Core verifies each and ignores another request's
+        case "recovery_inbox_register": {
+          if (!inboxes.has(call.accountId)) inboxes.set(call.accountId, { cap: call.cap, items: [] });
+          r = { result: "ok" };
+          break;
+        }
+        case "recovery_inbox_drain": {
+          const box = inboxes.get(call.accountId);
+          r = box === undefined || box.cap !== call.cap ? { result: "err", error: { kind: "not_found" } } : { result: "many", items: box.items.map((i) => toHexStr(inboxItemCbor(i))) };
+          break;
+        }
+        case "recovery_inbox_ack": {
+          const box = inboxes.get(call.accountId);
+          if (box !== undefined && box.cap === call.cap) box.items = box.items.filter((i) => !call.itemIds.includes(i.id));
+          r = { result: "ok" };
           break;
         }
         case "recovery_request_fanout":

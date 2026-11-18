@@ -101,3 +101,31 @@ describe.skipIf(!existsSync(WASM))("recovery record writes through the host (rea
     rt.dispose();
   }, 60_000);
 });
+
+describe("the in-memory store's owner recovery calls", () => {
+  const at = { host: "home.test", accountId: "ab".repeat(32), cap: "cd".repeat(32) };
+  it("delivers a posted request to a registered inbox once, keeps it until acknowledged, and refuses a wrong capability", async () => {
+    const p = createMemoryProvider();
+    expect(await p.perform({ call: "recovery_inbox_register", ...at })).toEqual({ result: "ok" });
+    expect(await p.perform({ call: "recovery_inbox_register", ...at })).toEqual({ result: "ok" }); // already held is success
+    const bytes = "0102030405";
+    await p.perform({ call: "recovery_request_post", host: at.host, bytes });
+    await p.perform({ call: "recovery_request_post", host: at.host, bytes }); // an exact repeat adds nothing
+    const drained = await p.perform({ call: "recovery_inbox_drain", ...at });
+    expect(drained.result).toBe("many");
+    const items = drained.result === "many" ? drained.items : [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.startsWith("a3")).toBe(true); // a three-entry CBOR map
+    expect(items[0]).toContain(bytes);
+    expect((await p.perform({ call: "recovery_inbox_drain", ...at, cap: "ee".repeat(32) })).result).toBe("err");
+    const id = (items[0] ?? "").slice(6, 38);
+    await p.perform({ call: "recovery_inbox_ack", ...at, itemIds: [id] });
+    expect(await p.perform({ call: "recovery_inbox_drain", ...at })).toEqual({ result: "many", items: [] });
+    expect(p.recoveryPosts().requests).toEqual([bytes, bytes]);
+  });
+  it("serves vetoes posted so far on the board read", async () => {
+    const p = createMemoryProvider();
+    await p.perform({ call: "recovery_veto_post", host: at.host, bytes: "aa" });
+    expect(await p.perform({ call: "recovery_veto_read", host: at.host, requestDigest: "00".repeat(32) })).toEqual({ result: "many", items: ["aa"] });
+  });
+});

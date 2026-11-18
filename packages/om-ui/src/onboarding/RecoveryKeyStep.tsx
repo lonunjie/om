@@ -24,6 +24,17 @@ type Phase = "show" | "verify" | "confirming";
 type CopyState = "idle" | "copied" | "copiedOpen" | "failed";
 
 /**
+ * With a recovery place the account has a key sheet: the key together with where the account is saved (ADR-0200). That is what a
+ * person must keep, so it is what is shown and checked. The line checks (` : XX`) are left out of the groups: the key is typed back
+ * without them and Core checks the whole.
+ */
+function sheetGroups(sheet: string | undefined): readonly string[] | null {
+  if (sheet === undefined) return null;
+  const groups = sheet.split("\n").flatMap((line) => (line.split(":")[0] ?? "").trim().split(/\s+/)).filter((g) => g !== "");
+  return groups.length > 0 ? groups : null;
+}
+
+/**
  * The key lives only in this component's React state: never in storage, logs, the announcement or an attribute.
  * It is dropped (state cleared) once Core accepts ConfirmRecoveryKeyStored, and Core will not return it again.
  */
@@ -39,7 +50,7 @@ export function RecoveryKeyStep({ services, platform, keyOperationId, copy, onCo
   useEffect(() => {
     let alive = true;
     services.client.query({ kind: "GetRecoveryKey", ctx: services.ctx, keyOperationId }).then(
-      (v) => { if (alive) setLoad(v ? { k: "ready", groups: v.groups } : { k: "unavailable" }); },
+      (v) => { if (alive) setLoad(v ? { k: "ready", groups: sheetGroups(v.sheet) ?? v.groups } : { k: "unavailable" }); },
       () => { if (alive) setLoad({ k: "unavailable" }); },
     );
     return () => { alive = false; };
