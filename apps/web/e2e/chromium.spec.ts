@@ -49,11 +49,19 @@ test("the camera scanner decodes a QR code from a real video stream and accepts 
   await context.grantPermissions(["camera"]);
   await noPasskeys(page);
   await onboard(page, { stopAt: "invite" });
+  // The fake camera plays a decodable code at once, so the scanner can open and close again between two of Playwright's polls. Record the dialog's
+  // appearance from inside the page (before the tap) instead of sampling for it: the assertion is the same, that the scanner really opened.
+  await page.evaluate(() => {
+    const w = window as unknown as { __scannerShown: boolean };
+    w.__scannerShown = false;
+    const look = (): void => { if (document.querySelector('[role="dialog"]') !== null) w.__scannerShown = true; };
+    new MutationObserver(look).observe(document.documentElement, { childList: true, subtree: true });
+  });
   await page.getByRole("button", { name: "Scan QR code" }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
   // The dialog closes by itself once a frame decodes; the accepted link finishes setup and opens the app.
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { __scannerShown: boolean }).__scannerShown)).toBe(true);
 });
 
 test.describe("service worker on the dev-signed production bundle", () => {
