@@ -18,6 +18,7 @@ const PROD_APP = "http://localhost:4181";
 const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
+// calls.spec.ts is Chromium-only: it needs Chromium launch flags for fake camera and microphone and a loopback ICE candidate, which Firefox and WebKit have no equivalent for in Playwright.
 const OTHER_ENGINE_IGNORE = /(calls|chromium|live-relay|live-invite)\.spec\.ts/;
 
 export default defineConfig({
