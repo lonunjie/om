@@ -1761,6 +1761,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/recovery_inbox.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows/recovery_owner.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

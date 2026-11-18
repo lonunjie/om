@@ -48,7 +48,7 @@ impl AppState {
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
-    fn recovery_kit_value(&self) -> Option<RecoveryKit> {
+    pub(super) fn recovery_kit_value(&self) -> Option<RecoveryKit> {
         let k = self.st.app.recovery_kit.as_ref()?;
         RecoveryKit::from_bytes(&unhex(k).ok()?).ok()
     }

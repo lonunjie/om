@@ -615,6 +615,10 @@ pub enum Purpose {
     RecoveryFind,
     /// The owner's request delivered to one Home (`RecoveryRequestPost`); nothing awaits the answer.
     OwnerRecoveryPost,
+    /// A controller's inbox call: 0 register, 1 drain, 2 acknowledge.
+    RecoveryInbox {
+        kind: u8,
+    },
     /// A read of the owner's attempt: a veto board (`kind` 1) or the record again before adoption (`kind` 0). `round`
     /// names the round so a late answer to an earlier one counts for nothing.
     OwnerRecoveryRead {
@@ -874,6 +878,9 @@ pub struct AppState {
     /// restricted recovery state (RECOVERY_AND_BACKUP_POLICY.md 10.3). Additive.
     #[serde(default)]
     pub recovery_join: Option<RecoveryJoinRec>,
+    /// The controller side of the recovery inbox (ADR-0201 section 8.2). Convenience only: nothing in it is trusted.
+    #[serde(default)]
+    pub recovery_inbox: RecoveryInboxRec,
     /// Record floors by RecoveryStore scope (hex), kept apart from the join and from the account pin (ADR-0202 section 1).
     #[serde(default)]
     pub recovery_floors: BTreeMap<Hex, RecordFloorRec>,
@@ -960,6 +967,27 @@ pub struct RecoveryJoinRec {
     /// verifier-local timer, vetoes and everything adoption re-checks. Persisted before any use.
     #[serde(default)]
     pub attempt: Option<OwnerAttemptRec>,
+}
+
+/// A controller's recovery inbox bookkeeping. Items wait here for the next tick (which carries the monotonic reading the
+/// observations need) and are acknowledged once handed to the verifier. Bounded.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryInboxRec {
+    pub registered: bool,
+    /// Core's clock at the last register or drain attempt: pacing only, never authority.
+    pub last_ms: u64,
+    pub in_flight: bool,
+    pub pending: Vec<InboxItemRec>,
+    pub to_ack: Vec<Hex>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InboxItemRec {
+    pub id: Hex,
+    pub kind: u8,
+    pub bytes: Hex,
 }
 
 /// An `OwnerRecoveryCheckpoint` as kept locally. All hex.

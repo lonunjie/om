@@ -559,3 +559,122 @@ fn the_request_is_resent_at_a_third_and_two_thirds_with_the_same_bytes() {
     assert_eq!(w.net.recovery_requests(), first);
     assert_eq!(f.app()["recoveryJoin"]["attempt"]["resends"], 2);
 }
+
+// ----------------------------------------------------------------------------------------------- controller inbox
+
+fn alice_tick(w: &mut World, session: u8, at: u64) {
+    w.alice.tick(61_000);
+    w.alice.recovery_tick(&w.a, &mono(session, at));
+    for _ in 0..3 {
+        w.alice.flush_net(&w.a);
+    }
+}
+
+fn tracked(w: &World) -> Vec<RecoveryRequestView> {
+    w.alice
+        .query::<RecoveryStatusView>(Query::GetRecoveryStatus { ctx: w.a.clone() })
+        .requests
+}
+
+#[test]
+fn a_surviving_controller_registers_drains_and_acknowledges_and_is_told_of_the_request() {
+    let mut w = world();
+    // The inbox is registered on the first tick, before any request exists.
+    alice_tick(&mut w, 1, 0);
+    assert_eq!(
+        w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"]["registered"],
+        true
+    );
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("req", IntentBody::RequestRecovery);
+    assert!(
+        tracked(&w).is_empty(),
+        "nothing was pushed to Alice: she learns by draining"
+    );
+    alice_tick(&mut w, 1, 1000); // drain
+    alice_tick(&mut w, 1, 2000); // observe, then acknowledge
+    alice_tick(&mut w, 1, 3000);
+    let t = tracked(&w);
+    assert_eq!(t.len(), 1);
+    assert_eq!(t[0].state, RecoveryRequestStateCode::Waiting);
+    assert!(
+        t[0].can_stop,
+        "she is a live controller of the head the request names"
+    );
+    // Acknowledged: a later drain finds nothing new and the item does not return.
+    let inbox = &w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"];
+    assert!(inbox["pending"].as_array().unwrap().is_empty());
+    assert!(inbox["toAck"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn a_forged_inbox_item_authorizes_and_tracks_nothing_and_is_still_cleared() {
+    let mut w = world();
+    alice_tick(&mut w, 1, 0);
+    // A request that decodes but is not signed by Alice's recovery key.
+    let mut rng = om_core::crypto::rng::insecure_test_rng::InsecureTestRng::from_label(b"forger");
+    let account = {
+        let app = w.alice.core.debug_app_state(&w.a).unwrap();
+        let chain: Vec<Vec<u8>> = app["acsChain"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| unhex(v.as_str().unwrap()).unwrap())
+            .collect();
+        let creds: Vec<Vec<u8>> = app["acsCredentials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| unhex(v.as_str().unwrap()).unwrap())
+            .collect();
+        om_core::control::verify_chain(&chain, &creds).unwrap()
+    };
+    let attacker = om_core::recovery::RecoveryRoot::generate(&mut rng);
+    let dev = om_core::crypto::store::Device::new(&mut rng);
+    let req = om_core::recovery::RecoveryRequest {
+        account_id: account.account_id,
+        recovery_epoch: 0,
+        new_device_id: dev.device_id,
+        new_device_credential: [1; 32],
+        parent_state_hash: account.hash(),
+        request_nonce: [4; 16],
+    };
+    let signed = om_core::recovery::sign_request(&req, &attacker.auth_signer(0), &mut rng);
+    w.net.recovery_post_request(&signed);
+    alice_tick(&mut w, 1, 1000);
+    alice_tick(&mut w, 1, 2000);
+    alice_tick(&mut w, 1, 3000);
+    assert!(tracked(&w).is_empty());
+    let inbox = &w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"];
+    assert!(
+        inbox["pending"].as_array().unwrap().is_empty()
+            && inbox["toAck"].as_array().unwrap().is_empty()
+    );
+}
+
+#[test]
+fn a_veto_from_the_surviving_controller_reaches_the_owner_through_the_home_and_ends_the_attempt() {
+    let mut w = world();
+    alice_tick(&mut w, 1, 0);
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("req", IntentBody::RequestRecovery);
+    for t in 1..=4 {
+        alice_tick(&mut w, 1, t * 1000);
+    }
+    let id = tracked(&w)[0].request_id.clone();
+    let c = common::confirmation(&mut w.alice, &w.a, "VetoRecovery", &id);
+    w.alice.dispatch(
+        &w.a,
+        "veto",
+        IntentBody::VetoRecovery {
+            request_id: id,
+            confirmation: c,
+        },
+    );
+    w.alice.flush_net(&w.a);
+    f.tick(&mono(1, 0));
+    f.tick(&mono(1, DELAY_MS));
+    assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Vetoed));
+}

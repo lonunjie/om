@@ -167,6 +167,13 @@ fn blob_read_cap(owner_cap: &[u8]) -> Vec<u8> {
     c
 }
 
+#[derive(Default)]
+struct LoopInbox {
+    cap_hash: [u8; 32],
+    items: Vec<([u8; 16], u8, Vec<u8>)>,
+    next: u64,
+}
+
 /// One record of the loopback RecoveryStore. The Home sees ciphertext only: it binds `SHA-256(write_cap)` at create,
 /// answers a put by `If-Match` (compare-and-swap on the `ETag` it computes over the bytes) and replays a repeated
 /// `request_id` with the same bytes without storing twice.
@@ -201,6 +208,9 @@ struct NetState {
     /// board by request digest. A Home verifies no signature, so neither does this.
     recovery_requests: Vec<Vec<u8>>,
     recovery_vetoes: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
+    /// Recovery inboxes by account id: the SHA-256 of the capability that reads them and the items in arrival order
+    /// (id, kind, bytes). Fan-out appends only to an inbox that exists, and answers the same either way.
+    recovery_inboxes: BTreeMap<Vec<u8>, LoopInbox>,
     mailboxes: BTreeMap<Vec<u8>, Mailbox>,
     faults: Vec<Fault>,
     /// Loopback Homes that are down: deposits to them are `unavailable`, and nothing can be drained from them.
@@ -320,6 +330,20 @@ impl LoopbackNetwork {
     /// The signed requests posted to the loopback Home, in order.
     pub fn recovery_requests(&self) -> Vec<Vec<u8>> {
         self.0.borrow().recovery_requests.clone()
+    }
+
+    /// Post a signed request as any client could (a Home checks shape only, so a forgery is stored like any request).
+    pub fn recovery_post_request(&self, signed: &[u8]) {
+        let mut s = self.0.borrow_mut();
+        if let Some((account, _)) = crate::recovery::request_shape(signed)
+            && let Some(inbox) = s.recovery_inboxes.get_mut(account.as_slice())
+        {
+            inbox.next += 1;
+            let mut id = [0u8; 16];
+            id[8..].copy_from_slice(&inbox.next.to_be_bytes());
+            inbox.items.push((id, 1, signed.to_vec()));
+        }
+        s.recovery_requests.push(signed.to_vec());
     }
 
     /// The Home forgets every veto it held (a prune): nothing a verifier already observed depends on it.
@@ -705,10 +729,97 @@ impl LoopbackNetwork {
             NetCall::RecoveryRequestPost { bytes, .. } => {
                 if !s.recovery_requests.contains(bytes) {
                     s.recovery_requests.push(bytes.clone());
+                    if let Some((account, _)) = crate::recovery::request_shape(bytes)
+                        && let Some(inbox) = s.recovery_inboxes.get_mut(account.as_slice())
+                    {
+                        inbox.next += 1;
+                        let mut id = [0u8; 16];
+                        id[8..].copy_from_slice(&inbox.next.to_be_bytes());
+                        inbox.items.push((id, 1, bytes.clone()));
+                    }
                 }
                 NetResult::Ok
             }
+            NetCall::RecoveryInboxRegister {
+                account_id, cap, ..
+            } => {
+                let h = crate::crypto::sha256(&[cap]);
+                match s.recovery_inboxes.get(account_id) {
+                    Some(i) if i.cap_hash != h => NetResult::Err {
+                        error: NetError::Rejected {
+                            reason: RejectReason::Unauthorized,
+                        },
+                    },
+                    Some(_) => NetResult::Ok,
+                    None => {
+                        s.recovery_inboxes.insert(
+                            account_id.clone(),
+                            LoopInbox {
+                                cap_hash: h,
+                                ..LoopInbox::default()
+                            },
+                        );
+                        NetResult::Ok
+                    }
+                }
+            }
+            NetCall::RecoveryInboxDrain {
+                account_id, cap, ..
+            } => {
+                let h = crate::crypto::sha256(&[cap]);
+                match s.recovery_inboxes.get(account_id) {
+                    Some(i) if i.cap_hash == h => NetResult::Many {
+                        items: i
+                            .items
+                            .iter()
+                            .take(16)
+                            .map(|(id, kind, b)| {
+                                crate::crypto::cbor::encode(&crate::crypto::cbor::V::M(vec![
+                                    (0, crate::crypto::cbor::V::B(id.to_vec())),
+                                    (1, crate::crypto::cbor::V::U(u64::from(*kind))),
+                                    (2, crate::crypto::cbor::V::B(b.clone())),
+                                ]))
+                            })
+                            .collect(),
+                    },
+                    // a wrong capability and an absent inbox are answered alike
+                    _ => NetResult::Err {
+                        error: NetError::Rejected {
+                            reason: RejectReason::Unauthorized,
+                        },
+                    },
+                }
+            }
+            NetCall::RecoveryInboxAck {
+                account_id,
+                cap,
+                item_ids,
+                ..
+            } => {
+                let h = crate::crypto::sha256(&[cap]);
+                match s.recovery_inboxes.get_mut(account_id) {
+                    Some(i) if i.cap_hash == h => {
+                        i.items
+                            .retain(|(id, _, _)| !item_ids.contains(&crate::crypto::hex(id)));
+                        NetResult::Ok
+                    }
+                    _ => NetResult::Err {
+                        error: NetError::Rejected {
+                            reason: RejectReason::Unauthorized,
+                        },
+                    },
+                }
+            }
             NetCall::RecoveryVetoPost { bytes, .. } => {
+                if let Some(account) = crate::recovery::veto_account(bytes)
+                    && let Some(inbox) = s.recovery_inboxes.get_mut(account.as_slice())
+                    && inbox.items.len() < 40
+                {
+                    inbox.next += 1;
+                    let mut id = [0u8; 16];
+                    id[8..].copy_from_slice(&inbox.next.to_be_bytes());
+                    inbox.items.push((id, 2, bytes.clone()));
+                }
                 let digest = crate::recovery::veto_digest(bytes);
                 if let Some(d) = digest {
                     let board = s.recovery_vetoes.entry(d.to_vec()).or_default();

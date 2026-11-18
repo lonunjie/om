@@ -300,6 +300,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return Err(CoreError::Invalid("monotonic sample"));
         }
         self.owner_tick(mono);
+        self.inbox_tick(mono);
         let ctx = self.recovery_ctx();
         let digests: Vec<Hex> = self.st.app.recovery_requests.keys().cloned().collect();
         for d in digests {

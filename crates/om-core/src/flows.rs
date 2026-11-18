@@ -27,6 +27,7 @@ mod group_lane;
 mod multi;
 mod owed;
 mod recovery_attempt;
+mod recovery_inbox;
 mod recovery_owner;
 mod recovery_peer;
 mod recovery_watch;
@@ -2551,6 +2552,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 | Purpose::RecoveryFind
                 | Purpose::OwnerRecoveryPost
                 | Purpose::OwnerRecoveryRead { .. }
+                | Purpose::RecoveryInbox { .. }
                 | Purpose::RevokeKeyGeneration
                 | Purpose::Ack
                 | Purpose::DeleteBlob { .. }
@@ -2615,6 +2617,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         return Ok(());
                     }
                     Purpose::OwnerRecoveryPost => return Ok(()),
+                    Purpose::RecoveryInbox { kind } => {
+                        self.inbox_done(*kind, None);
+                        return Ok(());
+                    }
                     _ => {}
                 }
                 if let Purpose::OpenCeremonyQueue { operation_id }
@@ -2713,6 +2719,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 self.owner_read_done(kind, round, Some((bytes, items)));
             }
             Purpose::OwnerRecoveryPost => {}
+            Purpose::RecoveryInbox { kind } => self.inbox_done(kind, Some(items)),
             Purpose::Ack
             | Purpose::DeleteBlob { .. }
             | Purpose::RevokeKeyGeneration

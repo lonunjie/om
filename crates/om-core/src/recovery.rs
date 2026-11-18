@@ -523,6 +523,20 @@ pub fn veto_signer(signed: &[u8]) -> Result<[u8; 16], Error> {
         .map_err(|_| Error::Binding("recovery veto: signer id"))
 }
 
+/// The AccountID and body digest a `signed-RecoveryRequest` names, read WITHOUT verifying a signature: what a Home keys its
+/// fan-out by (it checks type, version, sizes and the account only, ADR-0201 section 8.2).
+pub fn request_shape(signed: &[u8]) -> Option<([u8; 32], [u8; 32])> {
+    let r = RecoveryRequest::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?).ok()?;
+    Some((r.account_id, r.digest()))
+}
+
+/// The AccountID a `signed-RecoveryVeto` names, read without verifying a signature.
+pub fn veto_account(signed: &[u8]) -> Option<[u8; 32]> {
+    RecoveryVeto::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?)
+        .ok()
+        .map(|v| v.account_id)
+}
+
 /// The request digest a `signed-RecoveryVeto` names, read WITHOUT verifying anything: what a Home indexes its board by.
 pub fn veto_digest(signed: &[u8]) -> Option<[u8; 32]> {
     RecoveryVeto::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?)

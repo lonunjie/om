@@ -294,6 +294,40 @@ pub enum NetCall {
         #[serde(with = "hexs")]
         bytes: Vec<u8>,
     },
+    /// Register the recovery inbox of this account at the Home (ADR-0201 section 8.2, `PUT /v1/recovery/inbox/{inbox_id}`).
+    /// The host derives `inbox_id` from `account_id`; `cap` is the `recovery_inbox_cap` of the RecoveryKit. A Home that
+    /// already holds the inbox answers success.
+    RecoveryInboxRegister {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        account_id: Vec<u8>,
+        #[serde(with = "hexs")]
+        cap: Vec<u8>,
+    },
+    /// Drain the inbox (`POST /v1/recovery/inbox/{inbox_id}/drain`). Result: `Many` of items, each the canonical CBOR map
+    /// `{0: item id (16 bytes), 1: kind (1 request, 2 veto), 2: signed bytes}`, in arrival order and with no timestamp.
+    RecoveryInboxDrain {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        account_id: Vec<u8>,
+        #[serde(with = "hexs")]
+        cap: Vec<u8>,
+    },
+    /// Acknowledge (remove) items by id (`POST /v1/recovery/inbox/{inbox_id}/ack`). An item that is already gone is a success.
+    RecoveryInboxAck {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        account_id: Vec<u8>,
+        #[serde(with = "hexs")]
+        cap: Vec<u8>,
+        item_ids: Vec<String>,
+    },
     /// A live controller's veto, per Home (`POST /v1/recovery/vetoes`): the signed veto bytes.
     RecoveryVetoPost {
         host: String,
