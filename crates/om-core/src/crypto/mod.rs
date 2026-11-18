@@ -27,6 +27,7 @@ pub mod ledger;
 pub mod link_ceremony;
 pub mod pqxdh;
 pub mod ratchet;
+pub mod recovery_approval;
 pub mod rng;
 pub mod session;
 pub mod sig;
