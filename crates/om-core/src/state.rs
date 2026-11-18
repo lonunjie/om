@@ -894,6 +894,9 @@ pub struct AppState {
     pub call_offers_seen: Vec<crate::calls::SeenOffer>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub call_operations: Vec<OperationId>,
+    /// Bounded device-local call timeline, excluded from account sync and history export.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub call_notices: Vec<crate::calls::CallNotice>,
     pub version: u32,
     pub label: String,
     pub created_at: u64,

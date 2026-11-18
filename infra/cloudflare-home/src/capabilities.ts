@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // GET /.well-known/om-provider-capabilities (spec/protocol/provider-capabilities.logical.schema.json). Public, no secrets,
 // no per-user data: the same document for every caller.
-import { FEATURES, PUSH_LIMITS, WAKE_AUTH_SECONDS } from "@om/home-wire";
+import { FEATURES, PUSH_LIMITS, WAKE_AUTH_SECONDS, parseMediaCapabilities, type MediaCapabilities } from "@om/home-wire";
 import type { Env } from "./env";
 import { LIMITS, limitsOf, profileOf } from "./limits";
 import { pushPacing } from "./push";
@@ -39,14 +39,22 @@ export const admissionHashes = (env: Env): readonly string[] =>
  */
 export const admissionConfigured = (env: Env): boolean => (env.OM_ADMISSION ?? "").trim() !== "" || env.OM_ADMISSION_REQUIRED === "1";
 
+export function mediaCapabilities(env: Env): MediaCapabilities | undefined {
+  if (!env.MEDIA_TURN || env.OM_HARD_FREE_TIER !== "1" || !usageOn(env) || admissionHashes(env).length === 0) return undefined;
+  const stun = (env.OM_MEDIA_STUN ?? "").split(",").map((url) => url.trim()).filter(Boolean);
+  return parseMediaCapabilities({ stun_urls: stun });
+}
+
 export function capabilitiesDocument(env: Env, recoveryScopeId?: string): Record<string, unknown> {
   const L = limitsOf(env);
+  const media = mediaCapabilities(env);
   return {
     schema_version: 1,
     provider_id: env.OM_PROVIDER_ID ?? "om-reference-home",
-    provider_kinds: ["relay", "key_material", "discovery_relay", "intro_gate", ...(blobsOn(env) ? ["blob"] : []), ...(recoveryOn(env) ? ["recovery"] : [])],
+    provider_kinds: ["relay", "key_material", "discovery_relay", "intro_gate", ...(blobsOn(env) ? ["blob"] : []), ...(recoveryOn(env) ? ["recovery"] : []), ...(media === undefined ? [] : ["media"])],
     durability_class: "durable",
-    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0) && (f !== FEATURES.blobSpool || blobsOn(env)) && (f !== FEATURES.relayPush || pushOn(env)) && (f !== FEATURES.relayUsage || usageOn(env)) && (f !== FEATURES.recoveryStore || recoveryOn(env))).sort(),
+    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0) && (f !== FEATURES.blobSpool || blobsOn(env)) && (f !== FEATURES.relayPush || pushOn(env)) && (f !== FEATURES.relayUsage || usageOn(env)) && (f !== FEATURES.recoveryStore || recoveryOn(env)) && (f !== FEATURES.mediaTurn || media !== undefined)).sort(),
+    ...(media === undefined ? {} : { media }),
     api_versions: ["1"],
     health: "healthy",
     ...(recoveryOn(env) && recoveryScopeId !== undefined ? { recovery_scope_id: recoveryScopeId } : {}),

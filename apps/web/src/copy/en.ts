@@ -1840,6 +1840,8 @@ export const callCopy = {
     unsupported: "This browser can’t make protected calls.",
     privacy: "Your protection settings need a private route for calls. This delivery service doesn’t offer one.",
     permission: "Your browser didn’t allow access to the microphone or camera.",
+    privateUnavailable: "A private route isn’t available right now.",
+    relayConnection: "This call couldn’t connect.",
     device: "The microphone or camera isn’t available.",
     connection: "This call couldn’t connect directly.",
   },
@@ -1852,5 +1854,5 @@ export const callCopy = {
   deviceChoice: (label: string, n: number) => `${label} ${String(n)}`,
   playAudio: "Play call audio",
   outputFailed: "This speaker couldn’t be selected.",
-  openApp: "Open OM to answer a call. A call can end before you open the app.",
+  openApp: "Open OM to answer before the call ends.",
 };

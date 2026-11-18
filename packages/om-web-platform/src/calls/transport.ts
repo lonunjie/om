@@ -1,7 +1,9 @@
+import type { CallRoute } from "@om/platform-api";
 import type { SFrameInstall, SFrameMediaProbe, SFrameWorkerFact } from "./sframe-worker";
 
 export type CallMediaKind = "audio" | "video";
 export type CallMediaFact = "active" | "interrupted" | "failed";
+export type CallIceConfig = Pick<RTCConfiguration, "iceServers" | "iceTransportPolicy">;
 export type CallTransportFailure = "unsupported" | "permission" | "device" | "connection";
 
 export class CallTransportError extends Error {
@@ -48,6 +50,7 @@ function description(type: "offer" | "answer", bytes: readonly number[]): RTCSes
 interface Facts {
   readonly state: (fact: CallMediaFact) => void;
   readonly stream: (remote: MediaStream) => void;
+  readonly route?: (route: CallRoute) => void;
 }
 
 /** One transport per Core call. The host carries the returned descriptions only through Core intents. */
@@ -67,6 +70,7 @@ export class CallTransport {
   #probe = 0;
   #keyed = false;
   #recovering = false;
+  #relayOnly = false;
   #inputs: Partial<Record<CallMediaKind, string>> = {};
 
   constructor(env: CallTransportEnvironment, facts: Facts) {
@@ -77,7 +81,7 @@ export class CallTransport {
   async #captureMedia(kind: CallMediaKind, device?: string): Promise<MediaStreamTrack[]> {
     const media = this.#env.media;
     if (!media) throw new CallTransportError("unsupported");
-    const constraints = device === undefined ? true : { deviceId: { exact: device } };
+    const constraints = device ? { deviceId: { exact: device } } : true;
     let stream: MediaStream;
     try {
       stream = await media.getUserMedia(device === undefined
@@ -96,7 +100,19 @@ export class CallTransport {
     return tracks;
   }
 
-  #open(): RTCPeerConnection {
+  supported(): boolean {
+    const { peer, media, worker, transform } = this.#env;
+    return peer !== undefined && media !== undefined && worker !== undefined && transform !== undefined;
+  }
+
+  interrupt(): void {
+    if (this.#fact !== "active") return;
+    this.#watchConnection();
+    this.#probeMedia();
+    this.#report("interrupted");
+  }
+
+  #open(config: CallIceConfig): RTCPeerConnection {
     const { peer, media, worker, transform } = this.#env;
     if (!peer || !media || !worker || !transform) throw new CallTransportError("unsupported");
     if (this.#connection || this.#stop.signal.aborted) throw new CallTransportError("connection");
@@ -120,8 +136,8 @@ export class CallTransport {
     });
     // Observe an abort even if the caller is still waiting for media permission.
     void this.#workerReady.catch(() => undefined);
-    // With no advertised Home media feature, accepted contacts get direct candidates only.
-    const connection = peer({ iceServers: [], iceCandidatePoolSize: 0 });
+    this.#relayOnly = config.iceTransportPolicy === "relay";
+    const connection = peer({ iceServers: [], ...config, iceCandidatePoolSize: 0 });
     this.#connection = connection;
     const remote = this.#env.stream();
     this.#remote = remote;
@@ -156,15 +172,15 @@ export class CallTransport {
     return connection;
   }
 
-  async offer(kind: CallMediaKind): Promise<readonly number[]> {
-    const connection = this.#open();
+  async offer(kind: CallMediaKind, config: CallIceConfig = {}): Promise<readonly number[]> {
+    const connection = this.#open(config);
     const tracks = await this.#captureMedia(kind);
     for (const track of tracks) this.#attach(connection.addTransceiver(track, { direction: "sendrecv" }));
     return this.#gather(await connection.createOffer());
   }
 
-  async answer(offer: readonly number[], kind: CallMediaKind): Promise<readonly number[]> {
-    const connection = this.#open();
+  async answer(offer: readonly number[], kind: CallMediaKind, config: CallIceConfig = {}): Promise<readonly number[]> {
+    const connection = this.#open(config);
     const tracks = await this.#captureMedia(kind);
     await connection.setRemoteDescription(description("offer", offer));
     for (const transceiver of connection.getTransceivers()) {
@@ -183,21 +199,34 @@ export class CallTransport {
     this.#watchConnection();
   }
 
-  async restartOffer(): Promise<readonly number[]> {
-    const connection = this.#peer();
+  beginRestart(): void {
+    if (this.#recovering) return;
     this.#recovering = true;
     this.#report("interrupted");
     this.#watchConnection();
+  }
+
+  async restartOffer(config?: CallIceConfig): Promise<readonly number[]> {
+    const connection = this.#peer();
+    if (config !== undefined) {
+      // An established relay-only peer never relaxes its candidate policy during recovery.
+      this.#relayOnly ||= config.iceTransportPolicy === "relay";
+      connection.setConfiguration({ ...connection.getConfiguration(), ...config, ...(this.#relayOnly ? { iceTransportPolicy: "relay" } : {}) });
+    }
+    this.beginRestart();
     return this.#gather(await connection.createOffer({ iceRestart: true }));
   }
 
-  async restartAnswer(offer: readonly number[]): Promise<readonly number[]> {
+  async restartAnswer(offer: readonly number[], config?: CallIceConfig): Promise<readonly number[]> {
     const connection = this.#peer();
-    this.#recovering = true;
-    this.#report("interrupted");
+    if (config !== undefined) {
+      // An established relay-only peer never relaxes its candidate policy during recovery.
+      this.#relayOnly ||= config.iceTransportPolicy === "relay";
+      connection.setConfiguration({ ...connection.getConfiguration(), ...config, ...(this.#relayOnly ? { iceTransportPolicy: "relay" } : {}) });
+    }
+    this.beginRestart();
     await connection.setRemoteDescription(description("offer", offer));
     for (const transceiver of connection.getTransceivers()) this.#attach(transceiver);
-    this.#watchConnection();
     return this.#gather(await connection.createAnswer());
   }
 
@@ -227,8 +256,15 @@ export class CallTransport {
         signal.addEventListener("abort", finish, { once: true });
       });
     }
-    const sdp = connection.localDescription?.sdp;
+    let sdp = connection.localDescription?.sdp;
     if (signal.aborted || !sdp) throw new CallTransportError("connection");
+    if (this.#relayOnly) {
+      const candidates = sdp.match(/^a=candidate:.*$/gm) ?? [];
+      if (candidates.length === 0 || candidates.some((line) => !/\styp relay(?:\s|$)/.test(line))) {
+        throw new CallTransportError("connection");
+      }
+      sdp = sdp.replace(/ raddr \S+(?: rport \d+)?/g, "");
+    }
     const bytes = encode.encode(sdp);
     if (bytes.length > MAX_SDP_BYTES) throw new CallTransportError("connection");
     return Array.from(bytes);
@@ -265,7 +301,10 @@ export class CallTransport {
     const state = this.#connection?.connectionState;
     if (state === "connected" && !this.#recovering && this.#keyed && this.#received) {
       clearTimeout(this.#timeout);
-      this.#report("active");
+      if (this.#fact !== "active") {
+        this.#report("active");
+        if (this.#facts.route) void this.#reportRoute();
+      }
     } else if (state === "disconnected" || state === "failed") {
       if (this.#fact === "active") {
         this.#watchConnection();
@@ -273,6 +312,24 @@ export class CallTransport {
       }
       this.#report("interrupted");
     }
+  }
+
+  async #reportRoute(): Promise<void> {
+    try {
+      const stats = await this.#peer().getStats();
+      if (this.#stop.signal.aborted) return;
+      let activePair: string | undefined;
+      stats.forEach((entry: { type: string; selectedCandidatePairId?: string }) => {
+        if (entry.type === "transport") activePair = entry.selectedCandidatePairId ?? activePair;
+      });
+      const pair = activePair === undefined ? undefined : stats.get(activePair) as { localCandidateId: string; remoteCandidateId: string } | undefined;
+      if (!pair) return;
+      const local = stats.get(pair.localCandidateId) as { candidateType?: string } | undefined;
+      const remote = stats.get(pair.remoteCandidateId) as { candidateType?: string } | undefined;
+      if (local?.candidateType && remote?.candidateType) {
+        this.#facts.route?.(local.candidateType === "relay" || remote.candidateType === "relay" ? "relay" : "direct");
+      }
+    } catch { /* the route is diagnostic and can be unavailable */ }
   }
 
   #report(fact: CallMediaFact): void {
@@ -293,7 +350,7 @@ export class CallTransport {
   async selectInput(kind: CallMediaKind, deviceId: string): Promise<void> {
     const sender = this.#connection?.getSenders().find((entry) => entry.track?.kind === kind);
     const old = sender?.track;
-    if (!sender || !old || this.#inputs[kind] === deviceId) return;
+    if (!sender || !old || (old.readyState !== "ended" && this.#inputs[kind] === deviceId)) return;
     const [track] = await this.#captureMedia(kind, deviceId);
     if (!track) throw new CallTransportError("device");
     track.enabled = old.enabled;

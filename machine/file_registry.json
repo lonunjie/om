@@ -4190,6 +4190,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0221-own-home-media-leases-and-call-continuity.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -5829,6 +5836,13 @@
     },
     {
       "path": "docs/reports/2026-11-18-home-load-results.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-19-calls-v007-evidence.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -9286,6 +9300,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/media.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/test/provider-adapter.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -10056,6 +10077,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-home-wire/src/media.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-home-wire/src/push.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -10358,6 +10386,13 @@
     },
     {
       "path": "packages/om-provider-http/src/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/media.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -11970,6 +12005,13 @@
       "path": "spec/cddl/lan.cddl",
       "class": "spec_artifact",
       "domain": "network_lan_transport",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/cddl/media-turn.cddl",
+      "class": "spec_artifact",
+      "domain": "calls_media",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },

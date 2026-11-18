@@ -1,3 +1,4 @@
+import type { CallMediaProvider } from "@om/provider-http";
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
@@ -51,6 +52,7 @@ const NO_STAGED: readonly StagedItem[] = [];
 export interface ShellProps {
   readonly services: ConversationServices;
   readonly callDriver?: CallDriver | undefined;
+  readonly callMedia?: CallMediaProvider | undefined;
   /** Present while this device has not loaded the groups module: groups are then offered, and the first use fetches it (ADR-0187). */
   readonly groupsSetup?: GroupsSetup;
   /** What this device can attach or record. Each control is offered only where it exists. */
@@ -86,13 +88,13 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, callDriver, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, callDriver, callMedia, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
   useAlertsRefresh(services, alerts); // renews the Home's registration at start when alerts are on (ADR-0210)
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
   const { profiles } = useProfiles();
-  const calls = useCallSurface(services, callDriver);
+  const calls = useCallSurface(services, callDriver, callMedia);
   const mode = useLayoutMode();
   // A replacement safety code (ADR-0205) being shown from Settings > Recovery; nothing changes until the person confirms it is saved.
   const [replacingKey, setReplacingKey] = useState<OperationId | null>(null);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 export { createHttpProvider } from "./provider";
 export { createHomesProvider } from "./homes";
-export type { HttpProvider, HttpProviderOptions, Reachability } from "./provider";
+export type { CallMediaProvider, HttpProvider, HttpProviderOptions, Reachability } from "./provider";
 export { checkProviderUrl, parseProviderUrl } from "./config";
 export type { ProviderConfig, ProviderUrlProblem } from "./config";
 export { probeHome } from "./probe";

@@ -24,6 +24,10 @@ export interface Env {
   readonly USAGE?: DurableObjectNamespace<UsageMeter>;
   /** `personal` selects the personal limits profile (smaller limits, usage counter, deposits shed at `hard`). Unset or `default`: the ordinary limits. */
   readonly OM_PROFILE?: string;
+  /** Optional trusted issuer and byte-budget enforcement at the media plane. Never a public URL. */
+  readonly MEDIA_TURN?: { fetch(request: Request): Promise<Response> };
+  /** Optional STUN addresses selected by this Home's owner. */
+  readonly OM_MEDIA_STUN?: string;
   /** Positive integers overriding the usage ceilings of USAGE_CONFIG (requests per UTC day). */
   readonly OM_USAGE_CEILING_WORKER?: string;
   readonly OM_USAGE_CEILING_DO?: string;

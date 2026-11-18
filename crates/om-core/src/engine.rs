@@ -2365,7 +2365,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     Query::GetCallView { .. } => {
                         Ok(to(&st.calls.current.as_ref().map(|c| &c.view)))
                     }
-                    Query::GetCallNotices { .. } => Ok(to(&st.calls.notices)),
+                    Query::GetCallNotices { .. } => Ok(to(&st.app.call_notices)),
                     Query::GetDirectOffers { .. } => Ok(to(&self.direct_offer_views(ctx, st))),
                     Query::GetConversationView {
                         conversation_id, ..

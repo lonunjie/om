@@ -16,6 +16,7 @@ interface Options {
   recovery?: false;
   usage?: false;
   direct?: boolean;
+  media?(request: Request): Promise<Response>;
 }
 
 export interface SocketTransport {

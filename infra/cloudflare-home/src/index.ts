@@ -3,10 +3,10 @@
 // The Worker routes by an opaque capability prefix or object id to a SQLite Durable Object and keeps nothing itself.
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
-  CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
+  CborError, HomeError, MEDIA_TURN_PATH, MEDIA_MAX_REPLY_BYTES, parseTurnLease, decodeTurnRequest, encodeTurnLease, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
   ADMISSION_HEADER, BLOB_DIGEST_HEADER, RECOVERY_CAP_BYTES, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, checkRecordEnvelope, checkSignedRequest, checkSignedVeto, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, toBase64Url, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, PUSH_PATHS, parsePushRequest, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, pushOn, recoveryOn, wakeOn } from "./capabilities";
+import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, mediaCapabilities, pushOn, recoveryOn, wakeOn } from "./capabilities";
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, okEtag, preflight, privateJson, readBody } from "./http";
 import { LIMITS } from "./limits";
@@ -98,7 +98,7 @@ const KEY_FETCH_PATH = "/v1/keys/fetch";
  * What the usage counter is told about a request up front: the Durable Object calls it causes besides the meter's own (see usage.ts).
  * A key fetch fans out to one Durable Object per requested device, so it is told none here and charged what it really made (`chargeCalls`).
  */
-const routedCalls = (request: Request, path: string): number => (request.method !== "OPTIONS" && path.startsWith("/v1/") && path !== KEY_FETCH_PATH ? 1 : 0);
+const routedCalls = (request: Request, path: string): number => (request.method !== "OPTIONS" && path.startsWith("/v1/") && path !== KEY_FETCH_PATH && path !== MEDIA_TURN_PATH ? 1 : 0);
 
 /** Charges the meter for Durable Object calls a request made after it was counted, plus this charge's own call. A meter that cannot answer is ignored (fail open, as in `count`). */
 async function chargeCalls(env: Env, made: number): Promise<void> {
@@ -132,6 +132,28 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
   if (m === "OPTIONS") return preflight();
   if (path === "/.well-known/om-provider-capabilities") return m === "GET" ? json(capabilitiesDocument(env, await scopeOf(env))) : fail("invalid_request");
   if (counted?.state === "hard" && addsWork(request, path)) return fail("quota", { detail: quotaDetail(3, true) });
+  if (path === MEDIA_TURN_PATH) {
+    const backend = env.MEDIA_TURN;
+    if (!backend || !mediaCapabilities(env)) return fail("not_found");
+    if (m !== "POST") return fail("invalid_request");
+    if (!(await admitted(request, env))) return fail("unauthorized");
+    if (counted?.state !== "healthy" && counted?.state !== "soft") return fail("quota", { detail: quotaDetail(3, true) });
+    const id = hex(parse(decodeTurnRequest, await body(request, 128)));
+    try {
+      // A service binding or Unix socket handles this internal request. No DNS or public fetch.
+      const lease = await backend.fetch(new Request(new URL("/lease", url.origin), {
+        method: "POST", redirect: "error", signal: AbortSignal.timeout(5000),
+        headers: { "content-type": "application/json" }, body: JSON.stringify({ request_id: id }),
+      }));
+      if (lease.status === 429) return fail("quota", { detail: quotaDetail(3, true) });
+      if (lease.status === 410) return fail("expired");
+      if (!lease.ok) return fail("retryable");
+      const bytes = await readBody(lease, MEDIA_MAX_REPLY_BYTES);
+      const result = bytes === undefined ? undefined
+        : parseTurnLease(JSON.parse(new TextDecoder().decode(bytes)), Math.floor(Date.now() / 1000));
+      return result === undefined ? fail("retryable") : ok(encodeTurnLease(result));
+    } catch { return fail("retryable"); }
+  }
   if (path === USAGE_PATH) {
     // Owner-only: the admin capability of any queue this Home holds. Never public, never in a URL.
     if (!usageOn(env)) return fail("not_found");

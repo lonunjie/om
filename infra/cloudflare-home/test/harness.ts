@@ -41,7 +41,7 @@ export function providerFetch(home: Home): typeof fetch {
   };
 }
 
-export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string>; bundle?: string; blobs?: false; usage?: false; recovery?: false; push?: false } = {}): Promise<Home> {
+export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string>; bundle?: string; blobs?: false; usage?: false; recovery?: false; push?: false; media?: (request: Request) => Promise<Response> } = {}): Promise<Home> {
   const target = process.env["OM_PROVIDER_TEST_TARGET"];
   if (target === "sqlite" || target === "sqlite-direct") {
     const { startSqliteHome } = await import("../../sqlite-home/test/harness");
@@ -54,6 +54,7 @@ export async function startHome(opts: { persist?: string; port?: number; vars?: 
     host: "127.0.0.1",
     port: opts.port ?? 0,
     bindings: { OM_PROVIDER_ID: "om-test-home", OM_HARD_FREE_TIER: "1", ...(opts.vars ?? {}) },
+    ...(opts.media === undefined ? {} : { serviceBindings: { MEDIA_TURN: opts.media } }),
     durableObjects: {
       QUEUES: { className: "MailboxQueue", useSQLite: true },
       KEYS: { className: "KeyPool", useSQLite: true },

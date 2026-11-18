@@ -350,6 +350,14 @@ fn delayed_deposit_has_an_authenticated_deadline_and_is_missed_without_ringing()
     assert_eq!(notices.len(), 1);
     assert_eq!(notices[0].call_session_id, call.call_session_id);
     assert_eq!(notices[0].reason, CallReason::Timeout);
+
+    // Reopening the encrypted local vault retains the notice but does not restore a live call.
+    p.b = p.bob.restart().remove(0);
+    p.bob.core.enable_calls();
+    assert!(view(&p.bob, &p.b).is_none());
+    let reopened: Vec<om_core::calls::CallNotice> =
+        p.bob.query(Query::GetCallNotices { ctx: p.b.clone() });
+    assert_eq!(reopened, notices);
 }
 
 #[test]

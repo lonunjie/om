@@ -2,7 +2,7 @@
 // One HTTP exchange with a Home, classified for Core's outbox: a definite typed answer, or a network failure whose
 // outcome is unknown. Bearer capabilities travel only in the Authorization header or the CBOR body; nothing here puts one
 // in a URL, sends a cookie, follows a redirect or leaks a referrer (ADR-0141).
-import { ADMISSION_HEADER, decodeHomeError, toBase64Url, type HomeErrorBody } from "@om/home-wire";
+import { ADMISSION_HEADER, MEDIA_TURN_PATH, decodeHomeError, toBase64Url, type HomeErrorBody } from "@om/home-wire";
 
 export type Exchange =
   | { readonly kind: "ok"; readonly status: number; readonly body: Uint8Array; readonly headers: Headers }
@@ -23,13 +23,13 @@ export interface HttpOptions {
 const needsAdmission = (url: string, method: string): boolean => {
   if (method === "GET") return false;
   const path = new URL(url).pathname;
-  return path === "/v1/relay/queues" || (path === "/v1/push/subscription" && method === "PUT") || (path === "/v1/blobs" && method === "POST") || path === "/v1/intro/tickets" || path.startsWith("/v1/discovery/descriptors/") || path.startsWith("/v1/keys/bundles/");
+  return path === MEDIA_TURN_PATH || path === "/v1/relay/queues" || (path === "/v1/push/subscription" && method === "PUT") || (path === "/v1/blobs" && method === "POST") || path === "/v1/intro/tickets" || path.startsWith("/v1/discovery/descriptors/") || path.startsWith("/v1/keys/bundles/");
 };
 
 export async function exchange(
   opts: HttpOptions,
   url: string,
-  init: { readonly method: "GET" | "POST" | "PUT" | "DELETE"; readonly body?: Uint8Array; readonly bearer?: Uint8Array; /** Extra transport headers (never a capability). */ readonly headers?: Readonly<Record<string, string>> },
+  init: { readonly method: "GET" | "POST" | "PUT" | "DELETE"; readonly body?: Uint8Array; readonly bearer?: Uint8Array; readonly maxReplyBytes?: number; /** Extra transport headers (never a capability). */ readonly headers?: Readonly<Record<string, string>> },
 ): Promise<Exchange> {
   const headers: Record<string, string> = { ...init.headers };
   if (init.body !== undefined) headers["content-type"] ??= "application/cbor";
@@ -47,10 +47,29 @@ export async function exchange(
     return { kind: "network" };
   }
   let body: Uint8Array;
-  try { body = new Uint8Array(await res.arrayBuffer()); } catch { return { kind: "network" }; }
+  try {
+    body = init.maxReplyBytes === undefined ? new Uint8Array(await res.arrayBuffer()) : await boundedReply(res, init.maxReplyBytes);
+  } catch { return { kind: "network" }; }
   if (res.ok) return { kind: "ok", status: res.status, body, headers: res.headers };
   if ((res.headers.get("content-type") ?? "").startsWith("application/cbor")) {
     try { return { kind: "home", error: decodeHomeError(body) }; } catch { /* fall through: a malformed error body is not a typed answer */ }
   }
   return { kind: "gateway", status: res.status };
+}
+
+async function boundedReply(response: Response, max: number): Promise<Uint8Array> {
+  if (response.body === null) return new Uint8Array();
+  const reader = response.body.getReader();
+  const bytes = new Uint8Array(max);
+  let length = 0;
+  for (;;) {
+    const part = await reader.read();
+    if (part.done) return bytes.subarray(0, length);
+    if (part.value.byteLength > max - length) {
+      await reader.cancel();
+      throw new Error("Home response exceeds bound");
+    }
+    bytes.set(part.value, length);
+    length += part.value.byteLength;
+  }
 }

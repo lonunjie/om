@@ -38,7 +38,7 @@ interface CallViewProps {
   readonly name: string;
   readonly identity?: string | undefined;
   readonly pending: boolean;
-  readonly privacyAllowsDirect: boolean;
+  readonly canUseCallRoute: boolean;
   readonly error: string | null;
   readonly media?: ReactNode;
   readonly cameraAvailable: boolean;
@@ -49,12 +49,13 @@ interface CallViewProps {
   readonly onRetry?: (() => void) | undefined;
 }
 
-export function CallView({ copy, call, name, identity, pending, privacyAllowsDirect, error, media, cameraAvailable, onAnswer, onEnd, onToggle, onDismiss, onRetry }: CallViewProps) {
+export function CallView({ copy, call, name, identity, pending, canUseCallRoute, error, media, cameraAvailable, onAnswer, onEnd, onToggle, onDismiss, onRetry }: CallViewProps) {
   const titleId = useId();
   const reducedMotion = useReducedMotion();
   if (call === null && !pending && error === null) return null;
   const incoming = call?.state === "incoming";
   const ended = call?.state === "ended" || call?.state === "failed";
+  const failureStatus = call?.state === "failed" ? error : null;
   const controls = call?.state === "active" || call?.state === "reconnecting";
   const muted = call !== null && (call.localMediaFlags & 1) === 0;
   const camera = call !== null && (call.localMediaFlags & 2) !== 0;
@@ -71,16 +72,16 @@ export function CallView({ copy, call, name, identity, pending, privacyAllowsDir
           <bdi>{title}</bdi>
         </Text>
         {identity === undefined ? null : <Text as="p" size="sm"><bdi>{copy.identity(identity)}</bdi></Text>}
-        {incoming || call === null ? null : <Text as="p">{ended && call.reason ? copy.reason[call.reason] : copy.state[call.state]}</Text>}
+        {incoming || call === null ? null : <Text as="p">{failureStatus ?? (ended && call.reason ? copy.reason[call.reason] : copy.state[call.state])}</Text>}
         {pending ? <Text as="p">{copy.preparing}</Text> : null}
-        {incoming && !privacyAllowsDirect && error === null ? <Text as="p">{copy.noDirect}</Text> : null}
+        {incoming && !canUseCallRoute && error === null ? <Text as="p">{copy.noDirect}</Text> : null}
       </div>
-      {error === null ? null : <p role="alert">{error}</p>}
+      {error === null || failureStatus !== null ? null : <p role="alert">{error}</p>}
       {media}
       <div className="om-call__controls">
         {incoming ? <>
-          {privacyAllowsDirect ? <Button disabled={pending} onClick={() => { onAnswer("audio"); }}>{copy.answerAudio}</Button> : null}
-          {privacyAllowsDirect && call.media === "video" ? <Button disabled={pending} onClick={() => { onAnswer("video"); }}>{copy.answerVideo}</Button> : null}
+          {canUseCallRoute ? <Button disabled={pending} onClick={() => { onAnswer("audio"); }}>{copy.answerAudio}</Button> : null}
+          {canUseCallRoute && call.media === "video" ? <Button disabled={pending} onClick={() => { onAnswer("video"); }}>{copy.answerVideo}</Button> : null}
           <Button variant="quiet" onClick={() => { onEnd(true); }}>{copy.decline}</Button>
         </> : null}
         {controls ? <>
@@ -89,7 +90,7 @@ export function CallView({ copy, call, name, identity, pending, privacyAllowsDir
         </> : null}
         {call !== null && !incoming && !ended ? <Button variant="quiet" onClick={() => { onEnd(); }}>{copy.hangUp}</Button> : null}
         {call === null && pending ? <Button variant="quiet" onClick={() => { onEnd(); }}>{copy.cancel}</Button> : null}
-        {call?.state === "failed" && onRetry && privacyAllowsDirect ? <Button onClick={onRetry}>{copy.retry}</Button> : null}
+        {call?.state === "failed" && onRetry && canUseCallRoute ? <Button onClick={onRetry}>{copy.retry}</Button> : null}
         {ended || (call === null && !pending) ? <Button variant="quiet" onClick={onDismiss}>{copy.dismiss}</Button> : null}
       </div>
     </section>

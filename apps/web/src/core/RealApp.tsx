@@ -21,6 +21,7 @@ import { prepareGroups, rememberOpenNewGroup, startCore } from "./loadCore";
 import type { GroupsSetup } from "./GroupsGate";
 import { relayJustConnected } from "./relaySetup";
 import type { HomeHost } from "./homeSettings";
+import type { CallMediaProvider } from "@om/provider-http";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
 import { createDraftStore, type DraftStore } from "./draftStore";
 import { browserPollPace } from "./pollPace";
@@ -101,7 +102,7 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
       {boot.k === "failed" ? <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} /> : null}
       {boot.k === "ready" ? (
-        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} searchKv={boot.searchKv} platform={boot.platform} capture={boot.capture} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(alerts === undefined ? {} : { alerts })} {...(relaySetup === undefined ? {} : { relaySetup })} />
+        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} searchKv={boot.searchKv} platform={boot.platform} capture={boot.capture} known={boot.known} callMedia={provider?.mediaCapabilities && provider.issueTurn ? provider as CallMediaProvider : undefined} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(alerts === undefined ? {} : { alerts })} {...(relaySetup === undefined ? {} : { relaySetup })} />
       ) : null}
       </div>
     </ThemeProvider>
@@ -123,10 +124,10 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeHost; readonly alerts?: (profileCount: () => number) => AlertsServices | undefined; readonly relaySetup?: RelaySetupServices }
+interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly callMedia: CallMediaProvider | undefined; readonly home?: HomeHost; readonly alerts?: (profileCount: () => number) => AlertsServices | undefined; readonly relaySetup?: RelaySetupServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
-function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, known: initial, connected, home, alerts, relaySetup }: ProfilesProps) {
+function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, known: initial, connected, callMedia, home, alerts, relaySetup }: ProfilesProps) {
   const [known, setKnown] = useState<readonly ProfileId[]>(initial);
   const [open, setOpen] = useState<ReadonlySet<ProfileId>>(() => new Set());
   const [pending, setPending] = useState<{ readonly id: ProfileId; readonly ctx: ProfileExecutionContext } | null>(null);
@@ -224,18 +225,19 @@ function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, kn
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
-      <Connected rt={rt} vault={vault} drafts={drafts} searchKv={searchKv} platform={platform} capture={capture} onAddProfile={begin} {...(boundAlerts === undefined ? {} : { alerts: boundAlerts })} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
+      <Connected rt={rt} vault={vault} drafts={drafts} searchKv={searchKv} platform={platform} capture={capture} callMedia={callMedia} onAddProfile={begin} {...(boundAlerts === undefined ? {} : { alerts: boundAlerts })} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
     </ProfileProvider>
   );
 }
 
 interface ConnectedProps {
+  readonly callMedia: CallMediaProvider | undefined;
   readonly alerts?: AlertsServices;
   readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
   readonly lockOpen: () => Promise<void>; readonly idle: IdleMinutes; readonly setIdle: (minutes: IdleMinutes) => void;
 }
 
-function Connected({ rt, vault, drafts, searchKv, platform, capture: composerTools, onAddProfile, home, alerts, lockOpen, idle, setIdle }: ConnectedProps) {
+function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: composerTools, onAddProfile, home, alerts, lockOpen, idle, setIdle }: ConnectedProps) {
   const registry = useMemo(() => createActionRegistry(), []);
   // Without the groups module on this device, the first use fetches and verifies it and restarts the app onto it (ADR-0187).
   const groupsSetup = useMemo<GroupsSetup | undefined>(() => (rt.groups.available() ? undefined : {
@@ -286,7 +288,7 @@ function Connected({ rt, vault, drafts, searchKv, platform, capture: composerToo
     <>
     <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={`${activeId}:${ctx.generation}`} services={settingsServices} callDriver={rt.calls} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} {...(alerts === undefined ? {} : { alerts })} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={`${activeId}:${ctx.generation}`} services={settingsServices} callDriver={rt.calls} callMedia={callMedia} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} {...(alerts === undefined ? {} : { alerts })} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />

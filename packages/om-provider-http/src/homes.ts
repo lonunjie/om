@@ -40,6 +40,17 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
     lostMailboxes: () => homes.flatMap((h) => [...h.lostMailboxes()]),
     routeEntry: (mailbox, expiresAt) => first.routeEntry(mailbox, expiresAt),
     capabilities: () => first.capabilities(),
+    async mediaCapabilities() {
+      const advertised = await Promise.all(offered.map((home) => home.mediaCapabilities()));
+      return advertised.find((media) => media !== undefined);
+    },
+    async issueTurn() {
+      for (const home of offered) {
+        const lease = await home.issueTurn();
+        if (lease) return lease;
+      }
+      return undefined;
+    },
     // The most conservative state over every Home held (unknown > hard > soft > healthy): one question, one safe answer.
     async usageState(mailbox) {
       const rank = { healthy: 0, soft: 1, hard: 2, unknown: 3 } as const;
