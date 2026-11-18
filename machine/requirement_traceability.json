@@ -2862,6 +2862,13 @@
       "verified_by": [
         "review:ADR-0201-home-recoverystore-api-inbox-veto-and-limits.md"
       ]
+    },
+    {
+      "requirement": "R-441",
+      "verified_by": [
+        "V-002",
+        "review:ADR-0202-owner-recovery-evidence-and-controller-approval.md"
+      ]
     }
   ]
 }
