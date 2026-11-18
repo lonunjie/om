@@ -233,6 +233,9 @@ Also recorded: `wrangler` is pinned to 4.100.0 and `miniflare` to 4.20260611.0 (
 3. The [SQLite Home](../../infra/sqlite-home/README.md) and shared runner (`pnpm conformance:provider`) cover the
    implemented API surfaces, including personal usage accounting (PC-C03) and the RecoveryStore extension. Full
    PC-B, PC-D, PC-E, PC-F and PC-I evidence and the PR-013 vendor-wide block drill remain open.
+   Both Homes pass the same 103 public API cases (2026-11-18). The SQLite Home answers an oversize or refused upload
+   with its typed error after reading a bounded remainder of the body, and keeps its data directory owner-only. It has
+   not yet run on a separate real host, and the container image has not been built in this environment.
 4. Independent review of this component (it handles capability and replay logic but no new cryptography).
 
 ## Deployed (2026-10-28, operator approved SeedLife's Cloudflare account)
