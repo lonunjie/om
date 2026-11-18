@@ -13,3 +13,4 @@ export type { WakeSocketFactory, WakeStats } from "./wake";
 export { UNKNOWN_USAGE, parseUsageState, zeroCostSafe, type ProviderUsageState } from "@om/home-wire";
 export { createRecoveryStoreClient, fanOutToAll, recordLocator, recoveryEtag, recoveryInboxId, recoveryStoreFor } from "./recovery";
 export type { DrainPage, InboxAuth, RecordWrite, RecoveryFailure, RecoveryResult, RecoveryStoreClient, RecoveryStoreInfo, RecoveryStoreOptions } from "./recovery";
+export { createPushClient, type PushClient, type PushRegistration, type PushRefusal } from "./push";

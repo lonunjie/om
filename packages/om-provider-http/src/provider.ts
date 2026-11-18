@@ -31,6 +31,7 @@ import { depositCap, descriptorPublishCap, installSecret, introServiceCap, keyPu
 import type { SecretStore } from "./secrets";
 import { checkProviderUrl, type ProviderConfig } from "./config";
 import { createRecoveryStoreClient, type RecoveryFailure, type RecoveryStoreClient } from "./recovery";
+import { createPushClient, type PushClient } from "./push";
 import { createWakeHub, type WakeHubOptions, type WakeSocketFactory, type WakeStats } from "./wake";
 
 export interface HttpProviderOptions {
@@ -85,6 +86,8 @@ export interface HttpProvider extends Provider {
   /** Called when the Home reports something newer than this client holds (Provider.onWake). */
   onWake(listener: () => void): () => void;
   wakeStats(): WakeStats;
+  /** The optional push wake (om.relay.push.v1, ADR-0210): the Home's key and registering a browser endpoint for every mailbox held here. */
+  readonly push: PushClient;
   /** Closes every socket and timer. The provider keeps working by polling. */
   dispose(): void;
 }
@@ -295,6 +298,11 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     ...opts.wake,
   });
 
+  const push = createPushClient({
+    base, http, features: advertisedFeatures,
+    receiveCaps: async () => Promise.all([...ensured].filter((m) => /^[0-9a-f]{32}$/.test(m)).map(async (m) => (await mailboxCaps(await secret(), fromHex(m))).receive)),
+  });
+
   // ------------------------------------------------------------------------------------------ queues
 
   let admissionDenied = false;
@@ -309,7 +317,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       body: encodeQueueCreate({ requestId: await requestId("create", mailbox, caps.receive), receiveCap: caps.receive, depositCap: caps.deposit, adminCap: caps.admin }),
     });
     if (isResult(r)) return "later";
-    if (r.kind === "ok") { ensured.add(mailboxHex); return "ok"; }
+    if (r.kind === "ok") { ensured.add(mailboxHex); push.opened(caps.receive); return "ok"; }
     if (r.error.name === "unauthorized") {
       // A Home that asks for the owner's admission refuses a client without it for a reason that has nothing to do with another
       // party holding the queue: say so (reported by `admissionRefused`) and keep the mailbox, instead of calling it squatted.
@@ -743,6 +751,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     setWakeActive: (active) => { hub.setActive(active); },
     onWake: (listener) => hub.onWake(listener),
     wakeStats: () => hub.stats(),
+    push,
     dispose: () => { hub.dispose(); },
     blobLimits,
     recoveryPlace,

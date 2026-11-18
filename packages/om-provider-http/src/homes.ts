@@ -51,6 +51,8 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
       const offs = homes.map((h) => h.onWake(listener));
       return () => { for (const off of offs) off(); };
     },
+    // A browser subscription is made for one Home's public key, so it can wake only that Home: the active one (ADR-0210).
+    push: first.push,
     wakeStats: () => homes.map((h) => h.wakeStats()).reduce((a, b) => ({ sockets: a.sockets + b.sockets, live: a.live + b.live, wakes: a.wakes + b.wakes, connects: a.connects + b.connects })),
     dispose: () => { for (const h of homes) h.dispose(); },
     async allocateRoutes(count, held = []): Promise<readonly RouteOffer[]> {

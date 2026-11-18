@@ -23,7 +23,7 @@ export interface HttpOptions {
 const needsAdmission = (url: string, method: string): boolean => {
   if (method === "GET") return false;
   const path = new URL(url).pathname;
-  return path === "/v1/relay/queues" || (path === "/v1/blobs" && method === "POST") || path === "/v1/intro/tickets" || path.startsWith("/v1/discovery/descriptors/") || path.startsWith("/v1/keys/bundles/");
+  return path === "/v1/relay/queues" || (path === "/v1/push/subscription" && method === "PUT") || (path === "/v1/blobs" && method === "POST") || path === "/v1/intro/tickets" || path.startsWith("/v1/discovery/descriptors/") || path.startsWith("/v1/keys/bundles/");
 };
 
 export async function exchange(
@@ -32,7 +32,7 @@ export async function exchange(
   init: { readonly method: "GET" | "POST" | "PUT" | "DELETE"; readonly body?: Uint8Array; readonly bearer?: Uint8Array; /** Extra transport headers (never a capability). */ readonly headers?: Readonly<Record<string, string>> },
 ): Promise<Exchange> {
   const headers: Record<string, string> = { ...init.headers };
-  if (init.body !== undefined) headers["content-type"] = "application/cbor";
+  if (init.body !== undefined) headers["content-type"] ??= "application/cbor";
   if (init.bearer !== undefined) headers["authorization"] = `Bearer ${toBase64Url(init.bearer)}`;
   if (opts.admission !== undefined && needsAdmission(url, init.method)) headers[ADMISSION_HEADER] = toBase64Url(opts.admission);
   let res: Response;
