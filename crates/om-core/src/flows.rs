@@ -26,6 +26,7 @@ mod ceremony;
 mod group_lane;
 mod multi;
 mod owed;
+mod recovery_approval;
 mod recovery_attempt;
 mod recovery_inbox;
 mod recovery_owner;
@@ -42,6 +43,7 @@ pub use ceremony::{
 };
 use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
 use owed::KIND_ENROLLED_ACK;
+pub use recovery_approval::{approval_join_view, approval_offer_view};
 use recovery_peer::KIND_RECOVERY_VETO;
 pub use recovery_peer::{MAX_NOTICE_BYTES, build_notice};
 pub(crate) use recovery_watch::request_views;
@@ -910,6 +912,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 place,
             } => self.begin_recovery(op, recovery_key, home, place.as_deref()),
             IntentBody::RequestRecovery => self.request_recovery(),
+            IntentBody::OfferRecoveryApproval => self.offer_recovery_approval(op),
+            IntentBody::JoinRecoveryApproval { link } => self.join_recovery_approval(op, link),
             IntentBody::CancelRecovery => self.cancel_recovery(),
             IntentBody::CheckRecoveryAgain => self.check_recovery_again(),
             IntentBody::ApproveDeviceLink { request_id, .. } => {

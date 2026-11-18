@@ -79,6 +79,9 @@ pub static TEST_OMIT_NOTICE: std::sync::atomic::AtomicBool =
 
 /// TEST ONLY: while set, an approving Core corrupts the approval binding (the new device must adopt nothing).
 /// Process-global: its test lives in a test binary of its own.
+/// Test switch of the recovery approval reply (a controller that misbehaves): 1 changed target, 2 other request digest,
+/// 3 last chunk missing, 4 a conflicting duplicate of chunk 0 first, 5 bad reply tag. Process-global: a test binary of its own.
+pub static TEST_APPROVAL_FAULT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 pub static TEST_BAD_BINDING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 

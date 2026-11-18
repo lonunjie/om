@@ -2201,6 +2201,12 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .map(|v| to(&v))
                             .unwrap_or(serde_json::Value::Null))
                     }
+                    Query::GetRecoveryApprovalOffer { operation_id, .. } => {
+                        let now = self.clock.now_ms();
+                        Ok(crate::flows::approval_offer_view(st, operation_id, now)
+                            .map(|v| to(&v))
+                            .unwrap_or(serde_json::Value::Null))
+                    }
                     Query::GetRecoveryStatus { .. } => {
                         Ok(to(&recovery_status(st, self.clock.now_ms())))
                     }
@@ -2664,6 +2670,10 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             restricted: true,
             evidence: j.evidence,
             attempt: j.attempt.as_ref().map(|a| a.state),
+            approval: j
+                .attempt
+                .as_ref()
+                .and_then(|a| crate::flows::approval_join_view(a, now_ms)),
             remaining_ms: j
                 .attempt
                 .as_ref()

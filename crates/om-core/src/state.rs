@@ -849,6 +849,9 @@ pub struct AppState {
     /// The ceremony this (new) device is waiting on; while present, the profile is a device that has not joined yet.
     #[serde(default)]
     pub link_join: Option<LinkJoin>,
+    /// Recovery approval ceremonies this (surviving controller) device offered (ADR-0203), by operation id.
+    #[serde(default)]
+    pub approval_offers: BTreeMap<OperationId, ApprovalOffer>,
     /// Enrollment notices received for devices that joined our account (newest last, bounded).
     #[serde(default)]
     pub notices: Vec<NoticeRec>,
@@ -1079,6 +1082,61 @@ pub struct OwnerAttemptRec {
     pub reconciling: bool,
     #[serde(default)]
     pub round_conflict: bool,
+    /// Links of the pinned chain that need their recovery evidence (from a controller's evidence), in chain order.
+    #[serde(default)]
+    pub links: Vec<RecoveryLinkRec>,
+    /// This device's side of the approval ceremony with a surviving controller (ADR-0203), once it joined one.
+    #[serde(default)]
+    pub approval: Option<ApprovalJoin>,
+}
+
+/// The controller's side of a recovery approval ceremony (ADR-0203): two queues on its own Home, a fresh secret, and
+/// the proposal it was shown. Never an enrollment: it has its own link prefix, keys and message types.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovalOffer {
+    pub operation_id: OperationId,
+    pub secret: SecretHex,
+    pub a_mailbox: Hex,
+    pub a_route: RelayEntry,
+    pub b_mailbox: Hex,
+    pub b_route: RelayEntry,
+    pub b_recv: Hex,
+    pub link: Option<String>,
+    pub created_ms: u64,
+    pub expires_at: u64,
+    pub state: LinkState,
+    /// The request digest of the proposal shown to the person, and the six digits both devices display.
+    #[serde(default)]
+    pub request_digest: Option<Hex>,
+    #[serde(default)]
+    pub proposal: Option<Hex>,
+    #[serde(default)]
+    pub code: Option<String>,
+    /// The Home refused the reply for good after the co-signature was made.
+    #[serde(default)]
+    pub reply_undelivered: bool,
+}
+
+/// The restricted device's side: what it sent, what the controller announced and the evidence chunks received so far.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovalJoin {
+    pub operation_id: OperationId,
+    pub secret: SecretHex,
+    pub relay_uri: String,
+    pub a_cap: Hex,
+    pub b_mailbox: Hex,
+    pub b_recv: Hex,
+    pub expires_at: u64,
+    pub state: LinkState,
+    pub proposal: Hex,
+    pub code: String,
+    /// The authenticated descriptor (its exact bytes) once the reply verified, and the chunks by index.
+    #[serde(default)]
+    pub descriptor: Option<Hex>,
+    #[serde(default)]
+    pub chunks: Vec<Option<Hex>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

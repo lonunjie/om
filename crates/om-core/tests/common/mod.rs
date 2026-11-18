@@ -407,3 +407,4 @@ pub fn confirmation(
 }
 
 pub mod history_world;
+pub mod recovery_world;

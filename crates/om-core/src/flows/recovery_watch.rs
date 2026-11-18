@@ -129,7 +129,7 @@ pub(crate) fn request_views(
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// The verified head, its credentials and the policy it commits to (on, with a recovery key); `None` for a profile
     /// without one (it ignores every observation).
-    fn recovery_ctx(&self) -> Option<(Acs, Vec<Vec<u8>>, RecoveryPolicy)> {
+    pub(super) fn recovery_ctx(&self) -> Option<(Acs, Vec<Vec<u8>>, RecoveryPolicy)> {
         let (head, _, creds) = self.acs_head()?;
         let policy = recovery::RecoveryPolicy::from_body(
             &unhex(self.st.app.recovery_policy.as_deref()?).ok()?,
@@ -620,7 +620,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         match verify_held(&head, &creds, &policy, rec, &cosigned) {
             Ok(Held::Complete) => {
-                self.finish_recovery(request_id, cosigned);
+                // When this request came through an approval ceremony, the evidence is the chain as it stands now,
+                // taken before the successor is applied, and the bound reply follows once the recovery completed here.
+                let pre = self.approval_before_confirm(request_id);
+                self.finish_recovery(request_id, cosigned.clone());
+                let done = self
+                    .st
+                    .app
+                    .recovery_requests
+                    .get(request_id)
+                    .is_some_and(|r| r.state == RecoveryObsState::Completed);
+                if let (Some(pre), true) = (pre, done) {
+                    self.approval_after_confirm(pre, &cosigned);
+                }
                 OutcomeClass::Committed
             }
             // A veto, or a successor the policy and parent majority do not accept with this one co-signer.

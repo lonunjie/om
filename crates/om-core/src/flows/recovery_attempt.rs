@@ -59,7 +59,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .iter()
             .map(|c| unhex(c).ok())
             .collect::<Option<_>>()?;
-        let head = control::verify_chain_with(&chain, &creds, &[]).ok()?;
+        let links: Vec<control::RecoveryLinkEvidence> = a
+            .links
+            .iter()
+            .map(|l| {
+                Some(control::RecoveryLinkEvidence {
+                    child_hash: unhex(&l.child_hash).ok()?.try_into().ok()?,
+                    policy: unhex(&l.policy).ok()?,
+                    next_policy: unhex(&l.next_policy).ok()?,
+                    request: unhex(&l.request).ok()?,
+                    elapsed_seconds: l.elapsed_seconds,
+                })
+            })
+            .collect::<Option<_>>()?;
+        let head = control::verify_chain_with(&chain, &creds, &links).ok()?;
         let policy = RecoveryPolicy::from_body(&unhex(&a.policy).ok()?).ok()?;
         (hex(&head.hash()) == a.parent && head.recovery_commitment == Some(policy.hash()))
             .then_some((head, creds, policy))
@@ -215,6 +228,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             pending_reads: 0,
             reconciling: false,
             round_conflict: false,
+            links: vec![],
+            approval: None,
         };
         if let Some(j) = self.st.app.recovery_join.as_mut() {
             j.attempt = Some(attempt);
@@ -336,6 +351,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Start a round of reads: the veto board at every Home and, when `with_record`, the record again at every Home that
     /// has a scope (the reconcile before adoption). Only the round that is current counts.
+    /// The reconcile round that precedes adoption, started now (a controller's approval made the successor complete).
+    pub(super) fn owner_reconcile_now(&mut self) {
+        if let Some(a) = self.attempt_mut() {
+            a.reconciling = true;
+        }
+        self.owner_round(true);
+    }
+
     fn owner_round(&mut self, with_record: bool) {
         let Some(j) = self.st.app.recovery_join.clone() else {
             return;
@@ -412,7 +435,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A veto from a board. Only a veto by a live controller of the pinned parent head, under the credential that head
     /// commits to, for THIS request and epoch counts; everything else is ignored.
-    fn owner_observe_veto(&mut self, signed: &[u8]) {
+    pub(super) fn owner_observe_veto(&mut self, signed: &[u8]) {
         let Some((head, creds, policy)) = self.attempt_ctx() else {
             return;
         };
@@ -690,7 +713,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .collect();
             control::verify_chain_with(&c?, &d?, &ev).ok()
         };
-        let links = vec![link];
+        let mut links = a.links.clone();
+        links.push(link);
         let Some(new_head) = verify(&chain, &all_creds, &links).filter(|h| h.hash() == child_hash)
         else {
             return false;

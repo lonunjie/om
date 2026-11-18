@@ -141,6 +141,16 @@ fn wrap_envelope(
 }
 
 fn open_msg(keys: &CeremonyKeys, role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
+    open_msg_ad(keys, role, bytes, lc::aead_ad)
+}
+
+/// The same opening with another purpose's associated data (the recovery approval ceremony, ADR-0203).
+pub(super) fn open_msg_ad(
+    keys: &CeremonyKeys,
+    role: u8,
+    bytes: &[u8],
+    ad: fn(&[u8; 32], u8) -> Vec<u8>,
+) -> Option<Vec<u8>> {
     if bytes.len() > 140_000 {
         return None;
     }
@@ -162,7 +172,7 @@ fn open_msg(keys: &CeremonyKeys, role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
             (&nonce).into(),
             Payload {
                 msg: &ct[NONCE_LEN..],
-                aad: &lc::aead_ad(&keys.id, role),
+                aad: &ad(&keys.id, role),
             },
         )
         .ok()?;
@@ -282,6 +292,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         pt: &[u8],
         expires_s: u64,
     ) -> Option<Vec<u8>> {
+        self.seal_msg_ad(keys, role, pt, expires_s, lc::aead_ad)
+    }
+
+    pub(super) fn seal_msg_ad(
+        &mut self,
+        keys: &CeremonyKeys,
+        role: u8,
+        pt: &[u8],
+        expires_s: u64,
+        ad: fn(&[u8; 32], u8) -> Vec<u8>,
+    ) -> Option<Vec<u8>> {
         if pt.len() > MAX_MSG {
             return None;
         }
@@ -299,7 +320,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 (&nonce).into(),
                 Payload {
                     msg: &frame,
-                    aad: &lc::aead_ad(&keys.id, role),
+                    aad: &ad(&keys.id, role),
                 },
             )
             .ok()?;
@@ -310,7 +331,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Some(wrap_envelope(&nonce, ct, filler, enc, expires_s))
     }
 
-    fn deposit_ceremony(
+    pub(super) fn deposit_ceremony(
         &mut self,
         op: &str,
         cap: &[u8],
@@ -435,6 +456,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// The response queue is open: its receive capability completes the link.
     pub(super) fn on_open_queue(&mut self, op: &str, cap: Option<Vec<u8>>) {
+        if self.approval_open_queue(op, cap.clone()) {
+            return;
+        }
         let now_s = self.now_s();
         let Some(o) = self.st.app.link_offers.get_mut(op) else {
             return;
@@ -479,6 +503,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony deposit or queue creation was refused for good: the ceremony ends, nothing is half adopted.
     pub(super) fn ceremony_failed(&mut self, op: &str, approval: bool) {
+        self.approval_failed(op, approval);
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
             if !o.state.is_terminal() {
                 o.state = LinkState::Failed;
@@ -498,6 +523,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony past its deadline ends; transfer time never extends the link's lifetime.
     pub(super) fn expire_ceremonies(&mut self) {
+        self.expire_approvals();
         for o in self.st.app.link_offers.values_mut() {
             if o.expires_at <= self.now_ms && !o.state.is_terminal() {
                 o.state = if o.state == LinkState::Transferring {
@@ -608,6 +634,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony queue item. Returns `false` when the mailbox is not a ceremony queue of this profile.
     pub(super) fn on_ceremony_mailbox(&mut self, mailbox: &str, bytes: &[u8]) -> bool {
+        if self.approval_mailbox(mailbox, bytes) {
+            return true;
+        }
         let offer = self
             .st
             .app
@@ -2336,11 +2365,15 @@ pub fn poll_targets(st: &ProfileState, now_ms: u64) -> Vec<crate::host::PollTarg
             capability: cap,
         });
     }
+    super::recovery_approval::approval_poll_targets(st, now_ms, &mut out);
     out
 }
 
 /// The Home and explicit capability for acknowledging a ceremony mailbox (`None`: not a ceremony mailbox).
 pub(super) fn ack_route(st: &ProfileState, mailbox: &str) -> Option<(String, Vec<u8>)> {
+    if let Some(r) = super::recovery_approval::approval_ack_route(st, mailbox) {
+        return Some(r);
+    }
     if let Some(o) = st.app.link_offers.values().find(|o| o.a_mailbox == mailbox) {
         return Some((o.a_route.relay_uri.clone(), vec![]));
     }

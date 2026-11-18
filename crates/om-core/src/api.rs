@@ -355,6 +355,14 @@ pub enum IntentBody {
     /// record can reach, and starts this device's own interval. It grants nothing until the interval, the checks and the
     /// owner's own pin all hold.
     RequestRecovery,
+    /// A surviving controller opens a short, single-use recovery approval ceremony (ADR-0203). It shows a private link
+    /// or QR for the restricted device; the person confirms the exact request with `ConfirmRecovery`.
+    OfferRecoveryApproval,
+    /// The restricted device, with its request waiting, sends that exact request to the controller whose
+    /// `om:recover-approve/` link it was given. An enrollment link is refused.
+    JoinRecoveryApproval {
+        link: String,
+    },
     /// Close this device's own recovery attempt.
     CancelRecovery,
     /// Ask again now: re-read the record (before an attempt) or the Homes' boards and record (during one).
@@ -469,6 +477,8 @@ impl IntentBody {
             IntentBody::RequestDeviceLink { .. } => "RequestDeviceLink",
             IntentBody::BeginRecovery { .. } => "BeginRecovery",
             IntentBody::RequestRecovery => "RequestRecovery",
+            IntentBody::OfferRecoveryApproval => "OfferRecoveryApproval",
+            IntentBody::JoinRecoveryApproval { .. } => "JoinRecoveryApproval",
             IntentBody::CancelRecovery => "CancelRecovery",
             IntentBody::CheckRecoveryAgain => "CheckRecoveryAgain",
             IntentBody::ApproveDeviceLink { .. } => "ApproveDeviceLink",
@@ -605,6 +615,11 @@ pub enum Query {
     GetRecoveryStatus {
         ctx: ProfileExecutionContext,
     },
+    /// The controller's recovery approval offer: its link, state and the six digits to compare (`null` when unknown).
+    GetRecoveryApprovalOffer {
+        ctx: ProfileExecutionContext,
+        operation_id: OperationId,
+    },
     /// Progress of the same-owner history transfer of the latest device link (`null` when none was announced).
     GetHistoryTransfer {
         ctx: ProfileExecutionContext,
@@ -647,6 +662,7 @@ impl Query {
             | Query::GetLinkRequest { ctx, .. }
             | Query::GetLinkOffer { ctx, .. }
             | Query::GetRecoveryStatus { ctx }
+            | Query::GetRecoveryApprovalOffer { ctx, .. }
             | Query::GetHistoryTransfer { ctx }
             | Query::GetConfirmation { ctx, .. }
             | Query::GetIntroductionLoad { ctx }
@@ -1283,6 +1299,52 @@ pub struct RecoveringView {
     /// Milliseconds of this device's own interval still to run (monotonic credit only), once an attempt is waiting.
     #[serde(default)]
     pub remaining_ms: Option<u64>,
+    /// The approval exchange with a surviving controller, once this device joined one (ADR-0203).
+    #[serde(default)]
+    pub approval: Option<RecoveryApprovalView>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalCode {
+    WaitingForController,
+    Receiving,
+    Done,
+    Failed,
+    Expired,
+}
+
+/// The restricted device's side of the approval exchange: where it stands and the six digits to compare.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryApprovalView {
+    pub state: ApprovalCode,
+    pub verification_code: Option<String>,
+    pub expires_at: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalOfferCode {
+    WaitingForDevice,
+    AwaitingConfirmation,
+    Approved,
+    Declined,
+    Failed,
+    Expired,
+}
+
+/// What the surviving controller shows: the link while it waits, then the code and the request to confirm.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryApprovalOfferView {
+    pub operation_id: OperationId,
+    pub link: Option<String>,
+    pub expires_at: u64,
+    pub verification_code: Option<String>,
+    /// The request digest `ConfirmRecovery` names, once a proposal arrived and verified.
+    pub request_id: Option<String>,
+    pub state: ApprovalOfferCode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
