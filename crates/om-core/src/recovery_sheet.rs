@@ -2,6 +2,7 @@
 //! The recovery key sheet string (ADR-0200, `spec/protocol/recovery-sheet.md`): one checksummed string that carries the
 //! 256-bit RecoveryRoot (full kind only), the `recovery_scope_id` and the Home origin, so that nobody types a URL.
 //!
+//! * Version 2 (ADR-0203): a full sheet with an `OwnerRecoveryCheckpoint` after the host; version 1 and legacy stay readable.
 //! * Binary layout: `version(1) kind(1) [root(32)] scope(32) port(2, BE, 0 = 443) host_len(1) host check(4)`; `check` is the
 //!   first 4 bytes of the digest value of `DS-HASH(OM-RECOVERY-SHEET-CHECK-v1, body)`.
 //! * Text: RFC 4648 base32, no padding. Compact (case, spaces, hyphens and line breaks ignored) and sheet form (groups of 4,
@@ -21,6 +22,9 @@ pub const LBL_SHEET_CHECK: &str = "OM-RECOVERY-SHEET-CHECK-v1";
 pub const LBL_LINE_CHECK: &str = "OM-RECOVERY-SHEET-LINE-CHECK-v1";
 pub const QR_PREFIX: &str = "om:recover/";
 pub const VERSION: u8 = 1;
+/// Version 2 (ADR-0203 section 1): a full-kind sheet that also carries the owner's `OwnerRecoveryCheckpoint`.
+pub const VERSION_2: u8 = 2;
+pub const TYPE_CHECKPOINT: u64 = 39;
 pub const KIND_FULL: u8 = 1;
 pub const KIND_PLACE: u8 = 2;
 pub const GROUPS_PER_LINE: usize = 6;
@@ -28,6 +32,8 @@ pub const MAX_HOST: usize = 253;
 /// Redirect hops a recovering device follows at most (ADR-0200 section 6).
 pub const MAX_REDIRECT_HOPS: usize = 3;
 const LEGACY_BYTES: usize = 35;
+const CHECKPOINT_MIN: usize = 82;
+const CHECKPOINT_MAX: usize = 90;
 /// Nothing longer than the longest valid string (full kind, 253-byte host) is parsed.
 const MAX_TEXT_CHARS: usize = 1024;
 const ALPHABET: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -47,6 +53,8 @@ pub enum SheetError {
     Check,
     /// The line check of this line (1-based) did not match.
     LineCheck(usize),
+    /// A version 2 sheet whose checkpoint is malformed, has an extension or is not canonical.
+    Checkpoint,
     /// A QR payload without the `om:recover/` prefix, or with a bad base64url body.
     Qr,
 }
@@ -62,6 +70,7 @@ impl SheetError {
             SheetError::Trailing => "trailing",
             SheetError::Check => "check",
             SheetError::LineCheck(_) => "line_check",
+            SheetError::Checkpoint => "checkpoint",
             SheetError::Qr => "qr",
         }
     }
@@ -71,6 +80,8 @@ impl SheetError {
 #[derive(Clone, PartialEq, Eq)]
 pub struct Sheet {
     root: Option<[u8; 32]>,
+    /// The owner's checkpoint (version 2, full kind only). The sheet's custody is its only provenance.
+    pub checkpoint: Option<OwnerCheckpoint>,
     pub scope: [u8; 32],
     /// `None` = 443.
     pub port: Option<u16>,
@@ -92,6 +103,50 @@ impl Drop for Sheet {
         if let Some(r) = &mut self.root {
             r.zeroize();
         }
+    }
+}
+
+/// `OwnerRecoveryCheckpoint` v1 (ADR-0203 section 1): the AccountID, ACS generation and digest (`OM-ACS-HASH-v1` value) of
+/// the head a trusted device had verified when it issued the sheet. It fixes a minimum known head and grants no vote.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OwnerCheckpoint {
+    pub account_id: [u8; 32],
+    pub generation: u64,
+    pub acs_hash: [u8; 32],
+}
+
+impl OwnerCheckpoint {
+    /// The canonical OM-CBOR map (82 to 90 bytes).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::crypto::cbor::{V, encode};
+        encode(&V::M(vec![
+            (0, V::U(TYPE_CHECKPOINT)),
+            (1, V::U(1)),
+            (2, V::B(self.account_id.to_vec())),
+            (3, V::U(self.generation)),
+            (
+                4,
+                V::M(vec![(0, V::U(1)), (1, V::B(self.acs_hash.to_vec()))]),
+            ),
+        ]))
+    }
+
+    /// Exactly one canonical checkpoint with no extension and no extra byte; anything else is refused.
+    pub fn from_bytes(b: &[u8]) -> Option<OwnerCheckpoint> {
+        let v = crate::crypto::cbor::decode(b).ok()?;
+        if v.get(0).ok()?.u().ok()? != TYPE_CHECKPOINT || v.get(1).ok()?.u().ok()? != 1 {
+            return None;
+        }
+        let d = v.get(4).ok()?;
+        if d.get(0).ok()?.u().ok()? != 1 {
+            return None;
+        }
+        let c = OwnerCheckpoint {
+            account_id: v.get(2).ok()?.b32().ok()?,
+            generation: v.get(3).ok()?.u().ok()?,
+            acs_hash: d.get(1).ok()?.b32().ok()?,
+        };
+        (c.to_bytes() == b).then_some(c)
     }
 }
 
@@ -153,6 +208,19 @@ impl Sheet {
         Self::make(Some(root), scope, port, host)
     }
 
+    /// A full-kind version 2 sheet: the secret root, the place and the owner's checkpoint (ADR-0203 section 1).
+    pub fn full_v2(
+        root: [u8; 32],
+        scope: [u8; 32],
+        port: Option<u16>,
+        host: &str,
+        checkpoint: OwnerCheckpoint,
+    ) -> Result<Sheet, SheetError> {
+        let mut s = Self::make(Some(root), scope, port, host)?;
+        s.checkpoint = Some(checkpoint);
+        Ok(s)
+    }
+
     /// A place-only sheet: holds no secret.
     pub fn place_only(scope: [u8; 32], port: Option<u16>, host: &str) -> Result<Sheet, SheetError> {
         Self::make(None, scope, port, host)
@@ -169,6 +237,7 @@ impl Sheet {
         }
         Ok(Sheet {
             root,
+            checkpoint: None,
             scope,
             port,
             host: host.into(),
@@ -188,6 +257,7 @@ impl Sheet {
     pub fn place(&self) -> Sheet {
         Sheet {
             root: None,
+            checkpoint: None,
             scope: self.scope,
             port: self.port,
             host: self.host.clone(),
@@ -209,7 +279,11 @@ impl Sheet {
     /// The binary layout of section 1 (a secret when the kind is full: wipe it after use).
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut b = vec![
-            VERSION,
+            if self.checkpoint.is_some() {
+                VERSION_2
+            } else {
+                VERSION
+            },
             if self.root.is_some() {
                 KIND_FULL
             } else {
@@ -223,6 +297,9 @@ impl Sheet {
         b.extend_from_slice(&self.port.unwrap_or(0).to_be_bytes());
         b.push(self.host.len() as u8);
         b.extend_from_slice(self.host.as_bytes());
+        if let Some(c) = &self.checkpoint {
+            b.extend_from_slice(&c.to_bytes());
+        }
         let chk = whole_check(&b);
         b.extend_from_slice(&chk);
         b
@@ -232,12 +309,15 @@ impl Sheet {
         if b.len() < 2 {
             return Err(SheetError::Length);
         }
-        if b[0] != VERSION {
-            return Err(SheetError::Version);
-        }
+        let v2 = match b[0] {
+            VERSION => false,
+            VERSION_2 => true,
+            _ => return Err(SheetError::Version),
+        };
         let full = match b[1] {
             KIND_FULL => true,
-            KIND_PLACE => false,
+            // Version 2 exists only for the full kind (a place-only update changes the lookup location alone).
+            KIND_PLACE if !v2 => false,
             _ => return Err(SheetError::Kind),
         };
         let fixed = 2 + if full { 32 } else { 0 } + 32 + 2 + 1;
@@ -248,11 +328,24 @@ impl Sheet {
         if host_len == 0 || host_len > MAX_HOST {
             return Err(SheetError::Host);
         }
-        match b.len().cmp(&(fixed + host_len + 4)) {
-            core::cmp::Ordering::Less => return Err(SheetError::Length),
-            core::cmp::Ordering::Greater => return Err(SheetError::Trailing),
-            core::cmp::Ordering::Equal => {}
-        }
+        let extra = if v2 {
+            // One checkpoint of 82 to 90 bytes follows the host: fewer is a missing checkpoint, more is trailing bytes.
+            let have = b.len().saturating_sub(fixed + host_len + 4);
+            if have < CHECKPOINT_MIN {
+                return Err(SheetError::Length);
+            }
+            if have > CHECKPOINT_MAX {
+                return Err(SheetError::Trailing);
+            }
+            have
+        } else {
+            match b.len().cmp(&(fixed + host_len + 4)) {
+                core::cmp::Ordering::Less => return Err(SheetError::Length),
+                core::cmp::Ordering::Greater => return Err(SheetError::Trailing),
+                core::cmp::Ordering::Equal => {}
+            }
+            0
+        };
         let (body, check) = b.split_at(b.len() - 4);
         if !ct_eq(check, &whole_check(body)) {
             return Err(SheetError::Check);
@@ -270,7 +363,14 @@ impl Sheet {
         let port = u16::from_be_bytes([b[at], b[at + 1]]);
         let host =
             core::str::from_utf8(&b[fixed..fixed + host_len]).map_err(|_| SheetError::Host)?;
-        Sheet::make(root, scope, (port != 0).then_some(port), host)
+        let mut sheet = Sheet::make(root, scope, (port != 0).then_some(port), host)?;
+        if v2 {
+            let at = fixed + host_len;
+            let c =
+                OwnerCheckpoint::from_bytes(&b[at..at + extra]).ok_or(SheetError::Checkpoint)?;
+            sheet.checkpoint = Some(c);
+        }
+        Ok(sheet)
     }
 
     /// Compact text form: upper-case base32 without separators (clipboard, password manager, file).

@@ -197,6 +197,10 @@ struct NetState {
     recovery: BTreeMap<Vec<u8>, RecoverySlot>,
     /// Every accepted or replayed put, for assertions: (locator, request id, bytes).
     recovery_log: Vec<(Vec<u8>, Vec<u8>, Vec<u8>)>,
+    /// The loopback Home's recovery traffic (ADR-0201 section 8.2): requests posted (deduplicated by bytes) and the veto
+    /// board by request digest. A Home verifies no signature, so neither does this.
+    recovery_requests: Vec<Vec<u8>>,
+    recovery_vetoes: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
     mailboxes: BTreeMap<Vec<u8>, Mailbox>,
     faults: Vec<Fault>,
     /// Loopback Homes that are down: deposits to them are `unavailable`, and nothing can be drained from them.
@@ -313,6 +317,28 @@ impl LoopbackNetwork {
             .get(locator)
             .map(|s| (s.etag.clone(), s.bytes.clone()))
     }
+    /// The signed requests posted to the loopback Home, in order.
+    pub fn recovery_requests(&self) -> Vec<Vec<u8>> {
+        self.0.borrow().recovery_requests.clone()
+    }
+
+    /// The Home forgets every veto it held (a prune): nothing a verifier already observed depends on it.
+    pub fn recovery_clear_vetoes(&self) {
+        self.0.borrow_mut().recovery_vetoes.clear();
+    }
+
+    /// Post a signed veto as a controller's host would (the board is public and unverified).
+    pub fn recovery_post_veto(&self, signed: &[u8]) {
+        if let Some(d) = crate::recovery::veto_digest(signed) {
+            self.0
+                .borrow_mut()
+                .recovery_vetoes
+                .entry(d.to_vec())
+                .or_default()
+                .push(signed.to_vec());
+        }
+    }
+
     /// Every put the loopback RecoveryStore stored (locator, request id, bytes), in order.
     pub fn recovery_puts(&self) -> Vec<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         self.0.borrow().recovery_log.clone()
@@ -675,6 +701,29 @@ impl LoopbackNetwork {
                 _ => NetResult::Err {
                     error: NetError::NotFound,
                 },
+            },
+            NetCall::RecoveryRequestPost { bytes, .. } => {
+                if !s.recovery_requests.contains(bytes) {
+                    s.recovery_requests.push(bytes.clone());
+                }
+                NetResult::Ok
+            }
+            NetCall::RecoveryVetoPost { bytes, .. } => {
+                let digest = crate::recovery::veto_digest(bytes);
+                if let Some(d) = digest {
+                    let board = s.recovery_vetoes.entry(d.to_vec()).or_default();
+                    if !board.contains(bytes) && board.len() < 16 {
+                        board.push(bytes.clone());
+                    }
+                }
+                NetResult::Ok
+            }
+            NetCall::RecoveryVetoRead { request_digest, .. } => NetResult::Many {
+                items: s
+                    .recovery_vetoes
+                    .get(request_digest)
+                    .cloned()
+                    .unwrap_or_default(),
             },
             // No Home serves recovery fan-out yet (stub transport): refused, and Core drops the outbox entry.
             NetCall::RecoveryRequestFanout { .. } | NetCall::RecoveryVetoFanout { .. } => {

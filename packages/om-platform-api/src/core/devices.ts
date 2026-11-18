@@ -141,9 +141,18 @@ export interface RecoveringView {
    * `checking` (also while the Home cannot be reached: the request is retried), `found` (the record was read and checked),
    * `not_found` (the same answer for a wrong key and an unknown record), `cant_read` (there, but not usable with this key).
    */
-  readonly stage: "needs_place" | "checking" | "found" | "not_found" | "cant_read";
-  /** Always true for now: the request is still to come. */
+  readonly stage: "needs_place" | "checking" | "found" | "not_found" | "cant_read" | "out_of_date" | "conflict";
+  /** Always true while this view exists: the device cannot send as the identity until the account is adopted. */
   readonly restricted: boolean;
+  /**
+   * What the record's evidence amounts to against the owner's own checkpoint (ADR-0202): `unpinned` (no checkpoint: stays restricted even
+   * after the timer), `needs_evidence`, `pinned` (the only state that can finish) or `conflict` (the record contradicts the checkpoint).
+   */
+  readonly evidence?: "unpinned" | "needs_evidence" | "pinned" | "conflict";
+  /** Where this device's own attempt stands once one was asked for. */
+  readonly attempt?: "waiting" | "vetoed" | "stale" | "cancelled" | null;
+  /** Milliseconds of this device's own interval still to run (monotonic credit only). */
+  readonly remainingMs?: number | null;
 }
 
 // Strict `om:link/` grammar for device-link offers. Parsing never fetches or resolves anything.

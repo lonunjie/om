@@ -89,17 +89,31 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return stage(self, JoinStage::CantRead);
         };
         let keys = RecordKeys::derive(&root, &scope);
-        match rr::open(&keys, &scope, &envelope) {
-            Ok(Plain::Record(r)) => match self.accept_record(&root, &r) {
-                Some(plain) => {
-                    if let Some(j) = self.st.app.recovery_join.as_mut() {
-                        j.record = Some(hex(&plain));
-                        j.stage = JoinStage::Found;
+        // The exact authenticated plaintext is what the record floor compares (ADR-0202 section 1).
+        let opened = rr::open_envelope(&keys, &scope, &envelope)
+            .and_then(|plain| rr::read_plaintext(&plain).map(|p| (plain, p)));
+        match opened {
+            Ok((plain, Plain::Record(r))) => match self.accept_record(&root, &r) {
+                Some(_) => {
+                    let lineage = r
+                        .verify()
+                        .map(|v| hex(&v.head.account_id))
+                        .unwrap_or_default();
+                    match self.apply_floor(&place.scope, &lineage, r.generation, &plain) {
+                        Ok(()) => {
+                            let evidence = self.owner_evidence(&j, &r);
+                            if let Some(j) = self.st.app.recovery_join.as_mut() {
+                                j.record = Some(hex(&plain));
+                                j.evidence = evidence;
+                                j.stage = JoinStage::Found;
+                            }
+                        }
+                        Err(stage_err) => stage(self, stage_err),
                     }
                 }
                 None => stage(self, JoinStage::CantRead),
             },
-            Ok(Plain::Redirect(red)) => {
+            Ok((_, Plain::Redirect(red))) => {
                 // A moved Home (ADR-0200 section 6): follow it only under the rules that need no network, then look again.
                 let visited: Vec<(String, [u8; 32])> = j
                     .visited
@@ -124,6 +138,82 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
             Err(_) => stage(self, JoinStage::CantRead),
+        }
+    }
+
+    /// The durable record floor (ADR-0141, ADR-0202 section 1): per RecoveryStore scope the lineage (the account the
+    /// record chain belongs to), the highest generation accepted and the digest of its exact authenticated plaintext. An
+    /// older generation is `OutOfDate`; other bytes at the same generation, or another lineage under the same scope, is a
+    /// `Conflict`. It never lowers, and it is kept apart from the account pin and from the join.
+    pub(super) fn apply_floor(
+        &mut self,
+        scope: &str,
+        lineage: &str,
+        generation: u64,
+        plaintext: &[u8],
+    ) -> Result<(), JoinStage> {
+        let digest = hex(&rr::plaintext_digest(plaintext));
+        let new = RecordFloorRec {
+            lineage: lineage.to_string(),
+            generation,
+            digest: digest.clone(),
+        };
+        let Some(f) = self.st.app.recovery_floors.get(scope).cloned() else {
+            self.st.app.recovery_floors.insert(scope.to_string(), new);
+            return Ok(());
+        };
+        if f.lineage != lineage {
+            return Err(JoinStage::Conflict);
+        }
+        let mark = unhex(&f.digest)
+            .ok()
+            .and_then(|d| <[u8; 32]>::try_from(d).ok())
+            .map(|d| (f.generation, d));
+        match rr::freshness(mark, generation, plaintext) {
+            rr::Freshness::Newer => {
+                self.st.app.recovery_floors.insert(scope.to_string(), new);
+                Ok(())
+            }
+            rr::Freshness::Same => Ok(()),
+            rr::Freshness::Stale => Err(JoinStage::OutOfDate),
+            rr::Freshness::Equivocation => Err(JoinStage::Conflict),
+        }
+    }
+
+    /// What the record's evidence amounts to against what the owner independently holds (ADR-0202 section 1, ADR-0203
+    /// section 1). Only a pin from the owner's own custody (the sheet's checkpoint) can make it `Pinned`; the record's own
+    /// head, tail or genesis are advisory. The chain must start at genesis (Core replays from genesis), contain exactly
+    /// the pinned state, and verify with no recovery link this device cannot check.
+    pub(super) fn owner_evidence(&self, j: &RecoveryJoinRec, r: &RecoveryRecord) -> EvidenceStage {
+        let Some(cp) = j.checkpoint.as_ref() else {
+            return EvidenceStage::Unpinned;
+        };
+        let Ok(v) = r.verify() else {
+            return EvidenceStage::Conflict;
+        };
+        let pin_hash = unhex(&cp.acs_hash).ok();
+        if hex(&v.head.account_id) != cp.account_id || v.head.generation < cp.generation {
+            return EvidenceStage::Conflict;
+        }
+        match v.states.iter().find(|s| s.generation == cp.generation) {
+            Some(s) if Some(s.hash().to_vec()) != pin_hash => return EvidenceStage::Conflict,
+            Some(_) => {}
+            None => return EvidenceStage::NeedsEvidence,
+        }
+        // From genesis, or the evidence is not here.
+        if v.states.first().is_none_or(|s| s.previous.is_some()) {
+            return EvidenceStage::NeedsEvidence;
+        }
+        let chain: Vec<Vec<u8>> = r
+            .evidence
+            .tail
+            .iter()
+            .chain(std::iter::once(&r.evidence.head))
+            .cloned()
+            .collect();
+        match control::verify_chain_with(&chain, &r.evidence.credentials, &[]) {
+            Ok(h) if h.hash() == v.head.hash() => EvidenceStage::Pinned,
+            _ => EvidenceStage::NeedsEvidence,
         }
     }
 

@@ -989,7 +989,10 @@ fn begin_recovery_keeps_the_checked_key_in_a_restricted_state_with_no_authority(
         Some(RecoveringView {
             stage: om_core::state::JoinStage::NeedsPlace,
             home: "https://home.example".into(),
-            restricted: true
+            restricted: true,
+            evidence: om_core::state::EvidenceStage::Unpinned,
+            attempt: None,
+            remaining_ms: None,
         })
     );
     assert_eq!(st.policy, RecoveryPolicyState::Pending);

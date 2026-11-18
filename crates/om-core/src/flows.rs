@@ -26,6 +26,7 @@ mod ceremony;
 mod group_lane;
 mod multi;
 mod owed;
+mod recovery_attempt;
 mod recovery_owner;
 mod recovery_peer;
 mod recovery_watch;
@@ -907,6 +908,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 home,
                 place,
             } => self.begin_recovery(op, recovery_key, home, place.as_deref()),
+            IntentBody::RequestRecovery => self.request_recovery(),
+            IntentBody::CancelRecovery => self.cancel_recovery(),
+            IntentBody::CheckRecoveryAgain => self.check_recovery_again(),
             IntentBody::ApproveDeviceLink { request_id, .. } => {
                 self.approve_device_link(request_id)
             }
@@ -1091,10 +1095,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // (ADR-0200); without one the key is shown alone and no record is written (an account with no place).
         let (sheet, kit) = match self.recovery_place.clone() {
             Some(p) => {
-                let sheet =
-                    crate::recovery_sheet::Sheet::full(*root_bytes, p.scope, p.port, &p.host)
-                        .ok()
-                        .map(|s| s.to_sheet_form());
+                // Version 2 (ADR-0203 section 1): the sheet also carries the owner checkpoint of the head this trusted
+                // device has verified, kept by the owner with the recovery material.
+                let checkpoint = crate::recovery_sheet::OwnerCheckpoint {
+                    account_id: genesis_acs.account_id,
+                    generation: genesis_acs.generation,
+                    acs_hash: genesis_acs.hash(),
+                };
+                let sheet = crate::recovery_sheet::Sheet::full_v2(
+                    *root_bytes,
+                    p.scope,
+                    p.port,
+                    &p.host,
+                    checkpoint,
+                )
+                .ok()
+                .map(|s| s.to_sheet_form());
                 let kit = crate::recovery_record::RecoveryKit::make(
                     root_bytes,
                     p.scope,
@@ -2533,6 +2549,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 | Purpose::RecoveryPut { .. }
                 | Purpose::RecoveryReconcile { .. }
                 | Purpose::RecoveryFind
+                | Purpose::OwnerRecoveryPost
+                | Purpose::OwnerRecoveryRead { .. }
                 | Purpose::RevokeKeyGeneration
                 | Purpose::Ack
                 | Purpose::DeleteBlob { .. }
@@ -2592,6 +2610,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         self.recovery_find_refused(reason);
                         return Ok(());
                     }
+                    Purpose::OwnerRecoveryRead { kind, round } => {
+                        self.owner_read_done(*kind, *round, None);
+                        return Ok(());
+                    }
+                    Purpose::OwnerRecoveryPost => return Ok(()),
                     _ => {}
                 }
                 if let Purpose::OpenCeremonyQueue { operation_id }
@@ -2686,6 +2709,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 };
                 self.recovery_found(got);
             }
+            Purpose::OwnerRecoveryRead { kind, round } => {
+                self.owner_read_done(kind, round, Some((bytes, items)));
+            }
+            Purpose::OwnerRecoveryPost => {}
             Purpose::Ack
             | Purpose::DeleteBlob { .. }
             | Purpose::RevokeKeyGeneration

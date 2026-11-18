@@ -613,6 +613,14 @@ pub enum Purpose {
     },
     /// A recovering device reads the account's record (owner recovery, ADR-0199 section 4).
     RecoveryFind,
+    /// The owner's request delivered to one Home (`RecoveryRequestPost`); nothing awaits the answer.
+    OwnerRecoveryPost,
+    /// A read of the owner's attempt: a veto board (`kind` 1) or the record again before adoption (`kind` 0). `round`
+    /// names the round so a late answer to an earlier one counts for nothing.
+    OwnerRecoveryRead {
+        kind: u8,
+        round: u32,
+    },
     PutInvite {
         operation_id: OperationId,
     },
@@ -866,6 +874,9 @@ pub struct AppState {
     /// restricted recovery state (RECOVERY_AND_BACKUP_POLICY.md 10.3). Additive.
     #[serde(default)]
     pub recovery_join: Option<RecoveryJoinRec>,
+    /// Record floors by RecoveryStore scope (hex), kept apart from the join and from the account pin (ADR-0202 section 1).
+    #[serde(default)]
+    pub recovery_floors: BTreeMap<Hex, RecordFloorRec>,
     /// This person's own privacy level, when set. Hardened and Maximum make a contact confirm a recovery of someone
     /// else's account before accepting it; `None` is Recommended (ADR-0190 section 4). Additive.
     #[serde(default)]
@@ -937,6 +948,109 @@ pub struct RecoveryJoinRec {
     /// The padded plaintext of the verified RecoveryRecord (type 36), kept while the recovery is built from it.
     #[serde(default)]
     pub record: Option<Hex>,
+    /// The owner checkpoint the sheet carried (version 2, ADR-0203 section 1): a minimum known head the owner kept with
+    /// the recovery material. Its custody is its only provenance; nothing a Home or the record says replaces it.
+    #[serde(default)]
+    pub checkpoint: Option<CheckpointRec>,
+    /// What the record's evidence amounts to against the checkpoint (ADR-0202 section 1). Advisory data alone is never
+    /// enough to adopt anything.
+    #[serde(default)]
+    pub evidence: EvidenceStage,
+    /// The attempt this device started (`RequestRecovery`): tentative device, exact signed request and successor, the
+    /// verifier-local timer, vetoes and everything adoption re-checks. Persisted before any use.
+    #[serde(default)]
+    pub attempt: Option<OwnerAttemptRec>,
+}
+
+/// An `OwnerRecoveryCheckpoint` as kept locally. All hex.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckpointRec {
+    pub account_id: Hex,
+    pub generation: u64,
+    pub acs_hash: Hex,
+}
+
+/// The durable record floor per RecoveryStore scope (ADR-0141, ADR-0202 section 1), separate from the account pin: the
+/// `lineage` (the AccountID the record chain belongs to), the highest `record_generation` accepted and the digest of its
+/// exact authenticated plaintext. A lower generation is stale; the same generation with other bytes, or another lineage
+/// under the same scope, is equivocation and fails closed. It survives a restart and a cancelled attempt.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecordFloorRec {
+    pub lineage: Hex,
+    pub generation: u64,
+    pub digest: Hex,
+}
+
+/// Where the record's evidence stands against what the owner independently holds.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceStage {
+    /// No pin: a sheet without a checkpoint and no controller. The device stays restricted, even after the timer.
+    #[default]
+    Unpinned,
+    /// A pin exists but the signed states between it and the record's head, or the credentials or a recovery link they
+    /// need, are not here. The device stays restricted until a revalidated carrier supplies them.
+    NeedsEvidence,
+    /// The record's chain starts at genesis, contains the pinned state and verifies with no unverified recovery link.
+    Pinned,
+    /// The record contradicts the pin (another account, a lower head, a different state at the pinned generation).
+    Conflict,
+}
+
+/// Where the owner's attempt stands.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttemptState {
+    /// The request is out and this device's own interval is running.
+    #[default]
+    Waiting,
+    /// A valid veto was observed (terminal, kept even if the Home prunes it).
+    Vetoed,
+    /// The parent, policy epoch or target is no longer current, or a newer or conflicting head was observed.
+    Stale,
+    /// The person ended it.
+    Cancelled,
+}
+
+/// One owner recovery attempt. `obs` is the verifier-local record (digest, exact request, monotonic credit, vetoes and the
+/// exact successor): the same shape every controller and contact uses for the same request.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnerAttemptRec {
+    /// The tentative device (`Device::to_bytes`), outside `st.device` until the successor is adopted.
+    pub device: SecretHex,
+    pub obs: RecoveryObsRec,
+    pub state: AttemptState,
+    /// The parent head the request names, its generation, the policy epoch and the target credential hash.
+    pub parent: Hex,
+    pub parent_generation: u64,
+    pub epoch: u64,
+    pub target: Hex,
+    /// The evidence adoption re-checks: signed states from the first the record held through the parent, the credential
+    /// bodies and the policy body.
+    pub chain: Vec<Hex>,
+    pub creds: Vec<Hex>,
+    pub policy: Hex,
+    /// Every Home the request is delivered to (host, port), and the exact notice bytes sent to contacts.
+    pub homes: Vec<JoinPlace>,
+    pub notice: Option<Hex>,
+    /// Resend marks already used (1/3 and 2/3 of the interval, ADR-0190 3.1).
+    #[serde(default)]
+    pub resends: u8,
+    /// Credit at the last veto read, and the round of reads in flight (a round answers only itself).
+    #[serde(default)]
+    pub polled_ms: u64,
+    #[serde(default)]
+    pub round: u32,
+    #[serde(default)]
+    pub pending_reads: u32,
+    /// A round before adoption: the account was reconciled against these Homes and found unchanged.
+    #[serde(default)]
+    pub reconciling: bool,
+    #[serde(default)]
+    pub round_conflict: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -963,6 +1077,10 @@ pub enum JoinStage {
     NotFound,
     /// The record is there but cannot be used (not readable with this key, or it fails its checks).
     CantRead,
+    /// The Home answered with an older record than this device already accepted (the record floor).
+    OutOfDate,
+    /// Another record at the same generation, or another account under the same place: never used.
+    Conflict,
 }
 
 /// Stored evidence of one completed recovery link (see `control::RecoveryLinkEvidence`). All hex.

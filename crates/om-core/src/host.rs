@@ -285,6 +285,32 @@ pub enum NetCall {
         #[serde(with = "hexs")]
         read_cap: Vec<u8>,
     },
+    /// Owner recovery, per Home (ADR-0201 section 8.2, `POST /v1/recovery/requests`): deliver the exact signed request to
+    /// the Home at `host[:port]`. The answer carries no information (a Home answers alike whether or not an inbox exists).
+    RecoveryRequestPost {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        bytes: Vec<u8>,
+    },
+    /// A live controller's veto, per Home (`POST /v1/recovery/vetoes`): the signed veto bytes.
+    RecoveryVetoPost {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        bytes: Vec<u8>,
+    },
+    /// Read the veto board of one request digest (`GET /v1/recovery/requests/{digest}/vetoes`, public). Result:
+    /// `Many` of at most 16 signed vetoes. Nothing the board returns is trusted: Core verifies every one.
+    RecoveryVetoRead {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        #[serde(with = "hexs")]
+        request_digest: Vec<u8>,
+    },
     /// STUB (recovery, work group E): deliver a `signed-RecoveryVeto` the same way. The Home API freezes no veto
     /// endpoint yet (see the recovery slice 3 report), so this is Core's intent only; adapters answer
     /// `Rejected{unsupported}` and the outbox drops it.

@@ -39,7 +39,7 @@ pub(crate) fn is_stale(head: &Acs, policy: &RecoveryPolicy, req: &RecoveryReques
 }
 
 /// Credit one host reading to a record (see the module doc).
-pub(super) fn credit(rec: &mut RecoveryObsRec, mono: &MonotonicSample) {
+pub(crate) fn credit(rec: &mut RecoveryObsRec, mono: &MonotonicSample) {
     let session = hex(&mono.boot_session);
     if session == rec.boot_session {
         if mono.elapsed_ms > rec.last_mono_ms {
@@ -59,12 +59,12 @@ pub(super) fn mono_ok(m: &MonotonicSample) -> bool {
 }
 
 /// A live controller of `head`: in `control`, not quarantined.
-pub(super) fn live(head: &Acs, id: &[u8; 16]) -> bool {
+pub(crate) fn live(head: &Acs, id: &[u8; 16]) -> bool {
     head.control.contains(id) && !head.quarantined.contains(id)
 }
 
 /// The signing key of controller `id`, but only the credential `head` commits to for it.
-pub(super) fn committed_key(head: &Acs, creds: &[Vec<u8>], id: &[u8; 16]) -> Option<Vec<u8>> {
+pub(crate) fn committed_key(head: &Acs, creds: &[Vec<u8>], id: &[u8; 16]) -> Option<Vec<u8>> {
     creds
         .iter()
         .filter_map(|c| Credential::from_body(c).ok())
@@ -299,6 +299,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !mono_ok(mono) {
             return Err(CoreError::Invalid("monotonic sample"));
         }
+        self.owner_tick(mono);
         let ctx = self.recovery_ctx();
         let digests: Vec<Hex> = self.st.app.recovery_requests.keys().cloned().collect();
         for d in digests {
@@ -439,17 +440,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 && !h.chars().any(|c| c.is_control() || c.is_whitespace())
         };
         // The root, and where the record is when the entry says so.
+        let mut checkpoint: Option<CheckpointRec> = None;
         let (root, mut found): (zeroize::Zeroizing<[u8; 32]>, Option<JoinPlace>) =
             match sheet::parse(key) {
                 Ok(Parsed::Sheet(s)) => match s.root() {
-                    Some(r) => (
-                        zeroize::Zeroizing::new(*r),
-                        Some(JoinPlace {
-                            host: s.host.clone(),
-                            port: s.port,
-                            scope: hex(&s.scope),
-                        }),
-                    ),
+                    Some(r) => {
+                        checkpoint = s.checkpoint.map(|c| CheckpointRec {
+                            account_id: hex(&c.account_id),
+                            generation: c.generation,
+                            acs_hash: hex(&c.acs_hash),
+                        });
+                        (
+                            zeroize::Zeroizing::new(*r),
+                            Some(JoinPlace {
+                                host: s.host.clone(),
+                                port: s.port,
+                                scope: hex(&s.scope),
+                            }),
+                        )
+                    }
                     None => return rejected(RejectReason::Invalid), // a place alone carries no key
                 },
                 Ok(Parsed::Legacy(k)) => (zeroize::Zeroizing::new(k.0), None),
@@ -493,6 +502,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             visited: vec![],
             stage: JoinStage::NeedsPlace,
             record: None,
+            checkpoint,
+            evidence: EvidenceStage::Unpinned,
+            attempt: None,
         });
         self.recovery_find_start();
         OutcomeClass::Committed
@@ -544,10 +556,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             r.state = RecoveryObsState::Vetoed;
         }
         self.push_veto_to_contacts(&signed);
-        self.enqueue(
-            NetCall::RecoveryVetoFanout { bytes: signed },
-            Purpose::RecoveryFanout,
-        );
+        // Per Home (ADR-0201 section 8.2): the Home this account keeps its record at. Without a recovery place the
+        // earlier stub call stays, which no stock adapter performs.
+        match self.recovery_place.clone() {
+            Some(p) => {
+                self.enqueue(
+                    NetCall::RecoveryVetoPost {
+                        host: p.host,
+                        port: p.port,
+                        bytes: signed,
+                    },
+                    Purpose::RecoveryFanout,
+                );
+            }
+            None => {
+                self.enqueue(
+                    NetCall::RecoveryVetoFanout { bytes: signed },
+                    Purpose::RecoveryFanout,
+                );
+            }
+        }
         OutcomeClass::Committed
     }
 
@@ -600,13 +628,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 }
 
-pub(super) enum Held {
+pub(crate) enum Held {
     Complete,
     Pending,
 }
 
 /// Run `verify_recovery_successor` over a held successor with this verifier's own observation.
-pub(super) fn verify_held(
+pub(crate) fn verify_held(
     head: &Acs,
     creds: &[Vec<u8>],
     policy: &RecoveryPolicy,

@@ -523,6 +523,13 @@ pub fn veto_signer(signed: &[u8]) -> Result<[u8; 16], Error> {
         .map_err(|_| Error::Binding("recovery veto: signer id"))
 }
 
+/// The request digest a `signed-RecoveryVeto` names, read WITHOUT verifying anything: what a Home indexes its board by.
+pub fn veto_digest(signed: &[u8]) -> Option<[u8; 32]> {
+    RecoveryVeto::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?)
+        .ok()
+        .map(|v| v.request_digest)
+}
+
 /// Open a `signed-RecoveryVeto` signed by controller `device_id` whose credential key is `controller_key`.
 pub fn open_veto(
     signed: &[u8],

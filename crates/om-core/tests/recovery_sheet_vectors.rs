@@ -102,6 +102,11 @@ fn every_rejection_names_its_reason() {
     for n in negs {
         let r = parse(n["text"].as_str().unwrap());
         let got = r.as_ref().err().map(|e| error_name(*e));
+        if n["id"] == "version-2" {
+            // Version 2 now exists (ADR-0203): a version-2 string with no checkpoint is still refused, as a missing one.
+            assert_eq!(got.as_deref(), Some("length"), "{}", n["id"]);
+            continue;
+        }
         assert_eq!(got.as_deref(), n["error"].as_str(), "{}", n["id"]);
     }
 }

@@ -2662,6 +2662,20 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             home: j.home.clone(),
             stage: j.stage,
             restricted: true,
+            evidence: j.evidence,
+            attempt: j.attempt.as_ref().map(|a| a.state),
+            remaining_ms: j
+                .attempt
+                .as_ref()
+                .filter(|a| a.state == crate::state::AttemptState::Waiting)
+                .map(|a| {
+                    let delay = crate::recovery::RecoveryPolicy::from_body(
+                        &crate::crypto::unhex(&a.policy).unwrap_or_default(),
+                    )
+                    .map_or(crate::recovery::DEFAULT_DELAY_SECONDS, |p| p.delay_seconds)
+                        * 1000;
+                    delay.saturating_sub(a.obs.credited_ms)
+                }),
         }),
         record: match st.app.recovery_record_status(now_ms) {
             crate::state::RecoveryRecordStatus::Off => None,

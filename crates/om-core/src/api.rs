@@ -350,6 +350,15 @@ pub enum IntentBody {
         #[serde(default)]
         place: Option<String>,
     },
+    /// On a recovering device whose record was found: ask for the account back (ADR-0202). Explicit user action only. It
+    /// stages a tentative device, signs the request and the successor, delivers them to the Homes and the contacts the
+    /// record can reach, and starts this device's own interval. It grants nothing until the interval, the checks and the
+    /// owner's own pin all hold.
+    RequestRecovery,
+    /// Close this device's own recovery attempt.
+    CancelRecovery,
+    /// Ask again now: re-read the record (before an attempt) or the Homes' boards and record (during one).
+    CheckRecoveryAgain,
     /// Try again now to tell a device about the devices added to the account (ADR-0193 section 10).
     RetryDeviceNotice {
         device_id: DeviceId,
@@ -459,6 +468,9 @@ impl IntentBody {
             IntentBody::OfferDeviceLink => "OfferDeviceLink",
             IntentBody::RequestDeviceLink { .. } => "RequestDeviceLink",
             IntentBody::BeginRecovery { .. } => "BeginRecovery",
+            IntentBody::RequestRecovery => "RequestRecovery",
+            IntentBody::CancelRecovery => "CancelRecovery",
+            IntentBody::CheckRecoveryAgain => "CheckRecoveryAgain",
             IntentBody::ApproveDeviceLink { .. } => "ApproveDeviceLink",
             IntentBody::RejectDeviceLink { .. } => "RejectDeviceLink",
             IntentBody::RetryDeviceNotice { .. } => "RetryDeviceNotice",
@@ -1262,6 +1274,15 @@ pub struct RecoveringView {
     pub stage: crate::state::JoinStage,
     /// The device cannot send as the identity (always true here); the record and the request are still to come.
     pub restricted: bool,
+    /// What the record's evidence amounts to against the owner's own checkpoint (ADR-0202): only `pinned` can finish.
+    #[serde(default)]
+    pub evidence: crate::state::EvidenceStage,
+    /// Where this device's own attempt stands, once one was asked for.
+    #[serde(default)]
+    pub attempt: Option<crate::state::AttemptState>,
+    /// Milliseconds of this device's own interval still to run (monotonic credit only), once an attempt is waiting.
+    #[serde(default)]
+    pub remaining_ms: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
