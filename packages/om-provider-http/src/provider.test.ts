@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-import { describe, expect, it } from "vitest";
-import { HomeError, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, decodeMintRequest, decodeQueueCreate, encodeDepositCapabilityRecord, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
+import { describe, expect, it, vi } from "vitest";
+import { HomeError, decodeTurnRequest, encodeTurnLease, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, decodeMintRequest, decodeQueueCreate, encodeDepositCapabilityRecord, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
 import type { NetCall } from "@om/core-wasm";
 import { createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "./index";
 
@@ -497,5 +497,45 @@ describe("files (om.blob.spool.v1), stubbed Home", () => {
     expect(await mk(() => doc(["om.relay.queues.v1"], { max_blob_bytes: 4194304 })).blobLimits?.()).toBeNull();
     expect(await mk(() => doc(["om.blob.spool.v1"], {})).blobLimits?.()).toBeNull(); // advertised without a bound: fail closed
     await expect(mk(() => Promise.reject(new TypeError("down"))).blobLimits?.()).rejects.toThrow();
+  });
+});
+
+describe("own Home media leases", () => {
+  it("does not probe for media or issue leases without local owner admission", async () => {
+    const fetch = vi.fn(() => Promise.reject(new Error("unexpected request")));
+    const p = createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), fetch });
+    expect(await p.mediaCapabilities()).toBeUndefined();
+    expect(await p.issueTurn()).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("issues distinct per-attempt grants only at the advertising Home and refuses expired replies", async () => {
+    const owner = rand(32);
+    const ids: string[] = [];
+    let now = Math.floor(Date.now() / 1000);
+    const p = createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(), admission: owner,
+      fetch: async (input, init) => {
+        const r = new Request(input, init);
+        expect(new URL(r.url).origin).toBe("https://home.example");
+        if (r.method === "GET") {
+          expect(r.headers.has("om-admission")).toBe(false);
+          return Response.json({ features: ["om.media.turn.v1"], media: { stun_urls: ["stun:stun.example"] } });
+        }
+        expect(r.url).toBe("https://home.example/v1/media/turn");
+        expect(r.redirect).toBe("error");
+        expect(r.headers.get("om-admission")).toBe(toBase64Url(owner));
+        const id = toHex(decodeTurnRequest(new Uint8Array(await r.arrayBuffer())));
+        ids.push(id);
+        return new Response(encodeTurnLease({ username: id, credential: "fixture", urls: ["turn:turn.example"], expires_at: now }) as BodyInit);
+      },
+    });
+    expect(await p.issueTurn()).toBeUndefined();
+    expect(await p.mediaCapabilities()).toEqual({ stun_urls: ["stun:stun.example"] });
+    expect(await p.issueTurn()).toBeUndefined();
+    now += 60;
+    expect(await p.issueTurn()).toMatchObject({ expires_at: now });
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
   });
 });

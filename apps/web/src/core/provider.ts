@@ -2,10 +2,11 @@
 // against: key material, introduction service and relay mailboxes. No production provider adapter exists yet (the
 // reference Home is `provider_reference` scope), so the production build runs with `null` and says so honestly:
 // every call is "unavailable", which Core keeps as PendingNetwork and retries; nothing is invented or faked.
+import type { CallMediaProvider } from "@om/provider-http";
 import type { Provider } from "@om/core-wasm";
 
 /** What the app was started with. `null` means no provider is configured. */
-export type ConfiguredProvider = Provider | null;
+export type ConfiguredProvider = (Provider & Partial<CallMediaProvider>) | null;
 
 /** Used when no provider is configured: definitely-not-performed, so Core keeps everything queued. */
 export const unavailableProvider: Provider = {

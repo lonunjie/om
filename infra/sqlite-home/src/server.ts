@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createServer, request as socketRequest, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Readable, type Duplex } from "node:stream";
 import { ReadableStream } from "node:stream/web";
 import { once } from "node:events";
+import { isAbsolute } from "node:path";
+import { MEDIA_MAX_REPLY_BYTES } from "@om/home-wire";
 import worker, { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue, RecoveryStore, UsageMeter } from "../../cloudflare-home/src/index";
 import type { Env } from "../../cloudflare-home/src/env";
 import { fail } from "../../cloudflare-home/src/http";
@@ -17,6 +19,7 @@ interface Options {
   blobs?: false;
   recovery?: false;
   usage?: false;
+  media?(request: Request): Promise<Response>;
 }
 
 function makeRequest(req: IncomingMessage, upgrading = false): Request {
@@ -88,6 +91,30 @@ async function rejectUpgrade(socket: Duplex, response: Response): Promise<void> 
   socket.end(Buffer.concat([Buffer.from(head), body]));
 }
 
+/** The private media backend runs under the same owner's control, on a permission-restricted Unix socket. */
+function mediaSocket(socketPath: string): NonNullable<Options["media"]> {
+  if (!isAbsolute(socketPath)) throw new Error("OM_MEDIA_SOCKET must be an absolute path");
+  return async (request) => {
+    const body = await request.text();
+    const response = await new Promise<IncomingMessage>((resolve, reject) => {
+      const rpc = socketRequest({
+        socketPath, path: "/lease", method: "POST", signal: request.signal,
+        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(body) },
+      }, resolve);
+      rpc.on("error", reject);
+      rpc.end(body);
+    });
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of response as AsyncIterable<Buffer>) {
+      size += chunk.length;
+      if (size > MEDIA_MAX_REPLY_BYTES) throw new Error("Media lease response too large");
+      chunks.push(chunk);
+    }
+    return new Response(size === 0 ? null : Buffer.concat(chunks), { status: response.statusCode ?? 503 });
+  };
+}
+
 type ApplicationOptions = Omit<Options, "hostname" | "port">;
 
 async function openHome(options: ApplicationOptions): Promise<{
@@ -102,14 +129,18 @@ async function openHome(options: ApplicationOptions): Promise<{
     OM_ADMISSION_REQUIRED: v["OM_ADMISSION_REQUIRED"] ?? "1",
     OM_HARD_FREE_TIER: v["OM_HARD_FREE_TIER"] ?? "1",
     OM_WAKE: v["OM_WAKE"],
+    OM_MEDIA_STUN: v["OM_MEDIA_STUN"],
     OM_BLOB_SPOOL: v["OM_BLOB_SPOOL"],
     OM_RECOVERY_STORE: v["OM_RECOVERY_STORE"],
     OM_USAGE_CEILING_WORKER: v["OM_USAGE_CEILING_WORKER"],
     OM_USAGE_CEILING_DO: v["OM_USAGE_CEILING_DO"],
   };
   const env = vars as unknown as Env;
+  const socket = v["OM_MEDIA_SOCKET"];
+  const media = options.media ?? (socket ? mediaSocket(socket) : undefined);
   const runtime = new LocalRuntime(options.directory, env);
   Object.assign(env, {
+    ...(media === undefined ? {} : { MEDIA_TURN: { fetch: media } }),
     QUEUES: runtime.namespace("queue", MailboxQueue, ["create"]),
     KEYS: runtime.namespace("keys", KeyPool, ["publish"]),
     DESCRIPTORS: runtime.namespace("descriptor", DescriptorStore, ["put", "revoke"]),

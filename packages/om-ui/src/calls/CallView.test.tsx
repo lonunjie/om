@@ -27,7 +27,7 @@ const incoming: CoreCallView = {
 
 function props() {
   return {
-    copy, call: incoming, name: "Maria", identity: "Work", pending: false, privacyAllowsDirect: true,
+    copy, call: incoming, name: "Maria", identity: "Work", pending: false, canUseCallRoute: true,
     cameraAvailable: false, error: null, onAnswer: vi.fn(), onEnd: vi.fn(), onToggle: vi.fn(), onDismiss: vi.fn(),
   };
 }
@@ -46,7 +46,7 @@ describe("live calls", () => {
   });
 
   it("offers only decline when its privacy policy needs a relay", () => {
-    render(<CallView {...props()} privacyAllowsDirect={false} />);
+    render(<CallView {...props()} canUseCallRoute={false} />);
     expect(screen.getByRole("status").textContent).toContain(copy.noDirect);
     expect(screen.queryByRole("button", { name: "Answer audio" })).toBeNull();
     expect(screen.getByRole("button", { name: "Decline" })).toBeTruthy();
@@ -91,7 +91,7 @@ describe("live calls", () => {
     const rendered = render(<CallView {...p} call={call} onRetry={retry} />);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledOnce();
-    rendered.rerender(<CallView {...p} call={call} onRetry={retry} privacyAllowsDirect={false} />);
+    rendered.rerender(<CallView {...p} call={call} onRetry={retry} canUseCallRoute={false} />);
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 

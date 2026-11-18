@@ -612,7 +612,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     fn call_notice(&mut self, call: &Call, reason: CallReason, folded: bool) {
-        let notices = &mut self.st.calls.notices;
+        let notices = &mut self.st.app.call_notices;
         if folded
             && notices.iter().any(|n| {
                 n.folded

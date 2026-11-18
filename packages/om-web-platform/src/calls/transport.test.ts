@@ -83,7 +83,7 @@ function fixture(overrides: Partial<CallTransportEnvironment> = {}, supported = 
   const getUserMedia = vi.fn((constraints: MediaStreamConstraints) => Promise.resolve(stream(
     typeof constraints.audio === "object" ? [replacement] : constraints.video ? [mic, camera] : [mic],
   )));
-  const createPeer = vi.fn(() => connection as unknown as RTCPeerConnection);
+  const createPeer = vi.fn<(config: RTCConfiguration) => RTCPeerConnection>(() => connection as unknown as RTCPeerConnection);
   const state = vi.fn();
   const transport = new CallTransport({
     peer: createPeer,
@@ -151,6 +151,19 @@ describe("CallTransport", () => {
     f.transport.close();
     expect(f.replacement.stop).toHaveBeenCalledOnce();
     expect(f.camera.stop).not.toHaveBeenCalled();
+  });
+
+  it("configures relay-only before gathering and refuses a non-relay candidate in local SDP", async () => {
+    const f = fixture();
+    const servers = [{ urls: "turn:relay.example:3478", username: "turn-user", credential: "turn-password" }];
+    const offer = f.transport.offer("audio", { iceTransportPolicy: "relay", iceServers: servers });
+    const refused = expect(offer).rejects.toMatchObject({ reason: "connection" });
+    await vi.waitFor(() => { expect(f.connection.setLocalDescription).toHaveBeenCalled(); });
+    expect(f.createPeer).toHaveBeenCalledWith({ iceTransportPolicy: "relay", iceServers: servers, iceCandidatePoolSize: 0 });
+    f.connection.localDescription = { type: "offer", sdp: "a=candidate:1 1 udp 1 127.0.0.1 3478 typ host\r\n" };
+    f.connection.gathered();
+    await refused;
+    f.transport.close();
   });
 
   it("bounds candidate gathering to three seconds", async () => {

@@ -17,7 +17,7 @@ function DeviceChoice({ label, devices, choose }: DeviceChoiceProps) {
     <label className="om-call__device">
       <span>{label}</span>
       <select defaultValue="" onChange={(e) => { choose(e.currentTarget.value); }}>
-        <option value="" disabled>{t.defaultDevice}</option>
+        <option value="">{t.defaultDevice}</option>
         {devices.map((device, i) => (
           <option key={device.deviceId} value={device.deviceId}>{device.label || t.deviceChoice(label, i + 1)}</option>
         ))}
@@ -95,7 +95,7 @@ export function CallHost({ calls, name, identity, contact }: {
   const live = call !== null && ["connecting", "active", "reconnecting"].includes(call.state);
   return <CallView
     copy={t} call={call} name={name} identity={identity} pending={calls.pending}
-    privacyAllowsDirect={calls.privacyAllowsDirect} cameraAvailable={calls.cameraAvailable}
+    canUseCallRoute={calls.canUseCallRoute} cameraAvailable={calls.cameraAvailable}
     error={calls.failure === null ? null : t.errors[calls.failure]}
     media={live ? <LiveMedia key={call.callSessionId} call={call} calls={calls} /> : undefined}
     onRetry={call?.outgoing && contact?.allowCalls !== undefined ? () => { calls.start(contact, call.media); } : undefined}

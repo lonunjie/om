@@ -50,6 +50,12 @@ export async function onNotificationClick(deps: Pick<PushDeps, "windows" | "open
   let windows: readonly WindowLike[] = [];
   try { windows = await deps.windows(); } catch { /* open a new one */ }
   const w = windows[0];
-  if (w !== undefined) { await w.focus(); return; }
+  if (w !== undefined) {
+    try {
+      await w.focus();
+      try { w.post(WAKE_MESSAGE); } catch { /* a closing window */ }
+      return;
+    } catch { /* the window disappeared; open the app below */ }
+  }
   await deps.open("/");
 }

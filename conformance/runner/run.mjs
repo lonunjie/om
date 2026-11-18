@@ -10,7 +10,7 @@ if (targets.some((target) => !["worker", "sqlite", "sqlite-direct"].includes(tar
 }
 
 // Identical public API assertions for each target. The harness alone supplies lifecycle and transport.
-const suites = ["smoke", "relay", "admission", "usage", "services", "key-rotation", "blobs", "recovery", "wake"]
+const suites = ["smoke", "relay", "admission", "usage", "services", "key-rotation", "blobs", "recovery", "wake", "media"]
   .map((suite) => `infra/cloudflare-home/test/${suite}.test.ts`);
 for (const target of targets) {
   process.stdout.write(`\nProvider conformance: ${target}\n`);

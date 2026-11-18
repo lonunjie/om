@@ -227,3 +227,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0218 — Calls wire freeze (CallSignal, type 44) and the constructions the design leaves to engineering](ADR-0218-calls-wire-freeze-and-delegated-constructions.md)
 - [ADR-0219 — Local one-to-one call lifecycle](ADR-0219-call-session-lifecycle.md)
 - [ADR-0220 — Web call media host and continuity](ADR-0220-web-call-media-host.md)
+- [ADR-0221 — Own-Home media leases and local call continuity](ADR-0221-own-home-media-leases-and-call-continuity.md)

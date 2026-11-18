@@ -195,3 +195,20 @@ it("gates the worker's encoded streams on directional keys and authenticates a f
     vi.unstubAllGlobals();
   }
 });
+
+it("an opaque forwarder and a listener provisioned with an unrelated epoch secret cannot open forwarded media", async () => {
+  const sender = new SFrameSender();
+  const joined = new SFrameReceiver();
+  const unjoined = new SFrameReceiver();
+  const noKeys = new SFrameReceiver();
+  const senderSecret = key(17);
+  const unrelatedEpoch = key(19);
+  await Promise.all([sender.install(0n, senderSecret.slice()), joined.install(0n, senderSecret), unjoined.install(0n, unrelatedEpoch)]);
+
+  // A forwarder copies the same opaque packet to every subscriber, including the unjoined listener.
+  const ciphertext = await sender.seal(plain);
+  assert(ciphertext !== undefined);
+  expect(await joined.open(ciphertext.slice())).toEqual(plain.buffer);
+  expect(await unjoined.open(ciphertext.slice())).toBeUndefined();
+  expect(await noKeys.open(ciphertext.slice())).toBeUndefined();
+});

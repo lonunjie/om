@@ -24,7 +24,7 @@ import type { BlobLimits, RecoveryPlace, Inbound, MailboxKind, NetCall, NetError
 import {
   API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeDepositCapabilityRecord, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
   encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeMintRequest, encodeQueueCreate, encodeTicketParams, fromHex, toHex, fromBase64Url, toBase64Url,
-  FEATURES, UNKNOWN_USAGE, USAGE_PATH, encode, map, parseUsageState, type HomeErrorBody, type ProviderUsageState, type RelayEntry,
+  FEATURES, type MediaCapabilities, type TurnLease, UNKNOWN_USAGE, USAGE_PATH, encode, map, parseUsageState, type HomeErrorBody, type ProviderUsageState, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
 import { depositCap, descriptorPublishCap, installSecret, introServiceCap, keyPublishCap, mailboxCaps, requestId } from "./derive";
@@ -58,7 +58,12 @@ export interface HttpProviderOptions {
 
 export type Reachability = "unknown" | "reachable" | "unreachable";
 
-export interface HttpProvider extends Provider {
+export interface CallMediaProvider {
+  mediaCapabilities(): Promise<MediaCapabilities | undefined>;
+  issueTurn(): Promise<TurnLease | undefined>;
+}
+
+export interface HttpProvider extends Provider, CallMediaProvider {
   /** Routes for new mailboxes at this Home (Provider.allocateRoutes, always present here). */
   allocateRoutes(count: number, held?: readonly string[]): Promise<readonly RouteOffer[]>;
   prepareRoomRoute(): RoomRouteMint;
@@ -291,6 +296,9 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     if (r.kind !== "ok") return undefined;
     try { const f = (JSON.parse(new TextDecoder().decode(r.body)) as { features?: unknown }).features; return Array.isArray(f) ? f : undefined; } catch { return undefined; }
   }
+
+  let mediaClient: Promise<CallMediaProvider> | undefined;
+  const ownMedia = () => (mediaClient ??= import("./media").then(({ createMediaClient }) => createMediaClient(base, http)));
 
   const hub = createWakeHub({
     base,
@@ -783,6 +791,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     },
     revokeDeposit,
     usageState,
+    mediaCapabilities: async () => opts.admission ? (await ownMedia()).mediaCapabilities() : undefined,
+    issueTurn: async () => mediaClient === undefined ? undefined : (await mediaClient).issueTurn(),
     async capabilities() {
       const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
       if (r.kind !== "ok") return undefined;

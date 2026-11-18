@@ -1,4 +1,4 @@
-import { browserCallEnvironment, CallTransport, type CallMediaFact } from "@om/web-platform/calls";
+import { browserCallEnvironment, CallTransport } from "@om/web-platform/calls";
 import workerAsset from "@om/web-platform/sframe-worker?worker&url";
 
 const workerUrl = new URL(workerAsset, import.meta.url);
@@ -17,6 +17,6 @@ function startWorker(): Worker {
   return new Worker((policy?.createScriptURL(workerUrl.href) ?? workerUrl.href) as string);
 }
 
-export function createCallTransport(state: (fact: CallMediaFact) => void, stream: (remote: MediaStream) => void): CallTransport {
-  return new CallTransport(browserCallEnvironment(startWorker), { state, stream });
+export function createCallTransport(facts: ConstructorParameters<typeof CallTransport>[1]): CallTransport {
+  return new CallTransport(browserCallEnvironment(startWorker), facts);
 }

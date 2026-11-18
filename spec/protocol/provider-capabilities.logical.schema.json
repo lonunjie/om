@@ -114,6 +114,23 @@
     "limits": {
       "type": "object"
     },
+    "media": {
+      "description": "Optional om.media.turn.v1 advertisement; the Home publishes no TURN credentials here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stun_urls"],
+      "properties": {
+        "stun_urls": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^stuns?:"
+          }
+        }
+      }
+    },
     "recovery_scope_id": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_-]{43}$",

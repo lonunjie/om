@@ -1,6 +1,6 @@
 // Service-worker side of the push wake (ADR-0210): an empty push becomes one generic notice, or an opaque wake of a window that is open.
 // No fetch, no vault, no capability here: the worker never reads anything but its own two strings.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_NOTICE, WAKE_MESSAGE, NOTICE_KEY, noticeFrom, onNotificationClick, onPush, type PushDeps, type WindowLike } from "./push";
 
 const win = (visible: boolean, focused = false): WindowLike & { posted: unknown[]; focusedNow: boolean } => {
@@ -59,6 +59,40 @@ describe("onPush", () => {
 });
 
 describe("onNotificationClick", () => {
+  it("opens from an empty push using only notification metadata and window access", async () => {
+    const observed: string[] = [];
+    const deps: PushDeps = {
+      windows: () => { observed.push("windows"); return Promise.resolve([]); },
+      read: (key) => { observed.push(key); return Promise.resolve(null); },
+      show: (_title, options) => { observed.push(options.tag); return Promise.resolve(); },
+      open: (path) => { observed.push(path); return Promise.resolve(); },
+    };
+    const forbidden = (name: PropertyKey): never => { throw new Error(String(name)); };
+    const worker = new Proxy(deps, {
+      get: (target, key) => key in target ? Reflect.get(target, key) as unknown : forbidden(key),
+    });
+    const fetch = vi.fn(forbidden);
+    const vault = vi.fn(forbidden);
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("indexedDB", { open: vault });
+    try {
+      await onPush(worker);
+      await onNotificationClick(worker);
+      expect(fetch).not.toHaveBeenCalled();
+      expect(vault).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(observed).toEqual(["windows", NOTICE_KEY, "om-wake", "windows", "/"]);
+  });
+
+  it("nudges the page after a notification click even when it was already open", async () => {
+    const hidden = win(false);
+    const { d } = deps([hidden]);
+    await onNotificationClick(d);
+    expect(hidden.posted).toEqual([WAKE_MESSAGE]);
+  });
+
   it("focuses an open window, else opens the app at its root", async () => {
     const a = win(false);
     const one = deps([a]);

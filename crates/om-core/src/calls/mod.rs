@@ -164,7 +164,6 @@ pub struct SeenOffer {
 pub(crate) struct Calls {
     pub current: Option<Call>,
     pub deposits: Vec<Deposit>,
-    pub notices: Vec<CallNotice>,
     pub last_clock_ms: Option<u64>,
 }
 

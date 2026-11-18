@@ -54,7 +54,7 @@ export function fromReply(r: Reply): Response {
 const DISCARD_BUDGET = 1024 * 1024;
 
 /** Reads at most `max` bytes; `undefined` means the body is larger than allowed. */
-export async function readBody(request: Request, max: number): Promise<Uint8Array | undefined> {
+export async function readBody(request: Request | Response, max: number): Promise<Uint8Array | undefined> {
   if (request.body === null) return new Uint8Array(0);
   const reader = request.body.getReader() as ReadableStreamDefaultReader<Uint8Array>;
   const chunks: Uint8Array[] = [];

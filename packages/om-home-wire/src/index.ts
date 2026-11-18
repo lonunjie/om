@@ -11,9 +11,11 @@ export * from "./blob";
 export * from "./usage";
 export * from "./recovery";
 export * from "./push";
+export * from "./media";
 import { USAGE_FEATURE } from "./usage";
 import { RECOVERY_FEATURE } from "./recovery";
 import { PUSH_FEATURE } from "./push";
+import { MEDIA_FEATURE } from "./media";
 export { Obj } from "./fields";
 
 /** Optional-feature ids a Home advertises in ProviderCapabilities.features (home-api.md section 1). */
@@ -37,4 +39,5 @@ export const FEATURES = {
   recoveryStore: RECOVERY_FEATURE,
   /** Optional push wake: an empty, signed push to a browser endpoint the owner registered, only when nobody is listening (ADR-0210). Offered only where the Home has owner admission. */
   relayPush: PUSH_FEATURE,
+  mediaTurn: MEDIA_FEATURE,
 } as const;
