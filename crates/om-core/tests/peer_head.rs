@@ -197,7 +197,7 @@ fn seal_to_alice(p: &Pair, inner: &[u8]) -> Vec<u8> {
     let ar = rel(&p.alice, &p.a);
     let key = &ar["myDelivery"][0]["public"];
     let route = &ar["myBoxes"][0]["route"];
-    let mut rng = InsecureTestRng::from_label(b"sealer");
+    let mut rng = InsecureTestRng::from_label(&sha256(&[b"sealer", inner]));
     delivery::seal(
         &unhex(&s(&key["publicKey"])).unwrap(),
         &unhex(&s(&key["keyId"])).unwrap().try_into().unwrap(),
@@ -280,13 +280,15 @@ fn a_message_that_beats_the_head_update_is_held_then_accepted_exactly_once() {
     assert_eq!(held(&p), 1, "indeterminate, so held");
     assert_eq!(failures(&p), 0, "not an integrity failure");
     assert!(timeline(&p.alice, &p.a, &p.a_conv).is_empty());
-    assert!(
+    assert_eq!(
         rel(&p.alice, &p.a)["replay"]
             .as_object()
             .unwrap()
             .values()
-            .all(|r| r["state"] == "complete"),
-        "no replay verdict was written for the held wrapper"
+            .filter(|r| r["state"] == "reserved")
+            .count(),
+        1,
+        "the held wrapper has no final replay verdict"
     );
     // Alice asked for the head; Bob's update and his answer both arrive.
     settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);

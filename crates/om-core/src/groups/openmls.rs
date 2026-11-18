@@ -646,6 +646,11 @@ impl GroupCrypto for OpenMlsGroupCrypto {
         }
         w
     }
+
+    fn restore_snapshot(&mut self, snapshot: &[u8]) -> MlsResult<()> {
+        *self = OpenMlsLoader::restore(snapshot)?;
+        Ok(())
+    }
 }
 
 fn put_u32(w: &mut Vec<u8>, n: u32) {

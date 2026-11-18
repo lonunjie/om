@@ -307,8 +307,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
-    /// Retry the frames held for a missing account head (report D37), after dropping the expired ones. The host calls
-    /// this after each poll that may have brought a head. A frame that now verifies is applied.
+    /// Retry a frame after a poll may have supplied its missing account head, Welcome or parent Commit.
     pub fn group_pending_retry(
         &mut self,
         ctx: &ProfileExecutionContext,
@@ -318,7 +317,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }
         self.group_step(ctx, |app, gctx| {
             let now_s = gctx.now_ms / 1000;
-            let reps = app.carry_pending_retry(gctx, now_s);
+            let reps = app.carry_pending_retry(gctx, now_s)?;
             for r in &reps {
                 note_removals(app, r);
             }
@@ -602,7 +601,10 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     let Some(why) = refused else { return Err(e) };
                     let now_s = self.clock.now_ms() / 1000;
                     let expired = now_s >= item.since_s.saturating_add(cg::LANE_OUT_TTL_S);
-                    let transient = matches!(why.0, "no_route_offer" | "relationship_unavailable");
+                    let transient = matches!(
+                        why.0,
+                        "no_route_offer" | "relationship_unavailable" | "no_controller_head"
+                    );
                     if transient && !expired {
                         blocked.push(item.relationship.clone());
                         last = Some(why);

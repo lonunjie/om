@@ -141,6 +141,7 @@ FRAMES["commit-without-added-devices"] = frame("commit", BODY_COMMIT_MIN)
 # a Welcome that also carries the signed head of every account it names (D44 ruling): optional field 4
 ACCOUNT_HEAD = M([0, B(v4.ACC_B)], [1, HEAD_BYTES], [2, B(det("account-state-body", 400))],
                  [3, [B(det("credential-body-0", 300))]])
+ACCOUNT_HEAD_CHAIN = mset(ACCOUNT_HEAD, 4, [B(det("signed-account-state", 400))])
 BODY_WELCOME_HEADS = M([0, INVITE_ID], [1, B(det("mls-welcome", 2400))], [2, B(py_enc(GCS_ENV))],
                        [3, [M([0, B(v4.DEV[0])], [1, cred_bytes(v4.DEV[0])], [2, route_bytes(route("m0", v4.DEV[0]))])]],
                        [4, [ACCOUNT_HEAD]])
@@ -149,6 +150,8 @@ FRAMES["welcome-with-account-heads"] = frame("welcome", BODY_WELCOME_HEADS)
 # the same group-account-head as the Welcome's
 BODY_COMMIT_HEADS = mset(BODY_COMMIT, 4, [ACCOUNT_HEAD])
 FRAMES["commit-with-account-heads"] = frame("commit", BODY_COMMIT_HEADS)
+FRAMES["welcome-with-account-chain"] = frame("welcome", mset(BODY_WELCOME_HEADS, 4, [ACCOUNT_HEAD_CHAIN]))
+FRAMES["commit-with-account-chain"] = frame("commit", mset(BODY_COMMIT_HEADS, 4, [ACCOUNT_HEAD_CHAIN]))
 FRAME_MIN = FRAMES["leave_request"]
 
 # ------------------------------------------------------------------ relationship-lane events (kinds 15 to 17)
@@ -385,7 +388,7 @@ def struct_vectors():
     add(C, "neg/head-credentials-65", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(det("c", 30))] * 65)]), "invalid")
     add(C, "neg/head-credential-empty", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(b"")])]), "invalid")
     add(C, "neg/head-credential-65537-bytes", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(b"\x00" * 65537)])]), "invalid")
-    add(C, "neg/head-unknown-key-4", "reject", "unknown_field", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 4, 1)]), "invalid")
+    add(C, "neg/head-unknown-key-5", "reject", "unknown_field", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 5, 1)]), "invalid")
     add(C, "neg/over-the-frame-body-limit", "reject", "size_limit", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(b"\x00" * 60000)] * 3)]), "n/a",
         "three credentials of 60,000 bytes: the body is over 131,000 bytes")
     add(C, "neg/unsorted-keys", "reject", "unsorted_keys",
@@ -395,6 +398,10 @@ def struct_vectors():
     add(W, "neg/heads-empty", "reject", "value_range", mset(BODY_WELCOME_HEADS, 4, []), "invalid")
     add(W, "neg/heads-is-a-map", "reject", "wrong_type", mset(BODY_WELCOME_HEADS, 4, ACCOUNT_HEAD), "invalid")
     add(W, "neg/head-credentials-empty", "reject", "value_range", mset(BODY_WELCOME_HEADS, 4, [mset(ACCOUNT_HEAD, 3, [])]), "invalid")
+    add(A, "with-chain", "accept", None, ACCOUNT_HEAD_CHAIN, "valid")
+    add(A, "neg/chain-empty", "reject", "value_range", mset(ACCOUNT_HEAD, 4, []), "invalid")
+    add(A, "neg/chain-too-long", "reject", "value_range", mset(ACCOUNT_HEAD, 4, [B(b"s")] * 66), "invalid")
+    add(A, "neg/chain-state-empty", "reject", "value_range", mset(ACCOUNT_HEAD, 4, [B(b"")]), "invalid")
     return out
 
 

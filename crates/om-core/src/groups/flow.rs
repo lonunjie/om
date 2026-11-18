@@ -418,8 +418,7 @@ pub enum GroupEvent {
     },
     /// Something arrived that nothing of ours precedes or authorizes; nothing changed.
     Dropped(&'static str),
-    /// A frame names a device of an account whose head this device lacks or holds stale: it is kept (bounded,
-    /// expiring) and retried when a head arrives. Nothing was accepted (report D37).
+    /// A frame needs a prerequisite before it can be decided. Core queues it within existing bounds and expiry.
     Held(&'static str),
     /// A Room setting changed (also on this device): who, and what, with each loosening marked. Never silent.
     PolicyChanged {

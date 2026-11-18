@@ -218,3 +218,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0209 — A change feed for group screens](ADR-0209-group-change-feed.md)
 - [ADR-0210 — Push wake through the person's own Home (`om.relay.push.v1`)](ADR-0210-push-wake-through-the-persons-own-home.md)
 - [ADR-0211 — SQLite Home runtime and local usage accounting](ADR-0211-sqlite-home-runtime-and-local-usage.md)
+- [ADR-0212 — Room admission evidence and frame retry](ADR-0212-room-admission-evidence-and-frame-retry.md)

@@ -1909,7 +1909,7 @@ pub(super) fn stage_enrollment(
         extended = true;
     }
     // Every notice must be over a state of the staged chain and signed by a control device of that state.
-    if notices.is_empty() || notices.len() > MAX_CHAIN_TAIL {
+    if notices.len() > MAX_CHAIN_TAIL {
         return None;
     }
     let mut covered: Vec<([u8; 32], [u8; 16])> = vec![];

@@ -3198,49 +3198,88 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.maintain_prekeys();
         if advanced {
             self.st.app.cursors.insert(mailbox.to_string(), cursor);
-            // One pending Ack per mailbox, carrying the latest committed sequence.
-            self.st.app.outbox.retain(
-                |e| !matches!(&e.call, NetCall::Ack { mailbox: m, .. } if hex(m) == mailbox),
-            );
-            let kind = if self
-                .st
-                .app
-                .invites
-                .values()
-                .any(|i| i.mailbox == mailbox && i.intro_service.is_some())
-            {
-                MailboxKind::Intro
-            } else {
-                MailboxKind::Relay
-            };
-            // The Home that holds a relay mailbox is the one its route names (the host may serve several of our Homes).
-            let relay_uri = self
+            let pending = self
                 .st
                 .app
                 .relationships
                 .values()
-                .flat_map(|r| r.my_boxes.iter())
-                .find(|b| b.mailbox == mailbox)
-                .map(|b| b.route.relay_uri.clone())
-                .filter(|u| u != delivery::CORE_ROUTE_URI);
-            let (relay_uri, capability) = match ceremony::ack_route(self.st, mailbox) {
-                Some((uri, cap)) => (Some(uri), cap),
-                None => (relay_uri, vec![]),
-            };
-            if let Ok(m) = hb(mailbox) {
-                self.enqueue(
-                    NetCall::Ack {
-                        mailbox: m,
-                        seq: cursor,
-                        kind,
-                        relay_uri,
-                        capability,
-                    },
-                    Purpose::Ack,
-                );
+                .any(|r| !r.held.is_empty() && r.my_boxes.iter().any(|b| b.mailbox == mailbox));
+            if !pending {
+                self.queue_mailbox_ack(mailbox, cursor);
             }
         }
         Ok(())
+    }
+
+    /// Mailbox acknowledgements are cumulative. A polled cursor may advance past a reserved wrapper to fetch its
+    /// refresh, while the ACK waits until all held wrappers for that relationship are settled.
+    fn queue_mailbox_ack(&mut self, mailbox: &str, cursor: u64) {
+        // One pending Ack per mailbox, carrying the latest committed sequence.
+        self.st
+            .app
+            .outbox
+            .retain(|e| !matches!(&e.call, NetCall::Ack { mailbox: m, .. } if hex(m) == mailbox));
+        let kind = if self
+            .st
+            .app
+            .invites
+            .values()
+            .any(|i| i.mailbox == mailbox && i.intro_service.is_some())
+        {
+            MailboxKind::Intro
+        } else {
+            MailboxKind::Relay
+        };
+        // The Home that holds a relay mailbox is the one its route names (the host may serve several of our Homes).
+        let relay_uri = self
+            .st
+            .app
+            .relationships
+            .values()
+            .flat_map(|r| r.my_boxes.iter())
+            .find(|b| b.mailbox == mailbox)
+            .map(|b| b.route.relay_uri.clone())
+            .filter(|u| u != delivery::CORE_ROUTE_URI);
+        let (relay_uri, capability) = match ceremony::ack_route(self.st, mailbox) {
+            Some((uri, cap)) => (Some(uri), cap),
+            None => (relay_uri, vec![]),
+        };
+        if let Ok(m) = hb(mailbox) {
+            self.enqueue(
+                NetCall::Ack {
+                    mailbox: m,
+                    seq: cursor,
+                    kind,
+                    relay_uri,
+                    capability,
+                },
+                Purpose::Ack,
+            );
+        }
+    }
+
+    fn ack_reconciled_mailboxes(&mut self, conv: &str) {
+        let Some(rel) = self.st.app.relationships.get(conv) else {
+            return;
+        };
+        if !rel.held.is_empty() {
+            return;
+        }
+        let cursors: Vec<_> = rel
+            .my_boxes
+            .iter()
+            .filter(|b| !b.closed)
+            .filter_map(|b| {
+                self.st
+                    .app
+                    .cursors
+                    .get(&b.mailbox)
+                    .map(|s| (b.mailbox.clone(), *s))
+            })
+            .collect();
+        for (mailbox, cursor) in cursors {
+            self.queue_mailbox_ack(&mailbox, cursor);
+        }
     }
 
     fn inbound_one(&mut self, mailbox: &str, bytes: &[u8]) {
@@ -3393,6 +3432,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// application effect become durable together or not at all (a refused host commit releases nothing, and the
     /// exact wrapper simply arrives again). Outer HPKE success never authenticates the sender.
     fn on_session_envelope(&mut self, conv: &str, wrapper: &[u8]) {
+        self.process_session_wrapper(conv, wrapper, false);
+    }
+
+    fn process_session_wrapper(&mut self, conv: &str, wrapper: &[u8], retry_held: bool) {
         let now_s = self.now_s();
         // 1. bounded canonical parse. A clear-sender envelope, a stripped wrapper or junk is `sealed_delivery_required`.
         if wrapper.len() > 140_000
@@ -3422,7 +3465,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             if old.fingerprint != fp {
                 return self.count_failure(conv); // same (key, id), different wrapper: collision, never a new branch
             }
-            return;
+            if !retry_held || old.state != ReplayState::Reserved {
+                return;
+            }
         }
         // 3. relationship-local delivery key by opaque id (ordinary keys, or the request-scoped bootstrap key).
         let found = rel
@@ -3495,22 +3540,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         );
         let verdict = self.process_inner(conv, &opened.inner_envelope, is_bootstrap, wrapper);
         if verdict == Inner::Held {
-            // ADR-0144: indeterminate because the held peer head may be stale. No replay verdict is recorded (the exact
-            // wrapper may be processed again), the wrapper waits unprocessed, and a head refresh is asked for.
-            if let Some(rel) = self.st.app.relationships.get_mut(conv) {
-                rel.replay.remove(&rkey);
-            }
-            if !self.hold(conv, wrapper) {
-                self.count_failure(conv);
-            }
-            // While a recovery of the peer's account is tracked nothing is asked of the new device's side
-            // (ADR-0190 section 5): the contact's own record decides, not a refresh request.
             let pending = self
                 .st
                 .app
                 .relationships
                 .get(conv)
                 .is_some_and(|r| r.peer_recovery.iter().any(PeerRecoveryRec::is_live));
+            // ADR-0144: keep the exact wrapper reserved until a verified refresh can decide its outcome.
+            if !self.hold(conv, wrapper) {
+                if let Some(rel) = self.st.app.relationships.get_mut(conv) {
+                    rel.replay.remove(&rkey);
+                }
+                // A full hold queue during recovery is not a peer integrity failure (ADR-0190 section 5).
+                if !pending {
+                    self.count_failure(conv);
+                }
+            }
+            // While a recovery of the peer's account is tracked nothing is asked of the new device's side
+            // (ADR-0190 section 5): the contact's own record decides, not a refresh request.
             if !pending {
                 self.ask_head(conv);
             }
@@ -3616,8 +3663,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         });
         // K12 (ONE_TO_ONE_SESSION_MANAGEMENT section 3): an envelope from a device the held head does not list may
         // come from a device linked after that head. That is not a verdict: hold it until the head is refreshed.
-        if known.is_none() && sender_ik.is_some() && rel.state == RelState::Active {
-            return Inner::Held;
+        if known.is_none()
+            && rel.state == RelState::Active
+            && let Some(ik) = sender_ik
+        {
+            return if self.peer_ik_revoked(&rel, &ik) {
+                Inner::Rejected
+            } else {
+                Inner::Held
+            };
         }
         let account = known.map_or(peer_account, |k| k.1);
         let sibling = account == my_account && account != peer_account;
@@ -3678,9 +3732,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             KIND_RELAYSET_ACK => self
                 .for_sender(conv, sender, sibling, |tx| tx.on_relayset_ack(conv, &p))
                 .unwrap_or(false),
-            // Head traffic is between accounts: a self-sync device has no head to give us (our own head is ours).
-            KIND_ACS_UPDATE => !sibling && self.on_acs_update(conv, &p),
-            KIND_ACS_REQUEST => !sibling && self.on_acs_request(conv, &p),
+            // Sibling head traffic uses the sibling session and still requires our own chain and a controller head.
+            KIND_ACS_UPDATE if sibling => self.on_sibling_acs_update(&p),
+            KIND_ACS_REQUEST if sibling => self.on_sibling_acs_request(conv, &sender, &p),
+            KIND_ACS_UPDATE => self.on_acs_update(conv, &p),
+            KIND_ACS_REQUEST => self.on_acs_request(conv, &p),
             KIND_RECOVERY_VETO => !sibling && self.on_peer_veto(conv, &p),
             KIND_ENROLLED => {
                 sibling
@@ -3693,6 +3749,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     }
             }
             KIND_ENROLLED_ACK => sibling && self.on_enrolled_ack(&sender, &p),
+            events::OBJECT_TYPE if crate::groups::carriage::is_lane_event(&pt) => {
+                match self.on_group_lane(conv, &pt, sender, sibling) {
+                    Inner::Accepted => true,
+                    Inner::Rejected => false,
+                    Inner::Held => {
+                        self.restore(snapshot);
+                        return Inner::Held;
+                    }
+                }
+            }
             events::OBJECT_TYPE => self.on_event(conv, &pt, sender, sibling),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };
@@ -3831,6 +3897,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         upd.canon_id = Some(hex(&canon));
         upd.bootstrap = None; // the request-scoped key dies in the commit that installed the established route
         self.st.app.relationships.insert(conv.to_string(), upd);
+        self.remember_room_peer_chain(conv, &chain, &creds);
         // The grant goes first: the inviter fetches as soon as it has read the Bind.
         self.enqueue(
             grant,
@@ -3928,6 +3995,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             bootstrap: false,
         });
         self.st.app.relationships.insert(conv.to_string(), upd);
+        self.remember_room_peer_chain(conv, &chain, &creds);
         self.enqueue(
             NetCall::FetchKeyMaterial {
                 device_id,
@@ -4169,10 +4237,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// An authenticated inner payload that is a `ConversationEvent`: W0-valid, in this conversation, authored by the
     /// pinned peer endpoint, deduplicated by EventID, and applied as a state transition.
     fn on_event(&mut self, conv: &str, bytes: &[u8], sender: [u8; 16], sibling: bool) -> bool {
-        // Kinds 15 to 17 (group lane, ADR-0189) are valid only to a W1 decoder: they never reach the W0 check below.
-        if crate::groups::carriage::is_lane_event(bytes) {
-            return self.on_group_lane(conv, bytes, sender, sibling);
-        }
         if registry().check("ConversationEvent", bytes, false).is_err() {
             return false;
         }

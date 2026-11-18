@@ -632,6 +632,11 @@ impl GroupCrypto for FakeGroupCrypto {
         })
         .expect("snapshot serializes")
     }
+
+    fn restore_snapshot(&mut self, snapshot: &[u8]) -> MlsResult<()> {
+        *self = FakeLoader::restore(snapshot)?;
+        Ok(())
+    }
 }
 
 /// Loader for [`FakeGroupCrypto`] snapshots.

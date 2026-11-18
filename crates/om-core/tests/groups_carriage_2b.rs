@@ -269,7 +269,7 @@ fn flush(ps: &mut [P], from: usize) -> Vec<(usize, Result<GroupReply, GroupError
         let o = it.to_outbound().unwrap();
         let sealed = match ps[from].seal(&o) {
             Ok(s) => s,
-            Err(e) => panic!("sealing {:?}: {e}", it.wire),
+            Err(e) => panic!("sealing {:?}: {e}", std::mem::discriminant(&it.wire)),
         };
         for s in sealed {
             let to = (0..ps.len())
@@ -569,6 +569,28 @@ fn a_messaging_only_device_joins_a_room() {
             .any(|d| d.is_current && d.role == DeviceRole::Messaging),
         "the phone is messaging-only"
     );
+    // Advance the ACS without a new enrollment. The phone must get the controller's new head over the sibling path.
+    ps[1]
+        .rt
+        .dispatch(&ac, "new-recovery", IntentBody::ReplaceRecoveryKey);
+    ps[1].rt.dispatch(
+        &ac,
+        "saved-recovery",
+        IntentBody::ConfirmRecoveryKeyStored {
+            key_operation_id: "new-recovery".into(),
+        },
+    );
+    assert_eq!(
+        ps[1].rt.outcome(&ac, "saved-recovery"),
+        Some(OutcomeClass::Committed)
+    );
+    three(&mut ps, &mut phone_rt);
+    let controller = ps[1].rt.core.debug_app_state(&ac).unwrap();
+    let phone_state = phone_rt.core.debug_app_state(&pc).unwrap();
+    assert!(
+        phone_state["acsChain"] == controller["acsChain"],
+        "phone advances to the controller's chain tip"
+    );
     // the 1:1 with Carol on the phone
     let l: Vec<ConversationSummary> =
         phone_rt.query(Query::GetConversationList { ctx: pc.clone() });
@@ -776,7 +798,7 @@ fn a_three_account_room_joins_on_the_heads_the_welcome_carries() {
 /// A head that does not verify, or none at all, leaves the Welcome held until it expires.
 #[test]
 fn a_welcome_whose_head_does_not_verify_is_held_until_it_expires() {
-    for heads in [1u8, 2] {
+    for heads in [1u8, 2, 7] {
         let mut ps = welcome_trio(&format!("d44b{heads}"), heads);
         ps[2].pending_retry();
         assert_eq!(ps[2].groups(), 0);
@@ -851,22 +873,212 @@ fn room_heads(p: &P) -> usize {
 
 /// Everyone sends one text to the two others; each gets the other two (a real three-way Room).
 fn all_talk(ps: &mut [P], conv: &[u8]) {
-    for i in 0..3 {
-        let rep = ps[i]
+    for i in 0..ps.len() {
+        ps[i]
             .dob(GroupIntent::SendText {
                 conversation_id: conv.to_vec(),
                 text: format!("from {i}"),
             })
             .unwrap();
-        for o in &rep.out {
-            for s in ps[i].seal(o).unwrap() {
-                let to = (0..3)
-                    .find(|j| ps[*j].device_hex() == hex(&s.device))
-                    .unwrap();
-                ps[to].open(&s.wrapper).unwrap();
-            }
+        drain(ps, i);
+    }
+}
+
+#[test]
+fn a_room_of_strangers_survives_join_add_leave_and_restart() {
+    for size in [3, 5] {
+        let net = LoopbackNetwork::default();
+        let mut ps: Vec<_> = (0..size)
+            .map(|i| mk(&net, &format!("room-{size}-{i}"), &format!("Person {i}")))
+            .collect();
+        for i in 1..size {
+            connect(&mut ps, 0, i);
+        }
+        let conv = join_all(&mut ps, 0, &[1], room::RECOMMENDED);
+        let bob = &mut ps[1];
+        bob.rt
+            .dispatch(&bob.ctx, "rotate", IntentBody::ReplaceRecoveryKey);
+        bob.rt.dispatch(
+            &bob.ctx,
+            "save",
+            IntentBody::ConfirmRecoveryKeyStored {
+                key_operation_id: "rotate".into(),
+            },
+        );
+        assert_eq!(
+            bob.rt.outcome(&bob.ctx, "save"),
+            Some(OutcomeClass::Committed)
+        );
+        settle_every(&mut ps);
+        for i in 2..size {
+            let relationship_id = ps[0].rels[&i].clone();
+            let invite = ps[0]
+                .dob(GroupIntent::Invite {
+                    conversation_id: conv.clone(),
+                    relationship_id,
+                })
+                .unwrap();
+            ps[0].send_lane(&invite);
+            settle_every(&mut ps);
+            accept_room_invite(&mut ps[i]);
+            settle_every(&mut ps);
+            ps[0].pump_lane();
+            drain(&mut ps, 0);
+        }
+        ps[1].restart();
+        for p in &ps {
+            assert_eq!(p.detail(&conv).summary.members as usize, size);
+        }
+        all_talk(&mut ps, &conv);
+        let expected: Vec<_> = (0..size).map(|i| format!("from {i}")).collect();
+        for p in &ps {
+            let mut texts = p.texts(&conv);
+            texts.sort();
+            assert_eq!(texts, expected);
+        }
+        ps[size - 1]
+            .dob(GroupIntent::Leave {
+                conversation_id: conv.clone(),
+            })
+            .unwrap();
+        drain(&mut ps, size - 1);
+        drain(&mut ps, 0);
+        assert_eq!(ps[size - 1].groups(), 0);
+        for p in &ps[..size - 1] {
+            assert_eq!(p.detail(&conv).summary.members as usize, size - 1);
         }
     }
+}
+
+fn accept_room_invite(p: &mut P) {
+    let id = events(&p.pump_lane())
+        .into_iter()
+        .find_map(|e| match e {
+            GroupEvent::InviteReceived { invite_id } => Some(invite_id),
+            _ => None,
+        })
+        .expect("Room invitation");
+    let reply = p
+        .dob(GroupIntent::Accept {
+            invite_id: id,
+            siblings: vec![],
+        })
+        .unwrap();
+    p.send_lane(&reply);
+}
+
+#[test]
+fn a_commit_before_welcome_waits_across_restart() {
+    let mut ps = trio_before_delivery("d41", 0);
+    let conv = ps[0].conv();
+    let carol = hex_dev(&ps[2]);
+    let welcome = ps[0]
+        .outbox()
+        .into_iter()
+        .find(|it| matches!(it.wire, GroupWire::Welcome { .. }))
+        .unwrap();
+    let welcome = ps[0]
+        .seal(&welcome.to_outbound().unwrap())
+        .unwrap()
+        .remove(0);
+    assert_eq!(welcome.device, carol);
+    ps[0]
+        .dob(GroupIntent::RoomSetting {
+            conversation_id: conv.clone(),
+            setting: Setting::MembersMayInvite(false),
+            confirmed: false,
+        })
+        .unwrap();
+    ps[0].settle_commits();
+    let commit = ps[0]
+        .outbox()
+        .into_iter()
+        .filter(|it| matches!(it.wire, GroupWire::Commit { .. }))
+        .filter_map(|it| it.to_outbound())
+        .find(|o| matches!(&o.to, Target::Device { device, .. } if *device == carol))
+        .unwrap();
+    let commit = ps[0].seal(&commit).unwrap().remove(0);
+    let reply = ps[2].open(&commit.wrapper).unwrap();
+    assert!(
+        reply
+            .events
+            .iter()
+            .any(|e| matches!(e, GroupEvent::Held(_)))
+    );
+    ps[2].open(&commit.wrapper).unwrap();
+    assert_eq!(ps[2].pending(), 1, "an exact duplicate occupies one slot");
+    assert_eq!(ps[2].groups(), 0);
+    ps[2].restart();
+    ps[2].pending_retry();
+    assert_eq!(ps[2].pending(), 1);
+    ps[2].open(&welcome.wrapper).unwrap();
+    ps[2].pending_retry();
+    assert_eq!(ps[2].pending(), 0);
+    assert!(!ps[2].detail(&conv).protection.members_may_invite);
+}
+
+#[test]
+fn an_accept_newer_than_the_pin_waits_for_verified_refresh_across_restart() {
+    let net = LoopbackNetwork::default();
+    let mut ps = vec![mk(&net, "alice-d40", "Alice"), mk(&net, "bob-d40", "Bob")];
+    connect(&mut ps, 0, 1);
+    let relationship_id = ps[0].rels[&1].clone();
+    let invite = ps[0]
+        .dob(GroupIntent::CreateWithProtection {
+            name: "Head refresh".into(),
+            relationship_ids: vec![relationship_id.clone()],
+            protection: room::RECOMMENDED,
+        })
+        .unwrap();
+    ps[0].send_lane(&invite);
+    settle_every(&mut ps);
+    let bob = &mut ps[1];
+    let (_, step) = bob.rt.core.debug_link_messaging_device(&bob.ctx).unwrap();
+    assert!(bob.rt.settle(&step));
+    let updates = bob.rt.core.net_ops(&bob.ctx).unwrap();
+    assert!(!updates.is_empty());
+    accept_room_invite(bob);
+    // Deliver the Accept before the ACS update, without changing either payload.
+    for op in bob.rt.core.net_ops(&bob.ctx).unwrap() {
+        if !updates.iter().any(|old| old.id == op.id) {
+            let step = bob
+                .rt
+                .core
+                .net_result(&bob.ctx, op.id, net.perform(&op.call))
+                .unwrap();
+            assert!(bob.rt.settle(&step));
+        }
+    }
+    let alice = &mut ps[0];
+    assert!(alice.rt.poll(&alice.ctx) > 0);
+    assert!(alice.pump_lane().is_empty());
+    assert!(
+        alice
+            .rt
+            .core
+            .net_ops(&alice.ctx)
+            .unwrap()
+            .iter()
+            .all(|op| { !matches!(op.call, om_core::host::NetCall::Ack { .. }) }),
+        "the relay acknowledgement waits with the reserved Accept"
+    );
+    let state = alice.rt.core.debug_app_state(&alice.ctx).unwrap();
+    assert_eq!(
+        state["relationships"][&relationship_id]["held"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    alice.restart();
+    settle_every(&mut ps);
+    assert!(
+        events(&ps[0].pump_lane())
+            .iter()
+            .any(|e| matches!(e, GroupEvent::CommitPrepared { .. }))
+    );
+    drain(&mut ps, 0);
+    assert_eq!(ps[1].groups(), 1);
 }
 
 /// D93: Bob never met Carol; the Add Commit carries Carol's signed head, so Bob applies it at once and the three talk.

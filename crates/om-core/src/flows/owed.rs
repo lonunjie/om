@@ -302,11 +302,12 @@ impl<R: CryptoRng + RngCore> Tx<'_, R> {
     }
 
     /// A controller-signed head of our tip for the payload, when this device may sign one.
-    fn tip_sig(&mut self, tip: &Acs) -> Option<Vec<u8>> {
+    pub(super) fn tip_sig(&mut self, tip: &Acs) -> Option<Vec<u8>> {
         let dev = self.st.device.as_ref()?;
         self.st
             .app
             .carry_sign_head_for_peers(&dev.signer, &dev.device_id, tip, self.rng)
+            .or_else(|| self.st.app.carry_cached_own_head())
     }
 
     /// Every unacknowledged notice: reconcile with the head, then send what is due. Run on every intent and inbound

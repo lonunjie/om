@@ -168,8 +168,8 @@ impl core::fmt::Debug for BootstrapRec {
     }
 }
 
-/// ADR-0143 replay states. `RESERVED` is only ever visible inside one staged transaction: acceptance of the inner
-/// envelope and `COMPLETE` are committed together, so a durable record is always `Complete` or `Rejected`.
+/// ADR-0143 replay states. A stale-head wrapper can remain durably `Reserved` until K7 refresh (ADR-0144).
+/// Acceptance of the inner envelope and `Complete` are committed together.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReplayState {

@@ -6704,7 +6704,25 @@
             ]
           },
           "req": true,
-          "note": "bodies of the DeviceCredentials the state lists"
+          "note": "bodies of the DeviceCredentials the state and its lineage commit to"
+        },
+        {
+          "key": 4,
+          "name": "account_state_chain",
+          "type": {
+            "array": {
+              "bstr": [
+                1,
+                65536
+              ]
+            },
+            "n": [
+              1,
+              65
+            ]
+          },
+          "req": false,
+          "note": "signed ACS lineage from genesis through the named state (ADR-0212)"
         }
       ]
     },

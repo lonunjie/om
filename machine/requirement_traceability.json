@@ -2870,6 +2870,12 @@
         "review:ADR-0202-owner-recovery-evidence-and-controller-approval.md",
         "review:ADR-0203-owner-recovery-carriage.md"
       ]
+    },
+    {
+      "requirement": "R-442",
+      "verified_by": [
+        "review:ADR-0212-room-admission-evidence-and-frame-retry.md"
+      ]
     }
   ]
 }

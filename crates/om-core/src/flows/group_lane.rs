@@ -70,6 +70,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;
+        if matches!(body, LaneBody::Invite { .. }) {
+            self.ask_room_head_proof(conv);
+        }
         self.release_queued(conv)?;
         Ok(Ok(()))
     }
@@ -84,41 +87,45 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         bytes: &[u8],
         sender: [u8; 16],
         sibling: bool,
-    ) -> bool {
+    ) -> Inner {
         let Ok((ev, body)) = carriage::parse_lane_event(bytes) else {
-            return false;
+            return Inner::Rejected;
         };
         if sibling {
             // v1 rule (operator ruling 2026-11-18, Q-R2-2, D153): a lane event copied from one of our own other devices (an invite or accept
             // that sibling sent) is ignored and never half-applied; the device that sent it keeps the state. Own-device sync of lane events is not specified.
-            return true;
+            return Inner::Accepted;
         }
         let now_s = self.now_s();
         let Some(r) = self.st.app.relationships.get(conv) else {
-            return false;
+            return Inner::Rejected;
         };
         let (Some(canon), Ok(peer_account)) = (r.canon_id.as_deref(), h32(&r.peer_account_id))
         else {
-            return false;
+            return Inner::Rejected;
         };
         if hex(&ev.conversation_id) != canon
             || ev.author_account != peer_account
             || ev.author_device != sender
             || r.equivocated.contains(&hex(&ev.event_id))
         {
-            return false;
+            return Inner::Rejected;
         }
         if r.blocked {
-            return true;
+            return Inner::Accepted;
         }
         let before = self.st.app.group_carriage.clone();
         let invite = matches!(body, LaneBody::Invite { .. });
+        let accept = matches!(body, LaneBody::Accept { .. });
         if let Err(e) = self
             .st
             .app
             .carry_lane_in(conv, &ev.event_id, &sender, body, now_s)
         {
             self.st.app.group_carriage = before;
+            if e.0 == "peer_head_stale" {
+                return Inner::Held;
+            }
             // A full queue is never a silent drop (report D71): the event is accepted so it is not replayed, and the loss is
             // counted so the person is told. Any other drop is a verification result, not a loss.
             if e.0 == "lane_full" {
@@ -130,7 +137,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 };
                 *n = n.saturating_add(1);
             }
+        } else if accept {
+            self.ask_room_head_proof(conv);
         }
-        true
+        Inner::Accepted
     }
 }

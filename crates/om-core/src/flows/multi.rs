@@ -69,8 +69,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return true; // the same wrapper again: already waiting
         }
         if rel.held.len() >= MAX_HELD {
-            // While a recovery is tracked a full list is not a peer integrity failure (ADR-0190 section 5).
-            return rel.peer_recovery.iter().any(|r| r.is_live());
+            return false;
         }
         rel.held.push(HeldWrapper {
             bytes,
@@ -81,6 +80,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Ask the peer for its head. Rate limited per relationship; a no-op when no route to the peer exists yet.
     pub(crate) fn ask_head(&mut self, conv: &str) {
+        self.ask_head_from(conv, false);
+    }
+
+    /// A contact bound by an earlier build may have no retained genesis proof. An unknown starting digest asks
+    /// for the whole chain using the existing refresh response, which still has to match the contact's pin.
+    pub(super) fn ask_room_head_proof(&mut self, conv: &str) {
+        if self.st.app.relationships.get(conv).is_some_and(|r| {
+            !self
+                .st
+                .app
+                .group_carriage
+                .peer_chains
+                .contains_key(&r.peer_account_id)
+        }) {
+            self.ask_head_from(conv, true);
+        }
+    }
+
+    fn ask_head_from(&mut self, conv: &str, full: bool) {
         let now = self.now_ms;
         let Some(rel) = self.st.app.relationships.get(conv) else {
             return;
@@ -99,7 +117,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let payload = cbor::encode(&V::M(vec![
             (0, V::U(KIND_ACS_REQUEST)),
-            (1, V::B(have.hash().to_vec())),
+            (1, V::B(if full { [0; 32] } else { have.hash() }.to_vec())),
         ]));
         let sent = self.send_control(
             conv,
@@ -114,8 +132,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// Our chain (the whole chain, or from the state the peer says it holds) with every credential, as an update.
-    fn acs_update_payload(&self, from: Option<[u8; 32]>, intros: &[Vec<u8>]) -> Option<Vec<u8>> {
-        let (_, chain, creds) = self.acs_head()?;
+    fn acs_update_payload(
+        &mut self,
+        from: Option<[u8; 32]>,
+        intros: &[Vec<u8>],
+    ) -> Option<Vec<u8>> {
+        let (head, chain, creds) = self.acs_head()?;
         let states = chain_states(&chain)?;
         let start = from
             .and_then(|h| states.iter().position(|s| s.hash() == h))
@@ -138,6 +160,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .collect::<Vec<_>>();
             fields.push((4, V::A(list)));
         }
+        if let Some(signed) = self.tip_sig(&head) {
+            fields.push((6, V::B(signed)));
+        }
         Some(cbor::encode(&V::M(fields)))
     }
 
@@ -145,6 +170,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// we cannot reach right now is marked dirty and retried by `maintain_relays`.
     pub(super) fn broadcast_account_update(&mut self) {
         self.sync_own_head();
+        self.broadcast_sibling_head();
         let convs: Vec<String> = self
             .st
             .app
@@ -156,6 +182,129 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         for conv in convs {
             self.send_account_update(&conv, None, &[]);
         }
+    }
+
+    /// Account devices use the existing sibling session. Enrollment still needs its own verified notice.
+    fn broadcast_sibling_head(&mut self) {
+        let Some((head, chain, _)) = self.acs_head() else {
+            return;
+        };
+        let Some(me) = self.st.device.as_ref().map(|d| d.device_id) else {
+            return;
+        };
+        if !head.control.contains(&me) || head.quarantined.contains(&me) {
+            return;
+        }
+        let Some(parent) = chain
+            .iter()
+            .rev()
+            .nth(1)
+            .and_then(|s| ceremony::chain_head(s))
+        else {
+            return;
+        };
+        if head
+            .control
+            .iter()
+            .chain(&head.messaging)
+            .any(|d| !parent.control.contains(d) && !parent.messaging.contains(d))
+        {
+            return; // The ordered enrollment notice already carries the controller head.
+        }
+        let Some(payload) = self.acs_update_payload(head.previous, &[]) else {
+            return;
+        };
+        for sibling in head
+            .control
+            .iter()
+            .chain(&head.messaging)
+            .filter(|d| **d != me)
+        {
+            self.deliver_enrolled(&hex(sibling), &payload);
+        }
+    }
+
+    /// A sibling asking for our account's signed head uses the same request form as a contact.
+    pub(super) fn on_sibling_acs_request(&mut self, conv: &str, sender: &[u8; 16], p: &V) -> bool {
+        let Ok(have) = p.get(1).and_then(|v| v.b32()) else {
+            return false;
+        };
+        let now = self.now_ms;
+        let Some(rel) = self.st.app.relationships.get_mut(conv) else {
+            return false;
+        };
+        if rel.head_sent_ms != 0 && now < rel.head_sent_ms.saturating_add(HEAD_SERVE_INTERVAL_MS) {
+            return true;
+        }
+        rel.head_sent_ms = now;
+        if let Some(payload) = self.acs_update_payload(Some(have), &[]) {
+            self.deliver_enrolled(&hex(sender), &payload);
+        }
+        true
+    }
+
+    /// Bound retries while an Accept is waiting to present this account's controller head.
+    fn ask_sibling_room_head(&mut self) {
+        let last = self.st.app.group_carriage.head_sync_asked_ms;
+        if last != 0 && self.now_ms < last.saturating_add(HEAD_ASK_INTERVAL_MS) {
+            return;
+        }
+        let Some((head, _, _)) = self.acs_head() else {
+            return;
+        };
+        let Some(me) = self.st.device.as_ref().map(|d| d.device_id) else {
+            return;
+        };
+        if head.control.contains(&me) || self.st.app.carry_cached_own_head().is_some() {
+            return;
+        }
+        let payload = cbor::encode(&V::M(vec![
+            (0, V::U(KIND_ACS_REQUEST)),
+            (1, V::B(head.hash().to_vec())),
+        ]));
+        self.st.app.group_carriage.head_sync_asked_ms = self.now_ms;
+        for controller in head
+            .control
+            .iter()
+            .filter(|d| **d != me && !head.quarantined.contains(*d))
+        {
+            self.deliver_enrolled(&hex(controller), &payload);
+        }
+    }
+
+    /// A controller head can be renewed on the same ACS or accompany an ordinary verified successor. Missing
+    /// enrollments still need `KIND_ENROLLED`, and recovery still needs the receiver's own evidence.
+    pub(super) fn on_sibling_acs_update(&mut self, p: &V) -> bool {
+        let (Some(chain), Some(creds), Some(signed)) = (
+            bytes_list(p.get(1)),
+            bytes_list(p.get(2)),
+            p.opt(6).and_then(|v| v.b().ok()),
+        ) else {
+            return false;
+        };
+        if !bounded_acs_update(&chain, &creds) {
+            return false;
+        }
+        let Some((head, have, have_creds)) = self.acs_head() else {
+            return false;
+        };
+        let Some(staged) = ceremony::stage_enrollment(head, have, have_creds, &chain, &creds, &[])
+        else {
+            return false;
+        };
+        let Some(tip) = staged.chain.last().and_then(|s| ceremony::chain_head(s)) else {
+            return false;
+        };
+        if !AppState::carry_head_matches(&tip, &staged.creds, signed) {
+            return false;
+        }
+        if staged.extended {
+            self.st.app.acs_chain = staged.chain.iter().map(|s| hex(s)).collect();
+            self.st.app.acs_credentials = staged.creds.iter().map(|s| hex(s)).collect();
+            self.sync_own_head();
+        }
+        self.st.app.group_carriage.head_cache = Some(hex(signed));
+        true
     }
 
     pub(super) fn send_account_update(
@@ -183,8 +332,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Run with `maintain_relays`: resend heads that could not be sent, and drop held wrappers that waited too long.
     pub(super) fn retry_dirty_heads(&mut self) {
         let now = self.now_ms;
+        let mut reconciled = vec![];
         for rel in self.st.app.relationships.values_mut() {
-            rel.held.retain(|h| h.since_ms + HELD_TTL_MS > now);
+            let had_held = !rel.held.is_empty();
+            rel.held
+                .retain(|h| h.since_ms.saturating_add(HELD_TTL_MS) > now);
+            rel.replay
+                .retain(|_, r| r.expires_at.saturating_add(delivery::CLOCK_SKEW) >= now / 1000);
+            if had_held && rel.held.is_empty() {
+                reconciled.push(rel.id.clone());
+            }
+        }
+        for conv in reconciled {
+            self.ack_reconciled_mailboxes(&conv);
         }
         let dirty: Vec<String> = self
             .st
@@ -196,6 +356,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .collect();
         for conv in dirty {
             self.send_account_update(&conv, None, &[]);
+        }
+        let held: Vec<_> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| !r.held.is_empty() && !r.peer_recovery.iter().any(PeerRecoveryRec::is_live))
+            .map(|r| r.id.clone())
+            .collect();
+        for conv in held {
+            self.ask_head(&conv);
+        }
+        if self.st.app.group_carriage.lane_out.iter().any(|item| {
+            matches!(item.wire, crate::groups::flow::GroupWire::Accept { .. })
+                && item
+                    .since_s
+                    .saturating_add(crate::groups::carriage::LANE_OUT_TTL_S)
+                    > now / 1000
+        }) {
+            self.ask_sibling_room_head();
         }
     }
 
@@ -221,15 +401,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let (Some(chain), Some(creds)) = (bytes_list(p.get(1)), bytes_list(p.get(2))) else {
             return false;
         };
-        if chain.is_empty()
-            || chain.len() > MAX_UPDATE_STATES
-            || creds.len() > MAX_UPDATE_CREDS
-            || chain.iter().chain(creds.iter()).any(|x| x.len() > 8192)
-        {
+        if !bounded_acs_update(&chain, &creds) {
             return false;
         }
         match self.peer_refresh(conv, &chain, &creds) {
             Some(changed) => {
+                self.remember_room_peer_chain(conv, &chain, &creds);
+                if let Some(head) = p.opt(6).and_then(|v| v.b().ok())
+                    && self.st.app.carry_check_peer_head(conv, head).is_ok()
+                    && let Some(rel) = self.st.app.relationships.get(conv)
+                {
+                    self.st
+                        .app
+                        .group_carriage
+                        .peer_heads
+                        .insert(rel.peer_account_id.clone(), hex(head));
+                }
                 self.observe_dossier(conv, p, &chain, &creds);
                 self.adopt_intros(conv, p);
                 if changed {
@@ -239,6 +426,100 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             None => false,
         }
+    }
+
+    /// Retain a bounded ordinary ACS proof for the *already validated* contact pin. An incomplete tail cannot
+    /// replace a usable proof and evidence of recovery is never inferred from another verifier's observations.
+    pub(super) fn remember_room_peer_chain(
+        &mut self,
+        conv: &str,
+        chain: &[Vec<u8>],
+        creds: &[Vec<u8>],
+    ) {
+        let Some(rel) = self.st.app.relationships.get(conv) else {
+            return;
+        };
+        let Some(states) = chain_states(chain) else {
+            return;
+        };
+        let Some(end) = states
+            .iter()
+            .position(|a| hex(&a.body()) == rel.peer_acs_body)
+        else {
+            return;
+        };
+        let slot = &mut self.st.app.group_carriage.peer_chains;
+        let mut proof = if states[0].generation == 1 {
+            crate::groups::carriage::PeerChain {
+                states: chain[..=end].iter().map(|s| hex(s)).collect(),
+                credentials: vec![],
+            }
+        } else {
+            let Some(p) = slot.get(&rel.peer_account_id) else {
+                return;
+            };
+            let Some(last) = p.states.last().and_then(|s| unhex(s).ok()) else {
+                return;
+            };
+            let Some(start) = chain[..=end].iter().position(|s| *s == last) else {
+                return;
+            };
+            let mut p = p.clone();
+            p.states
+                .extend(chain[start + 1..=end].iter().map(|s| hex(s)));
+            p
+        };
+        proof.credentials.extend(creds.iter().map(|c| hex(c)));
+        proof.credentials.sort();
+        proof.credentials.dedup();
+        if proof.states.len() > MAX_UPDATE_STATES || proof.credentials.len() > MAX_UPDATE_CREDS {
+            return;
+        }
+        let states: Option<Vec<_>> = proof.states.iter().map(|s| unhex(s).ok()).collect();
+        let credentials: Option<Vec<_>> = proof.credentials.iter().map(|s| unhex(s).ok()).collect();
+        if let (Some(states), Some(credentials)) = (states, credentials)
+            && control::verify_chain(&states, &credentials)
+                .is_ok_and(|a| hex(&a.body()) == rel.peer_acs_body)
+        {
+            slot.insert(rel.peer_account_id.clone(), proof);
+        }
+    }
+
+    /// A removed device is absent from the session key index. Its historical ACS commitment still distinguishes
+    /// its identity key from an unknown, potentially newly enrolled device (K9 versus K12).
+    pub(super) fn peer_ik_revoked(&self, rel: &Relationship, ik: &[u8; 32]) -> bool {
+        let Some(head) = hb(&rel.peer_acs_body)
+            .ok()
+            .and_then(|b| Acs::from_body(&b).ok())
+        else {
+            return false;
+        };
+        if head.revoked.is_empty() {
+            return false;
+        }
+        let Some(proof) = self
+            .st
+            .app
+            .group_carriage
+            .peer_chains
+            .get(&rel.peer_account_id)
+        else {
+            return false;
+        };
+        proof
+            .credentials
+            .iter()
+            .filter_map(|c| binding::Credential::from_body(&unhex(c).ok()?).ok())
+            .any(|c| {
+                c.account_id == head.account_id
+                    && &c.ik == ik
+                    && head.revoked.contains(&c.device_id)
+                    && proof
+                        .states
+                        .iter()
+                        .filter_map(|s| ceremony::chain_head(&unhex(s).ok()?))
+                        .any(|s| s.credentials.contains(&(c.device_id, c.hash())))
+            })
     }
 
     /// Verify `chain` against the head pinned for the relationship and adopt it when it is a strict descendant.
@@ -332,15 +613,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// The head was refreshed: process what waited for it, oldest first. A wrapper that is still unknown holds again.
     pub(super) fn retry_held(&mut self, conv: &str) {
+        let now = self.now_ms;
         let Some(rel) = self.st.app.relationships.get_mut(conv) else {
             return;
         };
         let held = std::mem::take(&mut rel.held);
+        if held.is_empty() {
+            return;
+        }
         let since: BTreeMap<Hex, u64> =
             held.iter().map(|h| (h.bytes.clone(), h.since_ms)).collect();
         for h in held {
-            if let Ok(w) = unhex(&h.bytes) {
-                self.on_session_envelope(conv, &w);
+            if h.since_ms.saturating_add(HELD_TTL_MS) > now
+                && let Ok(w) = unhex(&h.bytes)
+            {
+                self.process_session_wrapper(conv, &w, true);
             }
         }
         if let Some(rel) = self.st.app.relationships.get_mut(conv) {
@@ -350,7 +637,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
         }
+        self.ack_reconciled_mailboxes(conv);
     }
+}
+
+fn bounded_acs_update(chain: &[Vec<u8>], credentials: &[Vec<u8>]) -> bool {
+    !chain.is_empty()
+        && chain.len() <= MAX_UPDATE_STATES
+        && credentials.len() <= MAX_UPDATE_CREDS
+        && chain
+            .iter()
+            .chain(credentials)
+            .all(|bytes| bytes.len() <= 8192)
 }
 
 // ---------------------------------------------------------------------------------------------------- devices

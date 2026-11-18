@@ -235,6 +235,9 @@ pub trait GroupCrypto {
 
     /// The engine's complete state as opaque bytes, including any pending Commit. Tagged by [`Self::engine_tag`].
     fn snapshot(&self) -> Vec<u8>;
+
+    /// Restore a tentative inbound attempt before processing another frame in the same Core transaction.
+    fn restore_snapshot(&mut self, snapshot: &[u8]) -> MlsResult<()>;
 }
 
 /// Rebuilds an engine from a snapshot, selected by the stored tag and version (see [`super::store`]).

@@ -172,7 +172,15 @@ pub fn open_account_head(
     let pk = pk_of(&who).ok_or(GroupError("head_signer_unknown"))?;
     let body = open_envelope(signed, LBL_HEAD_SIG, PROFILE_V1, ROLE_CONTROLLER, &who, &pk)
         .map_err(|_| GroupError("bad_signature"))?;
-    let v = c(cbor::decode(&body))?;
+    account_head_ref(&body)
+}
+
+/// Parse a claimed head for routing and deferral. Only `open_account_head` authenticates it.
+pub(super) fn account_head_ref(body: &[u8]) -> R<([u8; 32], u64, [u8; 32])> {
+    if registry().check_body("AccountControlHead", body).is_err() {
+        return drop_("malformed");
+    }
+    let v = c(cbor::decode(body))?;
     let d = c(v.get(4))?;
     Ok((
         c(c(v.get(2))?.b32())?,
@@ -374,15 +382,21 @@ pub struct AccountHead {
     pub state: Vec<u8>,
     /// Bodies of the `DeviceCredential`s the state lists.
     pub credentials: Vec<Vec<u8>>,
+    /// Signed ACS lineage from genesis through `state`, bounded by the account verifier.
+    pub chain: Vec<Vec<u8>>,
 }
 
 fn head_v(h: &AccountHead) -> V {
-    V::M(vec![
+    let mut fields = vec![
         (0, V::B(h.account.to_vec())),
         (1, V::B(h.head.clone())),
         (2, V::B(h.state.clone())),
         (3, V::A(h.credentials.iter().cloned().map(V::B).collect())),
-    ])
+    ];
+    if !h.chain.is_empty() {
+        fields.push((4, V::A(h.chain.iter().cloned().map(V::B).collect())));
+    }
+    V::M(fields)
 }
 
 fn account_head(v: &V) -> R<AccountHead> {
@@ -394,6 +408,13 @@ fn account_head(v: &V) -> R<AccountHead> {
             .iter()
             .map(|x| Ok(c(x.b())?.to_vec()))
             .collect::<R<_>>()?,
+        chain: match v.opt(4) {
+            None => vec![],
+            Some(chain) => c(chain.a())?
+                .iter()
+                .map(|x| Ok(c(x.b())?.to_vec()))
+                .collect::<R<_>>()?,
+        },
     })
 }
 
@@ -789,9 +810,8 @@ pub const LANE_OUT_TTL_S: u64 = 7 * 24 * 60 * 60;
 /// Refresh a queued advertisement after the overlap; distribution debt survives this frame lifetime.
 pub const ROUTE_UPDATE_TTL_S: u64 = ROUTE_OVERLAP_S;
 
-/// A Welcome or a Commit with added devices that could not be verified yet because the head of an account it names is
-/// missing or stale (report D37). Kept as the opaque sealed wrapper, so nothing is trusted or decoded twice; retried
-/// when a head arrives; never accepted unverified.
+/// A Welcome or Commit waiting for an account head or an earlier Room transition. Kept as the exact sealed wrapper
+/// and checked again when the prerequisite may have arrived.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingFrame {
@@ -800,8 +820,7 @@ pub struct PendingFrame {
     pub since_s: u64,
     /// Relationships whose head refresh may supply what is missing (the existing K7 request is sent for each).
     pub refresh: Vec<String>,
-    /// Accounts (hex) with no relationship to this device: nothing in the design says where to anchor their head
-    /// (report, question Q5). Such a frame stays held until it expires.
+    /// Accounts (hex) that still need a verified head. A new relationship can provide a refresh path.
     pub unanchored: Vec<String>,
 }
 
@@ -893,6 +912,8 @@ pub struct GroupCarriageRec {
     /// presents it in an Accept (ADR-0189 1.4(b); report D36). Verified against the own chain before use.
     #[serde(default)]
     pub head_cache: Option<String>,
+    #[serde(default)]
+    pub head_sync_asked_ms: u64,
     /// The signed head of each account this device holds no relationship head for, as a Welcome carried it and this
     /// device verified it (account hex). Used only to prove those accounts' leaves; the newest generation wins.
     #[serde(default)]
@@ -901,7 +922,10 @@ pub struct GroupCarriageRec {
     /// with evidence. Used only while it still names the head pinned on the relationship.
     #[serde(default)]
     pub peer_heads: BTreeMap<String, String>,
-    /// Frames held until an account head arrives (D37).
+    /// Verified ordinary ACS lineages retained from contact binding and head refresh, for Room release evidence.
+    #[serde(default)]
+    pub peer_chains: BTreeMap<String, PeerChain>,
+    /// Frames held while an account proof or Room transition is missing (ADR-0212).
     #[serde(default)]
     pub pending: Vec<PendingFrame>,
     /// Frames this Core owns until the host reports them deposited, oldest first.
@@ -924,6 +948,12 @@ pub struct GroupCarriageRec {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoomHead {
     pub state: String,
+    pub credentials: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeerChain {
+    pub states: Vec<String>,
     pub credentials: Vec<String>,
 }
 

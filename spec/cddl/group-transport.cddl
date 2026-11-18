@@ -59,6 +59,7 @@ group-account-head = {
   1: bstr .cbor signed-AccountControlHead,  ; type 2, role controller
   2: bstr .size (1..65536),                 ; canonical body of the AccountControlState the head names
   3: [1*64 bstr .size (1..65536)],          ; bodies of the DeviceCredentials that state lists
+  ? 4: [1*65 bstr .size (1..65536)],        ; signed ACS lineage from genesis through the named state (ADR-0212)
 }
 
 ; ---- ConversationEvent kinds 15 to 17 (relationship lane, 1:1 conversation; required_capabilities ["om.group.v1"]) ----
