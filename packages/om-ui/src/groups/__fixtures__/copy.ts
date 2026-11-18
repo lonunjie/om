@@ -2,6 +2,17 @@ import type { GroupsCopy } from "../copy";
 import { testCopy } from "../../conversations/__fixtures__/copy";
 
 export const groupsTestCopy: GroupsCopy = {
+  poll: {
+    create: "Create a poll", title: "New poll", question: "Question", questionPlaceholder: "Ask the group", option: (n) => `Option ${String(n)}`, addOption: "Add an option", removeOption: (n) => `Remove option ${String(n)}`,
+    duplicate: "Each option must be different.", multiple: "People can choose more than one answer", visibilityLabel: "Show the results",
+    visibility: { immediate: "At once", after_vote: "After a person has voted", after_close: "When the poll is closed" },
+    notSecret: "Votes are not secret. Devices of people in this group can read every vote.", submit: "Create poll", cancel: "Cancel", close: "Close poll",
+    chooseOne: "Choose one", chooseMany: (n) => `Choose up to ${String(n)}`, vote: "Vote", changeVote: "Change vote", takeBack: "Take back my vote", votes: (n) => (n === 1 ? "1 vote" : `${String(n)} votes`),
+    voters: (n) => (n === 1 ? "1 person has voted" : `${String(n)} people have voted`), hiddenUntilVote: "Results show after you vote.", hiddenUntilClose: "Results show when the poll is closed.",
+    closed: "Poll closed", closeConfirm: "Close this poll for everyone? Nobody can vote after that.", closeNow: "Close for everyone", keepOpen: "Keep open", yourChoice: "(your choice)", failed: "The poll step did not go through. Try again.",
+  },
+  mentions: testCopy.mentions,
+  richText: testCopy.richText,
   list: { mark: (n) => `Group, ${String(n)} people`, noActivity: "No messages yet" },
   newGroup: {
     action: "New group", close: "Close", nameLabel: "Group name", namePlaceholder: "Name", unnamed: (names) => (typeof names === "number" ? "New group" : Array.from(names).join(", ")),

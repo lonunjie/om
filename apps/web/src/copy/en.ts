@@ -265,6 +265,21 @@ export const conversationCopy: ConversationCopy = {
     truncated: "[message shortened]",
     attachment: "[attachment]",
     unsafeLink: "[link turned off]",
+    mentionsYou: "(mentions you)",
+  },
+  schedule: {
+    action: "Schedule send", title: "Schedule this message", when: "Send at", confirm: "Schedule", cancel: "Cancel",
+    deviceNote: "OM sends this from this device. It goes out at that time only while OM is open on this device. If OM is closed then, it goes out the next time you open OM, and you are told it went out late. Other people just see a normal message.",
+    pastTime: "Choose a time at least a minute from now.", tooMany: "You have too many scheduled messages. Cancel one first.", listLabel: "Scheduled messages",
+    item: (when) => `scheduled for ${when}`, cancelItem: (excerpt) => `Cancel scheduled message: ${excerpt}`, editItem: (excerpt) => `Edit scheduled message: ${excerpt}`,
+    late: (excerpt) => `Sent late: ${excerpt}. This device was not open at the time.`, dropped: (excerpt) => `Not sent: ${excerpt}. The chat can no longer receive it.`, dismiss: "Dismiss",
+  },
+  mentions: {
+    listLabel: "People you can mention",
+    matches: (count) => (count === 1 ? "1 person matches" : `${String(count)} people match`),
+    none: "No one matches",
+    sameName: (name, index, of) => `${name} (${String(index)} of ${String(of)})`,
+    you: "(mentions you)",
   },
 };
 
@@ -684,6 +699,17 @@ export const groupsLoadCopy = {
   close: "Close",
 } as const;
 export const groupsCopy: GroupsCopy = {
+  poll: {
+    create: "Create a poll", title: "New poll", question: "Question", questionPlaceholder: "Ask the group", option: (n) => `Option ${String(n)}`, addOption: "Add an option", removeOption: (n) => `Remove option ${String(n)}`,
+    duplicate: "Each option must be different.", multiple: "People can choose more than one answer", visibilityLabel: "Show the results",
+    visibility: { immediate: "At once", after_vote: "After a person has voted", after_close: "When the poll is closed" },
+    notSecret: "Votes are not secret. Devices of people in this group can read every vote.", submit: "Create poll", cancel: "Cancel", close: "Close poll",
+    chooseOne: "Choose one", chooseMany: (n) => `Choose up to ${String(n)}`, vote: "Vote", changeVote: "Change vote", takeBack: "Take back my vote", votes: (n) => (n === 1 ? "1 vote" : `${String(n)} votes`),
+    voters: (n) => (n === 1 ? "1 person has voted" : `${String(n)} people have voted`), hiddenUntilVote: "Results show after you vote.", hiddenUntilClose: "Results show when the poll is closed.",
+    closed: "Poll closed", closeConfirm: "Close this poll for everyone? Nobody can vote after that.", closeNow: "Close for everyone", keepOpen: "Keep open", yourChoice: "(your choice)", failed: "The poll step did not go through. Try again.",
+  },
+  mentions: conversationCopy.mentions,
+  richText: conversationCopy.richText,
   list: { mark: (n) => `Group, ${String(n)} ${n === 1 ? "person" : "people"}`, noActivity: "No messages yet" },
   newGroup: {
     action: "New group", close: "Close", nameLabel: "Group name (optional)", namePlaceholder: "For example, Family",
@@ -1332,7 +1358,7 @@ export const alertsCopy: AlertsCopy = {
     confirm: "Turn on anyway",
     keepOff: "Keep off",
   },
-  paused: { body: "Alerts are paused because protection is set to Maximum Privacy.", keep: "Keep alerts on anyway" },
+  paused: { body: "Maximum Privacy pauses new alert registrations. Existing alerts can continue for up to 30 days unless you turn them off now.", keep: "Keep alerts on anyway" },
   turnedOn: "Alerts are on for this device.",
   turnedOff: "Alerts are off for this device.",
 };

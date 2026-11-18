@@ -1,3 +1,7 @@
+import { ScheduleForm, ScheduledList } from "./Schedule";
+import type { ScheduleControl } from "./Schedule";
+import { useMentions } from "./MentionPicker";
+import type { MentionCandidate } from "./mentions";
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
 import type { AttachmentPlanView, AudioRecording, ConversationId, CoreIntent, FilesApi, LocationApi, LocationFix, MicrophoneApi, OperationHandle, OutcomeClass, RejectReason } from "@om/platform-api";
@@ -55,6 +59,10 @@ export interface ComposerProps {
   readonly onStagedChange?: (next: readonly StagedItem[]) => void;
   /** The message being answered: shown as a chip above the box and named in the send (`reply_to`). Controlled by the parent, like the draft. */
   readonly replyTo?: ReplyTarget | null;
+  /** The other person's AccountID (hex), so they can be mentioned (ADR-0222). Without it no mention list is offered. */
+  readonly peerAccount?: string;
+  /** Device-local scheduled send (ADR-0224). Without it no scheduling is offered. */
+  readonly schedule?: ScheduleControl;
   /** Ends the reply (the cancel control, Escape, or after a send). */
   readonly onCancelReply?: () => void;
 }
@@ -64,6 +72,7 @@ const MAX_INPUT_PX = 160;
 /** The fixed overhead Core adds to every sealed file; a file this close to the limit is refused before anything is read. */
 const SEAL_OVERHEAD = 16;
 const MAX_STAGED = 8;
+const NO_CANDIDATES: readonly MentionCandidate[] = [];
 /** A keyboard with a real Enter key sends on Enter (Shift+Enter adds a line); a touch screen keeps Enter as a new line and sends with the button. */
 const enterSends = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
@@ -87,12 +96,14 @@ function VoicePreview({ item, label }: { readonly item: StagedItem; readonly lab
   return url === null ? null : <audio className="om-staged__audio" controls src={url} aria-label={label} />;
 }
 
-export function Composer({ services, conversationId, copy, peerName, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing, capture, staged, onStagedChange, replyTo, onCancelReply }: ComposerProps) {
+export function Composer({ services, conversationId, copy, peerName, peerAccount, schedule, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing, capture, staged, onStagedChange, replyTo, onCancelReply }: ComposerProps) {
   const att = copy.attachments;
   const refusal = (reason: RejectReason): string => (reason === "peer_recovering" && peerName !== undefined ? copy.composer.peerRecovering(peerName) : copy.composer.rejected[reason]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const [scheduling, setScheduling] = useState(false);
+  const mentions = useMentions({ candidates: peerAccount !== undefined && peerName !== undefined && peerName.trim() !== "" ? [{ id: peerAccount, name: peerName }] : NO_CANDIDATES, copy: copy.mentions, draft, onDraftChange, input });
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const mounted = useRef(true);
@@ -296,11 +307,13 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
           setItems(itemsRef.current.map((i) => (i.id === item.id ? { ...i, blobId: r.blobId } : i)));
         }
       }
-      const key = `${text}\u0000${resolved.map((i) => i.blobId ?? i.id).join(",")}\u0000${replyTo?.messageId ?? ""}`;
+      // Mentions go with a text-only message (a caption stays plain): the ranges are read from the exact text being sent.
+      const ranges = resolved.length === 0 ? mentions.ranges(text) : [];
+      const key = `${text}\u0000${resolved.map((i) => i.blobId ?? i.id).join(",")}\u0000${replyTo?.messageId ?? ""}\u0000${ranges.map((r) => `${String(r.start)}-${String(r.end)}-${r.account}`).join(",")}`;
       let intent = inflight.current?.key === key ? inflight.current.intent : null;
       if (intent === null) {
         const r = resolved.length === 0
-          ? resolveIntent(services, "send-message", { conversationId, text, ...(replyTo ? { replyTo: replyTo.messageId } : {}) })
+          ? resolveIntent(services, "send-message", { conversationId, text, ...(replyTo ? { replyTo: replyTo.messageId } : {}), ...(ranges.length > 0 ? { mentions: ranges } : {}) })
           : resolveIntent(services, direct ? "send-attachments-direct" : "send-attachments", {
             conversationId, text, ...(replyTo ? { replyTo: replyTo.messageId } : {}),
             attachments: resolved.map((i) => ({ blobId: i.blobId ?? "", ...(i.kind === "voice" ? { voiceNote: {} } : {}) })),
@@ -313,7 +326,7 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
       if (!alive()) { if (clearsDraft(outcome) && draftRef.current === text) onDraftChange(""); return; }
       if (clearsDraft(outcome)) {
         inflight.current = null;
-        if (draftRef.current === text) onDraftChange("");
+        if (draftRef.current === text) { onDraftChange(""); mentions.reset(); }
         onCancelReply?.();
         if (resolved.length > 0) setItems(itemsRef.current.filter((i) => !resolved.some((r) => r.id === i.id)));
         onSent?.(handle);
@@ -334,6 +347,7 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
 
   const onSubmit = (e: SyntheticEvent): void => { e.preventDefault(); void submit(); };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (mentions.onKeyDown(e)) return;
     if (e.key === "Escape" && replyTo && onCancelReply) { e.preventDefault(); onCancelReply(); return; }
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
@@ -342,6 +356,8 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
   const tools = canAttach || canRecord || place !== undefined;
   return (
     <form className="om-composer" onSubmit={onSubmit}>
+      {schedule === undefined ? null : <ScheduledList control={schedule} conversationId={conversationId} onEdit={(item) => { schedule.cancel(item.id); onDraftChange(item.text); }} />}
+      {schedule !== undefined && scheduling ? <ScheduleForm control={schedule} conversationId={conversationId} text={draft} held={schedule.items.length} onDone={() => { setScheduling(false); onDraftChange(""); mentions.reset(); }} onCancel={() => { setScheduling(false); }} /> : null}
       {replyTo ? <ReplyChip copy={copy.reply} who={peerName ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
       {items.length === 0 ? null : (
         <ul className="om-staged" aria-label={att.tray}>
@@ -389,12 +405,14 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
           {place === undefined ? null : <IconButton label={att.shareLocation} icon={<Icon name="pin" />} disabled={busy || spot !== null} onClick={() => { void askLocation(); }} />}
         </div>
       ) : null}
+      {mentions.picker}
       <textarea
         ref={input} className="om-composer__input" aria-label={copy.composer.label} placeholder={copy.composer.placeholder} rows={1}
         value={draft} spellCheck={inputPrivacy.spellcheck} autoComplete={inputPrivacy.autocomplete} autoCorrect={inputPrivacy.autocomplete}
-        onChange={(e) => { onDraftChange(e.target.value); }} onKeyDown={onKeyDown}
+        onChange={mentions.onChange} onKeyDown={onKeyDown} onSelect={mentions.onSelect} {...mentions.inputProps}
       />
       {trailing}
+      {schedule === undefined || items.length > 0 || replyTo ? null : <IconButton label={schedule.copy.action} icon={<Icon name="delivery" />} disabled={busy || recording !== null || draft.trim() === "" || scheduling} onClick={() => { setScheduling(true); }} />}
       <IconButton type="submit" className="om-composer__send" data-variant="primary" label={copy.composer.send} icon={<Icon name="send" />} disabled={busy || recording !== null || !sendable} />
       {notice === null ? null : <p className="om-composer__notice" role="alert">{notice}</p>}
     </form>

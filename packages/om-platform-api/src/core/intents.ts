@@ -19,6 +19,10 @@ interface IntentBase {
 /** What is composed: the text, and optionally the message of the same conversation it replies to (`reply_to`). */
 export interface Draft { readonly text: string; readonly replyTo?: MessageId }
 export interface SendMessage extends IntentBase { readonly kind: "SendMessage"; readonly conversationId: ConversationId; readonly draft: Draft }
+/** A mention in `draft.text`: the code-point range `[start, end)` that is the label (with its `@`) and the person's AccountID (hex). */
+export interface MentionInput { readonly start: number; readonly end: number; readonly accountId: string }
+/** A text message with mentions (ADR-0222). Otherwise as `SendMessage`. */
+export interface SendMessageMentioning extends IntentBase { readonly kind: "SendMessageMentioning"; readonly conversationId: ConversationId; readonly draft: Draft; readonly mentions: readonly MentionInput[] }
 /** Files the host prepared with `AttachmentApi.prepare` (optionally with text). Each is uploaded first; the message goes out once every one is stored. */
 export interface SendAttachments extends IntentBase {
   readonly kind: "SendAttachments";
@@ -142,7 +146,7 @@ export interface CancelControllerChange extends IntentBase { readonly kind: "Can
 
 export type CoreIntent =
   | OfferControllerChange | JoinControllerChange | ConfirmControllerChange | CancelControllerChange
-  | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
+  | SendMessage | SendMessageMentioning | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | AcceptCall | DeclineCall | EndCall | UpdateCallIce | SetCallMedia | SetContactAllowCalls | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | ReconnectContact | AcceptInvitation
@@ -152,7 +156,7 @@ export type CoreIntentKind = CoreIntent["kind"];
 
 export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "OfferControllerChange", "JoinControllerChange", "ConfirmControllerChange", "CancelControllerChange",
-  "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
+  "SendMessage", "SendMessageMentioning", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "AcceptCall", "DeclineCall", "EndCall", "UpdateCallIce", "SetCallMedia", "SetContactAllowCalls", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "ReconnectContact", "AcceptInvitation",

@@ -2388,6 +2388,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .relationships
                             .get(conversation_id)
                             .ok_or(CoreError::NotFound("conversation"))?;
+                        let me_hex = st
+                            .device
+                            .as_ref()
+                            .map(|d| crate::crypto::hex(&d.account_id))
+                            .unwrap_or_default();
                         Ok(to(&ConversationView {
                             summary: summary(rel, &st.app),
                             own_account: st
@@ -2414,6 +2419,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                                                     history,
                                                     &st.app.direct_offers,
                                                     true,
+                                                    &me_hex,
                                                 )
                                             })
                                         }),
@@ -2427,6 +2433,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                                                 &rel.messages,
                                                 &st.app.direct_offers,
                                                 false,
+                                                &me_hex,
                                             ),
                                         )
                                     },
@@ -2670,13 +2677,32 @@ fn reply_view(m: &Msg, all: &[Msg]) -> Option<ReplyView> {
     )
 }
 
+/// The mentions of a message as shown (ADR-0199); none for a deleted message.
+fn mention_views(m: &Msg, me_account: &str) -> Vec<MentionView> {
+    if m.deleted {
+        return vec![];
+    }
+    m.social
+        .mentions
+        .iter()
+        .map(|x| MentionView {
+            start: x.start,
+            end: x.end,
+            account_id: x.account.clone(),
+            me: x.account == me_account,
+        })
+        .collect()
+}
+
 fn timeline_item(
     m: &Msg,
     all: &[Msg],
     offers: &BTreeMap<Hex, DirectOfferRec>,
     read_only: bool,
+    me_account: &str,
 ) -> TimelineItem {
     let reply = reply_view(m, all);
+    let mentions = mention_views(m, me_account);
     let reactions = crate::flows::reaction_views(m);
     let edited = m.social.edited;
     match (&m.operation_id, m.outgoing) {
@@ -2691,6 +2717,7 @@ fn timeline_item(
             reply,
             reactions,
             edited,
+            mentions,
             read_only,
         },
         // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
@@ -2705,6 +2732,7 @@ fn timeline_item(
             reply,
             reactions,
             edited,
+            mentions,
             read_only,
         },
         _ => TimelineItem::Incoming {
@@ -2716,6 +2744,7 @@ fn timeline_item(
             reply,
             reactions,
             edited,
+            mentions,
             read_only,
         },
     }
@@ -2763,6 +2792,7 @@ fn restored_item(m: &RestoredMsg, in_live_thread: bool) -> TimelineItem {
             reply: None,
             reactions: vec![],
             edited: false,
+            mentions: vec![],
             read_only: true,
         }
     } else {
@@ -2775,6 +2805,7 @@ fn restored_item(m: &RestoredMsg, in_live_thread: bool) -> TimelineItem {
             reply: None,
             reactions: vec![],
             edited: false,
+            mentions: vec![],
             read_only: true,
         }
     }
@@ -3053,7 +3084,7 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             stage: j.stage,
             restricted: true,
             evidence: j.evidence,
-            attempt: j.attempt.as_ref().map(|a| a.state),
+            attempt: j.terminal.or_else(|| j.attempt.as_ref().map(|a| a.state)),
             retry_from_verified_head: j
                 .attempt
                 .as_ref()

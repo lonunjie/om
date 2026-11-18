@@ -33,6 +33,14 @@ export type GroupIntent =
   | { readonly kind: "send_text"; readonly conversationId: GroupId; readonly text: string }
   /** A text that answers `replyTo`, a message of this Room. Refused `not_found` when it is not one (D143). */
   | { readonly kind: "send_reply"; readonly conversationId: GroupId; readonly text: string; readonly replyTo: string }
+  /** A text with mentions (ADR-0222): each names a code-point range of `text` and a current member of the Room; refused `bad_mention` otherwise. */
+  | { readonly kind: "send_mentions"; readonly conversationId: GroupId; readonly text: string; readonly replyTo?: string; readonly mentions: readonly GroupMentionInput[] }
+  /** Create a poll (ADR-0223): 2 to 12 options; `maxSelections` only for `multiple`. */
+  | { readonly kind: "create_poll"; readonly conversationId: GroupId; readonly question: string; readonly options: readonly string[]; readonly multiple: boolean; readonly maxSelections?: number; readonly visibility: PollVisibility }
+  /** Our vote in a poll of the Room: the chosen option ids; empty takes the vote back. The latest vote of a member counts. */
+  | { readonly kind: "vote_poll"; readonly conversationId: GroupId; readonly pollId: string; readonly optionIds: readonly number[] }
+  /** Close a poll: its author, or a member who may moderate. Votes ordered after the close are ignored. */
+  | { readonly kind: "close_poll"; readonly conversationId: GroupId; readonly pollId: string }
   /** Set or remove our reaction `key` on a message of the Room (`reaction.set`). */
   | { readonly kind: "set_reaction"; readonly conversationId: GroupId; readonly messageId: string; readonly key: string; readonly present: boolean }
   /** Replace the text of our own message; refused `not_author` for another member's (`message.edit`). */
@@ -184,6 +192,23 @@ export interface HeldGroupInvitations {
   readonly invitations: readonly HeldGroupInvitation[];
   readonly overflow: HeldGroupOverflow;
 }
+/** When a poll's counts are shown: at once, once you have voted, or once it is closed (a display rule, not secrecy: members' devices can read every vote). */
+export type PollVisibility = "immediate" | "after_vote" | "after_close";
+export interface GroupPollOptionView { readonly id: number; readonly label: string; /** Absent while the counts are not shown to this person. */ readonly count?: number }
+export interface GroupPollView {
+  readonly options: readonly GroupPollOptionView[];
+  readonly multiple: boolean;
+  readonly maxSelections?: number;
+  readonly visibility: PollVisibility;
+  readonly closed: boolean;
+  /** How many members have a vote on record; absent while the counts are not shown. */
+  readonly voters?: number;
+  /** The option ids this person chose. */
+  readonly mine: readonly number[];
+  /** This person may close it: its author or a member who may moderate. */
+  readonly canClose: boolean;
+}
+export interface GroupMentionInput { readonly start: number; readonly end: number; readonly account: string }
 export interface GroupMessageView {
   readonly id: string;
   readonly senderAccount: string;
@@ -196,6 +221,10 @@ export interface GroupMessageView {
   readonly replyTo?: string;
   /** An accepted edit replaced the text. */
   readonly edited?: boolean;
+  /** Present when this message is a poll; `text` is then its question. */
+  readonly poll?: GroupPollView;
+  /** Mentions inside the text: code-point ranges and the member named. Absent when there are none. */
+  readonly mentions?: readonly GroupMentionInput[];
   /** One entry per reaction key: how many members have it set and whether one is you. */
   readonly reactions?: readonly GroupReactionView[];
 }

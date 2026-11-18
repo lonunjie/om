@@ -182,3 +182,21 @@ button.om-quote:focus-visible { outline: 3px solid var(--om-color-focus-ring); o
 .om-conv-list__samename { padding-block: var(--om-space-1); }
 .om-conv-view__samename { margin: 0; overflow-wrap: anywhere; }
 .om-request .om-avatar--pattern { float: inline-start; margin-inline-end: var(--om-space-3); }
+
+/* Mentions (ADR-0222): the words stay readable text; the cue is a tint and weight, plus a spoken "(mentions you)" for the reader's own name. */
+.om-richtext__mention { font-weight: 600; border-radius: 4px; padding: 0 2px; background: color-mix(in srgb, var(--om-accent, currentColor) 14%, transparent); }
+.om-richtext__mention[data-me="true"] { background: color-mix(in srgb, var(--om-accent, currentColor) 30%, transparent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.om-mentions { position: relative; flex: 1 0 100%; }
+.om-mentions__list { list-style: none; margin: 0 0 4px; padding: 4px; border: 1px solid var(--om-border, currentColor); border-radius: 8px; background: var(--om-surface, Canvas); max-height: 220px; overflow-y: auto; }
+.om-mentions__option { padding: 10px 12px; border-radius: 6px; cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.om-mentions__option[aria-selected="true"] { outline: 2px solid var(--om-focus, Highlight); outline-offset: -2px; background: color-mix(in srgb, var(--om-accent, currentColor) 12%, transparent); }
+
+/* Scheduled send (ADR-0224). */
+.om-scheduled { display: grid; gap: 4px; padding: 4px 0; }
+.om-scheduled__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.om-scheduled__item { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.om-scheduled__notice { margin: 0; }
+.om-schedule-form { display: grid; gap: 8px; padding: 8px; border: 1px solid var(--om-border, currentColor); border-radius: 8px; flex: 1 0 100%; }
+.om-schedule-form__field { display: grid; gap: 4px; }
+.om-schedule-form__note { margin: 0; font-size: 0.875rem; }
+.om-schedule-form__actions { display: flex; gap: 8px; flex-wrap: wrap; }

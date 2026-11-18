@@ -84,6 +84,27 @@ const replyOf = (p: Rec): MessageId | undefined | null => {
   const v = id(r);
   return v === null ? null : asMessageId(v);
 };
+/**
+ * The optional `mentions` of a send (ADR-0222): none, or at most 64 ranges of code points that lie inside the text, are not empty, do not overlap and name an
+ * account (an id; Core checks that it is the other person or a member). `null` is a malformed list: the send is refused, never sent with its mentions silently dropped.
+ */
+const mentionsOf = (raw: unknown, text: string): readonly { readonly start: number; readonly end: number; readonly account: string }[] | null => {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw) || raw.length > 64) return null;
+  const n = Array.from(text).length;
+  let at = 0;
+  const out: { start: number; end: number; account: string }[] = [];
+  for (const m of raw as unknown[]) {
+    if (typeof m !== "object" || m === null) return null;
+    const { start, end, account } = m as Record<string, unknown>;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || typeof account !== "string" || !/^[0-9A-Za-z_-]{1,128}$/.test(account)) return null;
+    const a = start as number; const b = end as number;
+    if (a < at || b <= a || b > n) return null;
+    at = b;
+    out.push({ start: a, end: b, account });
+  }
+  return out;
+};
 /** A reaction key Core would accept: 1 to 64 bytes, not blank, no control character. */
 const validReactionKey = (k: string): boolean => k.trim() !== "" && new TextEncoder().encode(k).length <= 64 && !/\p{Cc}/u.test(k);
 const exactly = (p: Rec, allowed: readonly string[]): boolean => Object.keys(p).every((k) => allowed.includes(k));
@@ -155,6 +176,9 @@ const SPECS: Readonly<Record<string, Spec>> = {
   "send-message": { destructive: false, parse: (p) => {
     const c = id(p["conversationId"]); const t = p["text"]; const r = replyOf(p);
     if (!c || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT || r === null) return null;
+    const mentions = mentionsOf(p["mentions"], t);
+    if (mentions === null) return null;
+    if (mentions.length > 0) return { intent: (ctx, op) => ({ kind: "SendMessageMentioning", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t, ...(r === undefined ? {} : { replyTo: r }) }, mentions: mentions.map((m) => ({ start: m.start, end: m.end, accountId: m.account })) }) };
     return { intent: (ctx, op) => ({ kind: "SendMessage", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t, ...(r === undefined ? {} : { replyTo: r }) } }) };
   } },
   // Ordinary groups (ADR-0177). They go to `client.groups.do`, never to the generic CoreIntent path. A person's own tap is the only origin:
@@ -217,6 +241,34 @@ const SPECS: Readonly<Record<string, Spec>> = {
     const g = id(p["conversationId"]); const t = p["text"];
     if (!exactly(p, ["conversationId", "text"]) || g === null || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
     return { group: { kind: "send_text", conversationId: asGroupId(g), text: t } };
+  } },
+  "group-send-mentions": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const t = p["text"]; const r = p["replyTo"] === undefined ? undefined : id(p["replyTo"]);
+    if (g === null || r === null || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
+    const mentions = mentionsOf(p["mentions"], t);
+    if (mentions === null || mentions.length === 0) return null;
+    return { group: { kind: "send_mentions", conversationId: asGroupId(g), text: t, ...(r === undefined ? {} : { replyTo: r }), mentions } };
+  } },
+  "group-create-poll": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const q = p["question"]; const o = p["options"]; const multiple = p["multiple"]; const v = p["visibility"]; const max = p["maxSelections"];
+    if (g === null || typeof q !== "string" || q.trim() === "" || q.length > 256 || !Array.isArray(o) || o.length < 2 || o.length > 12 || typeof multiple !== "boolean") return null;
+    if (v !== "immediate" && v !== "after_vote" && v !== "after_close") return null;
+    const options: string[] = [];
+    for (const x of o as unknown[]) { if (typeof x !== "string" || x.trim() === "" || x.length > 80 || options.includes(x.trim())) return null; options.push(x.trim()); }
+    if (max !== undefined && (!multiple || !Number.isInteger(max) || (max as number) < 2 || (max as number) > options.length)) return null;
+    return { group: { kind: "create_poll", conversationId: asGroupId(g), question: q.trim(), options, multiple, ...(max === undefined ? {} : { maxSelections: max as number }), visibility: v } };
+  } },
+  "group-vote-poll": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const m = id(p["pollId"]); const o = p["optionIds"];
+    if (!exactly(p, ["conversationId", "pollId", "optionIds"]) || g === null || m === null || !Array.isArray(o) || o.length > 12) return null;
+    const ids: number[] = [];
+    for (const x of o as unknown[]) { if (typeof x !== "number" || !Number.isInteger(x) || x < 0 || x > 31 || ids.includes(x)) return null; ids.push(x); }
+    return { group: { kind: "vote_poll", conversationId: asGroupId(g), pollId: m, optionIds: ids } };
+  } },
+  "group-close-poll": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const m = id(p["pollId"]);
+    if (!exactly(p, ["conversationId", "pollId"]) || g === null || m === null) return null;
+    return { group: { kind: "close_poll", conversationId: asGroupId(g), pollId: m } };
   } },
   "group-send-reply": { destructive: false, parse: (p) => {
     const g = id(p["conversationId"]); const t = p["text"]; const r = id(p["replyTo"]);

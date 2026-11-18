@@ -272,7 +272,7 @@ function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: 
   );
   const backup = useMemo<BackupServices | null>(() => (ctx === null ? null : createBackupServices({ rt, ctx })), [rt, ctx]);
   const draftSync = useMemo<DraftSync | null>(
-    () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); }, loadSeen: () => drafts.loadSeen(activeId), saveSeen: (conversation, at) => { drafts.setSeen(activeId, conversation, at); } }),
+    () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); }, loadSeen: () => drafts.loadSeen(activeId), saveSeen: (conversation, at) => { drafts.setSeen(activeId, conversation, at); }, loadScheduled: () => drafts.loadScheduled(activeId), saveScheduled: (items) => { drafts.setScheduled(activeId, items); } }),
     [drafts, activeId],
   );
   // The search index at rest, sealed by this identity's vault (ADR-0208); gone with the identity.

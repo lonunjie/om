@@ -59,7 +59,10 @@ function renderNode(node: unknown, depth: number, copy: ConversationCopy["richTe
     case "emphasis": return <em>{kids()}</em>;
     case "strong": return <strong>{kids()}</strong>;
     case "code": return <code className="om-richtext__code">{str(node["text"])}</code>;
-    case "mention": return <span className="om-richtext__mention">@{str(node["label"])}</span>;
+    case "mention": {
+      const me = node["me"] === true;
+      return <span className="om-richtext__mention" {...(me ? { "data-me": "true" } : {})}>@{str(node["label"])}{me ? <VisuallyHidden> {copy.mentionsYou}</VisuallyHidden> : null}</span>;
+    }
     case "attachment": return <span className="om-richtext__attachment" data-inert="true">{copy.attachment}{str(node["name"]) === "" ? "" : ` ${str(node["name"])}`}</span>;
     case "link": {
       const dest = safeDestination(node["destination"]);

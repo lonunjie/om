@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationId, EncryptedKv, ProfileId } from "@om/platform-api";
-import { createDraftStore } from "./draftStore";
+import { createDraftStore, readScheduled } from "./draftStore";
 
 const alice = "p-alice" as ProfileId;
 const bob = "p-bob" as ProfileId;
@@ -104,5 +104,21 @@ describe("seen markers", () => {
     const again = createDraftStore(() => kv);
     expect((await again.loadSeen(alice)).get(chat("c1"))).toBe(50);
     expect((await again.load(alice)).size).toBe(0); // a marker is not a draft
+  });
+
+  it("keeps the scheduled queue sealed under its own key, restores it for a new session, and drops a malformed entry", async () => {
+    const { kv, data } = fakeKv();
+    const first = createDraftStore(() => kv);
+    const item = { id: "s1", conversationId: chat("c1"), text: "happy birthday", dueAt: 1_800_000_000_000, createdAt: 1_790_000_000_000 };
+    first.setScheduled(alice, [item]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect([...data.keys()]).toEqual(["ui/scheduled"]);
+    const second = createDraftStore(() => kv);
+    expect(await second.loadScheduled(alice)).toEqual([item]);
+    expect(await second.loadScheduled(bob)).toEqual([item]); // the store is per kv here; per-profile separation is the kv's (one vault per identity)
+    expect(readScheduled([item, { id: 1 }, null, "x", { ...item, id: "s2", dueAt: Number.NaN }])).toEqual([item]);
+    first.setScheduled(alice, []);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(data.size).toBe(0);
   });
 });

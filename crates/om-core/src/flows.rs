@@ -882,6 +882,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     draft.reply_to.as_deref(),
                 );
             }
+            IntentBody::SendMessageMentioning {
+                conversation_id,
+                draft,
+                mentions,
+            } => {
+                return self.send_message_mentioning(
+                    op,
+                    conversation_id,
+                    &draft.text,
+                    draft.reply_to.as_deref(),
+                    mentions,
+                );
+            }
             IntentBody::SendAttachments {
                 conversation_id,
                 draft,
@@ -1563,7 +1576,68 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         text: &str,
         reply_to: Option<&str>,
     ) -> Result<(), CoreError> {
-        self.compose(op, "SendMessage", conv, Some(text), vec![], None, reply_to)
+        self.compose(
+            op,
+            "SendMessage",
+            conv,
+            Some(text),
+            vec![],
+            None,
+            reply_to,
+            &[],
+        )
+    }
+
+    /// A text message with mentions (ADR-0199). In a one-to-one chat the only person who can be mentioned is the other one;
+    /// ranges must lie inside the text, not overlap, and cover at least a character. Anything else is refused before an
+    /// EventID or clock is spent.
+    fn send_message_mentioning(
+        &mut self,
+        op: &OperationId,
+        conv: &str,
+        text: &str,
+        reply_to: Option<&str>,
+        mentions: &[MentionInput],
+    ) -> Result<(), CoreError> {
+        let peer = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .and_then(|r| h32(&r.peer_account_id).ok());
+        let spans: Option<Vec<events::MentionSpan>> = mentions
+            .iter()
+            .map(|m| {
+                Some(events::MentionSpan {
+                    start: m.start as usize,
+                    end: m.end as usize,
+                    account: h32(&m.account_id).ok().filter(|a| Some(*a) == peer)?,
+                })
+            })
+            .collect();
+        match spans.filter(|s| events::mention_spans_valid(text, s)) {
+            Some(spans) => self.compose(
+                op,
+                "SendMessage",
+                conv,
+                Some(text),
+                vec![],
+                None,
+                reply_to,
+                &spans,
+            ),
+            None => {
+                self.record(
+                    op,
+                    "SendMessage",
+                    OutcomeClass::Rejected {
+                        reason: RejectReason::Invalid,
+                    },
+                    None,
+                );
+                Ok(())
+            }
+        }
     }
 
     /// Compose an outgoing `message.create`: text, attachments and presentation extensions. A text-only message is built
@@ -1579,6 +1653,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         atts: Vec<AttachRec>,
         ext: Option<present::Extensions>,
         reply_to: Option<&str>,
+        mentions: &[events::MentionSpan],
     ) -> Result<(), CoreError> {
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let Some(rel) = self.st.app.relationships.get(conv) else {
@@ -1683,7 +1758,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 author_device: device_id,
                 clock,
                 kind: events::K_CREATE,
-                body: events::message_create_body_reply(text, refs, reply_id),
+                body: events::message_create_body_mentions(text, refs, reply_id, mentions),
             }
             .encode_with(ext23.clone())
         });
@@ -1730,6 +1805,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             lane: false,
             social: Social {
                 reply_to: reply_id.map(|r| hex(&r)),
+                mentions: mentions
+                    .iter()
+                    .map(|m| MentionRec {
+                        start: m.start as u32,
+                        end: m.end as u32,
+                        account: hex(&m.account),
+                    })
+                    .collect(),
                 ..Social::default()
             },
         });
@@ -2743,7 +2826,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     }
                     Purpose::OwnerRecoveryPost => return Ok(()),
                     Purpose::RecoveryInbox { kind } => {
-                        self.inbox_done(*kind, None);
+                        self.inbox_done(*kind, None, &entry.call);
                         return Ok(());
                     }
                     _ => {}
@@ -2844,7 +2927,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 self.owner_read_done(kind, round, Some((bytes, items)));
             }
             Purpose::OwnerRecoveryPost => {}
-            Purpose::RecoveryInbox { kind } => self.inbox_done(kind, Some(items)),
+            Purpose::RecoveryInbox { kind } => self.inbox_done(kind, Some(items), &entry.call),
             Purpose::Ack
             | Purpose::DeleteBlob { .. }
             | Purpose::RevokeKeyGeneration
@@ -4388,9 +4471,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         match ev.kind {
             events::K_CREATE => {
-                let Some(parts) = blobs::read_create(&ev) else {
+                let Some(mut parts) = blobs::read_create(&ev) else {
                     return false;
                 };
+                // A mention names the other person or us and nobody else here; any other name voids the mentions (text kept).
+                let me = self.st.device.as_ref().map(|d| hex(&d.account_id));
+                if parts
+                    .mentions
+                    .iter()
+                    .any(|m| m.account != r.peer_account_id && Some(&m.account) != me.as_ref())
+                {
+                    parts.mentions.clear();
+                }
                 let id = format!("msg-{eid}");
                 if let Some(old) = r.messages.iter().position(|m| m.id == id) {
                     if r.messages[old].digest == hex(&ev.digest) {
@@ -4421,6 +4513,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     lane: false,
                     social: Social {
                         reply_to: parts.reply_to,
+                        mentions: parts.mentions,
                         ..Social::default()
                     },
                 });

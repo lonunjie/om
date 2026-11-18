@@ -14,7 +14,7 @@ const hex = (n: number): string => Array.from(globalThis.crypto.getRandomValues(
 interface Member { account: string; status: "member" | "invited"; invite?: string }
 /** The Room fields of ADR-0189 section 3 (codes as Core's `GroupProtectionView`). */
 interface Policy { profile: number; joinRule: number; newDevicePolicy: number; historyPolicy: number; membersMayInvite: boolean; timer: number | null }
-interface Group { id: GroupId; name: string; members: Member[]; messages: GroupMessageView[]; epoch: number; policy: Policy; notices: GroupNoticeView[]; quorum: boolean; canManage: boolean }
+interface Group { id: GroupId; name: string; members: Member[]; messages: GroupMessageView[]; epoch: number; policy: Policy; notices: GroupNoticeView[]; quorum: boolean; canManage: boolean; votes?: Map<string, Map<string, readonly number[]>> }
 const BUNDLES: Readonly<Record<number, Policy>> = {
   1: { profile: 1, joinRule: 1, newDevicePolicy: 1, historyPolicy: 1, membersMayInvite: true, timer: null },
   2: { profile: 2, joinRule: 2, newDevicePolicy: 1, historyPolicy: 1, membersMayInvite: false, timer: null },
@@ -183,6 +183,42 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
           g.messages.push({ id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.text, atMs: opts.clock(), outgoing: true, replyTo: intent.replyTo });
           return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
         }
+        case "send_mentions": {
+          if (!g || !selfIn(g)) return Promise.resolve(refuse("unknown_group"));
+          if (intent.text.trim() === "") return Promise.resolve(refuse("empty_message"));
+          if (intent.replyTo !== undefined && !g.messages.some((m) => m.id === intent.replyTo)) return Promise.resolve(refuse("not_found"));
+          const n = Array.from(intent.text).length;
+          let at = 0;
+          for (const m of intent.mentions) {
+            if (!g.members.some((x) => x.account === m.account && x.status === "member") || m.start < at || m.end <= m.start || m.end > n) return Promise.resolve(refuse("bad_mention"));
+            at = m.end;
+          }
+          const id = hex(16);
+          g.messages.push({ id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.text, atMs: opts.clock(), outgoing: true, ...(intent.replyTo === undefined ? {} : { replyTo: intent.replyTo }), mentions: intent.mentions });
+          return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
+        }
+        case "create_poll": {
+          if (!g || !selfIn(g)) return Promise.resolve(refuse("unknown_group"));
+          const labels = intent.options.map((o) => o.trim());
+          if (intent.question.trim() === "" || labels.length < 2 || labels.length > 12 || labels.some((o) => o === "") || new Set(labels).size !== labels.length) return Promise.resolve(refuse("unsupported_event"));
+          const id = hex(16);
+          g.messages.push({
+            id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.question.trim(), atMs: opts.clock(), outgoing: true,
+            poll: { options: labels.map((label, i) => ({ id: i, label })), multiple: intent.multiple, ...(intent.maxSelections === undefined ? {} : { maxSelections: intent.maxSelections }), visibility: intent.visibility, closed: false, mine: [], canClose: true },
+          });
+          return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
+        }
+        case "vote_poll": case "close_poll": {
+          if (!g || !selfIn(g)) return Promise.resolve(refuse("unknown_group"));
+          const at = g.messages.findIndex((m) => m.id === intent.pollId);
+          const m = g.messages[at];
+          if (m?.poll === undefined) return Promise.resolve(refuse("not_found"));
+          if (intent.kind === "close_poll") { g.messages[at] = { ...m, poll: { ...m.poll, closed: true } }; return Promise.resolve(done([])); }
+          const ids = intent.optionIds;
+          if (m.poll.closed || new Set(ids).size !== ids.length || ids.some((x) => !m.poll?.options.some((o) => o.id === x)) || (!m.poll.multiple && ids.length > 1) || ids.length > (m.poll.maxSelections ?? 32)) return Promise.resolve(refuse("unsupported_event"));
+          (g.votes ??= new Map()).set(m.id, new Map(g.votes.get(m.id)).set(SELF, ids));
+          return Promise.resolve(done([]));
+        }
         case "set_reaction": case "edit_message": case "delete_message": {
           if (!g || !selfIn(g)) return Promise.resolve(refuse("unknown_group"));
           const at = g.messages.findIndex((m) => m.id === intent.messageId);
@@ -231,7 +267,18 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       return { summary: summary(g), people, former, canSend: selfIn(g), protection: protectionOf(g.policy) };
     },
     invites: (ctx) => (loaded ? [...store(ctx).invites.values()] : []).map((i): GroupInviteView => ({ id: i.id, conversationId: i.groupId, groupName: i.groupName, dir: i.dir, state: i.state, relationshipId: i.relationshipId, peerAccount: i.peerAccount, createdMs: i.createdMs })),
-    messages: (ctx, id) => [...(store(ctx).groups.get(id)?.messages ?? [])],
+    messages: (ctx, id) => {
+      const g = store(ctx).groups.get(id);
+      return (g?.messages ?? []).map((m) => {
+        if (m.poll === undefined || g === undefined) return m;
+        // The tally is derived from the votes held, then shown by the poll's own rule (ADR-0223).
+        const votes = g.votes?.get(m.id) ?? new Map<string, readonly number[]>();
+        const mine = votes.get(SELF) ?? [];
+        const show = m.poll.closed || m.poll.visibility === "immediate" || (m.poll.visibility === "after_vote" && mine.length > 0);
+        const options = m.poll.options.map((o) => (show ? { id: o.id, label: o.label, count: [...votes.values()].filter((v) => v.includes(o.id)).length } : { id: o.id, label: o.label }));
+        return { ...m, poll: { ...m.poll, options, mine, ...(show ? { voters: [...votes.values()].filter((v) => v.length > 0).length } : {}) } };
+      });
+    },
     notices: (ctx, id) => [...(store(ctx).groups.get(id)?.notices ?? [])],
     onEvents: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     settle: (ctx) => { store(ctx); return loaded ? Promise.resolve(done([])) : none(); },

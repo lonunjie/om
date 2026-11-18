@@ -1,3 +1,9 @@
+import { PollCard, PollForm } from "./Polls";
+import { RichText } from "../conversations/richtext";
+import { textWithMentions } from "../conversations/mentions";
+import { useMentions } from "../conversations/MentionPicker";
+import type { MentionCandidate } from "../conversations/mentions";
+import { useMemo } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { asMessageId } from "@om/platform-api";
@@ -160,7 +166,8 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
                       {reply === undefined ? null : <Quote reply={reply} name={original === undefined ? "" : senderLabel(original.senderAccount)} copy={c.reply} onJump={(id) => { jumpTo(id); }} />}
                       {editing?.id === m.id
                         ? <EditForm copy={c.change} text={editing.text} onChange={(next) => { setEditing({ id: m.id, text: next }); }} onSave={() => { act("group-edit-message", { messageId: m.id, text: editing.text }, c.change.editFailed, () => { setEditing(null); }); }} onCancel={() => { setEditing(null); }} />
-                        : <p className="om-group-text">{m.text}</p>}
+                        : m.poll !== undefined ? <PollCard question={m.text} poll={m.poll} copy={copy.poll} busy={false} onVote={(optionIds) => { act("group-vote-poll", { pollId: m.id, optionIds }, copy.poll.failed); }} onClose={() => { act("group-close-poll", { pollId: m.id }, copy.poll.failed); }} />
+                        : <div className="om-group-text"><RichText doc={textWithMentions(m.text, (m.mentions ?? []).map((x) => ({ ...x, me: names.isYou(x.account) })))} copy={copy.richText} /></div>}
                     </div>
                     {!detail.canSend ? null : (
                       <ReactionControl
@@ -260,18 +267,32 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
   const [notice, setNotice] = useState<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  const input = useRef<HTMLTextAreaElement>(null);
+  // Who can be mentioned: the people in the Room now, other than the person using this device, by the names the people list shows (ADR-0222).
+  const { detail } = useGroupChat(services, groupId, 0);
+  const names = usePeopleNames(detail);
+  const candidates = useMemo<readonly MentionCandidate[]>(
+    () => (detail?.people ?? []).filter((p) => p.status === "member" && !p.you).map((p) => ({ id: p.account, name: names.nameOf(p.account) ?? copy.members.someone(names.unnamedNumber(p.account)) })),
+    [detail, names, copy],
+  );
+  const mentions = useMentions({ candidates, copy: copy.mentions, draft, onDraftChange, input });
+  const [pollOpen, setPollOpen] = useState(false);
   const submit = async (): Promise<void> => {
     const text = draftRef.current;
     if (busy || text.trim() === "") return;
     setBusy(true);
     setNotice(null);
-    const r = replyTo
-      ? await runGroupAction(services, "group-send-reply", { conversationId: groupId, text, replyTo: replyTo.messageId })
-      : await runGroupAction(services, "group-send-text", { conversationId: groupId, text });
+    const ranges = mentions.ranges(text);
+    const r = ranges.length > 0
+      ? await runGroupAction(services, "group-send-mentions", { conversationId: groupId, text, mentions: ranges, ...(replyTo ? { replyTo: replyTo.messageId } : {}) })
+      : replyTo
+        ? await runGroupAction(services, "group-send-reply", { conversationId: groupId, text, replyTo: replyTo.messageId })
+        : await runGroupAction(services, "group-send-text", { conversationId: groupId, text });
     setBusy(false);
-    if (r.ok) { if (draftRef.current === text) onDraftChange(""); onCancelReply?.(); onSent?.(); } else setNotice(r.refused === "invalid" ? c.sendFailed : copy.refused(r.refused));
+    if (r.ok) { if (draftRef.current === text) { onDraftChange(""); mentions.reset(); } onCancelReply?.(); onSent?.(); } else setNotice(r.refused === "invalid" ? c.sendFailed : copy.refused(r.refused));
   };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (mentions.onKeyDown(e)) return;
     if (e.key === "Escape" && replyTo && onCancelReply) { e.preventDefault(); onCancelReply(); return; }
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
@@ -279,9 +300,22 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
   return (
     <form className="om-composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
       {replyTo ? <ReplyChip copy={c.reply} who={replyTo.who ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
+      <IconButton label={copy.poll.create} icon={<Icon name="check" />} disabled={busy} onClick={() => { setPollOpen(true); }} />
+      {pollOpen ? (
+        <Sheet title={copy.poll.title} closeLabel={copy.poll.cancel} onClose={() => { setPollOpen(false); }}>
+          <PollForm copy={copy.poll} busy={busy} onCancel={() => { setPollOpen(false); }} onCreate={(poll) => {
+            setBusy(true);
+            void runGroupAction(services, "group-create-poll", { conversationId: groupId, ...poll }).then((r) => {
+              setBusy(false);
+              if (r.ok) { setPollOpen(false); onSent?.(); } else setNotice(copy.poll.failed);
+            });
+          }} />
+        </Sheet>
+      ) : null}
+      {mentions.picker}
       <textarea
-        className="om-composer__input" aria-label={c.composerLabel} placeholder={c.placeholder} rows={1} value={draft}
-        spellCheck={false} autoComplete="off" autoCorrect="off" onChange={(e) => { onDraftChange(e.target.value); }} onKeyDown={onKeyDown}
+        ref={input} className="om-composer__input" aria-label={c.composerLabel} placeholder={c.placeholder} rows={1} value={draft}
+        spellCheck={false} autoComplete="off" autoCorrect="off" onChange={mentions.onChange} onSelect={mentions.onSelect} onKeyDown={onKeyDown} {...mentions.inputProps}
       />
       {trailing}
       <IconButton type="submit" className="om-composer__send" data-variant="primary" label={c.send} icon={<Icon name="send" />} disabled={busy || draft.trim() === ""} />

@@ -1972,3 +1972,233 @@ fn unknown_kinds_and_malformed_payloads_are_ignored_and_older_text_still_renders
     // every event the Core wrote is valid W0 ConversationEvent bytes: it passed the registry check on the way out and in
     assert!(msgs(&devs[0], &conv).iter().all(|m| !m.id.is_empty()));
 }
+
+// ---- mentions in a Room (ADR-0199) ------------------------------------------------------------------------------------
+
+fn mention_intent(conv: &[u8], text: &str, mentions: Vec<(usize, usize, &str)>) -> GroupIntent {
+    GroupIntent::SendMentions {
+        conversation_id: conv.to_vec(),
+        text: text.to_string(),
+        reply_to: None,
+        mentions: mentions
+            .into_iter()
+            .map(
+                |(start, end, account)| om_core::groups::flow::GroupMention {
+                    start,
+                    end,
+                    account: account.to_string(),
+                },
+            )
+            .collect(),
+    }
+}
+
+#[test]
+fn a_mention_in_a_room_reaches_every_member_and_only_members_can_be_named() {
+    let (mut devs, conv) = room();
+    // A speaks first so B can learn A's account the way a person would: from the Room.
+    let first = say(&mut devs, 0, &conv, "hello", None);
+    let a_account = msgs(&devs[1], &conv)
+        .iter()
+        .find(|m| m.id == first)
+        .unwrap()
+        .sender_account
+        .clone();
+    go(
+        &mut devs,
+        1,
+        mention_intent(&conv, "hi @A there", vec![(3, 5, &a_account)]),
+    );
+    for d in &devs {
+        let m = msgs(d, &conv);
+        let last = m.last().unwrap();
+        assert_eq!(last.text, "hi @A there");
+        assert_eq!(last.mentions.len(), 1, "every device sees the mention");
+        assert_eq!(last.mentions[0].account, a_account);
+        assert_eq!((last.mentions[0].start, last.mentions[0].end), (3, 5));
+    }
+    let before = msgs(&devs[1], &conv).len();
+    // someone who is not in the Room, a range outside the text, an overlap: nothing is sent
+    let stranger = "cd".repeat(32);
+    for bad in [
+        mention_intent(&conv, "hi @A", vec![(3, 5, &stranger)]),
+        mention_intent(&conv, "hi @A", vec![(3, 50, &a_account)]),
+        mention_intent(&conv, "hi @A", vec![(3, 5, &a_account), (4, 5, &a_account)]),
+    ] {
+        let d = &mut devs[1];
+        assert!(d.app.group_do(ctx!(d), bad).is_err());
+    }
+    assert_eq!(msgs(&devs[1], &conv).len(), before);
+}
+
+// ---- polls in a Room (ADR-0223) ---------------------------------------------------------------------------------------
+
+use om_core::groups::flow::{GroupPollRec, PollVoteRec};
+
+fn poll_intent(conv: &[u8], multiple: bool, visibility: u8) -> GroupIntent {
+    GroupIntent::CreatePoll {
+        conversation_id: conv.to_vec(),
+        spec: events::PollSpec {
+            question: "Where do we eat?".into(),
+            options: vec![
+                (0, "Pizza".into()),
+                (1, "Noodles".into()),
+                (2, "Tacos".into()),
+            ],
+            multiple,
+            max_selections: None,
+            visibility,
+        },
+    }
+}
+
+fn poll_of(d: &Dev, conv: &[u8], id: &str) -> om_core::groups::flow::GroupPollView {
+    let all = match d
+        .app
+        .group_query_as(
+            &d.account,
+            GroupQuery::Messages {
+                conversation_id: conv.to_vec(),
+            },
+        )
+        .unwrap()
+    {
+        GroupView::Messages(m) => m,
+        _ => unreachable!(),
+    };
+    all.iter()
+        .find(|m| m.id == id)
+        .and_then(|m| m.poll_view.clone())
+        .expect("a poll")
+}
+
+fn vote(
+    devs: &mut [Dev],
+    i: usize,
+    conv: &[u8],
+    id: &str,
+    selected: Vec<u8>,
+) -> Result<(), GroupError> {
+    let d = &mut devs[i];
+    let rep = d.app.group_do(
+        ctx!(d),
+        GroupIntent::VotePoll {
+            conversation_id: conv.to_vec(),
+            poll_id: id.to_string(),
+            selected,
+        },
+    )?;
+    pump(devs, i, rep);
+    Ok(())
+}
+
+fn count_of(p: &om_core::groups::flow::GroupPollView, option: u8) -> Option<u32> {
+    p.options.iter().find(|o| o.0 == option).and_then(|o| o.2)
+}
+
+#[test]
+fn a_poll_in_a_room_is_created_voted_changed_retracted_and_closed_on_every_device() {
+    let (mut devs, conv) = room();
+    go(&mut devs, 1, poll_intent(&conv, false, 1));
+    let id = msgs(&devs[1], &conv).last().unwrap().id.clone();
+    for d in &devs {
+        let m = msgs(d, &conv);
+        let last = m.last().unwrap();
+        assert_eq!(last.text, "Where do we eat?");
+        assert_eq!(poll_of(d, &conv, &id).options.len(), 3);
+    }
+    vote(&mut devs, 0, &conv, &id, vec![0]).unwrap();
+    vote(&mut devs, 3, &conv, &id, vec![1]).unwrap();
+    for d in &devs {
+        let p = poll_of(d, &conv, &id);
+        assert_eq!(
+            (count_of(&p, 0), count_of(&p, 1), count_of(&p, 2), p.voters),
+            (Some(1), Some(1), Some(0), Some(2))
+        );
+    }
+    assert_eq!(poll_of(&devs[0], &conv, &id).mine, vec![0]);
+    // change, then take back
+    vote(&mut devs, 0, &conv, &id, vec![2]).unwrap();
+    assert_eq!(count_of(&poll_of(&devs[3], &conv, &id), 2), Some(1));
+    vote(&mut devs, 0, &conv, &id, vec![]).unwrap();
+    assert_eq!(poll_of(&devs[3], &conv, &id).voters, Some(1));
+    // a single poll takes one option, an unknown option is refused, and nothing was sent for them
+    assert!(vote(&mut devs, 0, &conv, &id, vec![0, 1]).is_err());
+    assert!(vote(&mut devs, 0, &conv, &id, vec![9]).is_err());
+    // only the author (or a moderator) closes: a plain member is refused, the author closes for everyone
+    let c = &mut devs[3];
+    assert!(
+        c.app
+            .group_do(
+                ctx!(c),
+                GroupIntent::ClosePoll {
+                    conversation_id: conv.clone(),
+                    poll_id: id.clone()
+                }
+            )
+            .is_err()
+    );
+    go(
+        &mut devs,
+        1,
+        GroupIntent::ClosePoll {
+            conversation_id: conv.clone(),
+            poll_id: id.clone(),
+        },
+    );
+    for d in &devs {
+        assert!(poll_of(d, &conv, &id).closed);
+    }
+    assert!(
+        vote(&mut devs, 0, &conv, &id, vec![0]).is_err(),
+        "no vote after the close"
+    );
+}
+
+#[test]
+fn the_tally_follows_order_not_arrival_and_the_visibility_rule_holds_counts_back() {
+    let me = "aa".repeat(32);
+    let members: std::collections::BTreeSet<String> =
+        ["aa", "bb", "cc"].iter().map(|x| x.repeat(32)).collect();
+    let vote = |a: &str, sel: Vec<u8>, ms: u64| PollVoteRec {
+        account: a.repeat(32),
+        selected: sel,
+        epoch: 1,
+        clock_ms: ms,
+        clock_logical: 0,
+    };
+    let mut p = GroupPollRec {
+        options: vec![(0, "x".into()), (1, "y".into())],
+        multiple: false,
+        max_selections: None,
+        visibility: 3,
+        closed: None,
+        // bb's vote is ordered after the close (ms 200) though it may have arrived first; cc's is before it
+        votes: vec![vote("bb", vec![1], 300), vote("cc", vec![0], 100)],
+    };
+    // after_close: no counts while open, and not for a person who has not voted
+    let open = p.view(&me, false, &members);
+    assert!(open.options.iter().all(|o| o.2.is_none()) && open.voters.is_none());
+    p.closed = Some((1, 200, 0));
+    let closed = p.view(&me, true, &members);
+    assert_eq!(
+        (count_of(&closed, 0), count_of(&closed, 1), closed.voters),
+        (Some(1), Some(0), Some(1))
+    );
+    assert!(!closed.can_close, "a closed poll offers no close");
+    // after_vote: counts only once this person has a vote on record
+    p.closed = None;
+    p.visibility = 2;
+    assert!(
+        p.view(&me, false, &members)
+            .options
+            .iter()
+            .all(|o| o.2.is_none())
+    );
+    p.votes.push(vote("aa", vec![0], 50));
+    assert_eq!(count_of(&p.view(&me, false, &members), 0), Some(2));
+    // a member who left is not counted; an earlier close wins over a later one is covered by the register itself
+    let left: std::collections::BTreeSet<String> =
+        ["aa", "cc"].iter().map(|x| x.repeat(32)).collect();
+    assert_eq!(p.view(&me, false, &left).voters, Some(2));
+}

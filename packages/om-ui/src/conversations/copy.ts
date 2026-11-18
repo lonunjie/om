@@ -1,3 +1,5 @@
+import type { ScheduleCopy } from "./Schedule";
+import type { MentionsCopy } from "./MentionPicker";
 import type { AttachmentRefusal, RejectReason, RelationshipStateCode, SecurityNoticeCode, UserActionCode } from "@om/platform-api";
 
 /** All user-visible strings for the conversation slice. Components contain no copy; callers supply (localized) text. */
@@ -156,7 +158,13 @@ export interface ConversationCopy {
     readonly truncated: string;
     readonly attachment: string;
     readonly unsafeLink: string;
+    /** Read after a mention that names the reader. */
+    readonly mentionsYou: string;
   };
+  /** The list of people a message can mention (ADR-0222). */
+  readonly mentions: MentionsCopy;
+  /** Device-local scheduled send (ADR-0224). */
+  readonly schedule: ScheduleCopy;
 }
 
 export interface AttachmentCopy {

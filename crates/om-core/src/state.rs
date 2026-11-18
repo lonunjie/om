@@ -276,6 +276,19 @@ pub struct Social {
     /// An accepted `message.edit` replaced the text (EVENT_MODEL: the "edited" marker).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub edited: bool,
+    /// Mentions of the create, as character ranges of the text (ADR-0199). Empty when the create carried none or its
+    /// mention set disagreed with its text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mentions: Vec<MentionRec>,
+}
+
+/// One mention inside a message text: the half-open character range `[start, end)` and the mentioned account (hex).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MentionRec {
+    pub start: u32,
+    pub end: u32,
+    pub account: Hex,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1086,6 +1099,8 @@ pub struct RecoveryJoinRec {
     /// verifier-local timer, vetoes and everything adoption re-checks. Persisted before any use.
     #[serde(default)]
     pub attempt: Option<OwnerAttemptRec>,
+    #[serde(default)]
+    pub terminal: Option<AttemptState>,
 }
 
 /// A controller's recovery inbox bookkeeping. Items wait here for the next tick (which carries the monotonic reading the
@@ -1107,6 +1122,8 @@ pub struct InboxItemRec {
     pub id: Hex,
     pub kind: u8,
     pub bytes: Hex,
+    #[serde(default)]
+    pub home: Option<(String, Option<u16>)>,
 }
 
 /// An `OwnerRecoveryCheckpoint` as kept locally. All hex.
@@ -1128,6 +1145,14 @@ pub struct RecordFloorRec {
     pub lineage: Hex,
     pub generation: u64,
     pub digest: Hex,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnerHeadObservation {
+    pub head: CheckpointRec,
+    pub scope: Hex,
+    pub record_generation: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1246,11 +1271,15 @@ pub struct OwnerAttemptRec {
     pub round: u32,
     #[serde(default)]
     pub pending_reads: u32,
-    /// A round before adoption: the account was reconciled against these Homes and found unchanged.
+    /// The round that includes both kinds of read before adoption.
     #[serde(default)]
-    pub reconciling: bool,
+    pub reconcile_round: Option<u32>,
     #[serde(default)]
     pub round_conflict: bool,
+    #[serde(default)]
+    pub competing_heads: Vec<OwnerHeadObservation>,
+    #[serde(default)]
+    pub competing_heads_full: bool,
     /// A conflicted snapshot can be replaced only by a newer verified refresh.
     #[serde(default)]
     pub snapshot_conflict_generation: Option<u64>,
@@ -1263,8 +1292,12 @@ pub struct OwnerAttemptRec {
 }
 
 impl OwnerAttemptRec {
+    pub(crate) fn has_competing_heads(&self) -> bool {
+        self.competing_heads_full || !self.competing_heads.is_empty()
+    }
+
     pub(crate) fn can_retry_from_verified_head(&self) -> bool {
-        self.state == AttemptState::Stale && self.retry_from_verified_head
+        self.state == AttemptState::Stale && self.retry_from_verified_head && !self.has_competing_heads()
     }
 }
 
@@ -1443,6 +1476,8 @@ pub struct RecoveryObsRec {
     /// This device signed one of them.
     #[serde(default)]
     pub own_veto: bool,
+    #[serde(default)]
+    pub veto_homes: Vec<(String, Option<u16>)>,
     #[serde(default)]
     pub successor: Option<RecoverySuccessorRec>,
     pub state: RecoveryObsState,

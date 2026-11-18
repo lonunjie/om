@@ -50,3 +50,18 @@
 /* Section 10: a calm one-line note and the pattern that stands in for the initial when two people share a name. */
 .om-group-samename { margin: 0; padding-inline: var(--om-space-4); padding-block: var(--om-space-1); overflow-wrap: anywhere; }
 .om-avatar--pattern { fill: var(--om-color-info-fg); }
+
+/* Polls (ADR-0223): every state is words and shape, not colour alone. */
+.om-poll { border: 1px solid var(--om-border, currentColor); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+.om-poll__question { margin: 0; font-size: 1rem; font-weight: 600; }
+.om-poll__hint { margin: 0; font-size: 0.875rem; opacity: 0.8; }
+.om-poll__options { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.om-poll__option { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 44px; }
+.om-poll__option label { display: flex; gap: 8px; align-items: center; min-height: 44px; flex: 1; }
+.om-poll__actions, .om-poll__confirm, .om-poll-form__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.om-poll-form { display: grid; gap: 12px; }
+.om-poll-form__field { display: grid; gap: 4px; flex: 1; }
+.om-poll-form__row { display: flex; gap: 8px; align-items: end; }
+.om-poll-form__check { display: flex; gap: 8px; align-items: center; min-height: 44px; }
+.om-poll-form__group { border: 0; padding: 0; margin: 0; }
+.om-poll-form__note { margin: 0; font-size: 0.875rem; }

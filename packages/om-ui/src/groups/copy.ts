@@ -1,7 +1,46 @@
 import type { ConversationCopy } from "../conversations/copy";
+import type { MentionsCopy } from "../conversations/MentionPicker";
 
 /** All user-visible strings for ordinary groups. Components contain no copy; callers supply (localized) text. */
+export interface PollCopy {
+  readonly create: string;
+  readonly title: string;
+  readonly question: string;
+  readonly questionPlaceholder: string;
+  readonly option: (n: number) => string;
+  readonly addOption: string;
+  readonly removeOption: (n: number) => string;
+  readonly duplicate: string;
+  readonly multiple: string;
+  readonly visibilityLabel: string;
+  readonly visibility: Readonly<Record<"immediate" | "after_vote" | "after_close", string>>;
+  readonly notSecret: string;
+  readonly submit: string;
+  readonly cancel: string;
+  readonly close: string;
+  readonly chooseOne: string;
+  readonly chooseMany: (max: number) => string;
+  readonly vote: string;
+  readonly changeVote: string;
+  readonly takeBack: string;
+  readonly votes: (n: number) => string;
+  readonly voters: (n: number) => string;
+  readonly hiddenUntilVote: string;
+  readonly hiddenUntilClose: string;
+  readonly closed: string;
+  readonly closeConfirm: string;
+  readonly closeNow: string;
+  readonly keepOpen: string;
+  readonly yourChoice: string;
+  readonly failed: string;
+}
+
 export interface GroupsCopy {
+  /** Polls in a Room (ADR-0223). */
+  readonly poll: PollCopy;
+  /** The list of people a message can mention, and how a mention is read (ADR-0222). */
+  readonly mentions: MentionsCopy;
+  readonly richText: ConversationCopy["richText"];
   readonly list: {
     /** Accessible name of the marker on a group row: "Group, 3 people". */
     readonly mark: (people: number) => string;

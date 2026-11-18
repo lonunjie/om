@@ -404,6 +404,31 @@ enum GroupIntentJson {
         text: String,
         reply_to: String,
     },
+    SendMentions {
+        conversation_id: String,
+        text: String,
+        #[serde(default)]
+        reply_to: Option<String>,
+        mentions: Vec<WireMention>,
+    },
+    CreatePoll {
+        conversation_id: String,
+        question: String,
+        options: Vec<String>,
+        multiple: bool,
+        #[serde(default)]
+        max_selections: Option<u8>,
+        visibility: String,
+    },
+    VotePoll {
+        conversation_id: String,
+        poll_id: String,
+        option_ids: Vec<u8>,
+    },
+    ClosePoll {
+        conversation_id: String,
+        poll_id: String,
+    },
     SetReaction {
         conversation_id: String,
         message_id: String,
@@ -502,6 +527,66 @@ impl GroupIntentJson {
                 conversation_id: unhex(&conversation_id)?,
                 text,
                 reply_to,
+            },
+            Self::SendMentions {
+                conversation_id,
+                text,
+                reply_to,
+                mentions,
+            } => GroupIntent::SendMentions {
+                conversation_id: unhex(&conversation_id)?,
+                text,
+                reply_to,
+                mentions: mentions
+                    .into_iter()
+                    .map(|m| om_core::groups::flow::GroupMention {
+                        start: m.start,
+                        end: m.end,
+                        account: m.account,
+                    })
+                    .collect(),
+            },
+            Self::CreatePoll {
+                conversation_id,
+                question,
+                options,
+                multiple,
+                max_selections,
+                visibility,
+            } => GroupIntent::CreatePoll {
+                conversation_id: unhex(&conversation_id)?,
+                spec: om_core::events::PollSpec {
+                    question,
+                    options: options
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, l)| (i as u8, l))
+                        .collect(),
+                    multiple,
+                    max_selections,
+                    visibility: match visibility.as_str() {
+                        "immediate" => 1,
+                        "after_vote" => 2,
+                        "after_close" => 3,
+                        _ => return Err(CoreError::Invalid("poll_visibility")),
+                    },
+                },
+            },
+            Self::VotePoll {
+                conversation_id,
+                poll_id,
+                option_ids,
+            } => GroupIntent::VotePoll {
+                conversation_id: unhex(&conversation_id)?,
+                poll_id,
+                selected: option_ids,
+            },
+            Self::ClosePoll {
+                conversation_id,
+                poll_id,
+            } => GroupIntent::ClosePoll {
+                conversation_id: unhex(&conversation_id)?,
+                poll_id,
             },
             Self::SetReaction {
                 conversation_id,
@@ -694,6 +779,14 @@ fn merge_replies(v: Vec<GroupReply>) -> GroupReply {
 
 /// A Room message as the UI reads it: the text, who and when, what it answers, whether it was edited, and its reactions as
 /// (key, count, mine). The registers behind them (who set what, and their order) stay in Core.
+/// A mention as the UI writes it: a character range of the text and the member's account (hex).
+#[derive(Clone, Debug, serde::Deserialize)]
+struct WireMention {
+    start: usize,
+    end: usize,
+    account: String,
+}
+
 fn group_message_json(m: &om_core::groups::flow::GroupMsg) -> Value {
     let mut v = json!({
         "id": m.id, "senderAccount": m.sender_account, "senderDevice": m.sender_device, "epoch": m.epoch,
@@ -704,6 +797,27 @@ fn group_message_json(m: &om_core::groups::flow::GroupMsg) -> Value {
     }
     if m.edited {
         v["edited"] = json!(true);
+    }
+    if !m.mentions.is_empty() {
+        v["mentions"] = json!(m.mentions);
+    }
+    if let Some(p) = &m.poll_view {
+        let mut poll = json!({
+            "options": p.options.iter().map(|(id, label, count)| match count {
+                Some(c) => json!({ "id": id, "label": label, "count": c }),
+                None => json!({ "id": id, "label": label }),
+            }).collect::<Vec<_>>(),
+            "multiple": p.multiple,
+            "visibility": match p.visibility { 1 => "immediate", 2 => "after_vote", _ => "after_close" },
+            "closed": p.closed, "mine": p.mine, "canClose": p.can_close,
+        });
+        if let Some(n) = p.max_selections {
+            poll["maxSelections"] = json!(n);
+        }
+        if let Some(n) = p.voters {
+            poll["voters"] = json!(n);
+        }
+        v["poll"] = poll;
     }
     let counts = m.reaction_counts();
     if !counts.is_empty() {

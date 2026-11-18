@@ -9,7 +9,8 @@ import {
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import type { AlertsServices, ComposerCapture, ReplyTarget, SearchStore, StagedItem } from "@om/ui";
+import { useScheduledSender } from "@om/ui";
+import type { AlertsServices, ComposerCapture, ReplyTarget, ScheduleControl, ScheduledItem, SearchStore, StagedItem } from "@om/ui";
 import { appStrings as t, callCopy, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, alertsCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
@@ -45,6 +46,9 @@ export interface DraftSync {
   /** When each chat was last shown on this device, so the list can count what arrived since. Without it nothing is marked unread. */
   readonly loadSeen?: () => Promise<ReadonlyMap<ConversationId, number>>;
   readonly saveSeen?: (conversationId: ConversationId, at: number) => void;
+  /** Device-local scheduled send (ADR-0224). Without it no scheduling is offered. */
+  readonly loadScheduled?: () => Promise<readonly ScheduledItem[]>;
+  readonly saveScheduled?: (items: readonly ScheduledItem[]) => void;
 }
 
 const NO_STAGED: readonly StagedItem[] = [];
@@ -102,6 +106,22 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
   // Files and voice notes waiting to be sent. Memory only: they survive switching chats but never reach disk, and locking or switching identity drops them.
   const [replies, setReplies] = useState<ReadonlyMap<ConversationId, ReplyTarget>>(() => new Map());
   const [staged, setStaged] = useState<ReadonlyMap<ConversationId, readonly StagedItem[]>>(() => new Map());
+  // Scheduled send (ADR-0224): the queue lives on this device only, sealed with the identity's other private state, and is released into the
+  // ordinary send path at the time chosen, or at the next opportunity if OM was not open then.
+  const [scheduled, setScheduledItems] = useState<readonly ScheduledItem[]>([]);
+  useEffect(() => {
+    if (draftSync?.loadScheduled === undefined) return undefined;
+    let live = true;
+    draftSync.loadScheduled().then((saved) => { if (live) setScheduledItems((now) => (now.length === 0 ? saved : [...saved.filter((s) => !now.some((n) => n.id === s.id)), ...now])); }, () => undefined);
+    return () => { live = false; };
+  }, [draftSync]);
+  const keepScheduled = useCallback((next: readonly ScheduledItem[]): void => { setScheduledItems(next); draftSync?.saveScheduled?.(next); }, [draftSync]);
+  const sender = useScheduledSender({ services, items: draftSync?.saveScheduled === undefined ? [] : scheduled, onItems: keepScheduled });
+  const scheduleControl = useMemo<ScheduleControl | undefined>(() => draftSync?.saveScheduled === undefined ? undefined : ({
+    copy: conversationCopy.schedule, items: scheduled, notices: sender.notices, now: Date.now, dismiss: sender.dismiss,
+    add: (conversationId, text, dueAt) => { keepScheduled([...scheduled, { id: crypto.randomUUID(), conversationId: conversationId as ConversationId, text, dueAt, createdAt: Date.now() }]); },
+    cancel: (id) => { keepScheduled(scheduled.filter((x) => x.id !== id)); },
+  }), [draftSync, scheduled, sender.notices, sender.dismiss, keepScheduled]);
   // Drafts saved on an earlier visit (or before a lock) come back; anything typed since this screen opened wins.
   useEffect(() => {
     if (draftSync === undefined) return;
@@ -160,6 +180,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
   // A search hit names a message too; it is kept in memory only (never in the address) and dropped when the chat changes.
   const [hitFocus, setHitFocus] = useState<{ readonly chat: string; readonly messageId: MessageId; readonly ctx: unknown } | null>(null);
   const selected = place.kind === "chats" ? (place.chat as ConversationId | null) : null;
+  const peerAccount = selected !== null && list.status === "ready" ? list.value.find((x) => x.id === selected)?.peerAccount : undefined;
   const peerName = selected !== null && list.status === "ready" ? (() => { const c = list.value.find((x) => x.id === selected); return c === undefined ? undefined : shownName(c); })() : undefined;
   useEffect(() => { if (hitFocus !== null && hitFocus.chat !== selected) setHitFocus(null); }, [hitFocus, selected]);
   const settings: SettingsPage | null = place.kind === "settings" ? place.page : null;
@@ -574,7 +595,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
           />
         ) : selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (
           <Composer
-            key={selected} services={services} conversationId={selected} copy={conversationCopy} {...(peerName === undefined ? {} : { peerName })} draft={drafts.get(selected) ?? ""}
+            key={selected} services={services} conversationId={selected} copy={conversationCopy} {...(peerName === undefined ? {} : { peerName })} {...(peerAccount === undefined ? {} : { peerAccount })} {...(scheduleControl === undefined ? {} : { schedule: scheduleControl })} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
             {...(capture === undefined ? {} : { capture })} staged={staged.get(selected) ?? NO_STAGED}
             onStagedChange={(next) => { setStaged((m) => new Map(m).set(selected, next)); }}

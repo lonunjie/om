@@ -228,3 +228,6 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0219 — Local one-to-one call lifecycle](ADR-0219-call-session-lifecycle.md)
 - [ADR-0220 — Web call media host and continuity](ADR-0220-web-call-media-host.md)
 - [ADR-0221 — Own-Home media leases and local call continuity](ADR-0221-own-home-media-leases-and-call-continuity.md)
+- [ADR-0222 — Mentions in one-to-one and group messages: typed inline mention nodes plus the mention set (accepted by operator delegation 2026-11-19)](ADR-0222-mentions-in-one-to-one-and-group-messages.md)
+- [ADR-0223 — Polls in a Room: create, vote, change a vote, close, as typed W1 events with a convergent tally (accepted by operator delegation 2026-11-19)](ADR-0223-polls-in-a-room.md)
+- [ADR-0224 — Device-local scheduled send in the reference client (accepted by operator delegation 2026-11-19)](ADR-0224-device-local-scheduled-send.md)

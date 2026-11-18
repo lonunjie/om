@@ -3,10 +3,13 @@
 // by the identity's vault, in the same encrypted store as the chats, under a key Core ignores (it reads only "core/").
 // Locked vault = nothing can be read or written, so drafts stay in memory until the next unlock; nothing reaches the network.
 import type { ConversationId, EncryptedKv, ProfileId } from "@om/platform-api";
+import { MAX_SCHEDULED, MAX_SCHEDULED_CHARS, type ScheduledItem } from "@om/ui";
 
 const PREFIX = "ui/draft/";
 /** When this device last showed each chat, so the list can count what arrived since. It is presentation only: never sent anywhere, never a read receipt. */
 const SEEN_PREFIX = "ui/seen/";
+/** The device-local scheduled-send queue (ADR-0224): compose intent only (words, chat, time), sealed with the rest of this identity's private state. */
+const SCHEDULED_KEY = "ui/scheduled";
 const SAVE_AFTER_MS = 600;
 /** A draft this long is a pasted document, not a message; keeping it would only slow every save. */
 const MAX_DRAFT_CHARS = 20_000;
@@ -27,9 +30,26 @@ export interface DraftStore {
   loadSeen(profileId: ProfileId): Promise<SeenTimes>;
   /** Records that a chat was shown up to this message time. Only moves forward. */
   setSeen(profileId: ProfileId, conversationId: ConversationId, at: number): void;
+  /** The messages waiting to be sent at a time this identity chose; waits for the vault. Device-local: never synced to another device. */
+  loadScheduled(profileId: ProfileId): Promise<readonly ScheduledItem[]>;
+  setScheduled(profileId: ProfileId, items: readonly ScheduledItem[]): void;
 }
 
-interface Entry { drafts: Map<ConversationId, string>; dirty: Set<ConversationId>; seen: Map<ConversationId, number>; seenDirty: Set<ConversationId>; loaded: Promise<void> | null }
+/** A stored queue, checked on the way in: anything malformed is dropped, never trusted. */
+export function readScheduled(raw: unknown): readonly ScheduledItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ScheduledItem[] = [];
+  for (const x of raw as unknown[]) {
+    if (typeof x !== "object" || x === null) continue;
+    const r = x as Record<string, unknown>;
+    if (typeof r["id"] !== "string" || typeof r["conversationId"] !== "string" || typeof r["text"] !== "string" || typeof r["dueAt"] !== "number" || typeof r["createdAt"] !== "number") continue;
+    if (r["text"].length > MAX_SCHEDULED_CHARS || !Number.isFinite(r["dueAt"]) || out.length >= MAX_SCHEDULED) continue;
+    out.push({ id: r["id"], conversationId: r["conversationId"] as ConversationId, text: r["text"], dueAt: r["dueAt"], createdAt: r["createdAt"] });
+  }
+  return out;
+}
+
+interface Entry { drafts: Map<ConversationId, string>; dirty: Set<ConversationId>; seen: Map<ConversationId, number>; seenDirty: Set<ConversationId>; scheduled: readonly ScheduledItem[]; scheduledDirty: boolean; loaded: Promise<void> | null }
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -41,7 +61,7 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
 
   const entry = (profileId: ProfileId): Entry => {
     let e = entries.get(profileId);
-    if (e === undefined) { e = { drafts: new Map(), dirty: new Set(), seen: new Map(), seenDirty: new Set(), loaded: null }; entries.set(profileId, e); }
+    if (e === undefined) { e = { drafts: new Map(), dirty: new Set(), seen: new Map(), seenDirty: new Set(), scheduled: [], scheduledDirty: false, loaded: null }; entries.set(profileId, e); }
     return e;
   };
 
@@ -50,6 +70,10 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
       const kv = kvFor(profileId);
       const listed = await kv.list();
       if (!listed.ok) return;
+      if (!e.scheduledDirty && listed.keys.includes(SCHEDULED_KEY)) {
+        const got = await kv.get(SCHEDULED_KEY);
+        if (got.ok && got.value !== undefined) { try { e.scheduled = readScheduled(JSON.parse(decoder.decode(got.value))); } catch { /* not a queue: start empty */ } }
+      }
       for (const key of listed.keys.filter((k) => k.startsWith(SEEN_PREFIX))) {
         const id = key.slice(SEEN_PREFIX.length) as ConversationId;
         if (e.seen.has(id)) continue;
@@ -69,8 +93,14 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
 
   const writePending = async (): Promise<void> => {
     for (const [profileId, e] of entries) {
-      if (e.dirty.size === 0 && e.seenDirty.size === 0) continue;
+      if (e.dirty.size === 0 && e.seenDirty.size === 0 && !e.scheduledDirty) continue;
       const kv = kvFor(profileId);
+      if (e.scheduledDirty) {
+        try {
+          const r = e.scheduled.length === 0 ? await kv.delete(SCHEDULED_KEY) : await kv.put(SCHEDULED_KEY, encoder.encode(JSON.stringify(e.scheduled)));
+          if (r.ok || r.reason === "not_found") e.scheduledDirty = false;
+        } catch { /* try again on the next change */ }
+      }
       for (const id of [...e.seenDirty]) {
         try {
           const r = await kv.put(SEEN_PREFIX + id, encoder.encode(String(e.seen.get(id) ?? 0)));
@@ -112,6 +142,17 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
       const e = entry(profileId);
       e.loaded ??= readAll(profileId, e);
       return e.loaded.then(() => new Map(e.seen));
+    },
+    loadScheduled(profileId) {
+      const e = entry(profileId);
+      e.loaded ??= readAll(profileId, e);
+      return e.loaded.then(() => e.scheduled);
+    },
+    setScheduled(profileId, items) {
+      const e = entry(profileId);
+      e.scheduled = items;
+      e.scheduledDirty = true;
+      void flush(); // a queued message is written at once: it must survive closing the page
     },
     setSeen(profileId, conversationId, at) {
       const e = entry(profileId);

@@ -43,6 +43,10 @@ const MAX_OPEN_INCOMING: usize = 16;
 const CAP_POST: &str = "room.post";
 const CAP_REPLY: &str = "room.reply";
 const CAP_REACT: &str = "room.react";
+const CAP_MODERATE: &str = "room.redact_others";
+/// Polls kept per Room and vote registers kept per poll (ADR-0223).
+const MAX_POLLS: usize = 64;
+const MAX_POLL_VOTES: usize = 64;
 /// Longest message text, in bytes (the same bound a text message has always had here).
 const MAX_TEXT_BYTES: usize = 8192;
 /// Announced Room-setting changes kept per Room.
@@ -138,6 +142,15 @@ pub struct GroupMsg {
     /// An accepted `message.edit` replaced the text.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub edited: bool,
+    /// Present when this message is a poll (kind 8): its options, rule and the vote registers (ADR-0223). `text` is its question.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub poll: Option<GroupPollRec>,
+    /// The poll as the person using this device sees it; filled when messages are read, never stored.
+    #[serde(skip)]
+    pub poll_view: Option<GroupPollView>,
+    /// Mentions of the create: character ranges of the text and the member named (ADR-0199). An edit clears them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mentions: Vec<GroupMention>,
     /// An accepted `message.delete`: the text and reactions are cleared, the record is kept so a late edit or replay cannot
     /// bring the message back, and it is never listed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -164,6 +177,112 @@ pub struct GroupReactionRec {
     pub epoch: u64,
     pub clock_ms: u64,
     pub clock_logical: u32,
+}
+
+/// One member's vote register in a poll, ordered by `(sending epoch, EventClock)` (ADR-0121 rule 3).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PollVoteRec {
+    pub account: String,
+    /// The chosen option ids; empty is a retraction.
+    pub selected: Vec<u8>,
+    pub epoch: u64,
+    pub clock_ms: u64,
+    pub clock_logical: u32,
+}
+
+/// A poll as the Room holds it: the typed create, the vote registers, and the order of the earliest accepted close.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupPollRec {
+    pub options: Vec<(u8, String)>,
+    pub multiple: bool,
+    pub max_selections: Option<u8>,
+    /// 1 immediate, 2 after_vote, 3 after_close.
+    pub visibility: u8,
+    /// `(sending epoch, clock ms, clock logical)` of the earliest accepted close. A vote ordered after it is not counted.
+    pub closed: Option<(u64, u64, u32)>,
+    pub votes: Vec<PollVoteRec>,
+}
+
+/// A poll for the screen: the counts are present only when the poll's own rule shows them to this person.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupPollView {
+    pub options: Vec<(u8, String, Option<u32>)>,
+    pub multiple: bool,
+    pub max_selections: Option<u8>,
+    pub visibility: u8,
+    pub closed: bool,
+    pub voters: Option<u32>,
+    pub mine: Vec<u8>,
+    pub can_close: bool,
+}
+
+impl GroupPollRec {
+    /// Whether `selected` is a choice this poll accepts: known distinct option ids, one for a single poll, at most
+    /// `max_selections` for a multiple one (an empty choice retracts).
+    pub fn accepts(&self, selected: &[u8]) -> bool {
+        let limit = if self.multiple {
+            self.max_selections.map_or(self.options.len(), usize::from)
+        } else {
+            1
+        };
+        selected.len() <= limit
+            && selected
+                .iter()
+                .all(|s| self.options.iter().any(|(i, _)| i == s))
+            && selected
+                .iter()
+                .enumerate()
+                .all(|(n, s)| !selected[..n].contains(s))
+    }
+
+    /// The tally, derived from the registers: members of the Room only, votes ordered after the close left out.
+    pub fn view(&self, me: &str, can_close: bool, members: &BTreeSet<String>) -> GroupPollView {
+        let counted: Vec<&PollVoteRec> = self
+            .votes
+            .iter()
+            .filter(|v| members.contains(&v.account))
+            .filter(|v| {
+                self.closed
+                    .is_none_or(|c| (v.epoch, v.clock_ms, v.clock_logical) <= c)
+            })
+            .collect();
+        let mine: Vec<u8> = counted
+            .iter()
+            .find(|v| v.account == me)
+            .map(|v| v.selected.clone())
+            .unwrap_or_default();
+        let closed = self.closed.is_some();
+        let show = closed || self.visibility == 1 || (self.visibility == 2 && !mine.is_empty());
+        GroupPollView {
+            options: self
+                .options
+                .iter()
+                .map(|(id, l)| {
+                    let n = counted.iter().filter(|v| v.selected.contains(id)).count();
+                    (*id, l.clone(), show.then_some(n as u32))
+                })
+                .collect(),
+            multiple: self.multiple,
+            max_selections: self.max_selections,
+            visibility: self.visibility,
+            closed,
+            voters: show.then(|| counted.iter().filter(|v| !v.selected.is_empty()).count() as u32),
+            mine,
+            can_close: can_close && !closed,
+        }
+    }
+}
+
+/// A mention inside a Room message: the half-open character range `[start, end)` and the member's account (hex).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupMention {
+    pub start: usize,
+    pub end: usize,
+    pub account: String,
 }
 
 impl GroupMsg {
@@ -243,6 +362,30 @@ pub enum GroupIntent {
         conversation_id: Vec<u8>,
         text: String,
         reply_to: String,
+    },
+    /// A text message with mentions (ADR-0199), optionally answering `reply_to`. Each mention names a range of `text` and a
+    /// current member of the Room.
+    SendMentions {
+        conversation_id: Vec<u8>,
+        text: String,
+        reply_to: Option<String>,
+        mentions: Vec<GroupMention>,
+    },
+    /// Create a poll (ADR-0223); the spec is checked against the poll bounds before anything is sent.
+    CreatePoll {
+        conversation_id: Vec<u8>,
+        spec: events::PollSpec,
+    },
+    /// Our vote in a poll of this Room: the chosen option ids, empty to take it back.
+    VotePoll {
+        conversation_id: Vec<u8>,
+        poll_id: String,
+        selected: Vec<u8>,
+    },
+    /// Close a poll: its author, or a member holding `room.redact_others`.
+    ClosePoll {
+        conversation_id: Vec<u8>,
+        poll_id: String,
     },
     /// Set or remove our reaction `key` on a message of this Room (`reaction.set`, D143).
     SetReaction {
@@ -887,6 +1030,32 @@ impl AppState {
                 text,
                 reply_to,
             } => self.group_send_text(ctx, &conversation_id, &text, Some(&reply_to), &mut rep)?,
+            GroupIntent::CreatePoll {
+                conversation_id,
+                spec,
+            } => self.group_create_poll(ctx, &conversation_id, &spec, &mut rep)?,
+            GroupIntent::VotePoll {
+                conversation_id,
+                poll_id,
+                selected,
+            } => self.group_vote_poll(ctx, &conversation_id, &poll_id, &selected, &mut rep)?,
+            GroupIntent::ClosePoll {
+                conversation_id,
+                poll_id,
+            } => self.group_close_poll(ctx, &conversation_id, &poll_id, &mut rep)?,
+            GroupIntent::SendMentions {
+                conversation_id,
+                text,
+                reply_to,
+                mentions,
+            } => self.group_send_mentions(
+                ctx,
+                &conversation_id,
+                &text,
+                reply_to.as_deref(),
+                &mentions,
+                &mut rep,
+            )?,
             GroupIntent::SetReaction {
                 conversation_id,
                 message_id,
@@ -1656,6 +1825,126 @@ impl AppState {
         self.group_emit(ctx, conv, events::K_CREATE, body, Some(needs), rep)
     }
 
+    /// A text with mentions: every mentioned account must be a current member of the Room and the ranges must be valid;
+    /// otherwise nothing is sent (ADR-0199).
+    fn group_send_mentions(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        text: &str,
+        reply_to: Option<&str>,
+        mentions: &[GroupMention],
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        if text.is_empty() || text.len() > MAX_TEXT_BYTES {
+            return err("bad_text");
+        }
+        let members = self.group_member_accounts(conv)?;
+        let mut spans = vec![];
+        for m in mentions {
+            let account: [u8; 32] = unhex(&m.account)
+                .ok()
+                .and_then(|b| b.try_into().ok())
+                .filter(|_| members.contains(&m.account))
+                .ok_or(GroupError("bad_mention"))?;
+            spans.push(events::MentionSpan {
+                start: m.start,
+                end: m.end,
+                account,
+            });
+        }
+        if !events::mention_spans_valid(text, &spans) {
+            return err("bad_mention");
+        }
+        let reply = match reply_to {
+            None => None,
+            Some(r) => {
+                if self.group_shown(conv, r).is_none() {
+                    return err("not_found");
+                }
+                Some(id16(r)?)
+            }
+        };
+        let body = events::message_create_body_mentions(Some(text), vec![], reply, &spans);
+        let needs = if reply.is_some() { CAP_REPLY } else { CAP_POST };
+        self.group_emit(ctx, conv, events::K_CREATE, body, Some(needs), rep)
+    }
+
+    fn group_create_poll(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        spec: &events::PollSpec,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let body = events::poll_create_body(spec);
+        if events::parse_poll_create(&body).as_ref() != Some(spec) {
+            return err("bad_poll");
+        }
+        let open = self.group_msgs.get(&h(conv)).map_or(0, |l| {
+            l.iter().filter(|m| m.poll.is_some() && !m.deleted).count()
+        });
+        if open >= MAX_POLLS {
+            return err("too_many_polls");
+        }
+        self.group_emit(ctx, conv, events::K_POLL_CREATE, body, Some(CAP_POST), rep)
+    }
+
+    fn group_vote_poll(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        poll_id: &str,
+        selected: &[u8],
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let poll = self
+            .group_shown(conv, poll_id)
+            .and_then(|m| m.poll.as_ref())
+            .ok_or(GroupError("not_found"))?;
+        if poll.closed.is_some() {
+            return err("poll_closed");
+        }
+        if !poll.accepts(selected) {
+            return err("bad_vote");
+        }
+        let body = events::poll_vote_body(id16(poll_id)?, selected);
+        self.group_emit(ctx, conv, events::K_POLL_VOTE, body, Some(CAP_REACT), rep)
+    }
+
+    fn group_close_poll(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        poll_id: &str,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let m = self
+            .group_shown(conv, poll_id)
+            .filter(|m| m.poll.is_some())
+            .ok_or(GroupError("not_found"))?;
+        let mine = m.sender_account == h(&ctx.my_account);
+        let moderator = self
+            .group_state(conv)?
+            .capabilities_of(&Principal::account(ctx.my_account.clone()))
+            .contains(CAP_MODERATE);
+        if !mine && !moderator {
+            return err("not_author");
+        }
+        let body = events::poll_close_body(id16(poll_id)?);
+        self.group_emit(ctx, conv, events::K_POLL_CLOSE, body, None, rep)
+    }
+
+    /// The accounts (hex) of the Room's current members.
+    fn group_member_accounts(&self, conv: &[u8]) -> R<BTreeSet<String>> {
+        Ok(self
+            .group_state(conv)?
+            .membership
+            .iter()
+            .map(|m| h(&m.principal.id))
+            .collect())
+    }
+
     fn group_set_reaction(
         &mut self,
         ctx: &mut GroupCtx<'_>,
@@ -1832,6 +2121,7 @@ impl AppState {
     /// reordering and repetition converge. A target that is not here is accepted with no effect (nothing is held for later).
     fn group_apply_event(&mut self, conv: &[u8], author: &Author, ev: &events::Event) -> Applied {
         let order = (author.epoch, ev.clock.physical_ms, ev.clock.logical);
+        let members = self.group_member_accounts(conv).unwrap_or_default();
         let log = self.group_msgs.entry(h(conv)).or_default();
         let target = |ev: &events::Event| -> Option<String> {
             ev.body
@@ -1844,8 +2134,9 @@ impl AppState {
         };
         match ev.kind {
             events::K_CREATE => {
-                // keys 3 to 6 (mentions, expiry, thread, topic) are not part of this build: refuse rather than half-apply
-                if (3..=6).any(|k| ev.body.opt(k).is_some())
+                // keys 4 to 6 (expiry, thread, topic) are not part of this build: refuse rather than half-apply (key 3, the
+                // mention set, is read below: ADR-0199)
+                if (4..=6).any(|k| ev.body.opt(k).is_some())
                     || !ev
                         .body
                         .get(1)
@@ -1873,6 +2164,18 @@ impl AppState {
                 if reply_to.as_deref() == Some(id.as_str()) {
                     return Applied::Refused("unsupported_event");
                 }
+                // A mention of someone who is not a member of the Room voids the mentions (the text is kept as written).
+                let mut mentions: Vec<GroupMention> = events::mention_spans(&ev.body)
+                    .into_iter()
+                    .map(|s| GroupMention {
+                        start: s.start,
+                        end: s.end,
+                        account: hex(&s.account),
+                    })
+                    .collect();
+                if mentions.iter().any(|m| !members.contains(&m.account)) {
+                    mentions.clear();
+                }
                 if !author.caps.contains(if reply_to.is_some() {
                     CAP_REPLY
                 } else {
@@ -1892,12 +2195,126 @@ impl AppState {
                     at_ms: author.at_ms,
                     outgoing: author.mine,
                     reply_to,
+                    mentions,
                     ord_epoch: order.0,
                     clock_ms: order.1,
                     clock_logical: order.2,
                     ..GroupMsg::default()
                 });
                 Applied::Created(id)
+            }
+            events::K_POLL_CREATE => {
+                let Some(spec) = events::parse_poll_create(&ev.body) else {
+                    return Applied::Refused("unsupported_event");
+                };
+                if !author.caps.contains(CAP_POST) {
+                    return Applied::Refused("sender_not_authorized");
+                }
+                let id = hex(&ev.event_id);
+                if log.iter().any(|x| x.id == id) {
+                    return Applied::Nothing;
+                }
+                if log
+                    .iter()
+                    .filter(|m| m.poll.is_some() && !m.deleted)
+                    .count()
+                    >= MAX_POLLS
+                {
+                    return Applied::Refused("too_many_polls");
+                }
+                log.push(GroupMsg {
+                    id: id.clone(),
+                    sender_account: author.account.clone(),
+                    sender_device: author.device.clone(),
+                    epoch: author.epoch,
+                    text: spec.question,
+                    at_ms: author.at_ms,
+                    outgoing: author.mine,
+                    poll: Some(GroupPollRec {
+                        options: spec.options,
+                        multiple: spec.multiple,
+                        max_selections: spec.max_selections,
+                        visibility: spec.visibility,
+                        closed: None,
+                        votes: vec![],
+                    }),
+                    ord_epoch: order.0,
+                    clock_ms: order.1,
+                    clock_logical: order.2,
+                    ..GroupMsg::default()
+                });
+                Applied::Created(id)
+            }
+            events::K_POLL_VOTE => {
+                let Some(id) = target(ev) else {
+                    return Applied::Refused("unsupported_event");
+                };
+                let selected: Option<Vec<u8>> =
+                    ev.body.get(1).ok().and_then(|a| a.a().ok()).and_then(|a| {
+                        a.iter()
+                            .map(|x| x.u().ok().and_then(|n| u8::try_from(n).ok()))
+                            .collect()
+                    });
+                let Some(selected) = selected else {
+                    return Applied::Refused("unsupported_event");
+                };
+                if !author.caps.contains(CAP_REACT) {
+                    return Applied::Refused("sender_not_authorized");
+                }
+                let Some(poll) = log
+                    .iter_mut()
+                    .find(|m| m.id == id && !m.deleted)
+                    .and_then(|m| m.poll.as_mut())
+                else {
+                    return Applied::Nothing;
+                };
+                if !poll.accepts(&selected) {
+                    return Applied::Refused("unsupported_event");
+                }
+                match poll.votes.iter_mut().find(|v| v.account == author.account) {
+                    Some(v) => {
+                        if order <= (v.epoch, v.clock_ms, v.clock_logical) {
+                            return Applied::Nothing;
+                        }
+                        v.selected = selected;
+                        (v.epoch, v.clock_ms, v.clock_logical) = order;
+                    }
+                    None => {
+                        if poll.votes.len() >= MAX_POLL_VOTES {
+                            return Applied::Refused("too_many_votes");
+                        }
+                        poll.votes.push(PollVoteRec {
+                            account: author.account.clone(),
+                            selected,
+                            epoch: order.0,
+                            clock_ms: order.1,
+                            clock_logical: order.2,
+                        });
+                    }
+                }
+                Applied::Changed(id)
+            }
+            events::K_POLL_CLOSE => {
+                let Some(id) = target(ev) else {
+                    return Applied::Refused("unsupported_event");
+                };
+                let Some(m) = log
+                    .iter_mut()
+                    .find(|m| m.id == id && !m.deleted && m.poll.is_some())
+                else {
+                    return Applied::Nothing;
+                };
+                if m.sender_account != author.account && !author.caps.contains(CAP_MODERATE) {
+                    return Applied::Refused("not_author");
+                }
+                let Some(poll) = m.poll.as_mut() else {
+                    return Applied::Nothing;
+                };
+                if poll.closed.is_some_and(|c| c <= order) {
+                    return Applied::Nothing;
+                }
+                poll.closed = Some(order);
+                Applied::Changed(id)
             }
             events::K_EDIT | events::K_DELETE => {
                 let Some(id) = target(ev) else {
@@ -1913,6 +2330,10 @@ impl AppState {
                 if m.deleted {
                     return Applied::Nothing;
                 }
+                // a poll's question is not edited (ADR-0223): its author deletes it instead
+                if ev.kind == events::K_EDIT && m.poll.is_some() {
+                    return Applied::Refused("unsupported_event");
+                }
                 // a delete of one's own content needs authorship only; an edit needs what the post needed (ADR-0121 rule 7)
                 let post_cap = if m.reply_to.is_some() {
                     CAP_REPLY
@@ -1924,6 +2345,7 @@ impl AppState {
                 }
                 if ev.kind == events::K_DELETE {
                     m.deleted = true;
+                    m.poll = None;
                     m.text.clear();
                     m.reactions.clear();
                     return Applied::Changed(id);
@@ -1944,6 +2366,7 @@ impl AppState {
                     return Applied::Nothing; // nothing left to show: the author deletes instead
                 }
                 m.text = text;
+                m.mentions.clear();
                 m.edited = true;
                 (m.ord_epoch, m.clock_ms, m.clock_logical) = order;
                 Applied::Changed(id)
@@ -2633,12 +3056,31 @@ impl AppState {
                     .cloned()
                     .collect(),
             )),
-            GroupQuery::Messages { conversation_id } => Ok(GroupView::Messages(
-                self.group_msgs
+            GroupQuery::Messages { conversation_id } => {
+                let moderator = self
+                    .group_state(&conversation_id)
+                    .ok()
+                    .zip(un(&me).ok())
+                    .is_some_and(|(g, a)| {
+                        g.capabilities_of(&Principal::account(a))
+                            .contains(CAP_MODERATE)
+                    });
+                let members = self
+                    .group_member_accounts(&conversation_id)
+                    .unwrap_or_default();
+                let mut out: Vec<GroupMsg> = self
+                    .group_msgs
                     .get(&h(&conversation_id))
                     .map(|v| v.iter().filter(|m| !m.deleted).cloned().collect())
-                    .unwrap_or_default(),
-            )),
+                    .unwrap_or_default();
+                for m in &mut out {
+                    if let Some(p) = &m.poll {
+                        m.poll_view =
+                            Some(p.view(&me, m.sender_account == me || moderator, &members));
+                    }
+                }
+                Ok(GroupView::Messages(out))
+            }
         }
     }
 }

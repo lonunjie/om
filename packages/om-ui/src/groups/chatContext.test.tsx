@@ -72,6 +72,54 @@ describe("everyday chat in a group (D143)", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it("mentions: the list names the members, the send carries the range, and the message shows the mention", async () => {
+    const { h, services, gid } = await joined();
+    const { container } = render(<Room services={services} gid={gid} />);
+    const box = await screen.findByRole("textbox", { name: "Message the group" });
+    await userEvent.type(box, "thanks @an");
+    expect(await screen.findByRole("listbox", { name: "People you can mention" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("option", { name: "Ana" }));
+    expect((box as HTMLTextAreaElement).value).toBe("thanks @Ana ");
+    await userEvent.type(box, "!");
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => { expect(h.groups.messages(services.ctx, gid).some((m) => m.text === "thanks @Ana !")).toBe(true); });
+    const sent = h.groups.messages(services.ctx, gid).find((m) => m.text === "thanks @Ana !");
+    expect(sent?.mentions).toEqual([{ start: 7, end: 11, account: "acct-c-ana" }]);
+    await waitFor(() => { expect(document.querySelector(".om-richtext__mention")?.textContent).toBe("@Ana"); });
+  });
+
+  it("polls: create from the composer, vote, change and take back a vote, hold results until a vote, and close for everyone", async () => {
+    const { services, gid } = await joined();
+    const { container } = render(<Room services={services} gid={gid} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Create a poll" }));
+    const sheet = await screen.findByRole("dialog", { name: "New poll" });
+    await userEvent.type(within(sheet).getByRole("textbox", { name: "Question" }), "Where do we eat?");
+    await userEvent.type(within(sheet).getByRole("textbox", { name: "Option 1" }), "Pizza");
+    await userEvent.type(within(sheet).getByRole("textbox", { name: "Option 2" }), "Noodles");
+    expect(within(sheet).getByText(/Votes are not secret/)).toBeTruthy();
+    await userEvent.click(within(sheet).getByRole("radio", { name: "After a person has voted" }));
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(within(sheet).getByRole("button", { name: "Create poll" }));
+    const poll = await screen.findByRole("group", { name: "Where do we eat?" });
+    expect(within(poll).getByText("Results show after you vote.")).toBeTruthy();
+    expect(within(poll).queryByText(/vote$/)).toBeNull();
+    await userEvent.click(within(poll).getByRole("radio", { name: "Pizza" }));
+    await userEvent.click(within(poll).getByRole("button", { name: "Vote" }));
+    await waitFor(() => { expect(within(poll).getByText("1 vote", { selector: ".om-poll__count" })).toBeTruthy(); });
+    expect(within(poll).getByText("1 person has voted")).toBeTruthy();
+    await userEvent.click(within(poll).getByRole("radio", { name: "Noodles" }));
+    await userEvent.click(within(poll).getByRole("button", { name: "Change vote" }));
+    await waitFor(() => { expect(within(poll).getByRole("radio", { name: /Noodles.*\(your choice\)/ })).toBeTruthy(); });
+    await userEvent.click(within(poll).getByRole("button", { name: "Take back my vote" }));
+    await waitFor(() => { expect(within(poll).getByText("Results show after you vote.")).toBeTruthy(); });
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(within(poll).getByRole("button", { name: "Close poll" }));
+    await userEvent.click(within(poll).getByRole("button", { name: "Close for everyone" }));
+    await waitFor(() => { expect(within(poll).getByText("Poll closed")).toBeTruthy(); });
+    expect(within(poll).getByRole("radio", { name: "Pizza" }).hasAttribute("disabled")).toBe(true);
+  });
+
   it("Escape ends a reply without sending", async () => {
     const { services, gid } = await joined();
     render(<Room services={services} gid={gid} />);

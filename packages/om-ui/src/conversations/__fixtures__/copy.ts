@@ -55,5 +55,13 @@ export const testCopy: ConversationCopy = {
     voice: { recording: "Recording", elapsed: (ms) => `${String(Math.round(ms / 1000))}s`, stop: "Stop recording", discard: "Discard", note: "Voice note", review: "Listen before you send", play: "Play voice note", loading: "Opening voice note", denied: "Microphone blocked", failed: "Recording failed", nothing: "Nothing recorded", duration: (ms) => `${String(Math.round(ms / 1000))}s` },
     location: { heading: "Share your location?", asking: "Finding where you are", confirm: "This sends where you are right now, once.", send: "Send location", cancel: "Cancel", denied: "Location blocked", unavailable: "Location unavailable", card: "Location", accuracy: (m) => `About ${String(m)} m`, point: (a, o) => `${a}, ${o}` },
   },
-  richText: { opensExternally: "(opens external site)", unsupported: "[unsupported content]", truncated: "[content truncated]", attachment: "[attachment]", unsafeLink: "[link disabled]" },
+  richText: { opensExternally: "(opens external site)", unsupported: "[unsupported content]", truncated: "[content truncated]", attachment: "[attachment]", unsafeLink: "[link disabled]", mentionsYou: "(mentions you)" },
+  schedule: {
+    action: "Schedule send", title: "Schedule this message", when: "Send at", confirm: "Schedule", cancel: "Cancel",
+    deviceNote: "OM sends this from this device. It goes out at that time only while OM is open on this device. If OM is closed then, it goes out the next time you open OM, and you are told it went out late. Other people just see a normal message.",
+    pastTime: "Choose a time at least a minute from now.", tooMany: "You have too many scheduled messages. Cancel one first.", listLabel: "Scheduled messages",
+    item: (when) => `scheduled for ${when}`, cancelItem: (excerpt) => `Cancel scheduled message: ${excerpt}`, editItem: (excerpt) => `Edit scheduled message: ${excerpt}`,
+    late: (excerpt) => `Sent late: ${excerpt}. This device was not open at the time.`, dropped: (excerpt) => `Not sent: ${excerpt}. The chat can no longer receive it.`, dismiss: "Dismiss",
+  },
+  mentions: { listLabel: "People you can mention", matches: (n) => `${String(n)} people match`, none: "No one matches", sameName: (name, index, of) => `${name} (${String(index)} of ${String(of)})`, you: "(mentions you)" },
 };

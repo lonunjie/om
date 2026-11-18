@@ -152,7 +152,9 @@ export interface ReplyView {
 }
 /** One reaction on a message: how many people have it set (at most two in a one-to-one chat) and whether one of them is you. */
 export interface ReactionView { readonly key: string; readonly count: number; readonly mine: boolean }
-interface TimelineExtras { readonly readOnly?: boolean; readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
+/** A mention in a message text: a code-point range, the person (hex AccountID) and whether it names us (ADR-0222). */
+export interface MentionView { readonly start: number; readonly end: number; readonly accountId: string; readonly me?: boolean }
+interface TimelineExtras { readonly mentions?: readonly MentionView[]; readonly readOnly?: boolean; readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
 
 export type ConversationTimelineItem =
   | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)

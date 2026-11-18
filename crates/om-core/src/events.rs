@@ -16,6 +16,15 @@ pub const K_EDIT: u64 = 2;
 pub const K_DELETE: u64 = 3;
 pub const K_REACTION: u64 = 4;
 pub const K_RECEIPT: u64 = 5;
+pub const K_POLL_CREATE: u64 = 8;
+pub const K_POLL_VOTE: u64 = 9;
+pub const K_POLL_CLOSE: u64 = 10;
+
+/// Bounds of a poll (ADR-0223).
+pub const POLL_MIN_OPTIONS: usize = 2;
+pub const POLL_MAX_OPTIONS: usize = 12;
+pub const POLL_MAX_LABEL: usize = 80;
+pub const POLL_MAX_QUESTION: usize = 256;
 
 /// Principal kind 1 = account.
 const PRINCIPAL_ACCOUNT: u64 = 1;
@@ -90,6 +99,272 @@ pub fn plain_text(rt: &V) -> Option<String> {
         parts.push(s);
     }
     Some(parts.join("\n"))
+}
+
+/// A parsed `PollCreate` body (group.cddl): options are `(option_id, label)`; visibility 1 immediate, 2 after_vote, 3 after_close.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PollSpec {
+    pub question: String,
+    pub options: Vec<(u8, String)>,
+    pub multiple: bool,
+    pub max_selections: Option<u8>,
+    pub visibility: u8,
+}
+
+/// The `PollCreate` body for a validated spec (keys 0 question RichText, 1 options, 2 mode, 3 max_selections, 4 visibility).
+pub fn poll_create_body(p: &PollSpec) -> V {
+    let mut m = vec![
+        (0, rich_text(&p.question)),
+        (
+            1,
+            V::A(
+                p.options
+                    .iter()
+                    .map(|(id, l)| V::M(vec![(0, V::U(u64::from(*id))), (1, V::T(l.clone()))]))
+                    .collect(),
+            ),
+        ),
+        (2, V::U(if p.multiple { 2 } else { 1 })),
+    ];
+    if let Some(n) = p.max_selections {
+        m.push((3, V::U(u64::from(n))));
+    }
+    m.push((4, V::U(u64::from(p.visibility))));
+    V::M(m)
+}
+
+/// Read a `PollCreate` body under the ADR-0223 bounds; `None` for anything that breaks one (the event is then dropped).
+pub fn parse_poll_create(body: &V) -> Option<PollSpec> {
+    let question = plain_text(body.get(0).ok()?)?;
+    if question.trim().is_empty() || question.chars().count() > POLL_MAX_QUESTION {
+        return None;
+    }
+    let mut options = vec![];
+    for o in body.get(1).ok()?.a().ok()? {
+        let id = u8::try_from(o.get(0).ok()?.u().ok()?).ok()?;
+        let label = o.get(1).ok()?.t().ok()?.to_string();
+        if label.trim().is_empty()
+            || label.chars().count() > POLL_MAX_LABEL
+            || options
+                .iter()
+                .any(|(i, l): &(u8, String)| *i == id || *l == label)
+        {
+            return None;
+        }
+        options.push((id, label));
+    }
+    if !(POLL_MIN_OPTIONS..=POLL_MAX_OPTIONS).contains(&options.len()) {
+        return None;
+    }
+    let multiple = match body.get(2).ok()?.u().ok()? {
+        1 => false,
+        2 => true,
+        _ => return None,
+    };
+    let max_selections = match body.opt(3) {
+        None => None,
+        Some(n) => {
+            let n = u8::try_from(n.u().ok()?).ok()?;
+            if !multiple || n < 2 || usize::from(n) > options.len() {
+                return None;
+            }
+            Some(n)
+        }
+    };
+    let visibility = u8::try_from(body.get(4).ok()?.u().ok()?)
+        .ok()
+        .filter(|v| (1..=3).contains(v))?;
+    Some(PollSpec {
+        question,
+        options,
+        multiple,
+        max_selections,
+        visibility,
+    })
+}
+
+/// The `PollVote` body: the poll's EventID and the chosen option ids (empty takes the vote back).
+pub fn poll_vote_body(poll: [u8; 16], selected: &[u8]) -> V {
+    V::M(vec![
+        (0, V::B(poll.to_vec())),
+        (
+            1,
+            V::A(selected.iter().map(|s| V::U(u64::from(*s))).collect()),
+        ),
+    ])
+}
+
+/// The `PollClose` body.
+pub fn poll_close_body(poll: [u8; 16]) -> V {
+    V::M(vec![(0, V::B(poll.to_vec()))])
+}
+
+/// Most mentioned accounts in one message (`MessageCreate` key 3 is `[1*64 principal-ref]`).
+pub const MAX_MENTIONS: usize = 64;
+
+/// One mention inside the plain text of a message: the half-open character range `[start, end)` that is the label, and the
+/// mentioned account (ADR-0199).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MentionSpan {
+    pub start: usize,
+    pub end: usize,
+    pub account: [u8; 32],
+}
+
+fn principal_ref(account: &[u8; 32]) -> V {
+    V::M(vec![
+        (0, V::U(PRINCIPAL_ACCOUNT)),
+        (1, V::B(account.to_vec())),
+    ])
+}
+
+fn text_inline(t: &str) -> V {
+    V::M(vec![(0, V::U(1)), (1, V::T(t.to_string()))])
+}
+
+/// Spans that can be written: non-empty, in bounds (of `text`, by characters), sorted and not overlapping, at most
+/// [`MAX_MENTIONS`] of them.
+pub fn mention_spans_valid(text: &str, spans: &[MentionSpan]) -> bool {
+    let n = text.chars().count();
+    let mut at = 0usize;
+    spans.len() <= MAX_MENTIONS
+        && spans.iter().all(|s| {
+            let ok = s.start >= at && s.end > s.start && s.end <= n;
+            at = s.end;
+            ok
+        })
+}
+
+/// RichTextV1 for `text` with a mention inline over each span: one paragraph; each mention's label is the text it covers,
+/// so the plain-text fallback is exactly `text` (an older client shows the same words, ADR-0150). `None` when the spans
+/// are not [`mention_spans_valid`].
+pub fn rich_text_with_mentions(text: &str, spans: &[MentionSpan]) -> Option<V> {
+    if !mention_spans_valid(text, spans) {
+        return None;
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let slice = |a: usize, b: usize| chars[a..b].iter().collect::<String>();
+    let mut inlines = vec![];
+    let mut at = 0usize;
+    for s in spans {
+        if s.start > at {
+            inlines.push(text_inline(&slice(at, s.start)));
+        }
+        inlines.push(V::M(vec![
+            (0, V::U(3)),
+            (4, V::A(vec![text_inline(&slice(s.start, s.end))])),
+            (5, principal_ref(&s.account)),
+        ]));
+        at = s.end;
+    }
+    if at < chars.len() || inlines.is_empty() {
+        inlines.push(text_inline(&slice(at, chars.len())));
+    }
+    Some(V::M(vec![
+        (0, V::U(1)),
+        (1, V::A(vec![V::M(vec![(0, V::U(1)), (1, V::A(inlines))])])),
+    ]))
+}
+
+/// The mention set (key 3 of `MessageCreate`): each mentioned account once, in byte order.
+pub fn mention_set(spans: &[MentionSpan]) -> V {
+    let mut a: Vec<[u8; 32]> = spans.iter().map(|s| s.account).collect();
+    a.sort();
+    a.dedup();
+    V::A(a.iter().map(principal_ref).collect())
+}
+
+/// The mentions of a received `message.create` body, as spans over [`plain_text`] of its content. The set (key 3) must
+/// agree with the inline mentions exactly (MESSENGER_BASELINE_V1: a denormalized index may not disagree with content); if
+/// it does not, or a mention is empty, nested, or over the bound, the mentions are ignored and the text is shown as
+/// written. Never a reason to refuse the message.
+pub fn mention_spans(body: &V) -> Vec<MentionSpan> {
+    fn walk(v: &V, pos: &mut usize, out: &mut Vec<MentionSpan>, in_link: bool) -> Option<()> {
+        for i in v.a().ok()? {
+            match i.get(0).ok()?.u().ok()? {
+                1 => *pos += i.get(1).ok()?.t().ok()?.chars().count(),
+                2 => walk(i.get(4).ok()?, pos, out, true)?,
+                3 => {
+                    if in_link {
+                        return None;
+                    }
+                    let start = *pos;
+                    walk(i.get(4).ok()?, pos, out, true)?;
+                    let p = i.get(5).ok()?;
+                    if p.get(0).ok()?.u().ok()? != PRINCIPAL_ACCOUNT {
+                        return None;
+                    }
+                    out.push(MentionSpan {
+                        start,
+                        end: *pos,
+                        account: p.get(1).ok()?.b32().ok()?,
+                    });
+                }
+                _ => return None,
+            }
+        }
+        Some(())
+    }
+    let mut out = vec![];
+    let mut pos = 0usize;
+    let blocks = body
+        .opt(0)
+        .and_then(|rt| rt.get(1).ok())
+        .and_then(|b| b.a().ok());
+    let mut ok = true;
+    for (n, b) in blocks.into_iter().flatten().enumerate() {
+        if n > 0 {
+            pos += 1;
+        }
+        let kind = b.get(0).ok().and_then(|k| k.u().ok());
+        let step = match kind {
+            Some(1 | 2) => b
+                .get(1)
+                .ok()
+                .and_then(|i| walk(i, &mut pos, &mut out, false)),
+            Some(3) => b
+                .get(2)
+                .ok()
+                .and_then(|t| t.t().ok())
+                .map(|t| pos += t.chars().count()),
+            _ => None,
+        };
+        if step.is_none() {
+            ok = false;
+            break;
+        }
+    }
+    let declared: Vec<[u8; 32]> = match body.opt(3) {
+        None => vec![],
+        Some(a) => a
+            .a()
+            .ok()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|p| {
+                        (p.get(0).ok()?.u().ok()? == PRINCIPAL_ACCOUNT)
+                            .then(|| p.get(1).ok()?.b32().ok())
+                            .flatten()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+    };
+    let mut inline: Vec<[u8; 32]> = out.iter().map(|s| s.account).collect();
+    inline.sort();
+    inline.dedup();
+    let mut sorted = declared.clone();
+    sorted.sort();
+    sorted.dedup();
+    if !ok
+        || out.len() > MAX_MENTIONS
+        || out.iter().any(|s| s.end <= s.start)
+        || sorted != inline
+        || declared.len() != sorted.len()
+    {
+        return vec![];
+    }
+    out
 }
 
 pub struct Header {
@@ -169,13 +444,34 @@ pub fn message_create_body_reply(
     attachments: Vec<V>,
     reply_to: Option<[u8; 16]>,
 ) -> V {
+    message_create_body_mentions(text, attachments, reply_to, &[])
+}
+
+/// As [`message_create_body_reply`], with mentions: the text carries mention inlines and key 3 the set. Spans that are not
+/// [`mention_spans_valid`] are left out (the text then goes out plain); callers validate first.
+pub fn message_create_body_mentions(
+    text: Option<&str>,
+    attachments: Vec<V>,
+    reply_to: Option<[u8; 16]>,
+    mentions: &[MentionSpan],
+) -> V {
     let mut m = vec![];
+    let mut set = None;
     if let Some(t) = text {
-        m.push((0, rich_text(t)));
+        match rich_text_with_mentions(t, mentions).filter(|_| !mentions.is_empty()) {
+            Some(rt) => {
+                m.push((0, rt));
+                set = Some(mention_set(mentions));
+            }
+            None => m.push((0, rich_text(t))),
+        }
     }
     m.push((1, V::A(attachments)));
     if let Some(r) = reply_to {
         m.push((2, V::B(r.to_vec())));
+    }
+    if let Some(s) = set {
+        m.push((3, s));
     }
     V::M(m)
 }
@@ -257,6 +553,64 @@ fn parse_with(bytes: &[u8], capability: Option<&str>) -> Option<Event> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mentions_round_trip_and_disagreeing_sets_are_ignored() {
+        let (a, b) = ([1u8; 32], [2u8; 32]);
+        let text = "hi @Ann and @Bo!";
+        let spans = vec![
+            MentionSpan {
+                start: 3,
+                end: 7,
+                account: a,
+            },
+            MentionSpan {
+                start: 12,
+                end: 15,
+                account: b,
+            },
+        ];
+        let body = message_create_body_mentions(Some(text), vec![], None, &spans);
+        assert_eq!(plain_text(body.get(0).unwrap()).as_deref(), Some(text));
+        assert_eq!(mention_spans(&body), spans);
+        // key 3 lists an account the text does not mention: ignored, text unchanged
+        let mut m = match body.clone() {
+            V::M(m) => m,
+            _ => unreachable!(),
+        };
+        for (k, v) in m.iter_mut() {
+            if *k == 3 {
+                *v = V::A(vec![principal_ref(&a)]);
+            }
+        }
+        assert!(mention_spans(&V::M(m)).is_empty());
+        // missing set, overlapping and out-of-range spans
+        assert!(mention_spans(&message_create_body(text)).is_empty());
+        assert!(!mention_spans_valid(
+            text,
+            &[MentionSpan {
+                start: 3,
+                end: 20,
+                account: a
+            }]
+        ));
+        assert!(!mention_spans_valid(
+            text,
+            &[spans[1].clone(), spans[0].clone()]
+        ));
+        assert!(!mention_spans_valid(
+            text,
+            &[MentionSpan {
+                start: 3,
+                end: 3,
+                account: a
+            }]
+        ));
+        assert_eq!(
+            message_create_body_mentions(Some(text), vec![], None, &[]),
+            message_create_body(text)
+        );
+    }
 
     #[test]
     fn plain_text_round_trips_and_event_bytes_are_w0_valid() {

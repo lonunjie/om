@@ -119,6 +119,7 @@ interface MutableMessage {
   attachments?: AttachmentView[];
   presentation?: PresentationView;
   replyTo?: MessageId;
+  mentions?: readonly { start: number; end: number; accountId: string }[];
   /** Reaction keys set by us and by the other person; a person has each key once. */
   edited?: boolean;
   mine?: Set<string>;
@@ -226,7 +227,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     const reply = replyView(m, all);
     const keys = [...new Set([...(m.mine ?? []), ...(m.theirs ?? [])])];
     const reactions = keys.map((key) => ({ key, count: (m.mine?.has(key) === true ? 1 : 0) + (m.theirs?.has(key) === true ? 1 : 0), mine: m.mine?.has(key) === true }));
-    const extras = { ...(m.edited === true ? { edited: true } : {}), ...(reactions.length > 0 ? { reactions } : {}), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}) };
+    const extras = { ...(m.edited === true ? { edited: true } : {}), ...(reactions.length > 0 ? { reactions } : {}), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}), ...(m.mentions === undefined ? {} : { mentions: m.mentions.map((x) => ({ ...x, me: false })) }) };
     return m.direction === "outgoing" && m.operationId !== null
       ? { direction: "outgoing", messageId: m.messageId, operationId: m.operationId, text: m.text, sentAt: m.sentAt, delivery: m.delivery, ...extras }
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
@@ -419,10 +420,16 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         notify(intent.ctx.profileId);
         return record(intent, { kind: "Committed" });
       }
-      case "SendMessage": {
+      case "SendMessage":
+      case "SendMessageMentioning": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
         if (intent.draft.text.trim() === "") return rejected("invalid");
+        // Mentions (ADR-0222): in a one-to-one chat only the other person can be named, and the ranges must lie inside the text.
+        const mentions = intent.kind === "SendMessageMentioning" ? intent.mentions : [];
+        const n = Array.from(intent.draft.text).length;
+        let at = 0;
+        for (const m of mentions) { if (!/^[0-9a-f]{64}$/.test(m.accountId) || m.start < at || m.end <= m.start || m.end > n) return rejected("invalid"); at = m.end; }
         // A reply names a message of this same conversation that still exists (`reply_to`), or the send is refused.
         if (intent.draft.replyTo !== undefined && !conv.messages.some((m) => m.messageId === intent.draft.replyTo)) return rejected("not_found");
         // ADR-0190 section 5 (D131): a text written while the contact recovers is kept here, shown as waiting, and sent when it is accepted.
@@ -433,6 +440,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         conv.messages.push({
           messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(),
           ...(intent.draft.replyTo === undefined ? {} : { replyTo: intent.draft.replyTo }),
+          ...(mentions.length === 0 ? {} : { mentions }),
           delivery: held ? { state: "waiting_for_peer_recovery" } : armed ? { state: "pending_reconciliation" } : { state: "sent" },
         });
         messageOwner.set(messageId, intent.ctx.profileId);

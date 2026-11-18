@@ -163,6 +163,17 @@ describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores wi
     }
     await pump(p, devs, 0, must(await alice.rt.groups.do(alice.ctx, { kind: "delete_message", conversationId: conv, messageId: first })));
     for (const party of p) expect(party.rt.groups.messages(party.ctx, conv).map((m) => m.text)).toEqual(["hi A", "yes"]);
+    // a mention and a poll cross the real engine as typed events (ADR-0222, ADR-0223)
+    const aliceAcct = alice.rt.groups.get(alice.ctx, conv)?.people.find((x) => x.you)?.account ?? "";
+    await pump(p, devs, 1, must(await bob.rt.groups.do(bob.ctx, { kind: "send_mentions", conversationId: conv, text: "hey @A!", mentions: [{ start: 4, end: 6, account: aliceAcct }] })));
+    for (const party of p) expect(party.rt.groups.messages(party.ctx, conv).at(-1)).toMatchObject({ text: "hey @A!", mentions: [{ start: 4, end: 6, account: aliceAcct }] });
+    expect(await bob.rt.groups.do(bob.ctx, { kind: "send_mentions", conversationId: conv, text: "hey @A!", mentions: [{ start: 4, end: 6, account: "cd".repeat(32) }] })).toMatchObject({ ok: false });
+    await pump(p, devs, 1, must(await bob.rt.groups.do(bob.ctx, { kind: "create_poll", conversationId: conv, question: "Lunch?", options: ["Soup", "Salad"], multiple: false, visibility: "immediate" })));
+    const poll = bob.rt.groups.messages(bob.ctx, conv).at(-1)?.id ?? "";
+    await pump(p, devs, 0, must(await alice.rt.groups.do(alice.ctx, { kind: "vote_poll", conversationId: conv, pollId: poll, optionIds: [1] })));
+    for (const party of p) expect(party.rt.groups.messages(party.ctx, conv).at(-1)?.poll).toMatchObject({ closed: false, voters: 1, options: [{ id: 0, label: "Soup", count: 0 }, { id: 1, label: "Salad", count: 1 }], mine: party === alice ? [1] : [] });
+    await pump(p, devs, 1, must(await bob.rt.groups.do(bob.ctx, { kind: "close_poll", conversationId: conv, pollId: poll })));
+    expect(alice.rt.groups.messages(alice.ctx, conv).at(-1)?.poll?.closed).toBe(true);
     // typed refusals change nothing
     expect(await bob.rt.groups.do(bob.ctx, { kind: "decline", inviteId: "nope" })).toMatchObject({ ok: false });
     expect(bob.rt.groups.get(bob.ctx, asGroupId("00"))).toBeNull();

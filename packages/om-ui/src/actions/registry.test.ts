@@ -39,6 +39,12 @@ describe("Action Registry", () => {
 
   it("group reply, reaction, edit and delete are typed group steps from a person's own tap only, and refuse what Core would refuse", () => {
     const group = (actionId: string, params: Record<string, unknown>, origin: "direct" | "suggestion" = "direct") => registry.resolve({ actionId, params, ctx, origin });
+    expect(group("group-send-mentions", { conversationId: "g1", text: "hi @Bo", mentions: [{ start: 3, end: 6, account: "acct-bo" }] })).toEqual({ status: "group", intent: { kind: "send_mentions", conversationId: "g1", text: "hi @Bo", mentions: [{ start: 3, end: 6, account: "acct-bo" }] } });
+    const none = group("group-send-mentions", { conversationId: "g1", text: "hi @Bo", mentions: [] });
+    expect(none.status).not.toBe("group");
+    for (const mentions of [[{ start: 3, end: 99, account: "a" }], [{ start: 3, end: 3, account: "a" }], [{ start: 0, end: 2, account: "a" }, { start: 1, end: 3, account: "a" }], [{ start: 0, end: 1, account: "bad id" }], "x"]) {
+      expect(group("group-send-mentions", { conversationId: "g1", text: "hi @Bo", mentions }).status).not.toBe("group");
+    }
     expect(group("group-send-reply", { conversationId: "g1", text: "yes", replyTo: "m1" })).toEqual({ status: "group", intent: { kind: "send_reply", conversationId: "g1", text: "yes", replyTo: "m1" } });
     expect(group("group-react-message", { conversationId: "g1", messageId: "m1", reaction: "\u{1F44D}", present: true })).toMatchObject({ status: "group", intent: { kind: "set_reaction", key: "\u{1F44D}", present: true } });
     expect(group("group-edit-message", { conversationId: "g1", messageId: "m1", text: "fixed" })).toMatchObject({ status: "group", intent: { kind: "edit_message", text: "fixed" } });

@@ -1,3 +1,4 @@
+import { textWithMentions } from "./mentions";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ConversationId, ConversationSummary, ConversationTimelineItem, MessageId } from "@om/platform-api";
@@ -217,7 +218,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                     {item.reply === undefined ? null : <Quote reply={item.reply} name={shownName(view.summary)} copy={copy.reply} onJump={jumpTo} />}
                     {editable && editing?.id === item.messageId ? (
                       <EditForm copy={copy.change} text={editing.text} onChange={(next) => { setEditing({ id: item.messageId, text: next }); }} onSave={() => { change("edit-message", item.messageId, editing.text, copy.change.editFailed); }} onCancel={() => { setEditing(null); }} />
-                    ) : <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />}
+                    ) : <RichText doc={(richTextFor ?? ((i) => (i.mentions === undefined || i.mentions.length === 0 ? plainTextToRichText(i.text) : textWithMentions(i.text, i.mentions))))(item)} copy={copy.richText} />}
                     <MessageAttachments services={services} item={item} copy={copy.attachments} />
                   </div>
                   {!editable || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (

@@ -81,3 +81,42 @@ test("an edit shows on both sides marked Edited, and delete for everyone removes
   await expect(bob.getByRole("log").getByText("hello bob, fixed")).toHaveCount(0, { timeout: 60_000 });
   await expect(bob.getByRole("log").getByText("hi alice")).toBeVisible();
 });
+
+test("a mention names the other person, reaches them marked as for them, and stays readable text", async ({ browser }) => {
+  const { alice, bob } = await inviteAndChat(browser, BASE);
+
+  // Alice writes "@", picks Bob from the list with the keyboard, and sends.
+  const box = alice.getByRole("textbox", { name: /message/i });
+  await box.fill("hi @Bo");
+  await expect(alice.getByRole("listbox", { name: "People you can mention" })).toBeVisible();
+  await box.press("Enter");
+  await expect(box).toHaveValue("hi @Bob ");
+  await box.pressSequentially("lunch?");
+  await alice.getByRole("button", { name: /send/i }).click();
+
+  // Bob sees the words, a mention span, and a spoken cue that it names him; Alice sees the span without the cue.
+  const mention = bob.getByRole("log").locator(".om-richtext__mention");
+  await expect(mention).toHaveText(/@Bob/, { timeout: 60_000 });
+  await expect(mention).toHaveAttribute("data-me", "true");
+  await expect(bob.getByRole("log")).toContainText("hi @Bob lunch?");
+  await expect(alice.getByRole("log").locator(".om-richtext__mention")).toHaveText(/@Bob/);
+  await expect(alice.getByRole("log").locator(".om-richtext__mention[data-me]")).toHaveCount(0);
+});
+
+test("a scheduled message is held on this device and goes out at the chosen time as an ordinary message", async ({ browser }) => {
+  const { alice, bob } = await inviteAndChat(browser, BASE);
+  const box = alice.getByRole("textbox", { name: /message/i });
+  await box.fill("scheduled hello");
+  await alice.getByRole("button", { name: "Schedule send" }).click();
+  const form = alice.getByRole("form", { name: "Schedule this message" });
+  await expect(form).toContainText("only while OM is open on this device");
+  const at = new Date(Date.now() + 50_000);
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  await form.getByLabel("Send at").fill(`${String(at.getFullYear())}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
+  await form.getByRole("button", { name: "Schedule" }).click();
+  await expect(alice.getByRole("region", { name: "Scheduled messages" })).toContainText("scheduled hello");
+  await expect(bob.getByRole("log").getByText("scheduled hello")).toHaveCount(0);
+  // It leaves at the chosen minute (the form is minute-granular) and arrives as a normal message; the queue empties.
+  await expect(bob.getByRole("log").getByText("scheduled hello")).toBeVisible({ timeout: 150_000 });
+  await expect(alice.getByRole("region", { name: "Scheduled messages" })).toHaveCount(0, { timeout: 30_000 });
+});

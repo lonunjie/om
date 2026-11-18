@@ -98,6 +98,26 @@ pub struct Draft {
     pub reply_to: Option<MessageId>,
 }
 
+/// A mention the composer wrote: the half-open character range `[start, end)` of `Draft::text` that is the label
+/// (including its `@`), and the hex AccountID of the person.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MentionInput {
+    pub start: u32,
+    pub end: u32,
+    pub account_id: String,
+}
+
+/// A mention as shown: the range in the message text, the person, and whether it names us.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MentionView {
+    pub start: u32,
+    pub end: u32,
+    pub account_id: String,
+    pub me: bool,
+}
+
 /// One prepared attachment to send (`blob_id` from `Core::prepare_attachment`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -218,6 +238,13 @@ pub enum IntentBody {
     SendMessage {
         conversation_id: ConversationId,
         draft: Draft,
+    },
+    /// A text message with mentions inside `draft.text` (ADR-0199): each names a range of the text and an account of the
+    /// conversation. Anything else about it is as for `SendMessage`.
+    SendMessageMentioning {
+        conversation_id: ConversationId,
+        draft: Draft,
+        mentions: Vec<MentionInput>,
     },
     RetryDelivery {
         message_id: MessageId,
@@ -495,6 +522,7 @@ impl IntentBody {
     pub fn kind(&self) -> &'static str {
         match self {
             IntentBody::SendMessage { .. } => "SendMessage",
+            IntentBody::SendMessageMentioning { .. } => "SendMessage",
             IntentBody::RetryDelivery { .. } => "RetryDelivery",
             IntentBody::SetReaction { .. } => "SetReaction",
             IntentBody::EditMessage { .. } => "EditMessage",
@@ -878,6 +906,8 @@ pub enum TimelineItem {
         reactions: Vec<ReactionView>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         edited: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        mentions: Vec<MentionView>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         read_only: bool,
     },
@@ -895,6 +925,8 @@ pub enum TimelineItem {
         reactions: Vec<ReactionView>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         edited: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        mentions: Vec<MentionView>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         read_only: bool,
     },

@@ -103,3 +103,62 @@ test("in a Room of three: reply, reactions, edit and delete work for everyone, o
   expectSealedOnly(bob, seen);
   expectSealedOnly(carol, seen);
 });
+
+test("in a Room: a mention picks a member from the list, reaches every member, and marks the one who was named", async ({ browser }) => {
+  const alice = await startPerson(browser, "Alice");
+  everyone.push(alice);
+  const bob = await joinByLink(browser, "Bob", await firstLink(alice), alice);
+  everyone.push(bob);
+  await createGroup(alice, "Duo", ["Bob"]);
+  await joinGroup(bob, "Duo", "Alice");
+  await openGroup(alice, "Duo");
+  await openGroup(bob, "Duo");
+
+  const box = alice.page.getByRole("textbox", { name: "Message the group" });
+  await box.fill("thanks @Bo");
+  await expect(alice.page.getByRole("listbox", { name: "People you can mention" })).toBeVisible();
+  await alice.page.getByRole("option", { name: "Bob" }).click();
+  await box.pressSequentially("for the lift");
+  await alice.page.getByRole("button", { name: "Send" }).click();
+
+  await hears(bob, "thanks @Bob for the lift");
+  await expect(roomLog(bob).locator(".om-richtext__mention[data-me='true']")).toHaveText(/@Bob/);
+  await expect(roomLog(alice).locator(".om-richtext__mention")).toHaveText(/@Bob/);
+  await expect(roomLog(alice).locator(".om-richtext__mention[data-me]")).toHaveCount(0);
+});
+
+test("in a Room: a poll is created, voted in, changed and closed, and every member sees the same tally", async ({ browser }) => {
+  const alice = await startPerson(browser, "Alice");
+  everyone.push(alice);
+  const bob = await joinByLink(browser, "Bob", await firstLink(alice), alice);
+  everyone.push(bob);
+  await createGroup(alice, "Poll room", ["Bob"]);
+  await joinGroup(bob, "Poll room", "Alice");
+  await openGroup(alice, "Poll room");
+  await openGroup(bob, "Poll room");
+
+  await alice.page.getByRole("button", { name: "Create a poll" }).click();
+  const sheet = alice.page.getByRole("dialog", { name: "New poll" });
+  await sheet.getByRole("textbox", { name: "Question" }).fill("Where do we eat?");
+  await sheet.getByRole("textbox", { name: "Option 1" }).fill("Pizza");
+  await sheet.getByRole("textbox", { name: "Option 2" }).fill("Noodles");
+  await expect(sheet.getByText(/Votes are not secret/)).toBeVisible();
+  await sheet.getByRole("button", { name: "Create poll" }).click();
+
+  const bobPoll = roomLog(bob).getByRole("group", { name: "Where do we eat?" });
+  await expect(bobPoll).toBeVisible({ timeout: 90_000 });
+  await bobPoll.getByRole("radio", { name: "Noodles" }).check();
+  await bobPoll.getByRole("button", { name: "Vote" }).click();
+  const alicePoll = roomLog(alice).getByRole("group", { name: "Where do we eat?" });
+  await expect(alicePoll.getByText("1 person has voted")).toBeVisible({ timeout: 90_000 });
+  await expect(alicePoll.locator(".om-poll__option", { hasText: "Noodles" })).toContainText("1 vote");
+
+  // Bob changes his mind, then the author closes: nobody can vote after that and both see the closed poll.
+  await bobPoll.getByRole("radio", { name: /Pizza/ }).check();
+  await bobPoll.getByRole("button", { name: "Change vote" }).click();
+  await expect(alicePoll.locator(".om-poll__option", { hasText: "Pizza" })).toContainText("1 vote", { timeout: 90_000 });
+  await alicePoll.getByRole("button", { name: "Close poll" }).click();
+  await alicePoll.getByRole("button", { name: "Close for everyone" }).click();
+  await expect(bobPoll.getByText("Poll closed")).toBeVisible({ timeout: 90_000 });
+  await expect(bobPoll.getByRole("radio", { name: /Pizza/ })).toBeDisabled();
+});

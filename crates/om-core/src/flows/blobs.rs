@@ -39,6 +39,8 @@ pub(super) struct CreateParts {
     /// `reply_to` as the hex EventID, when present and well-formed (16 bytes). Whether it names a message of this
     /// conversation is decided when the timeline is read, never here.
     pub reply_to: Option<Hex>,
+    /// Mentions of the text (ADR-0199), empty when none or when the set disagreed with the text.
+    pub mentions: Vec<crate::state::MentionRec>,
 }
 
 /// Read the content, attachment references and extensions of a `message.create`. `None` refuses the event: a content
@@ -82,6 +84,14 @@ pub(super) fn read_create(ev: &events::Event) -> Option<CreateParts> {
             .and_then(|r| r.b().ok())
             .filter(|b| b.len() == 16 && *b != ev.event_id)
             .map(hex),
+        mentions: events::mention_spans(&ev.body)
+            .into_iter()
+            .map(|m| crate::state::MentionRec {
+                start: m.start as u32,
+                end: m.end as u32,
+                account: hex(&m.account),
+            })
+            .collect(),
     })
 }
 
@@ -402,6 +412,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             recs,
             None,
             reply_to,
+            &[],
         )?;
         let Some(mid) = self
             .st
@@ -581,6 +592,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             recs,
             Some(ext),
             reply_to,
+            &[],
         )?;
         if self
             .st
@@ -648,7 +660,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 label,
             }),
         };
-        self.compose(op, kind, conv, Some(&text), vec![], Some(ext), None)
+        self.compose(op, kind, conv, Some(&text), vec![], Some(ext), None, &[])
     }
 
     // ------------------------------------------------------------------------------------------ uploads
