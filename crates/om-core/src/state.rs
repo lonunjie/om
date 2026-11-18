@@ -887,6 +887,13 @@ pub enum RecoveryRecordStatus {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppState {
+    /// Device-local call preferences and replay tombstones. Neither enters account sync or history export.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub calls_disabled: BTreeSet<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub call_offers_seen: Vec<crate::calls::SeenOffer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub call_operations: Vec<OperationId>,
     pub version: u32,
     pub label: String,
     pub created_at: u64,
@@ -1799,6 +1806,7 @@ pub struct DeviceMeta {
 
 #[derive(Clone, Debug)]
 pub struct ProfileState {
+    pub(crate) calls: crate::calls::Calls,
     pub generation: String,
     pub device: Option<Device>,
     pub app: AppState,
@@ -1807,6 +1815,7 @@ pub struct ProfileState {
 impl ProfileState {
     pub fn empty(generation: String) -> Self {
         ProfileState {
+            calls: crate::calls::Calls::default(),
             generation,
             device: None,
             app: AppState {

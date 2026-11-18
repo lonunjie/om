@@ -1,3 +1,4 @@
+import type { ProfileExecutionContext } from "@om/platform-api";
 // Loads om_wasm.wasm and exposes its single JSON entry point. Entropy comes from crypto.getRandomValues; the clock is
 // a display/expiry hint only. A trap (panic = abort) kills the instance: every later call fails closed.
 import { CoreCallError } from "./types";
@@ -7,6 +8,7 @@ interface Exports {
   readonly om_in_alloc: (len: number) => number;
   readonly om_call: (len: number) => number;
   readonly om_out_ptr: () => number;
+  readonly om_call_keys?: (len: number) => number;
 }
 
 export interface WasmHost {
@@ -18,6 +20,8 @@ export interface WasmHost {
 export interface WasmCore {
   /** One synchronous JSON command. Throws `CoreCallError` for a Core error response or a dead instance. */
   call(command: Readonly<Record<string, unknown>>): unknown;
+  /** Binary-only, one-shot key export. The caller owns and must wipe the returned bytes. */
+  takeCallKeys?(ctx: ProfileExecutionContext, callSessionId: string): Uint8Array | null;
 }
 
 const MAX_RANDOM_CHUNK = 65536;
@@ -51,6 +55,22 @@ export async function instantiateCore(source: BufferSource, host: WasmHost = {})
   loaded.exports = ex;
   let dead = false;
   return {
+    takeCallKeys(ctx, callSessionId) {
+      if (dead) throw new CoreCallError("trapped", "the Core instance trapped earlier and must be re-opened from storage");
+      if (typeof ex.om_call_keys !== "function") return null;
+      const req = encoder.encode(JSON.stringify({ ctx, callSessionId }));
+      try {
+        const inPtr = ex.om_in_alloc(req.length);
+        new Uint8Array(ex.memory.buffer, inPtr, req.length).set(req);
+        const ptr = ex.om_call_keys(req.length);
+        if (ptr === 0) return null;
+        const shared = new Uint8Array(ex.memory.buffer, ptr, 64);
+        try { return shared.slice(); } finally { shared.fill(0); }
+      } catch (e) {
+        dead = true;
+        throw new CoreCallError("trapped", e instanceof Error ? e.message : "trap");
+      }
+    },
     call(command) {
       if (dead) throw new CoreCallError("trapped", "the Core instance trapped earlier and must be re-opened from storage");
       const req = encoder.encode(JSON.stringify(command));

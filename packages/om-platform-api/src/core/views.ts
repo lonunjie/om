@@ -42,6 +42,8 @@ export interface ConversationSummary {
   readonly displayName: string;
   /** The name this device's person gave the contact (ADR-0196): local, never sent. Shown instead of `displayName`; absent when none. */
   readonly nickname?: string;
+  /** Omitted when there is no established, unblocked contact. */
+  readonly allowCalls?: boolean;
   readonly lastMessageAt: number | null;
   readonly notices: readonly SecurityNotice[];
   readonly relationship: RelationshipStateCode;
@@ -192,4 +194,30 @@ export interface HomeSummary {
   readonly observers: readonly HomeObserverCode[];
   readonly migrationAvailable: boolean;
   readonly clientOriginChoice: readonly ClientOriginChoiceCode[];
+}
+
+
+export type CallState = "incoming" | "starting" | "ringing" | "connecting" | "active" | "reconnecting" | "ending" | "ended" | "failed";
+export type CallReason = "busy" | "declined" | "answered_elsewhere" | "timeout" | "failed" | "hangup" | "canceled";
+export type CallRoute = "lan_direct" | "direct" | "relay";
+
+export interface CallView {
+  readonly callSessionId: string;
+  readonly conversationId: ConversationId;
+  readonly media: "audio" | "video";
+  readonly state: CallState;
+  readonly outgoing: boolean;
+  readonly ringDeadlineMs: number | null;
+  readonly reason: CallReason | null;
+  readonly localMediaFlags: number;
+  readonly peerMediaFlags: number;
+  readonly route: CallRoute | null;
+}
+
+export interface CallNotice {
+  readonly callSessionId: string;
+  readonly conversationId: ConversationId;
+  readonly reason: CallReason;
+  readonly atMs: number;
+  readonly folded: boolean;
 }

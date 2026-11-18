@@ -21,6 +21,8 @@ use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
 use std::sync::OnceLock;
 
+mod calls;
+pub(crate) use calls::eligible_call_device;
 mod blobs;
 mod ceremony;
 pub(crate) mod controller_change;
@@ -253,6 +255,7 @@ pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub st: &'a mut ProfileState,
     pub rng: &'a mut R,
     pub now_ms: u64,
+    pub calls_enabled: bool,
     pub changed: Vec<OperationId>,
     /// Profiles currently open (SwitchIdentityProfile target check).
     pub open_profiles: &'a [String],
@@ -295,6 +298,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         outcome: OutcomeClass,
         message_id: Option<String>,
     ) {
+        if matches!(
+            kind,
+            "StartCall"
+                | "AcceptCall"
+                | "DeclineCall"
+                | "EndCall"
+                | "UpdateCallIce"
+                | "SetCallMedia"
+        ) {
+            let operations = &mut self.st.app.call_operations;
+            if operations.len() >= crate::calls::OPERATION_LIMIT {
+                self.st.app.ops.remove(&operations.remove(0));
+            }
+            operations.push(op.clone());
+        }
         self.st.app.ops.insert(
             op.clone(),
             OpRec {
@@ -424,6 +442,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Drop first contacts that ran past their deadline, requests whose bootstrap key has expired, and expired
     /// confirmation nonces. Called on every inbound batch and intent, so no timer is needed.
     fn expire_stale(&mut self) {
+        self.maintain_calls();
         let (now_ms, now_s) = (self.now_ms, self.now_s());
         self.st
             .app
@@ -726,11 +745,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         route: &RelayEntry,
         inner: &[u8],
     ) -> Result<Vec<u8>, ()> {
+        self.seal_to_deadline(pd, route, inner, self.now_s().saturating_add(WRAPPER_TTL_S))
+    }
+
+    fn seal_to_deadline(
+        &mut self,
+        pd: &PeerDelivery,
+        route: &RelayEntry,
+        inner: &[u8],
+        deadline_s: u64,
+    ) -> Result<Vec<u8>, ()> {
         let (kid, pk) = (
             h16(&pd.public.key_id).map_err(|_| ())?,
             hb(&pd.public.public_key).map_err(|_| ())?,
         );
-        let expires = (self.now_s() + WRAPPER_TTL_S).min(pd.public.expires_at);
+        let expires = deadline_s.min(pd.public.expires_at);
         delivery::seal(
             &pk,
             &kid,
@@ -980,10 +1009,31 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::ChangePrivacyPolicy { policy, .. } => {
                 self.change_privacy_policy(*policy, spent.flatten().and_then(|r| r.from_rank))
             }
+            IntentBody::StartCall { target, media, sdp } => {
+                self.start_call(target, *media, sdp.as_deref())
+            }
+            IntentBody::SetContactAllowCalls {
+                conversation_id,
+                allowed,
+            } => self.set_contact_allow_calls(conversation_id, *allowed),
+            IntentBody::AcceptCall {
+                call_session_id,
+                sdp,
+                media_flags,
+            } => self.accept_call(call_session_id, sdp, *media_flags),
+            IntentBody::DeclineCall { call_session_id } => self.end_call(call_session_id, true),
+            IntentBody::EndCall { call_session_id } => self.end_call(call_session_id, false),
+            IntentBody::UpdateCallIce {
+                call_session_id,
+                sdp,
+            } => self.update_call(call_session_id, calls::LocalUpdate::Ice(sdp)),
+            IntentBody::SetCallMedia {
+                call_session_id,
+                media_flags,
+            } => self.update_call(call_session_id, calls::LocalUpdate::Media(*media_flags)),
             // Not built (status report "What remains"); Rejected(unsupported) is the conservative answer.
             IntentBody::ShareContact { .. }
             | IntentBody::ShareStaticLocation { .. }
-            | IntentBody::StartCall { .. }
             | IntentBody::RestoreHistory { .. }
             | IntentBody::StartRecovery { .. } => unsupported,
             IntentBody::VetoRecovery { request_id, .. } => self.veto_recovery(request_id),
@@ -2522,6 +2572,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Apply the result of outbox entry `net_id`. Unknown ids are ignored (a duplicate result after a restart).
     pub fn net_result(&mut self, net_id: u64, result: NetResult) -> Result<(), CoreError> {
         let Some(pos) = self.st.app.outbox.iter().position(|e| e.id == net_id) else {
+            self.call_net_result(net_id, &result);
             return Ok(());
         };
         let entry = self.st.app.outbox[pos].clone();
@@ -3582,7 +3633,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 expires_at: wrapper_exp,
             },
         );
-        let verdict = self.process_inner(conv, &opened.inner_envelope, is_bootstrap, wrapper);
+        let verdict = self.process_inner(
+            conv,
+            &opened.inner_envelope,
+            is_bootstrap,
+            wrapper,
+            wrapper_exp,
+        );
         if verdict == Inner::Held {
             let pending = self
                 .st
@@ -3651,6 +3708,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         env: &[u8],
         via_bootstrap: bool,
         wrapper: &[u8],
+        wrapper_exp: u64,
     ) -> Inner {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return Inner::Rejected;
@@ -3729,16 +3787,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // (audit M6): decrypting advances the ratchet, so snapshot first and restore on rejection.
         let snapshot = Some(dev.clone());
         // ADR-0137: the relationship context is mandatory and is checked before any session lookup or secret operation.
-        let res = dev.decrypt(&RelationshipContext::new(account), env, self.rng);
-        let (pt, sender) = match res {
-            Ok((ik, pt, _)) => {
+        let res = dev.decrypt_context(
+            &RelationshipContext::new(account),
+            env,
+            !sibling && rel.state == RelState::Active,
+            self.rng,
+        );
+        let (pt, sender, call) = match res {
+            Ok((ik, pt, _, call)) => {
+                let pt = zeroize::Zeroizing::new(pt);
                 let sender = dev
                     .peer_devices
                     .iter()
                     .find(|d| d.0 == ik && d.1 == account)
                     .map(|d| d.2);
                 match sender {
-                    Some(s) => (pt, s),
+                    Some(s) => (pt, s, call),
                     None => {
                         self.restore(snapshot);
                         return Inner::Rejected;
@@ -3756,6 +3820,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             && sender_ik
                 .zip(self.st.device.as_ref())
                 .is_some_and(|(ik, d)| !d.session_is_initiator(&ik));
+        if call {
+            // Even an unsupported or inadmissible authenticated call consumes its ratchet slot.
+            // Never interpret plaintext authenticated with the call label as an ordinary message.
+            if self.calls_enabled {
+                self.receive_call(conv, sender, &pt, wrapper_exp);
+            }
+            if let Some(r) = self.st.app.relationships.get_mut(conv) {
+                remember_envelope(r, env_id);
+            }
+            return Inner::Accepted;
+        }
         let Ok(p) = cbor::decode(&pt) else {
             self.restore(snapshot);
             return Inner::Rejected;
@@ -3763,6 +3838,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let kind = p.get(0).and_then(|x| x.u()).unwrap_or(0);
         let live = matches!(rel.state, RelState::Establishing | RelState::Active);
         let ok = match kind {
+            crate::calls::OBJECT_TYPE => true, // type 44 requires the authenticated call context
             // The Hello is the first session message after both bindings verified; it activates the requester.
             KIND_HELLO => !sibling && self.on_hello(conv, &p),
             // Nothing but the Hello is accepted while the relationship is not yet bound.
@@ -3812,10 +3888,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return Inner::Rejected;
         }
         if let Some(r) = self.st.app.relationships.get_mut(conv) {
-            r.seen_envelopes.push(env_id);
-            if r.seen_envelopes.len() > 256 {
-                r.seen_envelopes.remove(0);
-            }
+            remember_envelope(r, env_id);
         }
         if rel.state == RelState::Establishing
             && !sibling
@@ -4385,6 +4458,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             _ => false, // later-wave kinds: refused, not silently dropped
         }
+    }
+}
+
+fn remember_envelope(rel: &mut Relationship, env_id: String) {
+    rel.seen_envelopes.push(env_id);
+    if rel.seen_envelopes.len() > 256 {
+        rel.seen_envelopes.remove(0);
     }
 }
 

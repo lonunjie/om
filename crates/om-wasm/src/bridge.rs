@@ -36,6 +36,8 @@ struct RecoveryPlaceArg {
 enum Command {
     Init {
         home: HomeSummary,
+        #[serde(default)]
+        calls: bool,
     },
     OpenProfile {
         profile_id: String,
@@ -85,6 +87,25 @@ enum Command {
     /// Send the device-enrollment notices that are due (ADR-0193); a no-op when none is owed.
     NoticeTick {
         ctx: ProfileExecutionContext,
+    },
+    CallTick {
+        ctx: ProfileExecutionContext,
+    },
+    CallDescription {
+        ctx: ProfileExecutionContext,
+        call_session_id: String,
+        #[serde(default)]
+        ice: bool,
+    },
+    CallMediaState {
+        ctx: ProfileExecutionContext,
+        call_session_id: String,
+        state: om_core::calls::MediaState,
+    },
+    CallRouteFacts {
+        ctx: ProfileExecutionContext,
+        call_session_id: String,
+        route: om_core::calls::CallRoute,
     },
     Outcome {
         ctx: ProfileExecutionContext,
@@ -750,6 +771,26 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             .ok_or(CoreError::Invalid("not initialised"))
     }
 
+    /// Binary-only key handoff. The ABI copies these zeroizing bytes to its shared input buffer
+    /// for the driver to take and wipe; no secret passes through the JSON response encoder.
+    pub(crate) fn take_call_keys(
+        &mut self,
+        request: &[u8],
+    ) -> Option<om_core::calls::InstallMediaKeys> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Request {
+            ctx: ProfileExecutionContext,
+            call_session_id: String,
+        }
+        let request: Request = serde_json::from_slice(request).ok()?;
+        self.core()
+            .ok()?
+            .take_call_keys(&request.ctx, &request.call_session_id)
+            .ok()
+            .flatten()
+    }
+
     fn group_result(
         &mut self,
         f: impl FnOnce(
@@ -774,7 +815,7 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
     fn run(&mut self, cmd: Command) -> Result<Value, CoreError> {
         let enc = |v: &dyn erased::Ser| v.to_value();
         match cmd {
-            Command::Init { home } => {
+            Command::Init { home, calls } => {
                 if self.core.is_some() {
                     return Err(CoreError::Invalid("already initialised"));
                 }
@@ -782,7 +823,11 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 else {
                     return Err(CoreError::Invalid("not initialisable"));
                 };
-                self.core = Some(Core::new(make_rng(), HostClock(clock), home));
+                let mut core = Core::new(make_rng(), HostClock(clock), home);
+                if calls {
+                    core.enable_calls();
+                }
+                self.core = Some(core);
                 Ok(Value::Null)
             }
             Command::OpenProfile {
@@ -820,6 +865,34 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::RecoveryTick { ctx, mono } => {
                 Ok(enc(&self.core()?.recovery_tick(&ctx, &mono)?))
             }
+            Command::CallTick { ctx } => Ok(enc(&self.core()?.call_tick(&ctx)?)),
+            Command::CallDescription {
+                ctx,
+                call_session_id,
+                ice,
+            } => Ok(enc(&self.core()?.call_description(
+                &ctx,
+                &call_session_id,
+                ice,
+            )?)),
+            Command::CallMediaState {
+                ctx,
+                call_session_id,
+                state,
+            } => Ok(enc(&self.core()?.call_media_state(
+                &ctx,
+                &call_session_id,
+                state,
+            )?)),
+            Command::CallRouteFacts {
+                ctx,
+                call_session_id,
+                route,
+            } => Ok(enc(&self.core()?.call_route_facts(
+                &ctx,
+                &call_session_id,
+                route,
+            )?)),
             Command::NoticeTick { ctx } => Ok(enc(&self.core()?.notice_tick(&ctx)?)),
             Command::PendingOperations { ctx } => {
                 Ok(enc(&self.core()?.pending_operations(&ctx)?))

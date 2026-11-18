@@ -5,7 +5,7 @@ import type { AttachmentApi } from "./attachments";
 import type { GroupApi } from "./groups";
 import type { PrivacyPolicyLevel } from "./intents";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryApprovalOfferView, RecoveryStatusView } from "./devices";
-import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, ReconnectContactView, RecoveryKeyView } from "./views";
+import type { CallNotice, CallView, AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, ReconnectContactView, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
 export interface GetConversationList { readonly kind: "GetConversationList"; readonly ctx: ProfileExecutionContext }
@@ -32,13 +32,15 @@ export interface GetIntroductionLoad { readonly kind: "GetIntroductionLoad"; rea
 /** How a file of `size` bytes may travel, before anything is sealed or sent. */
 export interface PlanAttachment { readonly kind: "PlanAttachment"; readonly ctx: ProfileExecutionContext; readonly size: number }
 /** The direct offers of this profile, newest last. */
+export interface GetCallView { readonly kind: "GetCallView"; readonly ctx: ProfileExecutionContext }
+export interface GetCallNotices { readonly kind: "GetCallNotices"; readonly ctx: ProfileExecutionContext }
 export interface GetDirectOffers { readonly kind: "GetDirectOffers"; readonly ctx: ProfileExecutionContext }
 /** This person's own privacy level on this device (Recommended until they change it). Local, never sent. */
 export interface GetPrivacyLevel { readonly kind: "GetPrivacyLevel"; readonly ctx: ProfileExecutionContext }
 export type CoreQuery =
   | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
   | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetRelationshipRestore | GetRecoveryApprovalOffer | GetConfirmation | GetIntroductionLoad
-  | PlanAttachment | GetDirectOffers | GetPrivacyLevel;
+  | PlanAttachment | GetDirectOffers | GetPrivacyLevel | GetCallView | GetCallNotices;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
@@ -60,6 +62,8 @@ export interface QueryResultMap {
   GetIntroductionLoad: IntroductionLoad;
   PlanAttachment: AttachmentPlanView;
   GetDirectOffers: readonly DirectOfferView[];
+  GetCallView: CallView | null;
+  GetCallNotices: readonly CallNotice[];
   GetPrivacyLevel: PrivacyPolicyLevel;
 }
 export type QueryResult<Q extends CoreQuery> = QueryResultMap[Q["kind"]];

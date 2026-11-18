@@ -619,6 +619,20 @@ impl Device {
     /// Envelope = [sender EncodeEC(IK), PQXDH prefix or null, DR header bstr, ciphertext bstr].
     /// The AEAD envelope context is OM-CBOR [sender EncodeEC(IK), PQXDH prefix or null].
     pub fn encrypt(&mut self, peer_ik: &[u8; 32], pt: &[u8]) -> Result<(Vec<u8>, MsgKeys), Error> {
+        self.encrypt_context(peer_ik, pt, None)
+    }
+
+    pub(crate) fn encrypt_call(&mut self, peer_ik: &[u8; 32], pt: &[u8]) -> Result<Vec<u8>, Error> {
+        self.encrypt_context(peer_ik, pt, Some(crate::calls::SIGNAL_CTX))
+            .map(|(env, _)| env)
+    }
+
+    fn encrypt_context(
+        &mut self,
+        peer_ik: &[u8; 32],
+        pt: &[u8],
+        alternate: Option<&[u8]>,
+    ) -> Result<(Vec<u8>, MsgKeys), Error> {
         let me = encode_ec(&self.ik()).to_vec();
         let s = self
             .sessions
@@ -630,7 +644,7 @@ impl Device {
             .map(|h| h.to_cbor())
             .unwrap_or(V::Null);
         let ctx = cbor::encode(&V::A(vec![V::B(me.clone()), init.clone()]));
-        let e = s.dr.encrypt(pt, &ctx)?;
+        let e = s.dr.encrypt(pt, alternate.unwrap_or(&ctx))?;
         Ok((
             cbor::encode(&V::A(vec![V::B(me), init, V::B(e.header), V::B(e.ct)])),
             e.keys,
@@ -663,6 +677,20 @@ impl Device {
         env: &[u8],
         rng: &mut R,
     ) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
+        self.decrypt_context(relationship, env, false, rng)
+            .map(|(ik, pt, keys, _)| (ik, pt, keys))
+    }
+
+    /// No cleartext discriminator. Only an existing, selected session can try the call context,
+    /// and only after ordinary AEAD authentication fails without mutating the ratchet. The normal
+    /// checks above it still require any K10 prefix to name this same session.
+    pub(crate) fn decrypt_context<R: RngCore + CryptoRng>(
+        &mut self,
+        relationship: &RelationshipContext,
+        env: &[u8],
+        allow_call_context: bool,
+        rng: &mut R,
+    ) -> Result<([u8; 32], Vec<u8>, MsgKeys, bool), Error> {
         let v = cbor::decode(env)?;
         let a = v.a()?;
         if a.len() != 4 {
@@ -696,7 +724,9 @@ impl Device {
                     // exactly one session survives; the loser's messages are re-sent on it by the caller.
                     if s.initiator && s.pending_init.is_some() && h.ek_a != s.init_ek {
                         if h.ek_a < s.init_ek {
-                            return self.accept_initial(h, header, ct, &ctx, rng);
+                            return self
+                                .accept_initial(h, header, ct, &ctx, rng)
+                                .map(|(ik, pt, keys)| (ik, pt, keys, false));
                         }
                         return Err(Error::CrossedInitiation);
                     }
@@ -704,11 +734,22 @@ impl Device {
                         return Err(Error::SessionConflict);
                     }
                 }
-                let (pt, keys) = s.dr.decrypt(header, ct, &ctx, rng)?;
+                let (pt, keys, call) = match s.dr.decrypt(header, ct, &ctx, rng) {
+                    Err(Error::DecryptFailed) if allow_call_context => {
+                        let (pt, keys) = s.dr.decrypt(header, ct, crate::calls::SIGNAL_CTX, rng)?;
+                        (pt, keys, true)
+                    }
+                    other => {
+                        let (pt, keys) = other?;
+                        (pt, keys, false)
+                    }
+                };
                 s.pending_init = None; // [DR] §7.1: a reply has been received
-                Ok((sender_ik, pt, keys))
+                Ok((sender_ik, pt, keys, call))
             }
-            (None, Some(h)) => self.accept_initial(&h, header, ct, &ctx, rng),
+            (None, Some(h)) => self
+                .accept_initial(&h, header, ct, &ctx, rng)
+                .map(|(ik, pt, keys)| (ik, pt, keys, false)),
             (None, None) => Err(Error::NoSession),
         }
     }

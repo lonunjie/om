@@ -85,6 +85,12 @@ struct Staged {
     changed: Vec<OperationId>,
 }
 
+enum CallHostEvent<'a> {
+    Tick,
+    Media(&'a str, crate::calls::MediaState),
+    Route(&'a str, crate::calls::CallRoute),
+}
+
 pub struct Core<R: RngCore + CryptoRng> {
     rng: R,
     clock: Box<dyn Clock>,
@@ -99,6 +105,7 @@ pub struct Core<R: RngCore + CryptoRng> {
     offers: Vec<RouteOffer>,
     /// What the BlobStore advertised; memory only (the host supplies it again at start).
     blob_limits: Option<BlobLimits>,
+    calls_enabled: bool,
     recovery_place: Option<crate::recovery_record::RecoveryPlace>,
     /// Direct offers being served, by (profile, BlobID hex). Memory only: they hold the sealed object, which is rebuilt
     /// from the person's file after a restart (`arm_direct_offer`); what must survive is `AppState.direct_offers`.
@@ -160,6 +167,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             staged: None,
             offers: vec![],
             blob_limits: None,
+            calls_enabled: false,
             recovery_place: None,
             direct_senders: BTreeMap::new(),
             direct_fetches: BTreeMap::new(),
@@ -1588,6 +1596,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 st: &mut next,
                 rng: &mut self.rng,
                 now_ms: self.clock.now_ms(),
+                calls_enabled: self.calls_enabled,
                 changed: vec![],
                 open_profiles: &open,
                 offers: &mut self.offers,
@@ -1599,6 +1608,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             tx.expire_controller_change();
             tx.maintain_recovery_record();
             tx.maintain_relays();
+            tx.maintain_calls();
             (v, tx.changed)
         };
         let records = next.encode()?;
@@ -1690,11 +1700,114 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
-    /// Network operations still owed, from the persisted outbox (re-listed after a restart; retry with the same identity).
-    pub fn net_ops(&self, ctx: &ProfileExecutionContext) -> Result<Vec<NetOp>, CoreError> {
+    /// The media driver opts in per Core instance. The reference app does not enable it.
+    pub fn enable_calls(&mut self) {
+        self.calls_enabled = true;
+    }
+
+    pub fn call_tick(&mut self, ctx: &ProfileExecutionContext) -> Result<Step, CoreError> {
+        self.call_step(ctx, CallHostEvent::Tick)
+    }
+
+    pub fn call_media_state(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        id: &str,
+        state: crate::calls::MediaState,
+    ) -> Result<Step, CoreError> {
+        self.call_step(ctx, CallHostEvent::Media(id, state))
+    }
+
+    pub fn call_route_facts(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        id: &str,
+        route: crate::calls::CallRoute,
+    ) -> Result<Step, CoreError> {
+        self.call_step(ctx, CallHostEvent::Route(id, route))
+    }
+
+    fn call_step(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        event: CallHostEvent<'_>,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.maintain_calls();
+            match event {
+                CallHostEvent::Tick => {}
+                CallHostEvent::Media(id, state) => tx.apply_media_state(id, state),
+                CallHostEvent::Route(id, route) => tx.apply_call_route(id, route),
+            }
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
+    pub fn call_description(
+        &self,
+        ctx: &ProfileExecutionContext,
+        id: &str,
+        ice: bool,
+    ) -> Result<Option<&crate::calls::CallDescription>, CoreError> {
         Ok(self
             .slot(ctx)?
             .state
+            .calls
+            .current
+            .as_ref()
+            .filter(|call| {
+                call.is_live()
+                    && call.view.call_session_id == id
+                    && call
+                        .view
+                        .ring_deadline_ms
+                        .is_none_or(|d| d > self.clock.now_ms())
+            })
+            .and_then(|call| {
+                if ice {
+                    call.ice.as_ref()
+                } else {
+                    call.description.as_ref()
+                }
+            }))
+    }
+
+    pub fn take_call_keys(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        id: &str,
+    ) -> Result<Option<crate::calls::InstallMediaKeys>, CoreError> {
+        self.slot(ctx)?;
+        if self.staged.is_some() {
+            return Err(CoreError::Busy);
+        }
+        let state = &mut self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("validated profile")
+            .state;
+        Ok(state
+            .calls
+            .current
+            .as_mut()
+            .filter(|call| {
+                call.view.state == crate::calls::CallState::Connecting
+                    && call.view.call_session_id == id
+            })
+            .and_then(|call| call.keys.take()))
+    }
+
+    /// Durable work is re-listed after a restart. Transient call deposits are released only after
+    /// the ratchet commit and live only for the owning boot and their sealed expiry.
+    pub fn net_ops(&self, ctx: &ProfileExecutionContext) -> Result<Vec<NetOp>, CoreError> {
+        let state = &self.slot(ctx)?.state;
+        let now = self.clock.now_ms();
+        let mut ops: Vec<_> = state
             .app
             .outbox
             .iter()
@@ -1702,7 +1815,23 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 id: e.id,
                 call: e.call.clone(),
             })
-            .collect())
+            .collect();
+        ops.extend(
+            state
+                .calls
+                .deposits
+                .iter()
+                .filter(|e| {
+                    state.calls.last_clock_ms.is_none_or(|last| now >= last)
+                        && e.deadline_ms > now
+                        && crate::flows::eligible_call_device(state, &e.conversation, e.device)
+                })
+                .map(|e| NetOp {
+                    id: e.id,
+                    call: e.call.clone(),
+                }),
+        );
+        Ok(ops)
     }
 
     pub fn net_result(
@@ -2083,6 +2212,22 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    /// TEST ONLY: deposit arbitrary bytes under the authenticated call context.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_call_payload(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conv: &str,
+        bytes: &[u8],
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| tx.debug_call_payload(conv, bytes))?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
     // ------------------------------------------------------------------------------------------ backup file (ADR-0184)
 
     /// The password-hashing settings and a fresh random salt for the next backup file. The host derives the key from
@@ -2217,6 +2362,10 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         Ok(to(&contacts))
                     }
                     Query::PlanAttachment { size, .. } => Ok(to(&self.plan_attachment(*size))),
+                    Query::GetCallView { .. } => {
+                        Ok(to(&st.calls.current.as_ref().map(|c| &c.view)))
+                    }
+                    Query::GetCallNotices { .. } => Ok(to(&st.calls.notices)),
                     Query::GetDirectOffers { .. } => Ok(to(&self.direct_offer_views(ctx, st))),
                     Query::GetConversationView {
                         conversation_id, ..
@@ -2435,6 +2584,8 @@ fn summary(r: &Relationship, app: &AppState) -> ConversationSummary {
         display_name: r.display_name.clone(),
         nickname: r.nickname.clone(),
         peer_account: (!r.peer_account_id.is_empty()).then(|| r.peer_account_id.clone()),
+        allow_calls: (r.state == RelState::Active && !r.blocked && !r.peer_account_id.is_empty())
+            .then(|| !app.calls_disabled.contains(&r.peer_account_id)),
         last_message_at: r
             .messages
             .iter()
@@ -2576,6 +2727,7 @@ fn restored_summary(r: &RestoredChat) -> ConversationSummary {
         person_id: format!("restored:{}", r.id),
         display_name: r.display_name.clone(),
         nickname: r.nickname.clone(),
+        allow_calls: None,
         last_message_at: r.messages.last().map(|m| m.sent_at),
         notices: vec![],
         peer_account: None,

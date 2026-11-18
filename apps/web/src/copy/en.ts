@@ -119,6 +119,8 @@ export const conversationCopy: ConversationCopy = {
     close: "Close",
     theirName: "Their name",
     nicknameLabel: "Your name for them",
+    allowCalls: "Allow calls",
+    allowCallsFailed: "Couldn’t change this setting.",
     nicknamePlaceholder: "A nickname only you see",
     nicknameHint: "Only you see this. It stays on this device and in your backup file, and is never sent to them or anyone else.",
     save: "Save",

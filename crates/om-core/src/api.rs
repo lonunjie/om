@@ -313,6 +313,32 @@ pub enum IntentBody {
     StartCall {
         target: PersonId,
         media: CallMedia,
+        /// The driver's complete offer, after admission and candidate gathering.
+        #[serde(default)]
+        sdp: Option<Vec<u8>>,
+    },
+    AcceptCall {
+        call_session_id: String,
+        sdp: Vec<u8>,
+        media_flags: u8,
+    },
+    DeclineCall {
+        call_session_id: String,
+    },
+    EndCall {
+        call_session_id: String,
+    },
+    UpdateCallIce {
+        call_session_id: String,
+        sdp: Vec<u8>,
+    },
+    SetCallMedia {
+        call_session_id: String,
+        media_flags: u8,
+    },
+    SetContactAllowCalls {
+        conversation_id: ConversationId,
+        allowed: bool,
     },
     PinNavigationTarget {
         target_id: String,
@@ -488,6 +514,12 @@ impl IntentBody {
             IntentBody::ShareStaticLocation { .. } => "ShareStaticLocation",
             IntentBody::RevokeInvite { .. } => "RevokeInvite",
             IntentBody::StartCall { .. } => "StartCall",
+            IntentBody::AcceptCall { .. } => "AcceptCall",
+            IntentBody::DeclineCall { .. } => "DeclineCall",
+            IntentBody::EndCall { .. } => "EndCall",
+            IntentBody::UpdateCallIce { .. } => "UpdateCallIce",
+            IntentBody::SetCallMedia { .. } => "SetCallMedia",
+            IntentBody::SetContactAllowCalls { .. } => "SetContactAllowCalls",
             IntentBody::PinNavigationTarget { .. } => "PinNavigationTarget",
             IntentBody::RestoreHistory { .. } => "RestoreHistory",
             IntentBody::CreateIdentityProfile { .. } => "CreateIdentityProfile",
@@ -674,6 +706,12 @@ pub enum Query {
     GetDirectOffers {
         ctx: ProfileExecutionContext,
     },
+    GetCallView {
+        ctx: ProfileExecutionContext,
+    },
+    GetCallNotices {
+        ctx: ProfileExecutionContext,
+    },
     /// This person's own privacy level on this device (`PrivacyPolicyLevel`; Recommended when none was set). Local, never sent.
     GetPrivacyLevel {
         ctx: ProfileExecutionContext,
@@ -701,6 +739,8 @@ impl Query {
             | Query::GetIntroductionLoad { ctx }
             | Query::PlanAttachment { ctx, .. }
             | Query::GetDirectOffers { ctx }
+            | Query::GetCallView { ctx }
+            | Query::GetCallNotices { ctx }
             | Query::GetPrivacyLevel { ctx } => Some(ctx),
         }
     }
@@ -759,6 +799,8 @@ pub struct ConversationSummary {
     /// The person's own name for this contact (ADR-0196); omitted when none. Shown instead of `display_name`, which stays the original.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_calls: Option<bool>,
     pub last_message_at: Option<u64>,
     pub notices: Vec<SecurityNotice>,
     pub relationship: RelationshipStateCode,

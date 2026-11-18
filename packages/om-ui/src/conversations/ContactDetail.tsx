@@ -59,9 +59,31 @@ export function ContactDetail({ services, summary, ownAccount, copy, onClose }: 
           </div>
           <p className="om-settings__status" role={status === copy.invalid || status === copy.failed ? "alert" : "status"}>{status}</p>
         </form>
+        {summary.allowCalls === undefined ? null : <AllowCalls services={services} summary={summary} allowed={summary.allowCalls} copy={copy} />}
         {canVerify ? <AccountCheck key={`${ownAccount}:${peer}`} own={ownAccount} peer={peer} copy={copy.verification} /> : null}
       </div>
     </Sheet>
+  );
+}
+
+function AllowCalls({ services, summary, allowed, copy }: {
+  readonly services: ConversationServices;
+  readonly summary: ConversationSummary;
+  readonly allowed: boolean;
+  readonly copy: ConversationCopy["contact"];
+}) {
+  const op = useOperation(services);
+  const failed = op.state.phase === "failed" || (op.state.phase === "observing" && op.state.outcome?.kind === "Rejected");
+  return (
+    <div>
+      <label className="om-contact__calls">
+        <input type="checkbox" role="switch" checked={allowed} disabled={op.locked} onChange={(event) => {
+          void op.run("set-contact-allow-calls", { conversationId: summary.id, allowed: event.target.checked });
+        }} />
+        {" "}{copy.allowCalls}
+      </label>
+      {failed ? <p className="om-settings__status" role="alert">{copy.allowCallsFailed}</p> : null}
+    </div>
   );
 }
 

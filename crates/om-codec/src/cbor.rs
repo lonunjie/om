@@ -101,10 +101,46 @@ pub fn encode(v: &Value) -> Vec<u8> {
 
 // ------------------------------------------------------------------ strict decoder
 
-pub struct Decoder<'a> {
+// The sensitive path uses the same parser but wipes a partially decoded subtree on every error exit.
+use zeroize::Zeroize;
+
+pub(crate) struct Parsed(Value, bool);
+
+impl Parsed {
+    pub(crate) fn value(&self) -> &Value {
+        &self.0
+    }
+
+    fn take(mut self) -> Value {
+        std::mem::replace(&mut self.0, Value::Null)
+    }
+}
+
+impl Drop for Parsed {
+    fn drop(&mut self) {
+        fn wipe(value: &mut Value) {
+            match value {
+                Value::Bytes(b) => b.zeroize(),
+                Value::Text(s) => s.zeroize(),
+                Value::Array(a) => a.iter_mut().for_each(wipe),
+                Value::Map(m) => m.iter_mut().for_each(|(k, v)| {
+                    wipe(k);
+                    wipe(v);
+                }),
+                _ => {}
+            }
+        }
+        if self.1 {
+            wipe(&mut self.0);
+        }
+    }
+}
+
+struct Decoder<'a> {
     buf: &'a [u8],
     pos: usize,
     lim: Limits,
+    wipe: bool,
 }
 
 impl<'a> Decoder<'a> {
@@ -167,7 +203,11 @@ impl<'a> Decoder<'a> {
         Ok(n)
     }
 
-    fn item(&mut self, depth: usize) -> Result<Value, Class> {
+    fn item(&mut self, depth: usize) -> Result<Parsed, Class> {
+        self.value(depth).map(|v| Parsed(v, self.wipe))
+    }
+
+    fn value(&mut self, depth: usize) -> Result<Value, Class> {
         let ib = self.byte()?;
         let major = ib >> 5;
         let ai = ib & 0x1f;
@@ -212,20 +252,26 @@ impl<'a> Decoder<'a> {
                     return Err("count_limit");
                 }
                 if major == 4 {
-                    let mut a = Vec::with_capacity(n as usize);
-                    for _ in 0..n {
-                        a.push(self.item(d)?);
+                    let mut parsed =
+                        Parsed(Value::Array(Vec::with_capacity(n as usize)), self.wipe);
+                    if let Value::Array(a) = &mut parsed.0 {
+                        for _ in 0..n {
+                            a.push(self.item(d)?.take());
+                        }
                     }
-                    Ok(Value::Array(a))
+                    Ok(parsed.take())
                 } else {
-                    let mut m = Vec::with_capacity(n as usize);
+                    let mut parsed = Parsed(Value::Map(Vec::with_capacity(n as usize)), self.wipe);
+                    let Value::Map(m) = &mut parsed.0 else {
+                        unreachable!()
+                    };
                     let mut prev: Option<(usize, usize)> = None;
                     let mut first_major: Option<u8> = None;
                     for _ in 0..n {
                         let ks = self.pos;
                         let k = self.item(d)?;
                         let ke = self.pos;
-                        let km = match k {
+                        let km = match k.value() {
                             Value::Uint(_) => 0,
                             Value::Text(_) => 3,
                             _ => return Err("key_type"),
@@ -244,7 +290,7 @@ impl<'a> Decoder<'a> {
                         }
                         prev = Some((ks, ke));
                         let x = self.item(d)?;
-                        m.push((k, x));
+                        m.push((k.take(), x.take()));
                     }
                     if self.lim.lenient {
                         // duplicates can be non-adjacent when order is not enforced
@@ -256,7 +302,7 @@ impl<'a> Decoder<'a> {
                             }
                         }
                     }
-                    Ok(Value::Map(m))
+                    Ok(parsed.take())
                 }
             }
             _ => unreachable!(),
@@ -266,10 +312,24 @@ impl<'a> Decoder<'a> {
 
 /// Decode exactly one data item under OM-CBOR-v1. `max_bytes` bounds the whole input.
 pub fn decode(buf: &[u8], lim: Limits, max_bytes: usize) -> Result<Value, Class> {
+    Ok(decode_guarded(buf, lim, max_bytes, false)?.take())
+}
+
+pub(crate) fn decode_guarded(
+    buf: &[u8],
+    lim: Limits,
+    max_bytes: usize,
+    wipe: bool,
+) -> Result<Parsed, Class> {
     if buf.len() > max_bytes {
         return Err("size_limit");
     }
-    let mut d = Decoder { buf, pos: 0, lim };
+    let mut d = Decoder {
+        buf,
+        pos: 0,
+        lim,
+        wipe,
+    };
     let v = d.item(0)?;
     if d.pos != buf.len() {
         return Err("trailing_bytes");

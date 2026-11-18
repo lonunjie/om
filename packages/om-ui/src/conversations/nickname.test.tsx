@@ -102,3 +102,18 @@ describe("contact sheet", () => {
     expect(list.find((c) => c.id === B)?.nickname).toBeUndefined();
   });
 });
+
+it("changes Allow calls for only the contact in the sheet", async () => {
+  const { h, services } = setup();
+  render(<Screen services={services} open={A} />);
+  await userEvent.click(await screen.findByRole("button", { name: "About Alex Doe" }));
+  const sheet = await screen.findByRole("dialog");
+  const control = within(sheet).getByRole<HTMLInputElement>("switch", { name: "Allow calls" });
+  expect(control.checked).toBe(true);
+  await userEvent.click(control);
+  await within(sheet).findByRole("switch", { name: "Allow calls", checked: false });
+  const list = await h.query({ kind: "GetConversationList", ctx: services.ctx });
+  expect(list.find((c) => c.id === A)?.allowCalls).toBe(false);
+  expect(list.find((c) => c.id === B)?.allowCalls).toBe(true);
+  expect(await axeViolations(sheet)).toEqual([]);
+});

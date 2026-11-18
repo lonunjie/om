@@ -57,7 +57,7 @@ pub fn encode(v: &V) -> Vec<u8> {
     out
 }
 
-fn enc(v: &V, out: &mut Vec<u8>) {
+pub(crate) fn enc(v: &V, out: &mut Vec<u8>) {
     match v {
         V::U(n) => head(out, 0, *n),
         V::B(b) => {

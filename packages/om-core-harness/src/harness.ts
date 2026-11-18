@@ -124,7 +124,7 @@ interface MutableMessage {
   mine?: Set<string>;
   theirs?: Set<string>;
 }
-interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; nickname?: string; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
+interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; nickname?: string; allowCalls?: boolean; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
 const peerLive = (c: ConversationState): boolean => c.peerRecovery?.state === "waiting" || c.peerRecovery?.state === "ready";
 interface ProfileState {
   label: string;
@@ -232,7 +232,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
   }
   function summary(c: ConversationState): ConversationSummary {
-    return { id: c.id, personId: c.personId, displayName: c.displayName, ...(c.nickname === undefined ? {} : { nickname: c.nickname }), lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", peerAccount: `acct-${c.id}`, ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
+    return { id: c.id, personId: c.personId, displayName: c.displayName, ...(c.nickname === undefined ? {} : { nickname: c.nickname }), allowCalls: c.allowCalls ?? true, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", peerAccount: `acct-${c.id}`, ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
   }
 
   function runQuery<Q extends CoreQuery>(q: Q): QueryResult<Q> {
@@ -288,6 +288,12 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           if (limits !== null && q.size + 16 <= limits.maxBlobBytes) return { kind: "spool" };
           return q.size > HARD_MAX_PLAINTEXT ? { kind: "too_large", limit: HARD_MAX_PLAINTEXT } : { kind: "offer_direct", limit: limits === null ? 0 : limits.maxBlobBytes - 16 };
         }
+        case "GetCallView":
+          stateFor(q.ctx);
+          return null;
+        case "GetCallNotices":
+          stateFor(q.ctx);
+          return [];
         case "GetDirectOffers": {
           const st = stateFor(q.ctx);
           const offers: DirectOfferView[] = [];
@@ -496,6 +502,12 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         conv.messages.push({ messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(), delivery: { state: "sent" }, attachments, ...(intent.draft.replyTo === undefined ? {} : { replyTo: intent.draft.replyTo }) });
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, { kind: "Committed" }, messageId);
+      }
+      case "SetContactAllowCalls": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        conv.allowCalls = intent.allowed;
+        return record(intent, { kind: "Committed" });
       }
       case "SetContactNickname": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);

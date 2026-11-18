@@ -18,6 +18,7 @@ compile_error!(
 pub mod api;
 pub mod attach;
 pub mod backup;
+pub mod calls;
 pub mod control;
 pub mod crypto;
 pub mod direct;

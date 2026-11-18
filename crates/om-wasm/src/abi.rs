@@ -103,6 +103,27 @@ pub extern "C" fn om_call(len: u32) -> u32 {
     })
 }
 
+/// Consume one committed key-install effect. Returns a pointer to 64 raw bytes (send then receive),
+/// or null. The host copies and wipes those bytes before calling another export.
+#[unsafe(no_mangle)]
+pub extern "C" fn om_call_keys(len: u32) -> *mut u8 {
+    INPUT.with(|input| {
+        let mut input = input.borrow_mut();
+        let keys = BRIDGE.with(|slot| {
+            slot.borrow_mut()
+                .as_mut()?
+                .take_call_keys(input.get(..len as usize)?)
+        });
+        let Some(keys) = keys else {
+            return std::ptr::null_mut();
+        };
+        input.resize(64, 0);
+        input[..32].copy_from_slice(keys.send());
+        input[32..].copy_from_slice(keys.receive());
+        input.as_mut_ptr()
+    })
+}
+
 /// Link-and-run proof of the OpenMLS engine (ADR-0187, proposed). Returns 0 on success. Not product ABI; gated.
 #[cfg(feature = "groups-openmls")]
 #[unsafe(no_mangle)]

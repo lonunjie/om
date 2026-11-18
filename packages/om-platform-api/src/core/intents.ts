@@ -65,7 +65,13 @@ export interface ClearAdaptiveNavigation extends IntentBase { readonly kind: "Cl
 export interface OpenOmnibarResult extends IntentBase { readonly kind: "OpenOmnibarResult"; readonly resultId: string }
 export interface ShareStaticLocation extends IntentBase { readonly kind: "ShareStaticLocation"; readonly conversationId: ConversationId; readonly locationCardId: string }
 export interface RevokeInvite extends IntentBase { readonly kind: "RevokeInvite"; readonly inviteId: string }
-export interface StartCall extends IntentBase { readonly kind: "StartCall"; readonly target: PersonId; readonly media: "audio" | "video" }
+export interface StartCall extends IntentBase { readonly kind: "StartCall"; readonly target: PersonId; readonly media: "audio" | "video"; readonly sdp?: readonly number[] }
+export interface AcceptCall extends IntentBase { readonly kind: "AcceptCall"; readonly callSessionId: string; readonly sdp: readonly number[]; readonly mediaFlags: number }
+export interface DeclineCall extends IntentBase { readonly kind: "DeclineCall"; readonly callSessionId: string }
+export interface EndCall extends IntentBase { readonly kind: "EndCall"; readonly callSessionId: string }
+export interface UpdateCallIce extends IntentBase { readonly kind: "UpdateCallIce"; readonly callSessionId: string; readonly sdp: readonly number[] }
+export interface SetCallMedia extends IntentBase { readonly kind: "SetCallMedia"; readonly callSessionId: string; readonly mediaFlags: number }
+export interface SetContactAllowCalls extends IntentBase { readonly kind: "SetContactAllowCalls"; readonly conversationId: ConversationId; readonly allowed: boolean }
 export interface PinNavigationTarget extends IntentBase { readonly kind: "PinNavigationTarget"; readonly targetId: string }
 export interface RestoreHistory extends IntentBase { readonly kind: "RestoreHistory"; readonly source: "linked_device" | "encrypted_backup" }
 
@@ -138,7 +144,7 @@ export type CoreIntent =
   | OfferControllerChange | JoinControllerChange | ConfirmControllerChange | CancelControllerChange
   | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
-  | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
+  | RevokeInvite | StartCall | AcceptCall | DeclineCall | EndCall | UpdateCallIce | SetCallMedia | SetContactAllowCalls | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | ReconnectContact | AcceptInvitation
   | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | SetContactNickname | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery | RequestRecovery | CancelRecovery | CheckRecoveryAgain | OfferRecoveryApproval | JoinRecoveryApproval | ReplaceRecoveryKey;
 
@@ -148,7 +154,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "OfferControllerChange", "JoinControllerChange", "ConfirmControllerChange", "CancelControllerChange",
   "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
-  "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
+  "RevokeInvite", "StartCall", "AcceptCall", "DeclineCall", "EndCall", "UpdateCallIce", "SetCallMedia", "SetContactAllowCalls", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "ReconnectContact", "AcceptInvitation",
   "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "SetContactNickname", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery", "RequestRecovery", "CancelRecovery", "CheckRecoveryAgain", "OfferRecoveryApproval", "JoinRecoveryApproval", "ReplaceRecoveryKey",
 ];

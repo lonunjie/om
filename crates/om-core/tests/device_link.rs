@@ -1560,3 +1560,76 @@ mod controller_probes {
         }
     }
 }
+
+#[test]
+fn first_call_answer_selects_one_of_two_linked_devices() {
+    use om_core::calls::{CallReason, CallState, CallView};
+    let mut w = world();
+    let request_id = w.offer_and_ask();
+    assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
+    w.settle();
+    // Establish the existing sessions and their delivery routes before sending an ephemeral offer.
+    w.say("phone", "p1", "from the phone");
+    w.settle();
+    w.say("carol", "c1", "to both of you");
+    w.settle();
+    w.alice.core.enable_calls();
+    w.carol.core.enable_calls();
+    w.phone.core.enable_calls();
+    let contacts: Vec<ConversationSummary> = w
+        .carol
+        .query(Query::GetConversationList { ctx: w.c.clone() });
+    w.carol.dispatch(
+        &w.c,
+        "dial",
+        IntentBody::StartCall {
+            target: contacts[0].person_id.clone(),
+            media: CallMedia::Audio,
+            sdp: Some(b"offer".to_vec()),
+        },
+    );
+    w.settle();
+    let from = |p: &Runtime, ctx: &ProfileExecutionContext| {
+        p.query::<CallView>(Query::GetCallView { ctx: ctx.clone() })
+    };
+    let incoming = from(&w.alice, &w.a);
+    assert_eq!(incoming.state, CallState::Incoming);
+    assert_eq!(from(&w.phone, &w.n).state, CallState::Incoming);
+    let answer = |id: &str| IntentBody::AcceptCall {
+        call_session_id: id.into(),
+        sdp: b"answer".to_vec(),
+        media_flags: 1,
+    };
+    w.alice
+        .dispatch(&w.a, "answer", answer(&incoming.call_session_id));
+    w.phone
+        .dispatch(&w.n, "race", answer(&incoming.call_session_id));
+    w.alice.flush_net(&w.a);
+    w.carol.poll(&w.c);
+    w.settle();
+    assert_eq!(from(&w.alice, &w.a).state, CallState::Connecting);
+    assert_eq!(
+        from(&w.phone, &w.n).reason,
+        Some(CallReason::AnsweredElsewhere)
+    );
+    let caller = w
+        .carol
+        .core
+        .take_call_keys(&w.c, &incoming.call_session_id)
+        .unwrap()
+        .unwrap();
+    let winner = w
+        .alice
+        .core
+        .take_call_keys(&w.a, &incoming.call_session_id)
+        .unwrap()
+        .unwrap();
+    assert!(caller.send() == winner.receive());
+    assert!(
+        w.phone
+            .core
+            .take_call_keys(&w.n, &incoming.call_session_id)
+            .unwrap()
+            .is_none()
+    );
+}

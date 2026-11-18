@@ -389,6 +389,27 @@ impl Registry {
 }
 
 impl Registry {
+    /// Validate and inspect a registered unsigned object that can contain a secret. Parser-owned byte
+    /// strings and text are wiped on parse/schema errors and after the borrowed inspection returns.
+    pub fn inspect_sensitive<T>(
+        &self,
+        type_name: &str,
+        bytes: &[u8],
+        inspect: impl FnOnce(&Value) -> T,
+    ) -> Result<T, Class> {
+        let t = self.types.get(type_name).ok_or("unknown_type")?;
+        if t.sig_label.is_some() {
+            return Err("unknown_type");
+        }
+        let v = crate::cbor::decode_guarded(bytes, self.limits_for(t), t.max_bytes, true)?;
+        Cx {
+            r: self,
+            lenient: false,
+        }
+        .body(v.value(), t)?;
+        Ok(inspect(v.value()))
+    }
+
     /// Decode + validate the *inner body* of a signed type (the bytes carried in SignedEnvelope key 1), without
     /// looking at signatures. Used to check bodies Core builds before it signs them.
     pub fn check_body(&self, type_name: &str, body: &[u8]) -> Result<Value, Class> {

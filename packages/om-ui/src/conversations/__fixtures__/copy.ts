@@ -23,7 +23,7 @@ export const testCopy: ConversationCopy = {
     chip: (k, n, mine) => (mine ? `${k} ${String(n)}, including you. Remove your reaction` : `${k} ${String(n)}. Add yours`), failed: "The reaction could not be sent.",
   },
   contact: {
-    open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", nicknamePlaceholder: "A nickname only you see",
+    open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", allowCalls: "Allow calls", allowCallsFailed: "Couldn’t change this setting.", nicknamePlaceholder: "A nickname only you see",
     nicknameHint: "Only you see this.", save: "Save", clear: "Remove nickname", saved: "Saved.", cleared: "Removed.", invalid: "That nickname could not be used.", failed: "Could not save.",
     verification: {
       open: "Verify account", hint: "Ask them in person or another trusted way for their account ID.", theirAccount: "Their account ID", ownAccount: "Your account ID",

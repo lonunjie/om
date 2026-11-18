@@ -2635,6 +2635,7 @@ mod tests {
             st: &mut st,
             rng: &mut rng,
             now_ms: 1_790_000_000_000,
+            calls_enabled: false,
             changed: vec![],
             open_profiles: &open,
             offers: &mut offers,

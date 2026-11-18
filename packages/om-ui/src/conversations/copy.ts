@@ -81,6 +81,8 @@ export interface ConversationCopy {
     /** Label before the name the contact chose for themselves: "Their name". */
     readonly theirName: string;
     readonly nicknameLabel: string;
+    readonly allowCalls: string;
+    readonly allowCallsFailed: string;
     readonly nicknamePlaceholder: string;
     /** One plain sentence: only you see it, it is kept on this device and backup, never sent. */
     readonly nicknameHint: string;

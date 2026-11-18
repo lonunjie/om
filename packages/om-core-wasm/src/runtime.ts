@@ -3,7 +3,7 @@
 // identity), polls mailboxes, and fans changes out to observers and subscribers.
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
-  AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
+  CallRoute, CallView, AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
   CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
@@ -35,6 +35,9 @@ export interface CoreRuntimeOptions {
   readonly home: HomeSummary;
   /** Perform the outbox and poll in the background after every change (default true). Tests may drive `flush` by hand. */
   readonly autoDrain?: boolean;
+  /** Engineering opt-in for an attached call host. Public builds leave this off. */
+  readonly calls?: boolean;
+  readonly callNowMs?: () => number;
   /** Delay before retrying a network operation that was unavailable (default 2000 ms). */
   readonly retryMs?: number;
   /** Poll open profiles' mailboxes at this interval while autoDrain is on (default 0 = only after changes). A function is asked again before every poll and returns the wait in ms, so the host can slow down while nobody is looking (a non-positive answer means 5 s). */
@@ -59,7 +62,27 @@ export interface CoreRuntimeOptions {
   readonly recoveryTick?: false | { readonly now?: () => number; readonly intervalMs?: number; readonly newSessionId?: () => string };
 }
 
+export interface CallDescription {
+  readonly kind: "offer" | "answer" | "ice_update";
+  readonly seq: number;
+  readonly sdp: readonly number[];
+}
+
+export interface CallDriver {
+  tick(ctx: ProfileExecutionContext): Promise<void>;
+  description(ctx: ProfileExecutionContext, callSessionId: string, ice?: boolean): CallDescription | null;
+  mediaState(ctx: ProfileExecutionContext, callSessionId: string, state: "active" | "interrupted" | "failed"): Promise<void>;
+  routeFacts(ctx: ProfileExecutionContext, callSessionId: string, route: CallRoute): Promise<void>;
+  /** One-shot SFrame base keys. Both views are writable and must be cleared after use. */
+  takeMediaKeys(ctx: ProfileExecutionContext, callSessionId: string): Promise<{
+    readonly generation: 0;
+    readonly send: Uint8Array;
+    readonly receive: Uint8Array;
+  } | null>;
+}
+
 export interface WasmCoreClient extends CoreClient {
+  readonly calls?: CallDriver | undefined;
   /** Present only when the host passed `directDriver`: the channel driver for direct transfer. `directDriver?.sendAgainFor(ctx)` is the `ConversationServices.sendAgain`. */
   readonly directDriver?: DirectDriver | undefined;
   /** Loads the profile's records, opens it in Core and returns its (frozen) execution context. */
@@ -167,7 +190,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   const pollMs = opts.pollMs ?? 0;
   const pollEvery = (): number => (typeof pollMs === "function" ? pollMs() : pollMs);
   const openProfiles = new Set<ProfileId>();
-  core.call({ cmd: "init", home: opts.home });
+  core.call({ cmd: "init", home: opts.home, ...(opts.calls === true ? { calls: true } : {}) });
 
   let tail: Promise<unknown> = Promise.resolve();
   /** All state-changing calls run strictly one at a time (Core allows one outstanding commit). */
@@ -182,6 +205,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const draining = new Map<string, Promise<void>>();
   const inflight = new Set<string>();
+  const callTimers = new Map<ProfileId, ReturnType<typeof setTimeout>>();
   let disposed = false;
   let wakeOff: (() => void) | undefined;
 
@@ -286,6 +310,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     }
     emitQueries(released.profileId);
     notifyChange(released.profileId);
+    scheduleCallTick(ctx);
     recoveryTicker?.wake(released.profileId); // an observation may have started a wait
   }
 
@@ -351,6 +376,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       await exclusive(async () => {
         const step = core.call({ cmd: "net_result", ctx, netId: op.id, result }) as StepJson;
         await commit(step.commit, ctx);
+        if (opts.calls === true && step.commit === null) emitQueries(ctx.profileId);
       });
       return progressed;
     } finally {
@@ -499,8 +525,50 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     ...(opts.groupDriver.retryMs === undefined ? {} : { retryMs: opts.groupDriver.retryMs }),
   });
 
+  function stopCallTimer(profileId: ProfileId): void {
+    clearTimeout(callTimers.get(profileId));
+    callTimers.delete(profileId);
+  }
+
+  function scheduleCallTick(ctx: ProfileExecutionContext): void {
+    if (opts.calls !== true || !autoDrain || disposed || !openProfiles.has(ctx.profileId)) return;
+    stopCallTimer(ctx.profileId);
+    const view = query({ kind: "GetCallView", ctx }) as CallView | null;
+    if (view?.ringDeadlineMs === undefined || view.ringDeadlineMs === null) return;
+    const delay = Math.max(1, Math.min(45_000, view.ringDeadlineMs - (opts.callNowMs?.() ?? Date.now())));
+    const timer = setTimeout(() => {
+      callTimers.delete(ctx.profileId);
+      void callStep(ctx, { cmd: "call_tick" }).catch(() => undefined);
+    }, delay);
+    callTimers.set(ctx.profileId, timer);
+  }
+
+  function callStep(ctx: ProfileExecutionContext, cmd: Record<string, unknown>): Promise<void> {
+    return exclusive(async () => {
+      const step = core.call({ ...cmd, ctx: ctxOf(ctx) }) as StepJson;
+      await commit(step.commit, ctx);
+      if (step.commit === null) {
+        emitQueries(ctx.profileId);
+        scheduleCallTick(ctx);
+      }
+      kick(ctx.profileId);
+    });
+  }
+
+  const calls: CallDriver | undefined = opts.calls !== true || core.takeCallKeys === undefined ? undefined : {
+    tick: (ctx) => callStep(ctx, { cmd: "call_tick" }),
+    description: (ctx, callSessionId, ice = false) => core.call({ cmd: "call_description", ctx: ctxOf(ctx), callSessionId, ice }) as CallDescription | null,
+    mediaState: (ctx, callSessionId, state) => callStep(ctx, { cmd: "call_media_state", callSessionId, state }),
+    routeFacts: (ctx, callSessionId, route) => callStep(ctx, { cmd: "call_route_facts", callSessionId, route }),
+    takeMediaKeys: (ctx, callSessionId) => exclusive(() => {
+      const bytes = core.takeCallKeys?.(ctxOf(ctx), callSessionId);
+      return Promise.resolve(bytes ? { generation: 0, send: bytes.subarray(0, 32), receive: bytes.subarray(32) } : null);
+    }),
+  };
+
   let directDriver: DirectDriver | undefined;
   const client: WasmCoreClient = {
+    calls,
     get directDriver() { return directDriver; },
     async openProfile(profileId) {
       const records = await readRecords(profileId);
@@ -516,6 +584,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     closeProfile(profileId) {
       openProfiles.delete(profileId);
+      stopCallTimer(profileId);
       directDriver?.stop(profileId);
       recoveryTicker?.stop(profileId); // a locked or switched-away profile gets no credit, and its next run is a new boot session
       core.call({ cmd: "close_profile", profileId });
@@ -678,6 +747,8 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
       timers.clear();
+      for (const p of callTimers.keys()) stopCallTimer(p);
+      if (calls !== undefined) for (const p of openProfiles) core.call({ cmd: "close_profile", profileId: p });
     },
   };
   if (opts.directDriver !== undefined) {

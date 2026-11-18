@@ -349,6 +349,12 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["enabled"]) || typeof e !== "boolean") return null;
     return { intent: (ctx, op) => ({ kind: "SetStrictDeviceNotice", ctx, operationId: op, enabled: e }) };
   } },
+  "set-contact-allow-calls": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]);
+    const allowed = p["allowed"];
+    if (!exactly(p, ["conversationId", "allowed"]) || c === null || typeof allowed !== "boolean") return null;
+    return { intent: (ctx, op) => ({ kind: "SetContactAllowCalls", ctx, operationId: op, conversationId: asConversationId(c), allowed }) };
+  } },
   "set-contact-nickname": { destructive: false, parse: (p) => {
     const c = id(p["conversationId"]);
     const n = p["nickname"];
