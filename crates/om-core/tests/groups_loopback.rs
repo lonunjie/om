@@ -836,3 +836,62 @@ fn apply_other_head(g: &GroupState, _kp: &[u8]) -> GroupState {
     let i = Intent::decode(&admit_body(g, 40, 3, 0x33, &[])).unwrap();
     apply(g, &i, &acct(1), g.mls_epoch_ref + 1).unwrap()
 }
+
+/// Load check finding: a device removed from a Room kept the engine's inactive copy of the group, so the Welcome of a later
+/// ordinary re-invitation (ADR-0207) was refused with `welcome_rejected` (the engine already knew the group id). Core now has the
+/// engine drop a group it learns it is out of.
+#[test]
+fn a_removed_device_is_admitted_again_by_an_ordinary_invitation() {
+    let (mut a1, mut b1, mut b2) = world();
+    let g = head(&a1);
+    let body = remove_body(&g, 2, 2, 0x22);
+    let (id, p) = prep(
+        &mut a1,
+        &body,
+        1,
+        &CommitPlan::Remove(vec![id16(0xb1), id16(0xb2)]),
+        DEFAULT_BINDING_KIND,
+    );
+    a1.app.group_journal_published(&id).unwrap();
+    a1.app.group_journal_accept(&id, &mut a1.eng).unwrap();
+    for d in [&mut b1, &mut b2] {
+        let out = d
+            .app
+            .group_receive_commit(
+                &p.signed_binding,
+                &a1.pk(),
+                &p.commit,
+                &body,
+                &[1; 32],
+                &mut d.eng,
+                env!(d),
+            )
+            .unwrap();
+        assert!(matches!(
+            out,
+            ReceiveOutcome::Applied {
+                still_member: false,
+                ..
+            }
+        ));
+    }
+    // later: the same account, a new incarnation, fresh KeyPackages from the same two devices
+    let g3 = head(&a1);
+    let kps = vec![b1.kp(), b2.kp()];
+    let (id, p) = prep(
+        &mut a1,
+        &admit_body(&g3, 3, 2, 0x23, &[ADMIN]),
+        1,
+        &CommitPlan::Add(kps),
+        DEFAULT_BINDING_KIND,
+    );
+    a1.app.group_journal_published(&id).unwrap();
+    let s3 = a1.app.group_journal_accept(&id, &mut a1.eng).unwrap();
+    let w = p.welcome.unwrap();
+    join(&mut b1, &w, &s3);
+    join(&mut b2, &w, &s3);
+    let ex = |d: &Dev| d.eng.export_secret(&GID, "om-test", b"ctx", 32).unwrap();
+    assert_eq!(ex(&a1), ex(&b1));
+    assert_eq!(ex(&a1), ex(&b2));
+    assert_eq!(a1.eng.members(&GID).unwrap().len(), 3);
+}

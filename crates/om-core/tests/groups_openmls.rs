@@ -250,3 +250,28 @@ fn garbage_input_and_a_duplicate_group_are_refused() {
         "group_exists"
     );
 }
+
+#[test]
+fn a_removed_device_keeps_no_group_state_and_can_be_added_again() {
+    let (mut a, _b1, mut b2) = world();
+    let p = a.e.remove_commit(env!(a), GID, &[vec![0xb2; 16]]).unwrap();
+    a.e.merge_pending(GID).unwrap();
+    assert!(
+        !b2.e
+            .process_commit(env!(b2), GID, &p.commit)
+            .unwrap()
+            .still_member
+    );
+    // nothing of the group is left on the removed device (its epoch secrets are gone with it)
+    assert_eq!(b2.e.epoch(GID).unwrap_err().0, "unknown_group");
+    // an ordinary re-invitation: a fresh KeyPackage and a new Welcome under the same group id
+    let kp = b2.e.key_package(env!(b2)).unwrap();
+    let p = a.e.add_commit(env!(a), GID, &[kp.bytes]).unwrap();
+    a.e.merge_pending(GID).unwrap();
+    let (gid, info) = b2.e.process_welcome(env!(b2), &p.welcome.unwrap()).unwrap();
+    assert_eq!((gid.as_slice(), info.epoch), (GID, 3));
+    assert_eq!(
+        a.e.export_secret(GID, "l", b"", 16).unwrap(),
+        b2.e.export_secret(GID, "l", b"", 16).unwrap()
+    );
+}

@@ -505,10 +505,17 @@ impl GroupCrypto for OpenMlsGroupCrypto {
             ProcessedMessageContent::StagedCommitMessage(sc) => {
                 g.merge_staged_commit(&self.provider, *sc)
                     .map_err(|_| E("merge_failed"))?;
-                Ok(EpochInfo {
+                let info = EpochInfo {
                     epoch: g.epoch().as_u64(),
                     still_member: g.is_active(),
-                })
+                };
+                if !info.still_member {
+                    // Out of the group: drop its state (the epoch secrets too), so a later ordinary re-invitation of this device
+                    // can join under the same group id instead of meeting an inactive copy.
+                    g.delete(self.provider.storage())
+                        .map_err(|_| E("storage_failed"))?;
+                }
+                Ok(info)
             }
             _ => Err(E("not_a_commit")),
         }
