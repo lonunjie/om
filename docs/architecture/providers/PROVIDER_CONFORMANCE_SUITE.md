@@ -104,8 +104,15 @@ tap on the Home's own logs and network egress. Each case lists the requirements 
 | PC-I02 | template path | a fresh template deployment runs the verifier first and activates the pinned release; pointing the template at a branch head, an unsigned artifact or a digest not in targets fails closed |
 | PC-I03 | update | the controller left by the template stages and activates a newer signed release, and refuses a rollback |
 
-## Running it (future)
+## Running the implemented cases
 
-`conformance/runner` (W0 engineering) executes every case against a Home URL. Before public-production claims,
-PR-013 requires a passing report from both reference Homes. The report is published alongside the release's Protocol
-Continuity Bundle.
+From the repository root, run `pnpm conformance:provider` to run the implemented shared cases against both reference
+Homes. The runner starts each Home locally and drives its public HTTP and wake interfaces. Run one target with
+`pnpm conformance:provider worker` or `pnpm conformance:provider sqlite`. For environments where TCP listeners are
+unavailable, `pnpm conformance:provider sqlite-direct` passes the same requests and frames through in-process
+streams and the SQLite Home's HTTP listener.
+
+This command runs the existing mailbox, quota, usage, key pools, discovery, IntroGate, blob spool, recovery and wake
+cases. Full PC-B, PC-D, PC-E and PC-I, metadata trace evidence and client-side freshness and rollback tests have
+separate obligations. Before public-production claims, PR-013 requires passing reports for both reference Homes and
+the vendor-wide block drill. The reports are published alongside the release's Protocol Continuity Bundle.

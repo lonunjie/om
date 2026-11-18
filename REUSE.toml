@@ -19,7 +19,7 @@ SPDX-License-Identifier = "MPL-2.0"
 
 # Reference relay (Home), provisioning and network-service code is AGPL-3.0-or-later (LICENSING_AND_CONTRIBUTION_POLICY.md section 1): the reference Home, the relay deploy template and its builder.
 [[annotations]]
-path = ["infra/cloudflare-home/**"]
+path = ["infra/cloudflare-home/**", "infra/sqlite-home/**"]
 precedence = "override"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
@@ -31,7 +31,7 @@ SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = ["spec/**", "machine/**", "verification/**", "tools/**", "deploy/ledger/**", "Makefile", ".github/**", "REUSE.toml", ".gitignore", "docs/ux-design/**/*.json", "docs/ux-design/prototype/**"]
+path = ["spec/**", "machine/**", "verification/**", "conformance/**", "tools/**", "deploy/ledger/**", "Makefile", ".github/**", "REUSE.toml", ".gitignore", "docs/ux-design/**/*.json", "docs/ux-design/prototype/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "Apache-2.0"

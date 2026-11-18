@@ -4,7 +4,7 @@
 import { ADMISSION_HEADER, admissionHash, decodeHomeError, encodeQueueCreate, toBase64Url } from "@om/home-wire";
 import { createHttpProvider, createMemorySecretStore, parseProviderUrl } from "@om/provider-http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { startHome, type Home } from "./harness";
+import { providerFetch, startHome, type Home } from "./harness";
 import { asBody, bearer, newCaps, rand, relay, sealed } from "./kit";
 
 const secret = crypto.getRandomValues(new Uint8Array(32));
@@ -90,11 +90,11 @@ describe("PC-X owner admission", () => {
     const config = parseProviderUrl(home.url, { allowLoopbackHttp: true });
     if (!config) throw new Error("url");
     const mailbox = Array.from(rand(16), (x) => x.toString(16).padStart(2, "0")).join("");
-    const without = createHttpProvider({ config, secrets: createMemorySecretStore(), webSocket: false });
+    const without = createHttpProvider({ config, fetch: providerFetch(home), secrets: createMemorySecretStore(), webSocket: false });
     expect(await without.poll(mailbox, 0)).toEqual([]);
     expect(without.admissionRefused()).toBe(true);
     expect(without.lostMailboxes()).toEqual([]);
-    const withIt = createHttpProvider({ config, secrets: createMemorySecretStore(), webSocket: false, admission: secret });
+    const withIt = createHttpProvider({ config, fetch: providerFetch(home), secrets: createMemorySecretStore(), webSocket: false, admission: secret });
     expect(await withIt.poll(mailbox, 0)).toEqual([]);
     expect(withIt.admissionRefused()).toBe(false);
   });

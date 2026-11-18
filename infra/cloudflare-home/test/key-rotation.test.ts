@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { encode, map, toHex } from "@om/home-wire";
 import { createHttpProvider, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "@om/provider-http";
-import { startHome, type Home } from "./harness";
+import { providerFetch, startHome, type Home } from "./harness";
 
 const rand = (n: number): Uint8Array => crypto.getRandomValues(new Uint8Array(n));
 
@@ -19,7 +19,7 @@ describe("key pool across a signed-prekey rotation", () => {
   const mk = (): HttpProvider => {
     const config = parseProviderUrl(home.url, { allowLoopbackHttp: true });
     if (!config) throw new Error("bad url");
-    return createHttpProvider({ config, secrets: createMemorySecretStore(), timeoutMs: 10_000 });
+    return createHttpProvider({ config, fetch: providerFetch(home), secrets: createMemorySecretStore(), timeoutMs: 10_000 });
   };
   const fetchItems = async (peer: HttpProvider, dev: string, cap: string): Promise<string[]> => {
     const r = await peer.perform({ call: "fetch_key_material", deviceId: dev, service: `${home.url}/`, capability: cap });

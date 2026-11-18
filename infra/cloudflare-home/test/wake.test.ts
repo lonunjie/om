@@ -31,8 +31,8 @@ class Wake {
   private waiters: (() => void)[] = [];
   readonly ws: WebSocket;
   opened: Promise<void>;
-  constructor(readonly url: string, protocols: string[]) {
-    this.ws = new WebSocket(url, protocols);
+  constructor(readonly url: string, protocols: string[], h: Home = home) {
+    this.ws = h.transport?.socket(url, protocols) ?? new WebSocket(url, protocols);
     this.ws.binaryType = "arraybuffer";
     this.opened = new Promise((resolve, reject) => { this.ws.addEventListener("open", () => { resolve(); }); this.ws.addEventListener("error", () => { reject(new Error("socket error")); }); });
     this.opened.catch(() => undefined);
@@ -56,6 +56,7 @@ class Wake {
 
 /** A plain HTTP request that may carry `Upgrade` (the fetch API forbids that header). Resolves with the status and headers of the answer. */
 function raw(h: Home, method: string, headers: Record<string, string>): Promise<{ status: number; headers: Record<string, string | string[] | undefined> }> {
+  if (h.transport) return h.transport.request("/v1/relay/wake", method, headers);
   return new Promise((resolve, reject) => {
     const req = request(h.url + "/v1/relay/wake", { method, headers }, (res) => { res.resume(); resolve({ status: res.statusCode ?? 0, headers: res.headers }); });
     req.on("upgrade", (res, socket) => { socket.destroy(); resolve({ status: res.statusCode ?? 0, headers: res.headers }); });
@@ -66,7 +67,7 @@ function raw(h: Home, method: string, headers: Record<string, string>): Promise<
 const handshake = { connection: "Upgrade", upgrade: "websocket", "sec-websocket-version": "13", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==" };
 
 const wsUrl = (h: Home): string => h.url.replace(/^http/, "ws") + "/v1/relay/wake";
-const connect = (c: Caps, h: Home = home): Wake => new Wake(wsUrl(h), [WAKE_SUBPROTOCOL, wakeLabel(c.prefix)]);
+const connect = (c: Caps, h: Home = home): Wake => new Wake(wsUrl(h), [WAKE_SUBPROTOCOL, wakeLabel(c.prefix)], h);
 async function authed(c: Caps): Promise<Wake> {
   const w = connect(c);
   await w.opened;

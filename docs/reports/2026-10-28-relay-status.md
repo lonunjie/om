@@ -230,7 +230,9 @@ Also recorded: `wrangler` is pinned to 4.100.0 and `miniflare` to 4.20260611.0 (
 
 1. ~~Core: the signed RelaySet lineage~~ (built 2026-11-04, D22 closed). Relationship fetch capabilities (D4 -> D21) and the IntroGate flow (D10 -> D19) were built 2026-11-03.
 2. (Done 2026-10-29: the Settings control for the Home URL and `lostMailboxes()`, and RelayEntry route binding in Core.)
-3. The conformance runner (`conformance/runner`), the second vendor-neutral Home (PR-013), and the PC-B, C03, D, E, F, I cases.
+3. The [SQLite Home](../../infra/sqlite-home/README.md) and shared runner (`pnpm conformance:provider`) cover the
+   implemented API surfaces, including personal usage accounting (PC-C03) and the RecoveryStore extension. Full
+   PC-B, PC-D, PC-E, PC-F and PC-I evidence and the PR-013 vendor-wide block drill remain open.
 4. Independent review of this component (it handles capability and replay logic but no new cryptography).
 
 ## Deployed (2026-10-28, operator approved SeedLife's Cloudflare account)

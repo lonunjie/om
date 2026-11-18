@@ -37,9 +37,9 @@ def license_for(path: str) -> str:
     """LICENSE.md: prose is CC-BY-SA-4.0; spec/machine/verification/tools and schemas are Apache-2.0."""
     if path.startswith("LICENSES/"):
         return "upstream-license-text"
-    if path.startswith(("spec/", "machine/", "tools/", ".github/", "deploy/ledger/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
+    if path.startswith(("spec/", "machine/", "tools/", ".github/", "deploy/ledger/", "conformance/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
         return AP
-    if path.startswith("infra/cloudflare-home/"):
+    if path.startswith(("infra/cloudflare-home/", "infra/sqlite-home/")):
         return "AGPL-3.0-or-later"  # reference relay/Home and provisioning code (LICENSING_AND_CONTRIBUTION_POLICY.md section 1); REUSE.toml mirrors this
     if path.startswith(("packages/", "apps/", "crates/", "infra/")):
         return "MPL-2.0"  # shared client libraries and the reference web client (LICENSING_AND_CONTRIBUTION_POLICY.md)
@@ -88,6 +88,8 @@ def classify(path: str) -> dict:
         return e("protocol_schema" if p.startswith("spec/protocol/") else "spec_artifact", "unassigned", "normative_logical_schema")
     if p.startswith("machine/"):
         return e("machine_truth", "architecture_process", "machine_truth")
+    if p.startswith("conformance/"):
+        return e("verification_tool", "provider_deployment_supply_chain", "executable_verification_evidence")
     if p.startswith("verification/"):
         if ext == ".md":
             return e("verification_doc", "architecture_verification", "verification_evidence_non_normative")

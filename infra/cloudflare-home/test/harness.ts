@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Miniflare } from "miniflare";
+import type { SocketTransport } from "../../sqlite-home/test/harness";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 let bundled: string | undefined;
@@ -21,13 +22,31 @@ function bundle(): string {
 }
 
 export interface Home {
+  readonly transport?: SocketTransport;
   readonly url: string;
-  readonly mf: Miniflare;
   fetch(path: string, init?: RequestInit): Promise<Response>;
   dispose(): Promise<void>;
 }
 
+/** Bridge adapter tests to the selected Home while retaining all request headers and bodies. */
+export function providerFetch(home: Home): typeof fetch {
+  return (input, init) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    if (url.origin !== new URL(home.url).origin) throw new Error("Unexpected Home origin");
+    return home.fetch(url.pathname + url.search, {
+      method: request.method, headers: request.headers, body: init?.body ?? null,
+      redirect: request.redirect, signal: request.signal,
+    });
+  };
+}
+
 export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string>; bundle?: string; blobs?: false; usage?: false; recovery?: false; push?: false } = {}): Promise<Home> {
+  const target = process.env["OM_PROVIDER_TEST_TARGET"];
+  if (target === "sqlite" || target === "sqlite-direct") {
+    const { startSqliteHome } = await import("../../sqlite-home/test/harness");
+    return startSqliteHome({ ...opts, direct: target === "sqlite-direct" });
+  }
   const code = readFileSync(opts.bundle ?? bundle(), "utf8");
   const mf = new Miniflare({
     modules: [{ type: "ESModule", path: "index.js", contents: code }],
@@ -50,7 +69,7 @@ export async function startHome(opts: { persist?: string; port?: number; vars?: 
   });
   const url = (await mf.ready).toString().replace(/\/$/, "");
   return {
-    url, mf,
+    url,
     fetch: (path, init) => fetch(url + path, init),
     dispose: () => mf.dispose(),
   };

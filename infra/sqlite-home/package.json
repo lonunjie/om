@@ -1,0 +1,19 @@
+{
+  "name": "@om/sqlite-home",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.14" },
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "pnpm build && node dist/home.mjs"
+  },
+  "dependencies": {
+    "@om/home-wire": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260611.1",
+    "esbuild": "0.27.3",
+    "ws": "8.20.1"
+  }
+}

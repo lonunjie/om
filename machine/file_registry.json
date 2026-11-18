@@ -1509,6 +1509,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "conformance/runner/run.mjs",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "crates/om-codec/Cargo.toml",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -3967,6 +3974,13 @@
     },
     {
       "path": "decisions/ADR-0210-push-wake-through-the-persons-own-home.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0211-sqlite-home-runtime-and-local-usage.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -9203,6 +9217,90 @@
     },
     {
       "path": "infra/cloudflare-home/wrangler.jsonc",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/Dockerfile",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/README.md",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/build.mjs",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/package.json",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/src/runtime.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/src/server.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/src/wake.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/src/ws.d.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/test/harness.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/test/server.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/test/tsconfig.json",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/tsconfig.json",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",

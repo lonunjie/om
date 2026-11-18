@@ -274,6 +274,22 @@ importers:
         specifier: 4.100.0
         version: 4.100.0(@cloudflare/workers-types@4.20260611.1)
 
+  infra/sqlite-home:
+    dependencies:
+      '@om/home-wire':
+        specifier: workspace:*
+        version: link:../../packages/om-home-wire
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 4.20260611.1
+        version: 4.20260611.1
+      esbuild:
+        specifier: 0.27.3
+        version: 0.27.3
+      ws:
+        specifier: 8.20.1
+        version: 8.20.1
+
   packages/om-core-harness:
     dependencies:
       '@om/platform-api':

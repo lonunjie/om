@@ -65,7 +65,7 @@ export async function readBody(request: Request, max: number): Promise<Uint8Arra
     total += value.length;
     if (total > max) {
       // Bounded discard: a few more bytes are read so a well-behaved client receives `payload_too_large`; a hostile one is cut off.
-      while (total < DISCARD_BUDGET) {
+      while (total < max + DISCARD_BUDGET) {
         const rest = await reader.read();
         if (rest.done) break;
         total += rest.value.length;
