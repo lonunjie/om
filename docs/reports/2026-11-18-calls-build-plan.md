@@ -1,6 +1,6 @@
 # Calls build plan (scope `calls`, authorized by ADR-0217)
 
-Date: 2026-11-18. Status: plan, no product code written. Authorization: [`ADR-0217`](../../decisions/ADR-0217-authorize-calls-engineering.md) (explicit operator instruction; V-007 pre-engineering waived for engineering, kept as a release obligation).
+Date: 2026-11-18. Status: slices 0 to 5 merged to main (2026-11-19, `65048c2`); slices 6 to 8 not started. Slice 7 e2e note: the calls spec is Chromium-only in the hermetic run (fake media flags, loopback ICE candidate); a Firefox/WebKit run needs manual devices. Earlier text: plan, no product code written. Authorization: [`ADR-0217`](../../decisions/ADR-0217-authorize-calls-engineering.md) (explicit operator instruction; V-007 pre-engineering waived for engineering, kept as a release obligation).
 
 ## Design sources read
 
