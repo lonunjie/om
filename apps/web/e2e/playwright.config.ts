@@ -16,9 +16,10 @@ const SETUP_APP = "http://localhost:4179";
 const PROD_APP = "http://localhost:4181";
 // Opt-in (OM_LIVE_RELAY=1): the production build against the LIVE reference Home. Never part of the hermetic run.
 const live = process.env["OM_LIVE_RELAY"] === "1";
-const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
+const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
-const OTHER_ENGINE_IGNORE = /(chromium|live-relay|live-invite)\.spec\.ts/;
+// calls.spec.ts is Chromium-only: it needs Chromium launch flags for fake camera and microphone and a loopback ICE candidate, which Firefox and WebKit have no equivalent for in Playwright.
+const OTHER_ENGINE_IGNORE = /(calls|chromium|live-relay|live-invite)\.spec\.ts/;
 
 export default defineConfig({
   testDir: ".",

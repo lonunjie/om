@@ -73,7 +73,7 @@ const config: UserConfig = {
 // a relay; every person sets up their own in onboarding.
 // VITE_OM_GROUPS left this list when the groups module became a signed, lazily loaded second asset (ADR-0187; deviations D65 to D69). It no longer exists as a flag:
 // groups ship in every build and the module is fetched, verified and loaded only when a person first uses groups.
-const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL"] as const;
+const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL", "VITE_OM_CALLS"] as const;
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), "VITE_OM_"), ...process.env };

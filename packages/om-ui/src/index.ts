@@ -12,3 +12,4 @@ export * from "./protection/index";
 export * from "./alerts/index";
 export * from "./home/index";
 export * from "./search/index";
+export { CallView, CallTimelineNotice, type CallCopy } from "./calls/CallView";

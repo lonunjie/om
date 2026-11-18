@@ -215,3 +215,24 @@
     inline-size: 100%;
   }
 }
+
+
+.om-shell__call {
+  grid-area: call;
+  overflow: auto;
+  max-block-size: 50dvh;
+}
+.om-shell__call:empty { display: none; }
+.om-shell:has(> .om-shell__call) {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "call" "panes" "reach" "tabs";
+}
+@media (min-width: 600px) {
+  .om-shell:has(> .om-shell__call) {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "topbar" "call" "panes" "tabs";
+  }
+  .om-shell:has(> .om-shell__call):has(> .om-shell__rail) {
+    grid-template-areas: "rail topbar" "rail call" "rail panes" "rail tabs";
+  }
+}

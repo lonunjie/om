@@ -17,7 +17,7 @@ export const CSP: Readonly<Record<string, string>> = {
   "form-action": "'none'",
   "frame-ancestors": "'none'",
   "require-trusted-types-for": "'script'",
-  "trusted-types": "om-bundle",
+  "trusted-types": "om-bundle om-call-worker",
 };
 
 export const cspHeader = (): string =>

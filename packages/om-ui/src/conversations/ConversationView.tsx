@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { ConversationId, ConversationTimelineItem, MessageId } from "@om/platform-api";
+import type { ConversationId, ConversationSummary, ConversationTimelineItem, MessageId } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -45,6 +45,8 @@ export interface ConversationViewProps {
   readonly richTextFor?: (item: ConversationTimelineItem) => unknown;
   /** Slot below the timeline, normally the Composer. */
   readonly footer?: ReactNode;
+  readonly callActions?: ((contact: ConversationSummary) => ReactNode) | undefined;
+  readonly callNotices?: ReactNode;
   /** With it the header shows a Back control (compact screens, where the conversation replaces the list). */
   readonly onBack?: () => void;
   /** A message to bring into view and mark briefly (a search hit). Ignored if the message is not in this conversation. */
@@ -74,7 +76,7 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
 /** A short spoken name for a message, so "Reply" says which one. */
 const messageGist = (item: ConversationTimelineItem, copy: ConversationCopy): string => gistOf(item.text, copy.reply.attachment);
 
-export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId, sameName, sameNameCopy, onReply, replyingTo }: ConversationViewProps) {
+export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, callActions, callNotices, onBack, focusMessageId, sameName, sameNameCopy, onReply, replyingTo }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
@@ -180,6 +182,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
           {cue === null || sameNameCopy === undefined ? null : <Text as="p" size="sm" tone="secondary" className="om-conv-view__samename" data-samename={cue.kind}><bdi>{contactsLine(sameNameCopy, cue)}</bdi></Text>}
           {view.summary.nickname === undefined ? null : <Text as="p" size="sm" tone="secondary" className="om-conv-view__original"><bdi>{view.summary.displayName}</bdi></Text>}
         </div>
+        {callActions?.(view.summary)}
         <IconButton className="om-conv-view__contact" label={copy.contact.open(shownName(view.summary))} icon={<Icon name="user" />} onClick={() => { setContactOpen(true); }} />
       </header>
       {view.summary.relationship === "active" && view.summary.notices.length === 0 && (view.summary.peerRecovery === undefined || recoveryCopy === undefined) ? null : (
@@ -255,6 +258,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
             })}
           </ol>
         )}
+        {callNotices}
         <div ref={end} className="om-conv-view__end" aria-hidden="true" />
       </div>
       {footer}

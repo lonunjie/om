@@ -30,6 +30,7 @@ export interface AppShellProps {
   readonly list: ReactNode;
   readonly detail: ReactNode;
   readonly composerZone?: ReactNode;
+  readonly liveCall?: ReactNode;
   /** The Omnibar's entry: in the lower reach zone on a compact list, in the top bar from 600 px. In a compact conversation it belongs inside the composer (Composer's `trailing` slot), so it is not drawn twice. */
   readonly omnibarTrigger?: ReactNode;
   /** The open Omnibar (see `Omnibar`). While it is shown the composer and the lower reach zone are hidden on a compact screen: only one text entry at a time. */
@@ -131,6 +132,7 @@ export const AppShell = (p: AppShellProps) => {
           {!rail ? p.profileControl : null}
         </div>
       ) : null}
+      {p.liveCall === undefined ? null : <div className="om-shell__call">{p.liveCall}</div>}
       <main id="om-main" className="om-shell__panes" tabIndex={-1}>
         {showList ? <section className="om-shell__list" aria-label={p.labels.list}>{p.list}</section> : null}
         {showDetail ? <section ref={detailPane} className="om-shell__detail" aria-label={p.labels.detail}>{p.detail}</section> : null}

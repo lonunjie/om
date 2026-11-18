@@ -76,6 +76,7 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
     // No provider adapter exists yet, so no third party can observe anything; the real facts arrive with one.
     home: { tier: "none", observers: ["no_third_party"], migrationAvailable: false, clientOriginChoice: ["default_origin"] },
     pollMs: opts.pollMs,
+    calls: import.meta.env.VITE_OM_CALLS === "1",
     ...(groups ? { groupDriver: {} } : {}),
   });
 }
