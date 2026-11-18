@@ -51,9 +51,9 @@ Nowhere new. Registering needs two things the owner already holds (admission and
 
 No cryptographic floor is touched (no new key shares a purpose with any OM key; the VAPID key signs push requests only). No metadata floor is weakened: the empty payload keeps content and identity out; the Maximum-profile default is off; the per-profile rule is honoured by not offering the switch where it cannot be kept (below).
 
-## Open question, recorded and answered by the safest reading
+## Single-profile alerts: accepted for v1 (operator ruling, 2026-11-18)
 
-NOTIFICATIONS_AND_PUSH requires a distinct service-worker scope and subscription per identity profile. The reference web client has one worker at the origin root, so two profiles on one device would present one endpoint to their Homes. Reading chosen: **the switch is offered only on a device with exactly one identity profile.** Whether per-profile scopes are wanted for the PWA is a question for the operator.
+NOTIFICATIONS_AND_PUSH requires a distinct service-worker scope and subscription per identity profile. The reference web client has one worker at the origin root, so two profiles on one device would present one endpoint to their Homes. Reading chosen: **the switch is offered only on a device with exactly one identity profile.** The operator accepted this for v1; per-profile service-worker scopes (one subscription per profile) are a later change. The operator also confirmed that "wake, then fetch" means what decision 6 says: the worker shows the generic notice and never fetches; the app fetches when it is opened.
 
 ## Consequences
 
