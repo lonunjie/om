@@ -45,6 +45,8 @@ export interface WakeHub {
   drained(mailboxHex: string, seq: number): void;
   /** Called when a socket reports something newer than the caller holds. */
   onWake(listener: () => void): () => void;
+  /** Asks the same listeners to collect now without a socket saying so (a push told the page to look, ADR-0210). */
+  nudge(): void;
   stats(): WakeStats;
   dispose(): void;
 }
@@ -222,6 +224,7 @@ export function createWakeHub(opts: WakeHubOptions): WakeHub {
       // A real drain that found nothing newer than the socket announced is as good as a fresh `ready`.
       if (l.state === "live" && l.head <= Math.max(l.drainedUpTo, l.after)) l.verifiedAt = now();
     },
+    nudge() { notify(); },
     onWake(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };

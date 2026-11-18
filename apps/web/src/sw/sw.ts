@@ -3,6 +3,7 @@
 // it activates only when a page sends `om.sw/activate` at a user-visible or idle boundary, never mid-session.
 import { createShell, type ShellCache, type ShellStorage } from "./core";
 import { idbKv } from "./idb-kv";
+import { onNotificationClick, onPush, type PushDeps, type WindowLike } from "./push";
 import { TRUST_ROOT } from "./trust-root";
 
 interface ExtendableEventLike extends Event {
@@ -15,8 +16,13 @@ interface FetchEventLike extends ExtendableEventLike {
 interface MessageEventLike extends ExtendableEventLike {
   readonly data: unknown;
 }
+interface PushEventLike extends ExtendableEventLike { readonly data?: unknown }
+interface WindowClientLike { readonly visibilityState: string; postMessage(m: unknown): void; focus(): Promise<unknown> }
 interface SwScope {
   readonly location: Location;
+  readonly clients: { matchAll(o: { type: "window"; includeUncontrolled: boolean }): Promise<readonly WindowClientLike[]>; openWindow(url: string): Promise<unknown> };
+  readonly registration: { showNotification(title: string, o: NotificationOptions): Promise<void> };
+  addEventListener(type: "push" | "notificationclick", l: (e: PushEventLike) => void): void;
   readonly caches: CacheStorage;
   skipWaiting(): Promise<void>;
   addEventListener(type: "install" | "activate", l: (e: ExtendableEventLike) => void): void;
@@ -67,4 +73,19 @@ sw.addEventListener("fetch", (e) => {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== sw.location.origin) return;
   e.respondWith(shell.respond(url.pathname, request.mode === "navigate").then((r) => r ?? fetch(request), () => fetch(request)));
+});
+
+// Push wake (ADR-0210): an empty push becomes one generic notice or an opaque wake of an open window. No fetch, no vault, no secret here.
+const windowsOf = async (): Promise<readonly WindowLike[]> =>
+  (await sw.clients.matchAll({ type: "window", includeUncontrolled: true })).map((c) => ({ visible: c.visibilityState === "visible", post: (m: unknown) => { c.postMessage(m); }, focus: () => c.focus() }));
+const pushDeps: PushDeps = {
+  windows: windowsOf,
+  show: (title, o) => sw.registration.showNotification(title, { body: o.body, tag: o.tag }),
+  read: async (k) => { const v = await idbKv.get(k); return typeof v === "string" ? v : null; },
+  open: (url) => sw.clients.openWindow(url),
+};
+sw.addEventListener("push", (e) => { e.waitUntil(onPush(pushDeps)); });
+sw.addEventListener("notificationclick", (e) => {
+  (e as unknown as { notification?: { close(): void } }).notification?.close();
+  e.waitUntil(onNotificationClick(pushDeps));
 });

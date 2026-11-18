@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, ProtectionCopy, RecoveryCopy, LostDevicesCopy, ApproveRecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, ProtectionCopy, AlertsCopy, RecoveryCopy, LostDevicesCopy, ApproveRecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -601,15 +601,16 @@ export interface AppStrings {
   readonly appName: string;
   readonly settingsHeading: string;
   readonly settingsSearch: { readonly label: string; readonly none: (query: string) => string };
-  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly protection: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
+  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly protection: string; readonly backup: string; readonly alerts: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   /** Words a person might type for a row that its title does not contain. */
-  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly protection: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
+  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly protection: string; readonly backup: string; readonly alerts: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   readonly settingsLock: string;
   readonly settingsNeedsAttention: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
   readonly settingsProtection: string;
   readonly settingsBackup: string;
+  readonly settingsAlerts: string;
   readonly settingsHome: string;
   readonly settingsHelp: string;
   readonly backToChats: string;
@@ -870,6 +871,7 @@ export const appStrings: AppStrings = {
     recovery: "How to get your chats back if you lose this device.",
     protection: "How careful OM is when a contact gets their account back.",
     backup: "Save your chats to a file, or read them back from one.",
+    alerts: "A notice on this device when a message arrives and OM is closed.",
     delivery: "The service that carries your messages between devices.",
     lock: "Whether OM asks before it opens on this device.",
     help: "Report a problem or suggest an idea.",
@@ -880,6 +882,7 @@ export const appStrings: AppStrings = {
     recovery: "safety code backup restore lost",
     protection: "privacy level recommended hardened maximum privacy protection careful security",
     backup: "backup restore export import download save file history chats copy move new phone drive usb password",
+    alerts: "notifications push notice wake closed background badge sound",
     delivery: "relay server network connection messages",
     lock: "password passcode pin passkey fingerprint face biometric privacy security",
     help: "bug problem issue report feedback idea suggestion feature request support github version",
@@ -891,6 +894,7 @@ export const appStrings: AppStrings = {
   settingsRecovery: "Recovery",
   settingsProtection: "Protection",
   settingsBackup: "Backup file",
+  settingsAlerts: "Alerts",
   settingsHome: "Message delivery",
   settingsHelp: "Help and feedback",
   backToChats: "Back to chats",
@@ -1262,6 +1266,44 @@ export const onboardingCopy: OnboardingCopy = {
   },
 };
 
+/** The one notice shown for a push while OM is closed: no name, count, chat or text (ADR-0210). Stored for the service worker when alerts are turned on. */
+export const alertsNotice = { title: "OM", body: "New message" } as const;
+export const alertsCopy: AlertsCopy = {
+  heading: "Alerts",
+  intro: "Get a notice on this device when a message arrives while OM is closed. It is off until you turn it on, and it is only for this device.",
+  privacy: "The notice only says New message. Your browser's push service (Google, Apple or Mozilla, depending on the browser) learns that this device was woken, and when. It never learns who wrote, what was said, or which chat. Your own delivery service sends the wake; OM has no server of its own.",
+  ios: "On iPhone and iPad this works only after you add OM to your Home Screen (Share, then Add to Home Screen) and open it from there.",
+  limit: "Alerts can arrive late or not at all, depending on your phone and browser. Opening OM always brings in everything waiting for you.",
+  loading: "Loading alerts",
+  loadFailed: "Alerts could not be loaded. Try again in a moment.",
+  unavailable: {
+    no_browser: "This browser cannot show alerts while OM is closed.",
+    needs_install: "Add OM to your Home Screen first, then open it from there and come back to this page.",
+    no_home: "Your delivery service does not offer alerts, so OM can only tell you about messages while it is open.",
+    many_profiles: "Alerts are offered only when this device holds a single identity, because one device has one notification address for all of them.",
+  },
+  failure: {
+    denied: "Notifications are blocked for OM in this browser. Allow them in the browser or phone settings, then try again.",
+    refused: "Your delivery service did not accept this device. Alerts stay off.",
+    full: "Your delivery service already has the most devices it will notify. Turn alerts off on another device first.",
+    unreachable: "OM could not reach your delivery service. Alerts stay off; try again in a moment.",
+    failed: "Alerts could not be turned on. Nothing was changed.",
+    unavailable: "Alerts are not available here.",
+  },
+  off: "Alerts are off.",
+  on: "Alerts are on.",
+  turnOn: "Turn on alerts",
+  turnOff: "Turn off alerts",
+  maximum: {
+    title: "Turn on alerts at Maximum Privacy?",
+    body: "Alerts let your browser's push service see the time of each wake. Maximum Privacy keeps that off. Turn it on only if being told matters more to you.",
+    confirm: "Turn on anyway",
+    keepOff: "Keep off",
+  },
+  paused: { body: "Alerts are paused because protection is set to Maximum Privacy.", keep: "Keep alerts on anyway" },
+  turnedOn: "Alerts are on for this device.",
+  turnedOff: "Alerts are off for this device.",
+};
 export const protectionCopy: ProtectionCopy = {
   heading: "Protection",
   intro: "All three levels use the same strong encryption. They differ in how careful OM is on this device.",

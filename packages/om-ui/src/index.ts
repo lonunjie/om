@@ -9,5 +9,6 @@ export * from "./onboarding/index";
 export * from "./devices/index";
 export * from "./recovery/index";
 export * from "./protection/index";
+export * from "./alerts/index";
 export * from "./home/index";
 export * from "./search/index";

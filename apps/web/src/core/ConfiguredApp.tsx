@@ -10,6 +10,7 @@ import { createHomeSettings } from "./homeSettings";
 import { createHomesProviderFor, resolveHomeSet, type HomeSet, type HomesProvider, type ProviderChoice, type ProviderEnv } from "./providerConfig";
 import { RealApp } from "./RealApp";
 import { createRelaySetup } from "./relaySetup";
+import { browserAlerts } from "./alertsHost";
 
 type Resolved = { readonly k: "pending" } | { readonly k: "ready"; readonly provider: HomesProvider | null; readonly choice: ProviderChoice | null; readonly set: HomeSet | null; readonly env: ProviderEnv | undefined };
 
@@ -52,6 +53,19 @@ export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode 
     () => (state.k === "ready" && state.env !== undefined ? createRelaySetup({ env: state.env, deployUrl: import.meta.env.VITE_OM_RELAY_DEPLOY_URL, reconnect }) : undefined),
     [state, reconnect],
   );
+  // A push told the page to look (the service worker's opaque wake, ADR-0210): collect now, as a wake from the Home would.
+  useEffect(() => {
+    if (state.k !== "ready" || state.provider === null || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const p = state.provider;
+    const on = (e: MessageEvent): void => { if ((e.data as { type?: unknown } | null)?.type === "om.sw/wake") p.nudge(); };
+    navigator.serviceWorker.addEventListener("message", on);
+    return () => { navigator.serviceWorker.removeEventListener("message", on); };
+  }, [state]);
+  const alerts = useMemo(() => {
+    if (state.k !== "ready") return undefined;
+    const p = state.provider;
+    return (profileCount: () => number) => browserAlerts(p, profileCount);
+  }, [state]);
   if (state.k === "pending") return <Text>{t.coreLoading}</Text>;
-  return <RealApp provider={state.provider} {...(banner === undefined ? {} : { banner })} {...(pollMs === undefined ? {} : { pollMs })} {...(home === undefined ? {} : { home })} {...(relaySetup === undefined ? {} : { relaySetup })} />;
+  return <RealApp provider={state.provider} {...(banner === undefined ? {} : { banner })} {...(pollMs === undefined ? {} : { pollMs })} {...(home === undefined ? {} : { home })} {...(alerts === undefined ? {} : { alerts })} {...(relaySetup === undefined ? {} : { relaySetup })} />;
 }

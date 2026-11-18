@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
-  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
+  AlertsScreen, useAlertsRefresh, AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import type { ComposerCapture, ReplyTarget, SearchStore, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
+import type { AlertsServices, ComposerCapture, ReplyTarget, SearchStore, StagedItem } from "@om/ui";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, alertsCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -60,6 +60,8 @@ export interface ShellProps {
   readonly lock?: LockServices;
   /** Settings > Backup file, when the host can save and restore one (the production entry). */
   readonly backup?: BackupServices;
+  /** Settings > Alerts: a notice when OM is closed (ADR-0210), when the host can offer it (the production entry). */
+  readonly alerts?: AlertsServices;
   /** Where drafts are kept between visits (the production entry); without it they last until the page closes. */
   readonly draftSync?: DraftSync;
   /** Where the search index is kept at rest, sealed by the identity's vault (ADR-0208); without it the index lasts until the screen goes away. */
@@ -78,7 +80,8 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
+  useAlertsRefresh(services, alerts); // renews the Home's registration at start when alerts are on (ADR-0210)
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
@@ -243,7 +246,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     if (clipboard.state === "unavailable" || r.status !== "platform" || r.request.capability !== "Clipboard") return false;
     return (await clipboard.api.write(text, { sensitive: false })) === "written";
   };
-  const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || (place.kind === "settings" && place.page === "lock" && lock === undefined) || (place.kind === "settings" && place.page === "backup" && backup === undefined) || chatGone;
+  const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || (place.kind === "settings" && place.page === "lock" && lock === undefined) || (place.kind === "settings" && place.page === "backup" && backup === undefined) || (place.kind === "settings" && place.page === "alerts" && alerts === undefined) || chatGone;
   useEffect(() => { if (noSuchPlace) go(CHATS, { replace: true }); }, [noSuchPlace, go]);
   // The address bar shows the place's own address ("/index.html" and "/nope" become "/"), so what is shown can be copied and reopened.
   useEffect(() => { if (!noSuchPlace && placeUrl(place) !== raw) go(place, { replace: true }); }, [raw, place, noSuchPlace, go]);
@@ -302,6 +305,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
       { page: "recovery", title: t.settingsRecovery, words: t.settingsKeywords.recovery, on: true },
       { page: "protection", title: t.settingsProtection, words: t.settingsKeywords.protection, on: true },
       { page: "backup", title: t.settingsBackup, words: t.settingsKeywords.backup, on: backup !== undefined },
+      { page: "alerts", title: t.settingsAlerts, words: t.settingsKeywords.alerts, on: alerts !== undefined },
       { page: "delivery", title: t.settingsHome, words: t.settingsKeywords.delivery, on: home !== undefined },
       { page: "help", title: t.settingsHelp, words: t.settingsKeywords.help, on: true },
     ];
@@ -309,7 +313,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     if (onAddProfile !== undefined) out.push({ id: "add-profile", kind: "action", label: t.addProfile, keywords: t.settingsKeywords.addProfile, run: onAddProfile });
     if (safetyCode !== undefined) out.push({ id: "safety-code", kind: "setting", label: t.safetyCode.action, keywords: t.settingsKeywords.recovery, run: () => { go({ kind: "safety-code" }); } });
     return out;
-  }, [chatRows, contactNames, groupsOffered, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
+  }, [chatRows, contactNames, groupsOffered, services.ctx, invite, lock, backup, alerts, home, onAddProfile, safetyCode, go, openNew]);
   // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
     if (invite === undefined || !parseInviteLink(query).ok) return [];
@@ -398,7 +402,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
           onBack={() => { back({ kind: "settings", page: "menu" }); }}
           list={(
             <SettingsMenu
-              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined} hasBackup={backup !== undefined}
+              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined} hasBackup={backup !== undefined} hasAlerts={alerts !== undefined}
               onSafetyCode={safetyCode === undefined ? undefined : () => { go({ kind: "safety-code" }); }}
             />
           )}
@@ -414,6 +418,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                   : settings === "protection" ? <ProtectionScreen services={services} copy={protectionCopy} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
+                  : settings === "alerts" && alerts !== undefined ? <AlertsScreen services={services} alerts={alerts} copy={alertsCopy} />
                   : settings === "help" ? <HelpScreen />
                   : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy, renderQr: (payload) => <QrCode payload={payload} /> }} {...(invite ? { replace: { copy: replaceRecoveryCopy, onStarted: setReplacingKey } } : {})} />}
               </SubPage>
@@ -572,8 +577,8 @@ function Requests({ services, contacts }: { readonly services: ConversationServi
 interface MenuRow { readonly id: SettingsPage; readonly title: string; readonly hint: string; readonly icon: IconName; readonly words: string }
 
 /** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. Typing anywhere searches it. */
-function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, hasBackup, onSafetyCode }: {
-  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasLock: boolean; readonly hasBackup: boolean; readonly onSafetyCode: (() => void) | undefined;
+function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, hasBackup, hasAlerts, onSafetyCode }: {
+  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasLock: boolean; readonly hasBackup: boolean; readonly hasAlerts: boolean; readonly onSafetyCode: (() => void) | undefined;
 }) {
   const [query, setQuery] = useState("");
   const search = useRef<HTMLInputElement>(null);
@@ -583,6 +588,7 @@ function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, hasBackup,
     { id: "recovery", title: t.settingsRecovery, hint: t.settingsRows.recovery, icon: "shield", words: t.settingsKeywords.recovery },
     { id: "protection" as const, title: t.settingsProtection, hint: t.settingsRows.protection, icon: "shield" as const, words: t.settingsKeywords.protection },
     ...(hasBackup ? [{ id: "backup" as const, title: t.settingsBackup, hint: t.settingsRows.backup, icon: "download" as const, words: t.settingsKeywords.backup }] : []),
+    ...(hasAlerts ? [{ id: "alerts" as const, title: t.settingsAlerts, hint: t.settingsRows.alerts, icon: "chat" as const, words: t.settingsKeywords.alerts }] : []),
     ...(hasHome ? [{ id: "delivery" as const, title: t.settingsHome, hint: t.settingsRows.delivery, icon: "delivery" as const, words: t.settingsKeywords.delivery }] : []),
     { id: "help", title: t.settingsHelp, hint: t.settingsRows.help, icon: "chat", words: t.settingsKeywords.help },
   ];

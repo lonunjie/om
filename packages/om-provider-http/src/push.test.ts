@@ -90,6 +90,10 @@ describe("provider.push", () => {
     await open("00".repeat(16));
     await new Promise((r) => setTimeout(r, 20));
     expect(puts).toEqual(["PUT"]); // the kept endpoint followed the new mailbox
+    let woke = 0;
+    p.onWake(() => { woke++; });
+    p.nudge();
+    expect(woke).toBe(1);
     await p.push.unregister(ENDPOINT);
     expect(puts).toEqual(["PUT", "DELETE"]);
     await open("11".repeat(16));

@@ -85,6 +85,8 @@ export interface HttpProvider extends Provider {
   setWakeActive(active: boolean): void;
   /** Called when the Home reports something newer than this client holds (Provider.onWake). */
   onWake(listener: () => void): () => void;
+  /** Collects now: a push told the page to look (ADR-0210). Same listeners as a wake; costs nothing if there is nothing to find. */
+  nudge(): void;
   wakeStats(): WakeStats;
   /** The optional push wake (om.relay.push.v1, ADR-0210): the Home's key and registering a browser endpoint for every mailbox held here. */
   readonly push: PushClient;
@@ -750,6 +752,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     },
     setWakeActive: (active) => { hub.setActive(active); },
     onWake: (listener) => hub.onWake(listener),
+    nudge: () => { hub.nudge(); },
     wakeStats: () => hub.stats(),
     push,
     dispose: () => { hub.dispose(); },
