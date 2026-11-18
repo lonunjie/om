@@ -7,6 +7,7 @@
 // per-device Durable Object calls it then really makes are charged after the fact (`charge`, plus the charge call itself), so a
 // 64-device fetch is not metered as a 1-device one and a fetch that fails on its first device is charged for that one call only.
 // A charge that cannot be recorded is dropped (fail open, like `unknown`): the free plan's own hard stop is the backstop.
+// Public GET /healthz and OPTIONS preflights are counted on purpose: the plan bills them, and the meter reports the plan's own accounting (operator ruling 2026-11-18, Q-R2-1). Probing to push a Home to soft is a separate concern for a separate rate limit.
 // Not counted: WebSocket messages after the upgrade. (Decision D3 of the limits report charged a fixed two calls per request and
 // so undercounted batched key fetches; superseded by the above, see the limits report.)
 import { DurableObject } from "cloudflare:workers";

@@ -1,6 +1,6 @@
 # ADR-0204 — Typing indicators: off unless the person turns them on, direct channel only, no new relay-visible signal
 
-- **Status:** Proposed, 2026-11-18. Drafted under the operator's delegation to fill silence and fail closed. **Not accepted and not implemented**: section 5 states why the operator's decision is needed first.
+- **Status:** Accepted with gates, 2026-11-18 (operator-delegated ruling: the direct-channel-only form is accepted). **Implementation is blocked** until (a) a direct transport is authorized for product code and (b) an independent metadata review of the new frame exists. No code now (D154).
 - **Class:** `additive_noncritical_extension` under ADR-0165 (one new ephemeral frame kind on a channel that already exists), if accepted.
 - **Amends:** nothing. It fills the silence recorded as Q-CHAT-5: the design names typing as a standard optional ephemeral capability and gives no frame, no lifetime, no rate limit, no delivery class and no meaning for "reduced".
 
@@ -22,7 +22,7 @@ Every message leaves a relay-visible deposit. A typing signal sent the same way 
 4. **What "reduced" means for Hardened.** At Hardened the switch exists but typing is only received and shown, never sent, unless the person also turns on sending. At Recommended each direction is its own switch. At Maximum Privacy both stay off and need the explicit switch of section 1.
 5. **Rooms.** No typing signal in a Room. A Room has no direct channel to every member, and the only other carrier is MLS application traffic, which is relay-visible.
 
-## Why this is not accepted yet
+## Gates and open points
 
 - Section 2 makes typing work only where a direct channel is already open. For most people that is rare, so the feature would be seldom seen. If the operator wants typing over the relay, the cost is a new relay-visible deposit per `start` and a timing signal, which contradicts the stated constraint and needs the operator's own ruling.
 - A new frame kind needs wire vectors and a metadata-threat review by someone other than the author; neither exists.

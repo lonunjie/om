@@ -89,7 +89,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         };
         if sibling {
-            return true; // own-device sync of lane events is not specified: ignored, never half-applied
+            // v1 rule (operator ruling 2026-11-18, Q-R2-2, D153): a lane event copied from one of our own other devices (an invite or accept
+            // that sibling sent) is ignored and never half-applied; the device that sent it keeps the state. Own-device sync of lane events is not specified.
+            return true;
         }
         let now_s = self.now_s();
         let Some(r) = self.st.app.relationships.get(conv) else {
