@@ -69,6 +69,8 @@ interface Spec { readonly destructive: boolean; readonly parse: (p: Rec, ctx: Pr
 
 const ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 const MAX_TEXT = 65536;
+/** The recovery approval link (ADR-0203): its own prefix, never an enrollment link. */
+export const RECOVERY_APPROVAL_LINK = /^om:recover-approve\/[A-Za-z0-9_-]{16,200}$/;
 const id = (v: unknown): string | null => (typeof v === "string" && ID.test(v) ? v : null);
 const oneOf = <T extends string>(v: unknown, set: readonly T[]): T | null => set.find((s) => s === v) ?? null;
 const policies: readonly PrivacyPolicyLevel[] = ["recommended", "hardened", "maximum", "custom"];
@@ -366,6 +368,29 @@ const SPECS: Readonly<Record<string, Spec>> = {
     const label = p["label"];
     if (typeof label !== "string" || label.trim() === "" || label.length > 64) return null;
     return { intent: (ctx, op) => ({ kind: "CreateIdentityProfile", ctx, operationId: op, label }) };
+  } },
+  // Getting an account back after losing every device (ADR-0200, ADR-0202, ADR-0203). The key sheet is the person's own secret: it
+  // is passed to Core and never logged or echoed. Nothing here can approve, skip a wait or choose a pin.
+  "begin-recovery": { destructive: false, parse: (p) => {
+    const key = p["recoveryKey"]; const place = p["place"];
+    if (!exactly(p, ["recoveryKey", "place"]) || typeof key !== "string" || key.trim() === "" || key.length > 4096) return null;
+    if (place !== undefined && (typeof place !== "string" || place.trim() === "" || place.length > 256)) return null;
+    return { intent: (ctx, op) => ({ kind: "BeginRecovery", ctx, operationId: op, recoveryKey: key, ...(place === undefined ? {} : { place: place.trim() }) }) };
+  } },
+  "request-recovery": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "RequestRecovery", ctx, operationId: op }) } : null) },
+  "cancel-recovery": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "CancelRecovery", ctx, operationId: op }) } : null) },
+  "check-recovery-again": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "CheckRecoveryAgain", ctx, operationId: op }) } : null) },
+  "offer-recovery-approval": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "OfferRecoveryApproval", ctx, operationId: op }) } : null) },
+  "join-recovery-approval": { destructive: false, parse: (p) => {
+    const link = p["link"];
+    if (!exactly(p, ["link"]) || typeof link !== "string" || !RECOVERY_APPROVAL_LINK.test(link.trim())) return null;
+    return { intent: (ctx, op) => ({ kind: "JoinRecoveryApproval", ctx, operationId: op, link: link.trim() }) };
+  } },
+  // "Yes, that was me" on a recovery request this controller was shown (the exact request, after comparing the code).
+  "confirm-recovery": { destructive: true, parse: (p) => {
+    const r = id(p["requestId"]);
+    if (!exactly(p, ["requestId"]) || r === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "ConfirmRecovery", ctx, operationId: op, requestId: r, confirmation }) };
   } },
   "confirm-recovery-key-stored": { destructive: false, parse: (p) => {
     const k = id(p["keyOperationId"]);

@@ -9,7 +9,7 @@ import {
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, ReplyTarget, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, approveRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -385,7 +385,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />
-                  : <RecoveryScreen services={services} copy={recoveryCopy} />}
+                  : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy }} />}
               </SubPage>
             </div>
           )}

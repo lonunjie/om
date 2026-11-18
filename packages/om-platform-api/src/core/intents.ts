@@ -121,12 +121,17 @@ export interface CancelRecovery extends IntentBase { readonly kind: "CancelRecov
 /** Ask again now: re-read the record (before an attempt) or the Homes' boards and record (during one). */
 export interface CheckRecoveryAgain extends IntentBase { readonly kind: "CheckRecoveryAgain" }
 
+/** On a surviving controller (a live control device): open a short, single-use recovery approval exchange (ADR-0203). It shows a private `om:recover-approve/` link or QR for the restricted device; the person then confirms the exact request with `ConfirmRecovery`. */
+export interface OfferRecoveryApproval extends IntentBase { readonly kind: "OfferRecoveryApproval" }
+/** On the restricted device with its request waiting: send that exact request to the controller whose `om:recover-approve/` link it was given. An enrollment link is refused. */
+export interface JoinRecoveryApproval extends IntentBase { readonly kind: "JoinRecoveryApproval"; readonly link: string }
+
 export type CoreIntent =
   | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
-  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | SetContactNickname | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery | RequestRecovery | CancelRecovery | CheckRecoveryAgain;
+  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | SetContactNickname | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery | RequestRecovery | CancelRecovery | CheckRecoveryAgain | OfferRecoveryApproval | JoinRecoveryApproval;
 
 export type CoreIntentKind = CoreIntent["kind"];
 
@@ -135,7 +140,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",
-  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "SetContactNickname", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery", "RequestRecovery", "CancelRecovery", "CheckRecoveryAgain",
+  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "SetContactNickname", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery", "RequestRecovery", "CancelRecovery", "CheckRecoveryAgain", "OfferRecoveryApproval", "JoinRecoveryApproval",
 ];
 
 /** Intents that require an explicit confirmation token; learned/ranked suggestions can never supply one (UI-11). */

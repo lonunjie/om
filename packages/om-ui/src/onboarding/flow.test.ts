@@ -26,6 +26,9 @@ describe("onboarding flow reducer", () => {
     expect(run(["choose_join"], choosingFlow).step).toBe("join_protect");
     expect(run(["choose_join", "vault_ready"], choosingFlow).step).toBe("join_link");
     expect(run(["choose_join", "back_to_choice"], choosingFlow).step).toBe("choose");
+    expect(run(["choose_recover"], choosingFlow).step).toBe("recover_protect");
+    expect(run(["choose_recover", "vault_ready"], choosingFlow).step).toBe("recover_flow");
+    expect(run(["choose_recover", "back_to_choice"], choosingFlow).step).toBe("choose");
   });
 
   it("the join path cannot skip protecting the device or reach the identity steps", () => {

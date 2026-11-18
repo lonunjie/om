@@ -7,6 +7,7 @@ import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import type { OnboardingCopy } from "./copy";
 import { JoinWithLink } from "../devices/JoinWithLink";
+import { LostDevices } from "../recovery/LostDevices";
 import { choosingFlow, flowReducer, initialFlow } from "./flow";
 import { FirstRunChoice } from "./FirstRunChoice";
 import { HomeFacts } from "./HomeFacts";
@@ -92,7 +93,7 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
     case "choose":
       return joinCopy === undefined ? null : (
         <OnboardingFrame copy={copy.frame} stepKey="choose">
-          <FirstRunChoice copy={joinCopy} onStartNew={() => { dispatch({ type: "choose_new" }); }} onUseExisting={() => { dispatch({ type: "choose_join" }); }} />
+          <FirstRunChoice copy={joinCopy} onStartNew={() => { dispatch({ type: "choose_new" }); }} onUseExisting={() => { dispatch({ type: "choose_join" }); }} {...(joinCopy.recover ? { onLostDevices: () => { dispatch({ type: "choose_recover" }); } } : {})} />
         </OnboardingFrame>
       );
     case "join_protect": {
@@ -108,6 +109,35 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
             onProtected={() => undefined} onVaultReady={() => { dispatch({ type: "vault_ready" }); }}
           />
           <div className="om-onb__actions"><Button variant="quiet" onClick={() => { dispatch({ type: "back_to_choice" }); }}>{joinCopy.back}</Button></div>
+        </OnboardingFrame>
+      );
+    }
+    case "recover_protect": {
+      const rc = joinCopy?.recover;
+      if (joinCopy === undefined || rc === undefined) return null;
+      const protect = Object.fromEntries(Object.entries(copy.protect).filter(([key]) => key !== "name")) as Omit<typeof copy.protect, "name">;
+      const recovering = { ...protect, heading: rc.protectHeading, body: rc.protectBody, action: rc.protectAction };
+      return (
+        <OnboardingFrame copy={copy.frame} stepKey={flow.step} progress={{ n: 1, total: 2 }}>
+          <ProtectDevice
+            services={services} vault={vault} copy={recovering} allowPassphrase
+            {...(onExistingVault ? { onExistingVault } : {})} {...(slowPromptMs !== undefined ? { slowPromptMs } : {})}
+            onProtected={() => undefined} onVaultReady={() => { dispatch({ type: "vault_ready" }); }}
+          />
+          <div className="om-onb__actions"><Button variant="quiet" onClick={() => { dispatch({ type: "back_to_choice" }); }}>{joinCopy.back}</Button></div>
+        </OnboardingFrame>
+      );
+    }
+    case "recover_flow": {
+      const rc = joinCopy?.recover;
+      if (rc === undefined) return null;
+      return (
+        <OnboardingFrame copy={copy.frame} stepKey={flow.step} progress={{ n: 2, total: 2 }}>
+          <LostDevices
+            services={services} copy={rc.lost}
+            onRecovered={() => { onDone({ safetyCodePending: null, inviteAccepted: false }); }}
+            onCancel={() => { onJoinRestart?.(); }}
+          />
         </OnboardingFrame>
       );
     }

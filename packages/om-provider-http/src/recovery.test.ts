@@ -265,3 +265,55 @@ describe("the Core transport adapter for the record (recovery_put, recovery_get,
     expect(await provider(() => doc([])).recoveryPlace?.()).toBeNull();
   });
 });
+
+describe("the Core transport adapter for the owner flow (request, veto, board, inbox)", () => {
+  const provider = (handler: (s: { url: string; method: string; body: Uint8Array }) => Response | Promise<Response>): HttpProvider =>
+    createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(), timeoutMs: 1000,
+      fetch: async (i, init) => handler({ url: urlOf(i), method: init?.method ?? "GET", body: init?.body ? new Uint8Array(init.body as Uint8Array) : new Uint8Array(0) }),
+    });
+  const hostOf = { host: "home.example" } as const;
+
+  it("a request and a veto are posted to the Home the call names, answer ok and carry only the signed bytes", async () => {
+    const seen: string[] = [];
+    const p = provider((s) => { seen.push(`${s.method} ${new URL(s.url).pathname}`); return empty(); });
+    expect(await p.perform({ call: "recovery_request_post", ...hostOf, bytes: toHex(rand(200)) })).toEqual({ result: "ok" });
+    expect(await p.perform({ call: "recovery_veto_post", ...hostOf, bytes: toHex(rand(100)) })).toEqual({ result: "ok" });
+    expect(seen).toEqual(["POST /v1/recovery/requests", "POST /v1/recovery/vetoes"]);
+  });
+
+  it("the veto board answers many signed vetoes, and an unreachable Home is unavailable, never an answer of no vetoes", async () => {
+    const vetoes = [rand(40), rand(41)];
+    const got = await provider(() => new Response(encodeVetoList(vetoes) as BodyInit, { status: 200 })).perform({ call: "recovery_veto_read", ...hostOf, requestDigest: toHex(rand(32)) });
+    expect(got).toEqual({ result: "many", items: vetoes.map(toHex) });
+    const down = createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), timeoutMs: 100, fetch: () => Promise.reject(new Error("down")) });
+    expect(await down.perform({ call: "recovery_veto_read", ...hostOf, requestDigest: toHex(rand(32)) })).toEqual({ result: "err", error: { kind: "unavailable" } });
+  });
+
+  it("the inbox registers, drains into the canonical item maps Core reads, and acknowledges by id", async () => {
+    const accountId = rand(32);
+    const cap = rand(32);
+    const item = { id: rand(16), kind: 2 as const, bytes: rand(40) };
+    const seen: string[] = [];
+    const p = provider((s) => { seen.push(`${s.method} ${new URL(s.url).pathname.split("/").slice(-1)[0] ?? ""}`); return s.url.endsWith("/drain") ? new Response(encodeInboxDrainResponse({ items: [item] }) as BodyInit, { status: 200 }) : empty(); });
+    expect(await p.perform({ call: "recovery_inbox_register", ...hostOf, accountId: toHex(accountId), cap: toHex(cap) })).toEqual({ result: "ok" });
+    const drained = await p.perform({ call: "recovery_inbox_drain", ...hostOf, accountId: toHex(accountId), cap: toHex(cap) });
+    expect(drained.result).toBe("many");
+    const m = decode(fromHexLocal(drained.result === "many" ? drained.items[0] ?? "" : ""));
+    expect(m).toBeInstanceOf(Map);
+    expect([...(m as Map<number, unknown>).keys()]).toEqual([0, 1, 2]);
+    expect(await p.perform({ call: "recovery_inbox_ack", ...hostOf, accountId: toHex(accountId), cap: toHex(cap), itemIds: [toHex(item.id)] })).toEqual({ result: "ok" });
+    expect(seen.at(-1)).toBe("POST ack");
+  });
+
+  it("a malformed capability reaches no Home and is a rejection", async () => {
+    let hit = false;
+    const p = provider(() => { hit = true; return empty(); });
+    expect((await p.perform({ call: "recovery_inbox_drain", ...hostOf, accountId: toHex(rand(32)), cap: toHex(rand(16)) })).result).toBe("err");
+    expect(hit).toBe(false);
+  });
+});
+
+function fromHexLocal(h: string): Uint8Array {
+  return new Uint8Array((h.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+}

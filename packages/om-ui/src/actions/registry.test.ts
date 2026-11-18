@@ -64,6 +64,8 @@ describe("Action Registry", () => {
       "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
       "create-invite": {}, "accept-invitation": { link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" },
       "offer-device-link": {}, "request-device-link": { link: "om:link/AAAAAAAAAAAAAAAAAAAAAA" }, "reject-device-link": { requestId: "lr-1" },
+      "begin-recovery": { recoveryKey: "ABCD EFGH" }, "request-recovery": {}, "cancel-recovery": {}, "check-recovery-again": {}, "offer-recovery-approval": {},
+      "join-recovery-approval": { link: "om:recover-approve/AAAAAAAAAAAAAAAAAAAAAA" },
     };
     for (const [actionId, params] of Object.entries(samples)) {
       expect(INTENT_KINDS).toContain(intentOf(registry.resolve({ actionId, params, ctx, origin: "direct" })).kind);
@@ -195,6 +197,18 @@ describe("Action Registry", () => {
     if (issue.status !== "issued") throw new Error("not issued");
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "suggestion", confirmation: issue.token })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "suggestion" })).toEqual({ status: "needs_confirmation", actionId: "block-person" });
+  });
+
+  it("recovery actions: an enrollment link is never an approval link, the wait cannot be skipped, and only the controller's own confirmation signs", () => {
+    for (const link of ["om:link/AAAAAAAAAAAAAAAAAAAAAA", "om:invite/AAAAAAAAAAAAAAAAAAAAAA", "om:recover-approve/short", "", 5]) {
+      expect(registry.resolve({ actionId: "join-recovery-approval", params: { link }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    expect(registry.resolve({ actionId: "request-device-link", params: { link: "om:recover-approve/AAAAAAAAAAAAAAAAAAAAAA" }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    for (const [actionId, params] of [["request-recovery", { skipWait: true }], ["begin-recovery", { recoveryKey: "k", pin: "x" }], ["begin-recovery", { recoveryKey: "  " }], ["check-recovery-again", { now: 1 }]] as const) {
+      expect(registry.resolve({ actionId, params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    expect(registry.resolve({ actionId: "confirm-recovery", params: { requestId: "rr-1" }, ctx, origin: "suggestion" })).toEqual({ status: "needs_confirmation", actionId: "confirm-recovery" });
+    expect(registry.issueConfirmation({ actionId: "confirm-recovery", params: { requestId: "rr-1" }, ctx, origin: "suggestion", nonce: "n-2" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
   });
 
   it("NoSilentLink: link actions accept no extra flags, and approval cannot come from a suggestion", () => {

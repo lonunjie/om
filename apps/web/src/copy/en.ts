@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, ProtectionCopy, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, ProtectionCopy, RecoveryCopy, LostDevicesCopy, ApproveRecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -1111,6 +1111,97 @@ export const joinCopy: JoinCopy = {
 };
 
 /** First run, extended with \u201cI already use OM\u201d (deviation D24). Declared here because it uses the join copy, which uses the shared outcome wording. */
+/** "I lost my devices" (ADR-0200, ADR-0202, ADR-0203). Plain words: no pins, heads, epochs or technical names of the delivery service. */
+export const lostDevicesCopy: LostDevicesCopy = {
+  heading: "Get your account back",
+  intro: "Enter the recovery key you saved when you made your account. Nothing is sent until you ask for your account back.",
+  keyLabel: "Your recovery key",
+  keyHint: "Type it, or paste it. Capital letters, spaces and dashes do not matter.",
+  placeLabel: "Where it is saved (only if your key does not say)",
+  placeHint: "Leave this empty unless your saved sheet gave you an address.",
+  scan: "Scan the recovery code",
+  scanNothing: "No code was found. Type or paste your key instead.",
+  find: "Find my account",
+  cancel: "Back",
+  looking: "Looking for your saved account. This can take a moment.",
+  stage: {
+    needs_place: "This key does not say where your account is saved. Start over and add the address from your saved sheet.",
+    not_found: "No saved account was found for this key. Check it and try again.",
+    cant_read: "Something is saved, but this key cannot open it. Check the key and try again.",
+    out_of_date: "What was found is older than what this device already saw, so it was not used. Try again later.",
+    conflict: "What was found does not match your saved sheet. It was not used, and nothing was sent.",
+  },
+  foundHeading: "Your saved account was found",
+  foundBody: "You can ask for your account back on this device. Your other devices will be asked to stop it if it was not you, and you will have to wait before it finishes unless one of them approves it.",
+  evidence: {
+    pinned: "Your saved sheet is enough for this device to finish on its own once the wait is over.",
+    other: "To finish, this device needs one of your other devices to approve it, or the sheet you saved from one of your own devices.",
+  },
+  ask: "Ask for my account back",
+  waitingHeading: "Waiting to get your account back",
+  waitingBody: "Your request is out. Your account comes back on this device when the wait is over and nobody has stopped it. Keep OM open; the wait only counts while it is running.",
+  remaining: (ms) => {
+    if (ms <= 0) return "The wait is over. Making sure nothing changed.";
+    const hours = Math.ceil(ms / 3_600_000);
+    if (hours >= 36) return `About ${String(Math.round(hours / 24))} days left.`;
+    if (hours >= 2) return `About ${String(hours)} hours left.`;
+    return "Less than an hour left.";
+  },
+  waitDone: "Your account is back on this device.",
+  checkAgain: "Check again now",
+  stop: "Stop asking",
+  approval: {
+    heading: "Do you still have another device?",
+    body: "If one of your devices still works, it can approve this right away. On that device, open Settings, then Recovery, and choose to help another device. Then enter the link it shows.",
+    linkLabel: "Link from your other device",
+    linkHint: "It starts with om:recover-approve/. This is not a link to add a device.",
+    join: "Continue",
+    state: {
+      waiting_for_controller: "Waiting for your other device. Compare the six digits with the ones it shows, then approve there.",
+      receiving: "Your other device approved. Checking everything it sent.",
+      done: "Approved and checked. Finishing now.",
+      failed: "That did not work. Nothing changed, and your request is still out. Ask your other device for a new link.",
+      expired: "That link ran out of time. Your request is still out. Ask your other device for a new link.",
+    },
+    codeLabel: "Check code",
+    codeHint: "These six digits must match the ones on your other device.",
+    parseError: "That does not look like a recovery link from your other device.",
+  },
+  ended: {
+    vetoed: "One of your devices said this was not you, so it stopped. Nothing changed on this device.",
+    stale: "Your account changed while you waited, so this request ended. Start over to ask again.",
+    cancelled: "You stopped asking. Nothing changed on this device.",
+  },
+  startOver: "Start over",
+  outcome: joinCopy.outcome,
+};
+
+/** A device that still works helps another device get the account back (ADR-0203). */
+export const approveRecoveryCopy: ApproveRecoveryCopy = {
+  action: "Help another device get the account back",
+  heading: "Help another device get the account back",
+  body: "Use this only if you lost your other devices and are setting up a new one. It shows a private link and a code. Never use it for someone else.",
+  show: "Show the link and code",
+  back: "Back",
+  linkHeading: "Link for the new device",
+  notInvitation: "This is not an invitation to chat and not a link to add a device.",
+  waiting: "Waiting for the new device to use this link. It works for five minutes.",
+  codeLabel: "Check code",
+  codeHint: "Compare these six digits with the new device. Approve only if they match and you are the one setting it up.",
+  confirm: "Yes, this is me",
+  confirmNote: "Approving takes the account away from every old device, including this one.",
+  decline: "No, stop this",
+  state: {
+    waiting_for_device: "Waiting for the new device.",
+    awaiting_confirmation: "The new device is asking. Compare the digits.",
+    approved: "Approved. The new device now has the account.",
+    declined: "Stopped. Nothing was approved.",
+    failed: "That did not work. Nothing was approved. Start again for a new link.",
+    expired: "The link ran out of time. Start again for a new one.",
+  },
+  outcome: joinCopy.outcome,
+};
+
 export const onboardingCopy: OnboardingCopy = {
   ...onboardingBase,
   // "I already use OM" (deviation D24): offered only when this install can reach a delivery service for the linking ceremony.
@@ -1125,6 +1216,14 @@ export const onboardingCopy: OnboardingCopy = {
     protectAction: "Next: Secure this device",
     back: "Back",
     link: joinCopy,
+    recover: {
+      choice: "I lost my devices",
+      hint: "Get your account back with the recovery key you saved.",
+      protectHeading: "Secure this device first",
+      protectBody: "OM locks itself on this device before it looks for your account.",
+      protectAction: "Next: Secure this device",
+      lost: lostDevicesCopy,
+    },
   },
 };
 

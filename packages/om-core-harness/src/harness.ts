@@ -271,6 +271,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         case "GetHistoryTransfer":
           stateFor(q.ctx);
           return null; // the simulator has no second device to transfer history to
+        case "GetRecoveryApprovalOffer":
+          stateFor(q.ctx);
+          return null; // the simulator has no second device to approve a recovery
         case "GetPrivacyLevel":
           return stateFor(q.ctx).privacyLevel;
         case "GetRecoveryStatus":

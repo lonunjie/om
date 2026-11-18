@@ -153,6 +153,25 @@ export interface RecoveringView {
   readonly attempt?: "waiting" | "vetoed" | "stale" | "cancelled" | null;
   /** Milliseconds of this device's own interval still to run (monotonic credit only). */
   readonly remainingMs?: number | null;
+  /** The approval exchange with a surviving controller, once this device joined one (ADR-0203). */
+  readonly approval?: RecoveryApprovalView | null;
+}
+
+/** The restricted device's side of the approval exchange: where it stands and the six digits to compare with the controller's. */
+export interface RecoveryApprovalView {
+  readonly state: "waiting_for_controller" | "receiving" | "done" | "failed" | "expired";
+  readonly verificationCode?: string | null;
+  readonly expiresAt: number;
+}
+
+/** What the surviving controller shows: the link while it waits, then the code and the request id `ConfirmRecovery` names. */
+export interface RecoveryApprovalOfferView {
+  readonly operationId: string;
+  readonly link?: string | null;
+  readonly expiresAt: number;
+  readonly verificationCode?: string | null;
+  readonly requestId?: string | null;
+  readonly state: "waiting_for_device" | "awaiting_confirmation" | "approved" | "declined" | "failed" | "expired";
 }
 
 // Strict `om:link/` grammar for device-link offers. Parsing never fetches or resolves anything.

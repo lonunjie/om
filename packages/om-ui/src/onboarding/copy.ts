@@ -1,4 +1,5 @@
 import type { HomeCopy } from "../home/copy";
+import type { LostDevicesCopy } from "../recovery/lostCopy";
 import type { JoinCopy } from "../devices/copy";
 import type {
   ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason,
@@ -28,6 +29,15 @@ export interface OnboardingCopy {
     readonly protectAction: string;
     readonly back: string;
     readonly link: JoinCopy;
+    /** "I lost my devices": a quiet choice below the two equal ones, so a person who lost everything is not pushed into the wrong path. */
+    readonly recover?: {
+      readonly choice: string;
+      readonly hint: string;
+      readonly protectHeading: string;
+      readonly protectBody: string;
+      readonly protectAction: string;
+      readonly lost: LostDevicesCopy;
+    };
   };
   readonly protect: {
     readonly heading: string;

@@ -711,6 +711,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/lost-devices.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/navigation.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -10833,6 +10840,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/recovery/ApproveRecovery.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/recovery/LostDevices.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/recovery/RecoveryScreen.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -10848,6 +10869,20 @@
     },
     {
       "path": "packages/om-ui/src/recovery/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/recovery/lost.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/recovery/lostCopy.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

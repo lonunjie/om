@@ -51,7 +51,19 @@ export type NetCall =
   /** STUB (recovery): deliver a signed RecoveryRequest (`bytes`, hex) to the account's Home(s). No Home serves it yet: answer `rejected` `unsupported`. */
   | { readonly call: "recovery_request_fanout"; readonly bytes: string }
   /** STUB (recovery): deliver a signed RecoveryVeto (`bytes`, hex) the same way. Answer `rejected` `unsupported`. */
-  | { readonly call: "recovery_veto_fanout"; readonly bytes: string };
+  | { readonly call: "recovery_veto_fanout"; readonly bytes: string }
+  /** Owner recovery, per Home (home-api.md 8.2, `POST /v1/recovery/requests`): deliver the exact signed request (`bytes`, hex) to the Home at `host[:port]`. Answer `ok`; the Home answers alike whether or not an inbox exists. */
+  | { readonly call: "recovery_request_post"; readonly host: string; readonly port?: number; readonly bytes: string }
+  /** A live controller's veto, per Home (`POST /v1/recovery/vetoes`): the signed veto (`bytes`, hex). Answer `ok`. */
+  | { readonly call: "recovery_veto_post"; readonly host: string; readonly port?: number; readonly bytes: string }
+  /** Read the veto board of one request digest (public). Answer `many` of at most 16 signed vetoes (hex); Core verifies each. */
+  | { readonly call: "recovery_veto_read"; readonly host: string; readonly port?: number; readonly requestDigest: string }
+  /** Register the controller's recovery inbox (`PUT /v1/recovery/inbox/{inbox_id}`; the inbox id is derived from `accountId`). Answer `ok`; an inbox already held is success. */
+  | { readonly call: "recovery_inbox_register"; readonly host: string; readonly port?: number; readonly accountId: string; readonly cap: string }
+  /** Drain the inbox. Answer `many`: each item the canonical CBOR map `{0: item id (16 bytes), 1: kind (1 request, 2 veto), 2: signed bytes}` (hex), in arrival order. */
+  | { readonly call: "recovery_inbox_drain"; readonly host: string; readonly port?: number; readonly accountId: string; readonly cap: string }
+  /** Acknowledge (remove) items by id (hex). An item already gone is success. Answer `ok`. */
+  | { readonly call: "recovery_inbox_ack"; readonly host: string; readonly port?: number; readonly accountId: string; readonly cap: string; readonly itemIds: readonly string[] };
 
 /** What a polled id names: a relay mailbox (the default), or an invite's introduction service at the host's own Home. */
 export type MailboxKind = "relay" | "intro";
