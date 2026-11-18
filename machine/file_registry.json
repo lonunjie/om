@@ -1516,6 +1516,55 @@
       "authority": "product_implementation"
     },
     {
+      "path": "conformance/load/README.md",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "conformance/load/home-process.mjs",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "conformance/load/lib.ts",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "conformance/load/load.load.ts",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "conformance/load/run.mjs",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "conformance/load/tsconfig.json",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "conformance/load/vitest.config.ts",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "conformance/runner/run.mjs",
       "class": "verification_tool",
       "domain": "provider_deployment_supply_chain",
@@ -2275,6 +2324,13 @@
       "path": "crates/om-core/tests/groups_flow.rs",
       "class": "product_code",
       "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/groups_load.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
@@ -5654,6 +5710,13 @@
     },
     {
       "path": "docs/reports/2026-11-14-relay-setup-walkthrough.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-18-home-load-results.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

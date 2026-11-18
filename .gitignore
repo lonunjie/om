@@ -39,3 +39,4 @@ dist-live-relay/
 
 # Release output of apps/web/build/release.mjs (deploy kit).
 apps/web/release/
+conformance/load/out/

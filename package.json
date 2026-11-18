@@ -8,13 +8,14 @@
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc -b && tsc -p apps/web/e2e && tsc -p infra/cloudflare-home && tsc -p infra/cloudflare-home/test && tsc -p infra/sqlite-home && tsc -p infra/sqlite-home/test",
+    "typecheck": "tsc -b && tsc -p apps/web/e2e && tsc -p infra/cloudflare-home && tsc -p infra/cloudflare-home/test && tsc -p infra/sqlite-home && tsc -p infra/sqlite-home/test && tsc -p conformance/load",
     "lint": "eslint .",
     "test": "vitest run",
     "build": "pnpm --filter @om/web build",
     "e2e": "pnpm --filter @om/web e2e",
     "web:check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm --filter @om/web check:no-harness",
-    "conformance:provider": "node conformance/runner/run.mjs"
+    "conformance:provider": "node conformance/runner/run.mjs",
+    "load:home": "node conformance/load/run.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
