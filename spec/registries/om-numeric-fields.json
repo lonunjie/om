@@ -314,6 +314,32 @@
       "4": "welcome",
       "5": "admit_request",
       "6": "route_update"
+    },
+    "call_signal_kind": {
+      "1": "offer",
+      "2": "answer",
+      "3": "reject",
+      "4": "end",
+      "5": "ice_update",
+      "6": "media_update",
+      "7": "participant_update",
+      "8": "key_epoch"
+    },
+    "call_kind": {
+      "1": "voice",
+      "2": "video"
+    },
+    "call_reason": {
+      "1": "declined",
+      "2": "busy",
+      "3": "answered_elsewhere",
+      "4": "timeout",
+      "5": "failed",
+      "6": "hangup",
+      "7": "canceled"
+    },
+    "call_media_suite": {
+      "1": "sframe_rfc9605_aes128gcm_sha256"
     }
   },
   "structs": {
@@ -8034,6 +8060,119 @@
             ]
           },
           "req": true
+        }
+      ]
+    },
+    "CallKeyPackage": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "call_secret",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "note": "fresh 256-bit secret drawn by the caller for this call; never reused across calls; the SFrame base keys are derived from it (OM-CALL-MEDIA-BASE-KDF-v1, ADR-0218 rule 3); it travels only inside the sealed one-to-one session"
+        },
+        {
+          "key": 1,
+          "name": "suite",
+          "type": {
+            "enum": "call_media_suite"
+          },
+          "req": true
+        }
+      ]
+    },
+    "CallSignal": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "kind",
+          "type": {
+            "enum": "call_signal_kind"
+          },
+          "req": true,
+          "note": "kinds 7 and 8 are reserved for group calls: a one-to-one receiver refuses them and their bodies are not frozen (ADR-0218 rule 5)"
+        },
+        {
+          "key": 3,
+          "name": "call_session_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "note": "random, unrelated to any AccountID, DeviceID or delivery capability"
+        },
+        {
+          "key": 4,
+          "name": "seq",
+          "type": {
+            "uint": [
+              0,
+              4294967295
+            ]
+          },
+          "req": true,
+          "note": "the sender's per-call counter, strictly increasing from 0; a receiver refuses a repeat or a lower value"
+        },
+        {
+          "key": 5,
+          "name": "call_kind",
+          "type": {
+            "enum": "call_kind"
+          },
+          "req": false,
+          "note": "offer only"
+        },
+        {
+          "key": 6,
+          "name": "sdp",
+          "type": {
+            "bstr": [
+              1,
+              16384
+            ]
+          },
+          "req": false,
+          "note": "offer, answer and ice_update; UTF-8 session description with all candidates gathered; opaque to Core"
+        },
+        {
+          "key": 7,
+          "name": "key_package",
+          "type": {
+            "ref": "CallKeyPackage"
+          },
+          "req": false,
+          "note": "offer only"
+        },
+        {
+          "key": 8,
+          "name": "reason",
+          "type": {
+            "enum": "call_reason"
+          },
+          "req": false,
+          "note": "reject and end"
+        },
+        {
+          "key": 9,
+          "name": "media_flags",
+          "type": {
+            "uint": [
+              0,
+              3
+            ]
+          },
+          "req": false,
+          "note": "answer and media_update; bit 0 audio, bit 1 video; 0 = nothing sent"
         }
       ]
     }

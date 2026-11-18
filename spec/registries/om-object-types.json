@@ -635,6 +635,17 @@
       "max_bytes": 3200000,
       "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
       "logical_schema": null
+    },
+    {
+      "type_id": 44,
+      "name": "CallSignal",
+      "wave": "W2",
+      "scope": "calls",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 32768,
+      "source": "ADR-0218 (CDDL: spec/cddl/call.cddl); unsigned: it travels only as the plaintext of a message sealed in an established one-to-one session, so the session authenticates the sender (ADR-0132 rule 2, CALLS_AND_REALTIME_MEDIA.md signalling)",
+      "logical_schema": "spec/protocol/call-session.logical.schema.json"
     }
   ]
 }

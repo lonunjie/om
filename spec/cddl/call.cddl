@@ -1,0 +1,40 @@
+; OM later-wave W2 call signalling wire (ADR-0218, 2026-11-18). Object type 44 CallSignal, with the CallKeyPackage struct.
+; Fields: spec/registries/om-numeric-fields.json; type row: om-object-types.json; labels: om-domain-separation.json
+; (OM-CALL-SIGNAL-CTX-v1, OM-CALL-MEDIA-BASE-KDF-v1). Reuses common.cddl (extensions).
+; One object carries the eight logical kinds of CALLS_AND_REALTIME_MEDIA.md (call.offer to call.key_epoch). It is unsigned:
+; it travels only as the plaintext of a message sealed in an established one-to-one session, so the session authenticates
+; the sender. There is no time field: the ring window is a profile constant (45 seconds) counted by the receiver and the
+; Home deposit lifetime bounds staleness. Unknown keys other than 23 are refused (keys 10 to 15 are held for group calls).
+; Kinds 7 (participant_update) and 8 (key_epoch) are reserved for group calls; a one-to-one receiver refuses them and
+; their bodies are not frozen here (their key-delivery channel needs specialist review, R-343).
+; CDDL cannot express: deterministic encoding, the 32,768-byte object bound, or the per-kind cross-field rules below,
+; which Core enforces and which are the semantic fixtures of verification/vectors/call-signal-vectors.json.gz:
+;   offer          requires call_kind, sdp, key_package; forbids reason, media_flags
+;   answer         requires sdp, media_flags; forbids call_kind, key_package, reason
+;   reject         requires reason in {declined, busy}; forbids sdp, call_kind, key_package, media_flags
+;   end            requires reason in {answered_elsewhere, timeout, failed, hangup, canceled}; forbids the rest
+;   ice_update     requires sdp (an ICE restart description); forbids the rest
+;   media_update   requires media_flags; forbids the rest
+;   seq strictly increases per sender within a call; call_session_id is the same for every signal of the call.
+
+call-signal-kind = 1..8
+call-kind = 1..2
+call-reason = 1..7
+call-media-suite = 1                       ; RFC 9605 AES-128-GCM with SHA-256 (ADR-0218 rule 4)
+
+CallSignal = {
+  0: 44, 1: 1,
+  2: call-signal-kind,
+  3: bstr .size 16,                        ; call_session_id
+  4: 0..4294967295,                        ; seq
+  ? 5: call-kind,
+  ? 6: bstr .size (1..16384),              ; sdp
+  ? 7: call-key-package,
+  ? 8: call-reason,
+  ? 9: 0..3,                               ; media_flags
+  ? 23: extensions,
+}
+call-key-package = {
+  0: bstr .size 32,                        ; call_secret
+  1: call-media-suite,
+}

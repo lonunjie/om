@@ -806,6 +806,22 @@
       "object": "owner recovery approval ceremony",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-CALL-SIGNAL-CTX-v1",
+      "use": "aead_ad",
+      "construction": "the ctx argument of the one-to-one ratchet encryption of a CallSignal: the label as the whole ctx, so a call signal cannot be replayed as an ordinary message or the reverse (ADR-0218 rule 2)",
+      "object": "CallSignal inside a one-to-one session",
+      "wave": "W2",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CALL-MEDIA-BASE-KDF-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256; salt = call_session_id (16 bytes), IKM = call_secret (32 bytes), info = OM-CBOR [this label, sender_device_id bstr, recipient_device_id bstr, key_generation uint]; output 32 bytes = the SFrame base_key of the sender's media toward that recipient (ADR-0218 rule 3)",
+      "object": "one-to-one call SFrame base key",
+      "wave": "W2",
+      "status": "frozen"
     }
   ]
 }
