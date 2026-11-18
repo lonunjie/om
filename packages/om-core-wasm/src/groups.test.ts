@@ -100,7 +100,7 @@ describe.skipIf(!existsSync(SHIPPED))("the group change feed (ADR-0209)", () => 
     const before = heard.length;
     await alice.rt.dispatch({ kind: "SendMessage", ctx: alice.ctx, operationId: op("a-msg2"), conversationId: alice.rel, draft: { text: "again" } });
     expect(heard.length).toBe(before);
-    expect(bob.rt.groups.onChange).toBeTypeOf("function");
+    expect(typeof bob.rt.groups.onChange).toBe("function");
   });
 });
 

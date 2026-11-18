@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The persisted, encrypted-at-rest search index (ADR-0208) through the hook: survives a reload, covers groups, reconciles, stays per identity.
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asConversationId, asGroupId, asOperationId, asPersonId, asProfileId } from "@om/platform-api";
 import type { EncryptedKv, KvGetResult, KvListResult, KvResult } from "@om/platform-api";
@@ -57,7 +57,7 @@ describe("persisted search", () => {
     expect([...kv.data.keys()].every((k) => k.startsWith("ui/search/v1/"))).toBe(true);
     // A new page: Core answers nothing yet, so only the stored copy can answer.
     const never = new Promise<never>(() => undefined);
-    const second = (() => { const sv = services({ query: () => never as never, subscribe: () => () => undefined }); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
+    const second = (() => { const sv = services({ query: () => never, subscribe: () => () => undefined }); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
     await act(async () => { await vi.advanceTimersByTimeAsync(50); });
     expect(second.result.current.search("CAFE").map((x) => x.displayName)).toEqual(["Ana"]);
     expect(second.result.current.search("quarterly")).toHaveLength(1);

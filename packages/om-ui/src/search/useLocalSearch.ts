@@ -107,7 +107,7 @@ export function useLocalSearch(s: ConversationServices, store?: SearchStore): Lo
       for (const g of list) {
         const id = asConversationId(g.conversationId);
         now.add(id);
-        let messages: readonly GroupMessageView[] = [];
+        let messages: readonly GroupMessageView[];
         try { messages = groupApi.messages(s.ctx, g.conversationId); } catch { continue; }
         if (index.replace(id, g.name, messages.map(groupSource))) changed(id);
       }

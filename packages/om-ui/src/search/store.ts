@@ -219,7 +219,7 @@ export function createSearchStore(kv: EncryptedKv, opts: SearchStoreOptions = {}
     const last = c.rows.reduce((t, r) => Math.max(t, r.sentAt), 0);
     const next: Manifest = { v: VERSION, name: c.name, first: c.first, last, bytes, segs };
     const unchanged = before !== undefined && before.name === next.name && before.first === next.first && before.last === next.last && before.bytes === next.bytes
-      && before.segs.length === segs.length && before.segs.every((s, i) => s[0] === segs[i]?.[0] && s[1] === segs[i]?.[1]);
+      && before.segs.length === segs.length && before.segs.every((s, i) => { const t = segs[i]; return t !== undefined && s[0] === t[0] && s[1] === t[1]; });
     if (unchanged) return;
     for (const s of segs) {
       if (known.get(s[0]) === s[1]) continue;
