@@ -9,6 +9,8 @@ export interface OmniEntry {
   readonly keywords?: string;
   /** Shown beside the label when it helps tell two results apart. */
   readonly detail?: string;
+  /** Text shown on a matching result. It is not a search term or a ranking signal. */
+  readonly cue?: string;
   /** Shown with nothing typed. Entries without it appear only once the person types. */
   readonly suggested?: boolean;
   /** Runs it. The Omnibar closes first, so focus lands where the action puts it. */

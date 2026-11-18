@@ -103,9 +103,10 @@ export function Omnibar({ entries, dynamic, found, copy, onClose }: OmnibarProps
                   key={r.id} id={optionId(r.id)} role="option" aria-selected={r === armed} data-armed={r === armed ? "true" : undefined}
                   className="om-omni__option" onPointerDown={(e) => { e.preventDefault(); }} onClick={() => { run(r); }}
                 >
-                  <span className="om-omni__label">{r.label}</span>
-                  {r.detail ? <span className="om-omni__detail">{r.detail}</span> : null}
+                  <bdi className="om-omni__label">{r.label}</bdi>
+                  {r.detail ? <bdi className="om-omni__detail">{r.detail}</bdi> : null}
                   <span className="om-omni__kind">{copy.kinds[r.kind]}</span>
+                  {query.trim() !== "" && r.cue ? <span className="om-omni__cue">{r.cue}</span> : null}
                 </li>
               ))}
             </ul>

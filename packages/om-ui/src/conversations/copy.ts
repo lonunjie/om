@@ -91,6 +91,17 @@ export interface ConversationCopy {
     /** The nickname was refused (too long or has hidden direction characters). */
     readonly invalid: string;
     readonly failed: string;
+    readonly verification: {
+      readonly open: string;
+      readonly hint: string;
+      readonly theirAccount: string;
+      readonly ownAccount: string;
+      readonly input: string;
+      readonly check: string;
+      readonly invalid: string;
+      readonly match: string;
+      readonly mismatch: string;
+    };
   };
   readonly delivery: {
     readonly pending: string;

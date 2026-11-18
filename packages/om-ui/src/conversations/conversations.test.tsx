@@ -9,7 +9,7 @@ import type { CoreClient, PendingOperationView } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testCopy } from "./__fixtures__/copy";
-import { Composer, ConversationList, ConversationView, MessageRequest, RichText, StrangerPressure, useConversationList, type ConversationServices } from "./index";
+import { Composer, ContactDetail, ConversationList, ConversationView, MessageRequest, RichText, StrangerPressure, useConversationList, type ConversationServices } from "./index";
 
 afterEach(cleanup);
 const axeViolations = async (el: Element): Promise<string[]> => {
@@ -21,6 +21,49 @@ const ALICE = asProfileId("alice");
 const BOB = asProfileId("bob");
 const CONV_A = asConversationId("conv-ab");
 const CONV_B = asConversationId("conv-ba");
+
+describe("contact account check", () => {
+  const peerAccount = "1ab2".repeat(16);
+  const ownAccount = "aa9f".repeat(16);
+  const summary = {
+    id: CONV_A, personId: asPersonId("bob"), displayName: "Bob", relationship: "active" as const,
+    lastMessageAt: null, notices: [], peerAccount,
+  };
+
+  it("shows both account IDs and checks the full ID from a trusted source", async () => {
+    const { services } = setup();
+    const { container } = render(<ContactDetail {...{ ownAccount }} services={services} summary={summary} copy={testCopy.contact} onClose={() => undefined} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Verify account"));
+    expect(screen.getByText(ownAccount)).toBeTruthy();
+    expect(screen.getByText(peerAccount)).toBeTruthy();
+    const input = screen.getByRole("textbox", { name: "Account ID they give you" });
+    const check = screen.getByRole("button", { name: "Check account ID" });
+    await user.click(input);
+    await user.paste(peerAccount.slice(0, -1));
+    await user.click(check);
+    expect(screen.getByText("Enter the full account ID.")).toBeTruthy();
+    await user.clear(input);
+    await user.paste(ownAccount);
+    await user.click(check);
+    expect(screen.getByText("The account IDs differ.")).toBeTruthy();
+    await user.clear(input);
+    await user.paste(peerAccount.toUpperCase());
+    await user.click(check);
+    expect(screen.getByText("The account IDs match.")).toBeTruthy();
+    await user.clear(input);
+    expect(screen.queryByText("The account IDs match.")).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("offers no check for restored history or an unbound account", () => {
+    const { services } = setup();
+    const { rerender } = render(<ContactDetail {...{ ownAccount }} services={services} summary={{ ...summary, relationship: "restored" }} copy={testCopy.contact} onClose={() => undefined} />);
+    expect(screen.queryByText("Verify account")).toBeNull();
+    rerender(<ContactDetail {...{ ownAccount }} services={services} summary={{ ...summary, relationship: "accepted_unbound" }} copy={testCopy.contact} onClose={() => undefined} />);
+    expect(screen.queryByText("Verify account")).toBeNull();
+  });
+});
 
 function setup(opIds: string[] = []) {
   const h = createHarness({ env: {}, clock: () => 1000 });

@@ -171,6 +171,11 @@ button.om-quote:focus-visible { outline: 3px solid var(--om-color-focus-ring); o
 .om-contact__form input { font: inherit; padding: var(--om-space-2) var(--om-space-3); border-radius: var(--om-radius-md); border: 1px solid var(--om-hairline); background: var(--om-color-bg-surface); color: inherit; min-block-size: 44px; }
 .om-contact__form p { margin: 0; }
 .om-contact__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
+.om-contact__verification { font-family: system-ui, sans-serif; }
+.om-contact__verification .om-contact__form { margin-block-start: var(--om-space-2); }
+.om-contact__verification dl { display: grid; gap: var(--om-space-1); margin: 0; }
+.om-contact__verification dd { margin: 0 0 var(--om-space-2); overflow-wrap: anywhere; }
+.om-contact__verification code, .om-contact__verification input { font-family: ui-monospace, monospace; }
 
 /* ADR-0197 on the one-to-one surfaces: the same calm line and pattern as the groups ones. */
 .om-conv-list__samename { padding-block: var(--om-space-1); }

@@ -1,4 +1,4 @@
-import type { ConversationId, ConversationSummary } from "@om/platform-api";
+import type { ConversationId, ConversationSummary, IntroductionRequest } from "@om/platform-api";
 import type { GroupsCopy } from "../groups/copy";
 import { findSameNames, type Collisions, type Named, type SameName } from "../groups/sameName";
 import { shownName } from "./shownName";
@@ -23,8 +23,17 @@ export const contactsLine = (copy: SameNameCopy, s: SameName): string => (s.kind
  * nothing collides. Nothing here blocks or changes the request.
  */
 export function requestCollision(requestId: string, requestName: string, contacts: readonly Named[]): SameName | null {
-  const key = `request:${requestId}`;
-  return findSameNames([...contacts, { id: key, name: requestName }]).of(key);
+  return introductionCollisions(contacts, [{ id: requestId, displayName: requestName }])(requestId);
+}
+
+/** Compare the visible requests with each other and with the current profile's contacts. */
+export function introductionCollisions(contacts: readonly Named[], requests: readonly Pick<IntroductionRequest, "id" | "displayName">[]): (id: string) => SameName | null {
+  const key = (id: string): string => `request:${id}`;
+  const matches = findSameNames([
+    ...contacts.map(({ id, name }) => ({ id: `contact:${id}`, name })),
+    ...requests.map(({ id, displayName }) => ({ id: key(id), name: displayName })),
+  ]);
+  return (id) => matches.of(key(id));
 }
 
 /** The one calm line for a request: "N people here are named X" or "... have names that look similar to X". */

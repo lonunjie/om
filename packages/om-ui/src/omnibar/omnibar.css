@@ -22,6 +22,8 @@
 .om-omni__label { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; font-weight: var(--om-weight-medium); }
 .om-omni__detail { flex: none; max-inline-size: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); }
 .om-omni__kind { flex: none; font-size: var(--om-text-xs-size); line-height: var(--om-text-xs-line); color: var(--om-color-text-muted); }
+.om-omni__option:has(.om-omni__cue) { flex-wrap: wrap; row-gap: var(--om-space-1); }
+.om-omni__cue { flex-basis: 100%; font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); overflow-wrap: anywhere; }
 .om-omni__bar { flex: none; display: flex; align-items: center; gap: var(--om-space-2); padding: var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-right)) calc(var(--om-space-2) + env(safe-area-inset-bottom, 0px)) max(var(--om-space-3), env(safe-area-inset-left)); border-block-start: 1px solid var(--om-hairline); background: var(--om-color-bg-surface); }
 .om-omni__input { flex: 1 1 auto; min-inline-size: 0; box-sizing: border-box; min-block-size: var(--om-target-min); padding-inline: var(--om-space-4); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-canvas); color: var(--om-color-text-primary); font: inherit; }
 .om-omni__input::placeholder { color: var(--om-color-text-muted); }

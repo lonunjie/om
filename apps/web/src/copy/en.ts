@@ -127,6 +127,17 @@ export const conversationCopy: ConversationCopy = {
     cleared: "Removed.",
     invalid: "That nickname could not be used. Use 64 letters or fewer, with no hidden direction characters.",
     failed: "This could not be saved, so nothing changed. Try again.",
+    verification: {
+      open: "Verify account",
+      hint: "In person or through another way you already trust, ask them to open Verify account on their device. Enter the ID they see under Your account ID.",
+      theirAccount: "Their account ID",
+      ownAccount: "Your account ID",
+      input: "Account ID they give you",
+      check: "Check account ID",
+      invalid: "Enter the full account ID.",
+      match: "The account IDs match.",
+      mismatch: "The account IDs differ. Check again with them before relying on this chat.",
+    },
   },
   delivery: {
     pending: "Sending",
@@ -618,6 +629,7 @@ export interface AppStrings {
   readonly safetyCode: { readonly reminder: string; readonly action: string };
   /** The new-conversation action beside the chat list (NAVIGATION_AND_OMNIBAR.md, default shell). */
   readonly newConversation: { readonly action: string; readonly title: string; readonly close: string };
+  readonly omniNameCue: { readonly same: string; readonly alike: string };
   /** Omnibar results that are actions, not places. */
   readonly omniActions: { readonly invite: string; readonly scan: string; readonly showQr: string; readonly useLink: string; readonly chats: string; readonly settings: string };
   /** Words that also find an Omnibar action (not shown). */
@@ -904,6 +916,7 @@ export const appStrings: AppStrings = {
     action: "Save my safety code",
   },
   newConversation: { action: "New conversation", title: "New conversation", close: "Close" },
+  omniNameCue: { same: "Same name as another contact", alike: "Name looks similar to another contact’s" },
   omniActions: {
     invite: "Invite someone to chat", scan: "Scan QR code", showQr: "Show my QR", useLink: "Use this invite link", chats: "Chats", settings: "Settings",
   },

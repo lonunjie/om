@@ -2142,6 +2142,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         {
                             return Ok(to(&ConversationView {
                                 summary: restored_summary(r),
+                                own_account: None,
                                 timeline: r
                                     .messages
                                     .iter()
@@ -2156,6 +2157,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .ok_or(CoreError::NotFound("conversation"))?;
                         Ok(to(&ConversationView {
                             summary: summary(rel, &st.app),
+                            own_account: st
+                                .device
+                                .as_ref()
+                                .filter(|_| {
+                                    rel.state == RelState::Active && !rel.peer_account_id.is_empty()
+                                })
+                                .map(|d| crate::crypto::hex(&d.account_id)),
                             timeline: st
                                 .app
                                 .relationship_backup(rel)

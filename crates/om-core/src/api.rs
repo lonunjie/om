@@ -992,6 +992,9 @@ pub struct PresentationView {
 pub struct ConversationView {
     pub summary: ConversationSummary,
     pub timeline: Vec<TimelineItem>,
+    /// This profile's AccountID for private, in-person comparison in an active chat.
+    #[serde(rename = "ownAccount", skip_serializing_if = "Option::is_none")]
+    pub own_account: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

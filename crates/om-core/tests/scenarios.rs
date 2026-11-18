@@ -33,6 +33,26 @@ struct Pair {
     b_conv: String,
 }
 
+#[test]
+fn contact_details_can_compare_both_bound_accounts() {
+    let p = connected();
+    let alice: serde_json::Value = p.alice.query(Query::GetConversationView {
+        ctx: p.a.clone(),
+        conversation_id: p.a_conv.clone(),
+    });
+    let bob: serde_json::Value = p.bob.query(Query::GetConversationView {
+        ctx: p.b.clone(),
+        conversation_id: p.b_conv.clone(),
+    });
+    let alice_id = alice["ownAccount"].as_str().expect("Alice's AccountID");
+    let bob_id = bob["ownAccount"].as_str().expect("Bob's AccountID");
+    assert_eq!(alice_id.len(), 64);
+    assert_eq!(bob_id.len(), 64);
+    assert_ne!(alice_id, bob_id);
+    assert_eq!(alice["summary"]["peerAccount"], bob_id);
+    assert_eq!(bob["summary"]["peerAccount"], alice_id);
+}
+
 /// Alice invites, Bob accepts the link, Alice accepts the introduction; both end with an active conversation.
 fn connected() -> Pair {
     let net = LoopbackNetwork::default();

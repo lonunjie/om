@@ -12,16 +12,14 @@ import { shownName } from "./shownName";
 export interface ContactDetailProps {
   readonly services: ConversationServices;
   readonly summary: ConversationSummary;
+  readonly ownAccount?: string | undefined;
   readonly copy: ConversationCopy["contact"];
   readonly onClose: () => void;
 }
 
-/**
- * A small sheet about one contact (ADR-0196): the name as shown, the name they chose for themselves, a pattern that is the same every
- * time for this person, and the person's own nickname for them (set or clear). The nickname is kept on this device only and is never
- * sent. There is no verification or AccountID row: the design defines no form for them yet (D129), so none is invented.
- */
-export function ContactDetail({ services, summary, copy, onClose }: ContactDetailProps) {
+const ACCOUNT_ID = /^[0-9a-f]{64}$/u;
+
+export function ContactDetail({ services, summary, ownAccount, copy, onClose }: ContactDetailProps) {
   const op = useOperation(services);
   const [text, setText] = useState(summary.nickname ?? "");
   const [said, setSaid] = useState<"saved" | "cleared" | null>(null);
@@ -29,6 +27,8 @@ export function ContactDetail({ services, summary, copy, onClose }: ContactDetai
   const hintId = useId();
   const name = shownName(summary);
   const dirty = text.trim() !== (summary.nickname ?? "");
+  const peer = summary.peerAccount;
+  const canVerify = summary.relationship === "active" && ownAccount !== undefined && peer !== undefined && ACCOUNT_ID.test(ownAccount) && ACCOUNT_ID.test(peer);
 
   const save = async (value: string): Promise<void> => {
     setSaid(null);
@@ -59,7 +59,47 @@ export function ContactDetail({ services, summary, copy, onClose }: ContactDetai
           </div>
           <p className="om-settings__status" role={status === copy.invalid || status === copy.failed ? "alert" : "status"}>{status}</p>
         </form>
+        {canVerify ? <AccountCheck key={`${ownAccount}:${peer}`} own={ownAccount} peer={peer} copy={copy.verification} /> : null}
       </div>
     </Sheet>
+  );
+}
+
+function AccountCheck({ own, peer, copy }: { readonly own: string; readonly peer: string; readonly copy: ConversationCopy["contact"]["verification"] }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  return (
+    <div className="om-contact__verification">
+      <Button variant="quiet" aria-expanded={open} aria-controls={panelId} onClick={() => { setOpen(!open); }}>{copy.open}</Button>
+      <div id={panelId} hidden={!open}>
+        {open ? <AccountComparison own={own} peer={peer} copy={copy} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function AccountComparison({ own, peer, copy }: { readonly own: string; readonly peer: string; readonly copy: ConversationCopy["contact"]["verification"] }) {
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState<"invalid" | "match" | "mismatch" | null>(null);
+  const inputId = useId();
+  const hintId = useId();
+  return (
+    <form className="om-contact__form" noValidate onSubmit={(e) => {
+      e.preventDefault();
+      const entered = input.trim();
+      if (!/^[0-9a-fA-F]{64}$/u.test(entered)) { setResult("invalid"); return; }
+      setResult(entered.toLowerCase() === peer ? "match" : "mismatch");
+    }}>
+      <Text as="p" size="sm" id={hintId}>{copy.hint}</Text>
+      <dl>
+        <dt>{copy.theirAccount}</dt><dd><code dir="ltr">{peer}</code></dd>
+        <dt>{copy.ownAccount}</dt><dd><code dir="ltr">{own}</code></dd>
+      </dl>
+      <label htmlFor={inputId}>{copy.input}</label>
+      <input id={inputId} dir="ltr" type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} aria-describedby={hintId} aria-invalid={result === "invalid"} value={input}
+        onChange={(e) => { setInput(e.target.value); setResult(null); }} />
+      <div className="om-contact__actions"><Button type="submit">{copy.check}</Button></div>
+      <p role="status">{result === null ? "" : copy[result]}</p>
+    </form>
   );
 }

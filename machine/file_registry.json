@@ -1005,6 +1005,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/Shell.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/Shell.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -3988,6 +3995,20 @@
     },
     {
       "path": "decisions/ADR-0212-room-admission-evidence-and-frame-retry.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0213-contact-account-id-comparison.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0214-minted-room-route-revocation.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",

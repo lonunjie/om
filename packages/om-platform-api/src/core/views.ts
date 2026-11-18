@@ -156,7 +156,12 @@ export type ConversationTimelineItem =
   | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)
   | ({ readonly direction: "incoming"; readonly messageId: MessageId; readonly text: string; readonly sentAt: number } & TimelineExtras);
 
-export interface ConversationView { readonly summary: ConversationSummary; readonly timeline: readonly ConversationTimelineItem[] }
+export interface ConversationView {
+  readonly summary: ConversationSummary;
+  readonly timeline: readonly ConversationTimelineItem[];
+  /** This profile's AccountID in an active, bound chat, for private account comparison. */
+  readonly ownAccount?: string;
+}
 
 /** Advisory contact and progress of an explicitly started invitation after owner recovery. */
 export interface ReconnectContactView {

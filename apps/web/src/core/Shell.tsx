@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
   AlertsScreen, useAlertsRefresh, AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
-  type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions,
+  type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions, introductionCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
@@ -285,8 +285,15 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const shortcut = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform) ? "\u2318K" : "Ctrl K";
   const omniEntries = useMemo<readonly OmniEntry[]>(() => {
     const out: OmniEntry[] = [];
-    const contactLabel = (c: ConversationSummary): string => { const n = contactNames.of(c.id); return n === null ? shownName(c) : groupsCopy.sameName.of(shownName(c), n.index, n.of); };
-    if (chatRows !== null) chatRows.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: contactLabel(c), suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
+    chatRows?.forEach((c, i) => {
+      const n = contactNames.of(c.id);
+      const name = shownName(c);
+      out.push({
+        id: `chat-${c.id}`, kind: "conversation", label: n === null ? name : groupsCopy.sameName.of(name, n.index, n.of),
+        ...(n === null ? {} : { cue: t.omniNameCue[n.kind] }),
+        suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); },
+      });
+    });
     if (invite !== undefined) {
       out.push({ id: "invite", kind: "action", label: t.omniActions.invite, keywords: t.omniKeywords.invite, suggested: true, run: () => { openNew("share"); } });
       out.push({ id: "scan", kind: "action", label: t.omniActions.scan, keywords: t.omniKeywords.scan, suggested: true, run: () => { openNew("scan"); } });
@@ -322,14 +329,22 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   // Search over what this device has already decrypted, chats and groups: kept at rest only as ciphertext in this identity's vault (ADR-0208), read back after unlock, gone with the identity.
   const localSearch = useLocalSearch(services, searchStore);
   // The search function is pinned while the Omnibar is open, so a message arriving meanwhile cannot move a result under the person's finger (NV-06).
-  const searchWhileOpen = useRef(localSearch.search);
-  if (!omniOpen) searchWhileOpen.current = localSearch.search;
-  const foundNames = useRef((_id: ConversationId, name: string): string => name);
-  foundNames.current = (id, name) => { const n = contactNames.of(id); return n === null ? name : groupsCopy.sameName.of(name, n.index, n.of); };
-  const omniFound = useCallback((query: string): readonly OmniEntry[] => searchWhileOpen.current(query).map((hit, i): OmniEntry => ({
-    id: `found-${String(i)}`, kind: hit.kind, label: hit.snippet, detail: foundNames.current(hit.conversationId, hit.displayName),
-    run: () => { setHitFocus({ chat: hit.conversationId, messageId: hit.messageId, ctx: services.ctx }); go({ kind: "chats", chat: hit.conversationId }); },
-  })), [go, services.ctx]);
+  const searchWhileOpen = useRef({ search: localSearch.search, names: contactNames, rows: chatRows });
+  if (!omniOpen) searchWhileOpen.current = { search: localSearch.search, names: contactNames, rows: chatRows };
+  const omniFound = useCallback((query: string): readonly OmniEntry[] => {
+    const { search, names, rows } = searchWhileOpen.current;
+    return search(query).map((hit, i) => {
+      const n = names.of(hit.conversationId);
+      const row = rows?.find((c) => c.id === hit.conversationId);
+      const name = row === undefined ? hit.displayName : shownName(row);
+      return {
+        id: `found-${String(i)}`, kind: hit.kind, label: hit.snippet,
+        detail: n === null ? name : groupsCopy.sameName.of(name, n.index, n.of),
+        ...(n === null ? {} : { cue: t.omniNameCue[n.kind] }),
+        run: () => { setHitFocus({ chat: hit.conversationId, messageId: hit.messageId, ctx: services.ctx }); go({ kind: "chats", chat: hit.conversationId }); },
+      };
+    });
+  }, [go, services.ctx]);
   const openOmni = (): void => { setOmniOpen(true); };
   const trigger = <OmnibarTrigger copy={omnibarCopy} shortcut={shortcut} onOpen={openOmni} />;
   const common = {
@@ -564,11 +579,12 @@ function Requests({ services, contacts }: { readonly services: ConversationServi
   }, [services.client, services.ctx]);
   const shown = items.filter((r) => !gone.has(r.id));
   if (shown.length === 0) return null;
+  const collisionOf = introductionCollisions(contacts, shown);
   const hide = (id: string): void => { setGone((g) => new Set(g).add(id)); };
   return (
     <section className="om-page om-stack" aria-label={t.requestsHeading}>
       {shown.map((r) => (
-        <div key={r.id} className="om-card"><MessageRequest services={services} request={r} copy={conversationCopy} contacts={contacts} sameNameCopy={groupsCopy.sameName} onIgnore={hide} /></div>
+        <div key={r.id} className="om-card"><MessageRequest services={services} request={r} copy={conversationCopy} sameName={collisionOf(r.id)} sameNameCopy={groupsCopy.sameName} onIgnore={hide} /></div>
       ))}
     </section>
   );

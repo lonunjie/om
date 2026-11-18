@@ -258,7 +258,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
         <div ref={end} className="om-conv-view__end" aria-hidden="true" />
       </div>
       {footer}
-      {contactOpen ? <ContactDetail services={services} summary={view.summary} copy={copy.contact} onClose={() => { setContactOpen(false); }} /> : null}
+      {contactOpen ? <ContactDetail services={services} summary={view.summary} ownAccount={view.ownAccount} copy={copy.contact} onClose={() => { setContactOpen(false); }} /> : null}
     </section>
   );
 }

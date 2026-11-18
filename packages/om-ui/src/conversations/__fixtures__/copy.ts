@@ -25,6 +25,10 @@ export const testCopy: ConversationCopy = {
   contact: {
     open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", nicknamePlaceholder: "A nickname only you see",
     nicknameHint: "Only you see this.", save: "Save", clear: "Remove nickname", saved: "Saved.", cleared: "Removed.", invalid: "That nickname could not be used.", failed: "Could not save.",
+    verification: {
+      open: "Verify account", hint: "Ask them in person or another trusted way for their account ID.", theirAccount: "Their account ID", ownAccount: "Your account ID",
+      input: "Account ID they give you", check: "Check account ID", invalid: "Enter the full account ID.", match: "The account IDs match.", mismatch: "The account IDs differ.",
+    },
   },
   delivery: {
     pending: "Sending", pendingNetwork: "Waiting for network", pendingReconciliation: "Confirming delivery", waitingForPeerRecovery: "Waiting for their new device", sent: "Sent", delivered: "Delivered",
