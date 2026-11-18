@@ -2,11 +2,11 @@
 // unlock, the connected shell and an identity switcher. The provider is injected: production passes none and the
 // shell says so; the e2e build passes a clearly-named loopback. Nothing here knows what the provider is.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { asProfileId, webInviteLink, type DeviceVault, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
+import { asProfileId, webInviteLink, type DeviceVault, type EncryptedKv, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
 import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createEncryptedKv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
-  DeviceNotices, OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
+  DeviceNotices, OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState, createSearchStore,
   useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult, type RelaySetupServices,
 } from "@om/ui";
 import type { ComposerCapture } from "@om/ui";
@@ -51,6 +51,8 @@ interface Ready {
   readonly vault: DeviceVault;
   readonly registry: ProfileRegistry;
   readonly drafts: DraftStore;
+  /** The identity's encrypted store under the search-index subkey (ADR-0208). */
+  readonly searchKv: (profileId: ProfileId) => EncryptedKv;
   readonly platform: OnboardingPlatform;
   readonly capture: ComposerCapture;
   readonly known: readonly ProfileId[];
@@ -75,10 +77,11 @@ export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppP
         const vault = createWebDeviceVault(env);
         const registry = createProfileRegistry(env.indexedDB);
         const drafts = createDraftStore((id) => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id));
+        const searchKv = (id: ProfileId): EncryptedKv => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id, "search-index");
         rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace() });
         const known = await registry.list();
         const platform = createWebPlatform();
-        if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, platform, capture: composerCapture(platform), known });
+        if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, searchKv, platform, capture: composerCapture(platform), known });
         else rt.dispose();
       } catch {
         rt?.dispose();
@@ -96,7 +99,7 @@ export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppP
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
       {boot.k === "failed" ? <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} /> : null}
       {boot.k === "ready" ? (
-        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} platform={boot.platform} capture={boot.capture} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(relaySetup === undefined ? {} : { relaySetup })} />
+        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} searchKv={boot.searchKv} platform={boot.platform} capture={boot.capture} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(relaySetup === undefined ? {} : { relaySetup })} />
       ) : null}
       </div>
     </ThemeProvider>
@@ -118,10 +121,10 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeHost; readonly relaySetup?: RelaySetupServices }
+interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeHost; readonly relaySetup?: RelaySetupServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
-function Profiles({ rt, vault, registry, drafts, platform, capture, known: initial, connected, home, relaySetup }: ProfilesProps) {
+function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, known: initial, connected, home, relaySetup }: ProfilesProps) {
   const [known, setKnown] = useState<readonly ProfileId[]>(initial);
   const [open, setOpen] = useState<ReadonlySet<ProfileId>>(() => new Set());
   const [pending, setPending] = useState<{ readonly id: ProfileId; readonly ctx: ProfileExecutionContext } | null>(null);
@@ -216,17 +219,17 @@ function Profiles({ rt, vault, registry, drafts, platform, capture, known: initi
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
-      <Connected rt={rt} vault={vault} drafts={drafts} platform={platform} capture={capture} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
+      <Connected rt={rt} vault={vault} drafts={drafts} searchKv={searchKv} platform={platform} capture={capture} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
     </ProfileProvider>
   );
 }
 
 interface ConnectedProps {
-  readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
+  readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
   readonly lockOpen: () => Promise<void>; readonly idle: IdleMinutes; readonly setIdle: (minutes: IdleMinutes) => void;
 }
 
-function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddProfile, home, lockOpen, idle, setIdle }: ConnectedProps) {
+function Connected({ rt, vault, drafts, searchKv, platform, capture: composerTools, onAddProfile, home, lockOpen, idle, setIdle }: ConnectedProps) {
   const registry = useMemo(() => createActionRegistry(), []);
   // Without the groups module on this device, the first use fetches and verifies it and restarts the app onto it (ADR-0187).
   const groupsSetup = useMemo<GroupsSetup | undefined>(() => (rt.groups.available() ? undefined : {
@@ -264,18 +267,20 @@ function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddP
     () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); }, loadSeen: () => drafts.loadSeen(activeId), saveSeen: (conversation, at) => { drafts.setSeen(activeId, conversation, at); } }),
     [drafts, activeId],
   );
+  // The search index at rest, sealed by this identity's vault (ADR-0208); gone with the identity.
+  const searchStore = useMemo(() => (activeId === null ? null : createSearchStore(searchKv(activeId))), [searchKv, activeId]);
   const settingsServices = useMemo(() => (ctx === null ? null : {
     client: rt, registry, ctx,
     // Only a client built with a direct-transfer driver (a transport exists, D120) offers files straight to a device and "Send again" (D112); the web app passes none today.
     ...(rt.directDriver === undefined ? {} : { directChannel: true, sendAgain: rt.directDriver.sendAgainFor(ctx) }),
   }), [rt, registry, ctx]);
-  if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null || settingsServices === null) return <Text>{t.loading}</Text>;
+  if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null || searchStore === null || settingsServices === null) return <Text>{t.loading}</Text>;
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (
     <>
     <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={activeId} services={settingsServices} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={settingsServices} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />

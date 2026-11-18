@@ -8,7 +8,7 @@ import {
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import type { ComposerCapture, ReplyTarget, StagedItem } from "@om/ui";
+import type { ComposerCapture, ReplyTarget, SearchStore, StagedItem } from "@om/ui";
 import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
@@ -62,6 +62,8 @@ export interface ShellProps {
   readonly backup?: BackupServices;
   /** Where drafts are kept between visits (the production entry); without it they last until the page closes. */
   readonly draftSync?: DraftSync;
+  /** Where the search index is kept at rest, sealed by the identity's vault (ADR-0208); without it the index lasts until the screen goes away. */
+  readonly searchStore?: SearchStore;
   /** With it, an empty Chats list is the invite-first screen instead of a dead end (UI_UX_SYSTEM: first run and invitations). */
   readonly invite?: { readonly platform: OnboardingPlatform; readonly renderQr: (payload: string) => ReactNode; readonly shareLink?: (coreLink: string) => string };
   /** An invitation link that was opened here, and the chat it is expected to add. */
@@ -76,7 +78,7 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
@@ -313,8 +315,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     if (invite === undefined || !parseInviteLink(query).ok) return [];
     return [{ id: "use-link", kind: "action", label: t.omniActions.useLink, keywords: t.omniKeywords.useLink, run: () => { openNew("share", query.trim()); } }];
   }, [invite, openNew]);
-  // Search over what this device has already decrypted: built after unlock, in memory only, gone on lock or identity switch.
-  const localSearch = useLocalSearch(services);
+  // Search over what this device has already decrypted, chats and groups: kept at rest only as ciphertext in this identity's vault (ADR-0208), read back after unlock, gone with the identity.
+  const localSearch = useLocalSearch(services, searchStore);
   // The search function is pinned while the Omnibar is open, so a message arriving meanwhile cannot move a result under the person's finger (NV-06).
   const searchWhileOpen = useRef(localSearch.search);
   if (!omniOpen) searchWhileOpen.current = localSearch.search;
@@ -492,6 +494,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
               rejoinReviews={groups.rejoin.reviews.filter((r) => r.conversationId === asGroupId(selected))}
               onReply={(target) => { setReplies((m) => new Map(m).set(selected, target)); }} replyingTo={replies.get(selected)?.messageId ?? null}
+              focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined}
             />
           ) : (
             <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats}

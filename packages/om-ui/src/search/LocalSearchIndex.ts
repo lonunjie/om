@@ -1,12 +1,13 @@
-import type { ConversationId, ConversationTimelineItem, MessageId } from "@om/platform-api";
+import type { ConversationId, MessageId } from "@om/platform-api";
 import { norm } from "../omnibar/match";
 
 /**
- * A search over what this device has already decrypted, kept in memory only.
+ * A search over what this device has already decrypted.
  *
  * It exists so a person can find "the thing Sam sent about the flat" without anything leaving the device: the index is built from Core's
- * own decrypted conversation views after unlock, never written to disk and never sent anywhere, and `clear()` wipes it (the host calls it on
- * lock, on switching identity and when the screen goes away). Core's encrypted storage stays the only copy at rest.
+ * own decrypted conversation views (1:1 chats and groups alike) after unlock and never sent anywhere. In memory it is wiped by `clear()`
+ * (the host calls it on lock, on switching identity and when the screen goes away). At rest it exists only as ciphertext: `SearchStore`
+ * (store.ts, ADR-0208) seals it in the identity's vault under the search-index subkey, so a reload finds it again without a rebuild.
  *
  * Matching is local and deterministic (case, accents and compatibility forms folded; every typed word must appear; no learned ranking).
  */
@@ -18,6 +19,16 @@ export interface SearchLimits {
   readonly conversations: number;
 }
 export const DEFAULT_LIMITS: SearchLimits = { perConversation: 5000, conversations: 200 };
+/** Characters of one message kept for search (and at rest). A pasted document is not worth indexing past this. */
+export const MAX_TEXT = 4000;
+
+/** What the index needs of one message: a chat's timeline item and a group's message both fit once mapped. */
+export interface SearchSource {
+  readonly messageId: MessageId;
+  readonly sentAt: number;
+  readonly text: string;
+  readonly attachments?: readonly { readonly filename?: string | undefined }[] | undefined;
+}
 
 export interface SearchHit {
   readonly kind: "message" | "file";
@@ -36,7 +47,18 @@ interface Row {
   readonly key: string;
   readonly files: readonly { readonly name: string; readonly key: string }[];
 }
-interface Conversation { readonly displayName: string; readonly rows: readonly Row[] }
+interface Conversation { readonly displayName: string; readonly rows: readonly Row[]; readonly first: number }
+
+/** One message as kept at rest (the folded key is recomputed on load, never stored). */
+export interface StoredRow { readonly messageId: MessageId; readonly sentAt: number; readonly text: string; readonly files: readonly string[] }
+/**
+ * One conversation as kept at rest. `first` is the position of its oldest kept message in the whole timeline, so appending a message
+ * only changes the newest part of what is stored.
+ */
+export interface StoredConversation { readonly id: ConversationId; readonly name: string; readonly first: number; readonly rows: readonly StoredRow[] }
+
+const fileKey = (name: string): { readonly name: string; readonly key: string } => ({ name, key: norm(name) });
+const sameFiles = (a: Row["files"], b: Row["files"]): boolean => a.length === b.length && a.every((f, i) => f.name === b[i]?.name);
 
 const SNIPPET = 90;
 
@@ -54,18 +76,52 @@ export class LocalSearchIndex {
   private readonly limits: SearchLimits;
   constructor(limits: SearchLimits = DEFAULT_LIMITS) { this.limits = limits; }
 
-  /** Replaces everything known about one conversation (called again whenever its view changes). */
-  replace(id: ConversationId, displayName: string, timeline: readonly ConversationTimelineItem[]): void {
-    if (!this.chats.has(id) && this.chats.size >= this.limits.conversations) return;
-    const rows = timeline.slice(-this.limits.perConversation).map((m): Row => ({
-      messageId: m.messageId,
-      sentAt: m.sentAt,
-      text: m.text,
-      key: norm(m.text),
-      files: (m.attachments ?? []).flatMap((a) => (a.filename === undefined || a.filename === "" ? [] : [{ name: a.filename, key: norm(a.filename) }])),
-    }));
-    this.chats.set(id, { displayName, rows });
+  /**
+   * Replaces everything known about one conversation (called again whenever its view changes). Messages that did not change keep their
+   * folded form, so a re-read of a large chat costs a comparison, not a re-fold. Returns false when nothing differs from what is held.
+   */
+  replace(id: ConversationId, displayName: string, timeline: readonly SearchSource[]): boolean {
+    const before = this.chats.get(id);
+    if (before === undefined && this.chats.size >= this.limits.conversations) return false;
+    const kept = timeline.slice(-this.limits.perConversation);
+    const first = timeline.length - kept.length;
+    const old = new Map<MessageId, Row>();
+    for (const r of before?.rows ?? []) old.set(r.messageId, r);
+    const rows = kept.map((m): Row => {
+      const text = m.text.length > MAX_TEXT ? m.text.slice(0, MAX_TEXT) : m.text;
+      const files = (m.attachments ?? []).flatMap((a) => (a.filename === undefined || a.filename === "" ? [] : [fileKey(a.filename)]));
+      const had = old.get(m.messageId);
+      return had !== undefined && had.text === text && had.sentAt === m.sentAt && sameFiles(had.files, files) ? had : { messageId: m.messageId, sentAt: m.sentAt, text, key: norm(text), files };
+    });
+    const same = before !== undefined && before.displayName === displayName && before.first === first && before.rows.length === rows.length && before.rows.every((r, i) => r === rows[i]);
+    if (same) return false;
+    this.chats.set(id, { displayName, rows, first });
+    return true;
   }
+
+  /**
+   * Loads what was kept at rest. A conversation the live views already replaced in this visit wins over the stored copy (it is newer),
+   * and the same bounds apply as for a live one. Returns false when nothing was taken.
+   */
+  restore(c: StoredConversation): boolean {
+    if (this.chats.has(c.id) || this.chats.size >= this.limits.conversations) return false;
+    const drop = Math.max(0, c.rows.length - this.limits.perConversation);
+    this.chats.set(c.id, {
+      displayName: c.name,
+      first: c.first + drop,
+      rows: c.rows.slice(drop).map((r): Row => ({ messageId: r.messageId, sentAt: r.sentAt, text: r.text, key: norm(r.text), files: r.files.map(fileKey) })),
+    });
+    return true;
+  }
+
+  /** What `restore` takes back: one conversation as kept at rest. */
+  snapshot(id: ConversationId): StoredConversation | undefined {
+    const c = this.chats.get(id);
+    return c === undefined ? undefined : { id, name: c.displayName, first: c.first, rows: c.rows.map((r) => ({ messageId: r.messageId, sentAt: r.sentAt, text: r.text, files: r.files.map((f) => f.name) })) };
+  }
+
+  /** The conversations held. */
+  ids(): readonly ConversationId[] { return [...this.chats.keys()]; }
 
   remove(id: ConversationId): void { this.chats.delete(id); }
 

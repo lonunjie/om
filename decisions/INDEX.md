@@ -214,3 +214,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0205 — Replacing the recovery key: accounts without a kit, a newer sheet checkpoint, and what stays open (accepted by delegation 2026-11-18)](ADR-0205-replacing-the-recovery-key-and-what-stays-open.md)
 - [ADR-0206 — Resume relationship recovery after owner recovery](ADR-0206-relationship-restore-after-owner-recovery.md)
 - [ADR-0207 — Room rejoin after owner recovery](ADR-0207-room-rejoin-after-owner-recovery.md)
+- [ADR-0208 — The local search index at rest](ADR-0208-local-search-index-at-rest.md)
+- [ADR-0209 — A change feed for group screens](ADR-0209-group-change-feed.md)

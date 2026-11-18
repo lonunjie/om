@@ -32,6 +32,8 @@ export interface GroupChatProps {
   /** Slot below the messages, normally the GroupComposer. */
   readonly footer?: ReactNode;
   readonly onBack?: () => void;
+  /** A search hit: the message to bring into view and mark for a moment, once (it opens where the person found it, as a chat does). */
+  readonly focusMessageId?: string | undefined;
   /** The person left (or is no longer in) the group. */
   readonly onLeft: () => void;
   /** Bump to re-read after a step made elsewhere (the composer). */
@@ -56,7 +58,7 @@ function timeline(messages: readonly GroupMessageView[], notices: readonly Group
 }
 
 /** A group is an ordinary conversation with more people: the same header, bubbles and rhythm as a chat, plus who said it and a people sheet. */
-export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, rejoinReviews = [], onReply, replyingTo }: GroupChatProps) {
+export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, rejoinReviews = [], onReply, replyingTo, focusMessageId }: GroupChatProps) {
   const c = copy.chat;
   const api = groupApiOf(services);
   const [bump, setBump] = useState(0);
@@ -78,6 +80,20 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
     const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ block: "end", behavior: calm ? "auto" : "smooth" });
   }, [count]);
+  const shownFocus = useRef<string | null>(null);
+  const hasFocus = focusMessageId !== undefined && messages.some((m) => m.id === focusMessageId);
+  useEffect(() => {
+    if (focusMessageId === undefined) { shownFocus.current = null; return; }
+    if (!hasFocus || shownFocus.current === focusMessageId) return;
+    shownFocus.current = focusMessageId;
+    const el = document.getElementById(`om-gmsg-${focusMessageId}`);
+    if (el === null) return;
+    const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+    setMarked(focusMessageId);
+    const t = setTimeout(() => { setMarked((m) => (m === focusMessageId ? null : m)); }, 2400);
+    return () => { clearTimeout(t); };
+  }, [focusMessageId, hasFocus]);
   // A group this person is no longer in (left, or removed) has no screen: back to the list.
   useEffect(() => { if (api !== null && detail === null) onLeft(); }, [api, detail, onLeft]);
   if (detail === null) return <div className="om-conv-view" aria-busy="true" />;

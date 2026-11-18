@@ -244,6 +244,25 @@ describe("storage", () => {
     expect(await kv.put("k", bytes("v"))).toEqual({ ok: false, reason: "locked" });
   });
 
+  it("a store for another purpose seals under its own subkey and cannot read, or be read by, local-db", async () => {
+    const { env, vault } = setup({ auth: null });
+    await vault.createProfileVault(A);
+    const db = createEncryptedKv(vault, env, A);
+    const search = createEncryptedKv(vault, env, A, "search-index");
+    expect(await search.put("ui/search/x", bytes("secret term"))).toEqual({ ok: true });
+    await db.put("plain", bytes("db value"));
+    const mine = await search.get("ui/search/x");
+    expect(mine.ok && mine.value && text(mine.value)).toBe("secret term");
+    const crossed = await db.get("ui/search/x");
+    expect(crossed.ok).toBe(false);
+    const other = await search.get("plain");
+    expect(other.ok).toBe(false);
+    const raw = await rawStore(env, A, STORE_KV, (s) => s.get("ui/search/x"));
+    expect(raw instanceof Uint8Array && text(raw).includes("secret term")).toBe(false);
+    vault.lock(A);
+    expect(await search.put("k", bytes("v"))).toEqual({ ok: false, reason: "locked" });
+  });
+
   it("a value moved to another key fails closed", async () => {
     const { env, vault } = setup({ auth: null });
     await vault.createProfileVault(A);

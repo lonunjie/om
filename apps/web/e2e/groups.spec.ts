@@ -36,6 +36,14 @@ test("groups: accept an invitation, talk, add and leave; create a group and its 
   });
   await expect(page.getByRole("log", { name: "Group messages" }).getByText("welcome Maya", { exact: true })).toBeVisible(); // the list preview shows it too
   await shot(page, "31-group-chat");
+  // Group messages are searchable from the Omnibar, and the hit opens the group at that message.
+  await page.keyboard.press("Control+K");
+  await page.keyboard.type("Maya");
+  const found = page.locator("li.om-omni__option", { hasText: "welcome Maya" });
+  await expect(found).toBeVisible();
+  await expect(found).toContainText("Book club");
+  await found.click();
+  await expect(page.getByRole("log", { name: "Group messages" }).locator('li[data-found="true"]')).toContainText("welcome Maya");
 
   await page.getByRole("button", { name: /^People in Book club/ }).click();
   const sheet = page.getByRole("dialog");

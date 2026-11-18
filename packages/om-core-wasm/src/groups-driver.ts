@@ -294,6 +294,8 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     messages: (ctx, id) => (available() ? core.messages(ctx, id) : []),
     notices: (ctx, id) => (available() ? core.notices(ctx, id) : []),
     settle: (ctx) => (available() ? run(ctx, () => core.settle(ctx)) : Promise.resolve(refused("groups_unavailable"))),
+    // The feed belongs to Core's commit stream; the driver only passes it on (a Core without one reports nothing).
+    ...(core.onChange === undefined ? {} : { onChange: (l: (profileId: ProfileId) => void) => core.onChange?.(l) ?? (() => undefined) }),
     onEvents(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };

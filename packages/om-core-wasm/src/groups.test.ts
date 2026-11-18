@@ -83,11 +83,35 @@ describe.skipIf(!existsSync(SHIPPED))("the shipped module has no group engine", 
   });
 });
 
+describe.skipIf(!existsSync(SHIPPED))("the group change feed (ADR-0209)", () => {
+  it("reports each durable change for its profile and nothing for a read, and stops when removed", async () => {
+    const [alice, bob] = await connect(SHIPPED);
+    const heard: string[] = [];
+    const off = alice.rt.groups.onChange?.((id) => { heard.push(id); });
+    expect(off).toBeTypeOf("function");
+    alice.rt.groups.list(alice.ctx);
+    alice.rt.groups.held?.(alice.ctx);
+    await alice.rt.query({ kind: "GetConversationList", ctx: alice.ctx });
+    expect(heard).toEqual([]); // reads never report
+    await alice.rt.dispatch({ kind: "SendMessage", ctx: alice.ctx, operationId: op("a-msg"), conversationId: alice.rel, draft: { text: "hi" } });
+    expect(heard.length).toBeGreaterThan(0);
+    expect(new Set(heard)).toEqual(new Set([alice.id])); // only the profile that changed, no content
+    off?.();
+    const before = heard.length;
+    await alice.rt.dispatch({ kind: "SendMessage", ctx: alice.ctx, operationId: op("a-msg2"), conversationId: alice.rel, draft: { text: "again" } });
+    expect(heard.length).toBe(before);
+    expect(bob.rt.groups.onChange).toBeTypeOf("function");
+  });
+});
+
 describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores with OpenMLS", () => {
   it("create, invite, accept, add, text both ways, leave", async () => {
     const [alice, bob] = await connect(WITH_GROUPS);
     const p: [Party, Party] = [alice, bob];
     expect(alice.rt.groups.available()).toBe(true);
+    const heard = { alice: 0, bob: 0 };
+    alice.rt.groups.onChange?.(() => { heard.alice++; });
+    bob.rt.groups.onChange?.(() => { heard.bob++; });
     expect(await alice.rt.groups.do(alice.ctx, { kind: "ask_to_rejoin", relationshipId: alice.rel, roomHint: "Book club" }))
       .toEqual({ ok: false, refused: "recovery_required" });
     expect(await bob.rt.groups.do(bob.ctx, { kind: "resolve_rejoin", requestId: "unsolicited", agree: true }))
@@ -120,6 +144,8 @@ describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores wi
     expect(sent.out.every((o) => "device" in o.to)).toBe(true);
     expect(has(await pump(p, devs, 0, sent), 1, "message_received")).toBe(true);
     await pump(p, devs, 1, must(await bob.rt.groups.do(bob.ctx, { kind: "send_text", conversationId: conv, text: "hi A" })));
+    expect(heard.alice).toBeGreaterThan(0); // the screens re-read from the feed: every group step above was a durable change
+    expect(heard.bob).toBeGreaterThan(0);
     for (const party of p) {
       expect(party.rt.groups.messages(party.ctx, conv).map((m) => m.text)).toEqual(["hello", "hi A"]);
       expect(party.rt.groups.get(party.ctx, conv)?.summary.members).toBe(2);

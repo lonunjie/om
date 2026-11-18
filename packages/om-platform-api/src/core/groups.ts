@@ -250,4 +250,11 @@ export interface GroupApi {
    * screen can tell the person. Present on a client with a host driver; the state itself is always read through the views.
    */
   onEvents?(listener: (profileId: ProfileId, events: readonly GroupEvent[]) => void): () => void;
+  /**
+   * The change feed (ADR-0209): `listener` is called with the profile whenever Core made a state change durable for it, which is
+   * every moment a group view, the invitation lists, the rejoin view or the held invitations could read differently. It carries no
+   * content (re-read through the views) and comes from Core's own commit stream, so it never causes or reveals network traffic.
+   * Present on a client with a Core behind it; a screen with no feed re-reads on a calm interval instead.
+   */
+  onChange?(listener: (profileId: ProfileId) => void): () => void;
 }

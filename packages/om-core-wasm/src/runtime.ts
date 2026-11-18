@@ -241,6 +241,13 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     }
   }
 
+  // The change feed (ADR-0209): Core's own commit stream. A commit that is durable and released is the only moment any view can read
+  // differently, so each one tells the listeners which profile changed (no content). Local only: it neither causes nor shows traffic.
+  const changeListeners = new Set<(profileId: ProfileId) => void>();
+  const notifyChange = (profileId: string): void => {
+    for (const l of [...changeListeners]) { try { l(asProfileId(profileId)); } catch { /* a listener must not break Core's release */ } }
+  };
+
   function release(released: ReleasedJson, ctx: ProfileExecutionContext): void {
     for (const op of released.changedOperations) {
       const set = observers.get(key(released.profileId, op));
@@ -249,6 +256,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       if (outcome) for (const l of [...set]) l(outcome);
     }
     emitQueries(released.profileId);
+    notifyChange(released.profileId);
     recoveryTicker?.wake(released.profileId); // an observation may have started a wait
   }
 
@@ -385,6 +393,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     return { ok: true, sealed: r.sealed };
   };
   const groupCore: GroupCore = {
+    onChange: (listener) => { changeListeners.add(listener); return () => { changeListeners.delete(listener); }; },
     available: () => core.call({ cmd: "groups_available" }) === true,
     do: (ctx, intent) => exclusive(async () => groupStep(await groupCall({ cmd: "group_do", ctx: ctxOf(ctx), intent }), ctx)),
     receive: (ctx, from, wire) => exclusive(async () => groupStep(await groupCall({ cmd: "group_receive", ctx: ctxOf(ctx), from, wire }), ctx)),
@@ -632,6 +641,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       recoveryTicker?.dispose();
       for (const off of resumeOff) off();
       groupDriver?.dispose();
+      changeListeners.clear();
       directDriver?.dispose();
       wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }

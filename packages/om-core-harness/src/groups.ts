@@ -92,6 +92,7 @@ function protectionOf(p: Policy): GroupProtectionView {
 export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecutionContext) => unknown; readonly hasRelationship: (ctx: ProfileExecutionContext, id: ConversationId) => boolean; readonly clock: () => number; readonly contactName?: (ctx: ProfileExecutionContext, id: ConversationId) => string | null }): GroupSim {
   const stores = new Map<string, Store>();
   const listeners = new Set<(profileId: ProfileId, events: readonly GroupEvent[]) => void>();
+  const changeListeners = new Set<(profileId: ProfileId) => void>();
   const emit = (ctx: ProfileExecutionContext, events: readonly GroupEvent[]): void => { for (const l of [...listeners]) l(ctx.profileId, events); };
   const store = (ctx: ProfileExecutionContext): Store => {
     opts.stateFor(ctx);
@@ -114,7 +115,7 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
   const none = (): Promise<GroupStep> => Promise.resolve(refuse("groups_unavailable"));
   const selfIn = (g: Group): boolean => g.members.some((m) => m.account === SELF && m.status === "member");
 
-  return {
+  const sim: GroupSim = {
     available: () => loaded,
     do(ctx, intent: GroupIntent) {
       if (!loaded) return none();
@@ -310,4 +311,25 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       return true;
     },
   };
+  // The change feed (ADR-0209): every call that changes what a view reads reports it, as Core's commit stream does.
+  const changed = (ctx: ProfileExecutionContext): void => { for (const l of [...changeListeners]) l(ctx.profileId); };
+  const mutating = new Set(["do", "receive", "ackHeldOverflow", "settle"]);
+  const wrapped: Record<string, unknown> = { ...sim };
+  for (const [name, fn] of Object.entries(sim)) {
+    if (typeof fn !== "function") continue;
+    if (name === "setModuleLoaded") {
+      wrapped[name] = (next: boolean) => { (fn as (n: boolean) => void)(next); for (const id of stores.keys()) for (const l of [...changeListeners]) l(id as ProfileId); };
+    } else if (name === "simulateHeldOverflow" || name.startsWith("simulate")) {
+      wrapped[name] = (ctx: ProfileExecutionContext, ...rest: unknown[]) => { const r = (fn as (...a: unknown[]) => unknown)(ctx, ...rest); changed(ctx); return r; };
+    } else if (mutating.has(name)) {
+      wrapped[name] = (ctx: ProfileExecutionContext, ...rest: unknown[]) => {
+        const r = (fn as (...a: unknown[]) => unknown)(ctx, ...rest);
+        if (r instanceof Promise) return r.then((v: unknown) => { changed(ctx); return v; });
+        changed(ctx);
+        return r;
+      };
+    }
+  }
+  wrapped["onChange"] = (listener: (profileId: ProfileId) => void) => { changeListeners.add(listener); return () => { changeListeners.delete(listener); }; };
+  return wrapped as unknown as GroupSim;
 }

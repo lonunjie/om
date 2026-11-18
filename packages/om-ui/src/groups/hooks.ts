@@ -1,12 +1,41 @@
 import { findSameNames, type Collisions, type SameName } from "./sameName";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
+import type { GroupApi, GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupSummaryView, HeldGroupInvitations, ProfileId } from "@om/platform-api";
 import type { ConversationDigest } from "../conversations/hooks";
 import { groupApiOf } from "./services";
 import type { ConversationServices } from "../conversations/services";
 
-/** Core's group path has no change feed yet, so what is on screen is re-read after every step and on a calm interval while it is shown. */
+/**
+ * What is on screen is re-read when Core's change feed says something became durable for this profile (ADR-0209), after every step, and
+ * when the tab is shown again. Only a host with no feed (`onChange` absent) falls back to re-reading on this calm interval.
+ */
 const POLL_MS = 2500;
+
+/**
+ * Calls `reread` whenever the group state could read differently: on the feed's change for `profileId`, on the tab becoming visible, and,
+ * only where the host has no feed, on the fallback interval. The reads are local (Core's state in this page): no network request is
+ * made or caused, and nothing about the feed leaves the device.
+ */
+function useChangeFeed(api: { readonly onChange?: GroupApi["onChange"] } | undefined, profileId: ProfileId, enabled: boolean, reread: () => void, visibility = true): void {
+  const latest = useRef(reread);
+  latest.current = reread;
+  useEffect(() => {
+    if (!enabled || api === undefined) return;
+    const fire = (): void => { latest.current(); };
+    const feed = api.onChange;
+    let off: (() => void) | undefined;
+    let id: ReturnType<typeof setInterval> | undefined;
+    if (feed === undefined) id = setInterval(fire, POLL_MS);
+    else off = feed.call(api, (changed) => { if (changed === profileId) fire(); });
+    const onVisible = (): void => { if (document.visibilityState === "visible") fire(); };
+    if (visibility) document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      if (id !== undefined) clearInterval(id);
+      off?.();
+      if (visibility) document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [api, profileId, enabled, visibility]);
+}
 
 export interface GroupsState {
   readonly available: boolean;
@@ -24,13 +53,7 @@ export function useGroups(s: ConversationServices): GroupsState {
   const base = s.client.groups;
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => { setTick((n) => n + 1); }, []);
-  useEffect(() => {
-    if (api === null && base?.rejoin === undefined) return;
-    const id = setInterval(refresh, POLL_MS);
-    const onVisible = (): void => { if (document.visibilityState === "visible") refresh(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
-  }, [api, base, refresh]);
+  useChangeFeed(api ?? base, s.ctx.profileId, api !== null || base?.rejoin !== undefined, refresh);
   const data = useMemo(() => {
     // `tick` is a re-read trigger, not an input.
     // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator
@@ -53,17 +76,13 @@ const NO_HELD: HeldGroupInvitations = { invitations: [], overflow: { invites: 0,
 
 /**
  * Invitations held before the group module is loaded, read through the base-module query (it works whether or not groups are
- * available; a client without one reports nothing). Re-read on the same calm interval as the group views.
+ * available; a client without one reports nothing). Re-read on the same change feed as the group views.
  */
 export function useHeldGroupInvites(s: ConversationServices): HeldGroupState {
   const api = s.client.groups;
   const has = api?.held !== undefined;
   const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (!has) return;
-    const id = setInterval(() => { setTick((n) => n + 1); }, POLL_MS);
-    return () => { clearInterval(id); };
-  }, [has]);
+  useChangeFeed(api, s.ctx.profileId, has, useCallback(() => { setTick((n) => n + 1); }, []), false);
   const held = useMemo(() => {
     // `tick` is a re-read trigger, not an input.
     // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator
@@ -88,11 +107,7 @@ export interface GroupChatData {
 export function useGroupChat(s: ConversationServices, groupId: GroupId, refreshKey: number): GroupChatData {
   const api = groupApiOf(s);
   const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (api === null) return;
-    const id = setInterval(() => { setTick((n) => n + 1); }, POLL_MS);
-    return () => { clearInterval(id); };
-  }, [api]);
+  useChangeFeed(api ?? undefined, s.ctx.profileId, api !== null, useCallback(() => { setTick((n) => n + 1); }, []), false);
   return useMemo(() => {
     // `tick` and `refreshKey` are re-read triggers, not inputs.
     // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator

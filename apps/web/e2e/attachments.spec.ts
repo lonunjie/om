@@ -156,6 +156,37 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
   await expect(log.getByText("note.txt")).toBeVisible();
   await expect(log.locator('li[data-found="true"]')).toContainText("note.txt"); // the hit opened at that exact message
 
+  // ---- the index at rest (ADR-0208): present in the identity's vault database, and only as ciphertext ----
+  await page.waitForTimeout(1500); // writes are batched for under a second
+  const atRest = await page.evaluate(async () => {
+    const out = { searchKeys: 0, plain: false };
+    for (const info of await indexedDB.databases()) {
+      if (info.name === undefined || !info.name.startsWith("om-vault-")) continue;
+      const db = await new Promise<IDBDatabase>((res, rej) => { const r = indexedDB.open(info.name as string); r.onsuccess = () => { res(r.result); }; r.onerror = () => { rej(new Error("open")); }; });
+      if (db.objectStoreNames.contains("kv")) {
+        const store = db.transaction("kv", "readonly").objectStore("kv");
+        const keys = await new Promise<IDBValidKey[]>((res) => { const r = store.getAllKeys(); r.onsuccess = () => { res(r.result); }; });
+        const vals = await new Promise<unknown[]>((res) => { const r = store.getAll(); r.onsuccess = () => { res(r.result); }; });
+        out.searchKeys += keys.filter((k) => typeof k === "string" && k.startsWith("ui/search/v1/m/")).length;
+        for (const v of vals) {
+          const text = v instanceof Uint8Array ? new TextDecoder("latin1").decode(v) : String(v);
+          if (text.includes("quarterly budget") || text.includes("note.txt")) out.plain = true;
+        }
+      }
+      db.close();
+    }
+    return out;
+  });
+  expect(atRest.searchKeys).toBeGreaterThan(0);
+  expect(atRest.plain).toBe(false);
+  // A reload: the person unlocks again and the same words are found.
+  await page.reload();
+  await page.getByRole("button", { name: "Settings" }).waitFor({ timeout: 30_000 });
+  await page.keyboard.press("Control+K");
+  await page.keyboard.type("budget");
+  await expect(page.getByRole("option", { name: /quarterly budget attached/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+
   // ---- what the Home saw: sealed bytes with a digest header, no readable content, no capability in any URL ----
   const uploads = toHome.filter((w) => w.url.endsWith("/v1/blobs") && w.method === "POST");
   expect(uploads.length).toBeGreaterThanOrEqual(voice ? 2 : 1);

@@ -1,6 +1,6 @@
 // EncryptedKv: profile-scoped store in the profile's vault database. Keys are not secret; values are sealed
-// (purpose `local-db`) with the key inside the plaintext, so a value moved to another key fails closed.
-import type { DeviceVault, EncryptedKv, KvGetResult, KvListResult, KvResult, ProfileId, VaultError, VaultErrorReason } from "@om/platform-api";
+// (purpose `local-db` unless the caller names another) with the key inside the plaintext, so a value moved to another key fails closed.
+import type { DeviceVault, EncryptedKv, KvGetResult, KvListResult, KvResult, ProfileId, VaultError, VaultErrorReason, VaultPurpose } from "@om/platform-api";
 import type { Bytes } from "./env";
 import { concat, isValidProfileId, utf8 } from "./crypto";
 import { STORE_KV, committed, dbName, openExisting, request } from "./idb";
@@ -29,7 +29,11 @@ function unframe(key: string, b: Uint8Array): Bytes | undefined {
   return b.slice(4 + n);
 }
 
-export function createEncryptedKv(vault: DeviceVault, env: { readonly indexedDB: IDBFactory }, profileId: ProfileId): EncryptedKv {
+/**
+ * `purpose` picks the vault subkey the values are sealed under (default `local-db`). A store opened for another purpose shares the
+ * profile's database but cannot read, and fails closed on, what another purpose sealed (DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION section 4).
+ */
+export function createEncryptedKv(vault: DeviceVault, env: { readonly indexedDB: IDBFactory }, profileId: ProfileId, purpose: VaultPurpose = "local-db"): EncryptedKv {
   async function withStore<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<T>): Promise<{ ok: true; value: T } | VaultError<VaultErrorReason>> {
     if (!isValidProfileId(profileId)) return fail("invalid_profile_id");
     const ex = await openExisting(env.indexedDB, dbName(profileId));
@@ -50,7 +54,7 @@ export function createEncryptedKv(vault: DeviceVault, env: { readonly indexedDB:
   return {
     async put(key, value): Promise<KvResult> {
       if (!validKey(key)) return fail("invalid_key");
-      const sealed = await vault.seal(profileId, "local-db", frame(key, value));
+      const sealed = await vault.seal(profileId, purpose, frame(key, value));
       if (!sealed.ok) return sealed;
       const r = await withStore("readwrite", (s) => s.put(sealed.sealed, key));
       return r.ok ? { ok: true } : r;
@@ -62,7 +66,7 @@ export function createEncryptedKv(vault: DeviceVault, env: { readonly indexedDB:
       if (!r.ok) return r;
       if (r.value === undefined) return { ok: true, value: undefined };
       if (!(r.value instanceof Uint8Array)) return fail("malformed");
-      const opened = await vault.open(profileId, "local-db", r.value);
+      const opened = await vault.open(profileId, purpose, r.value);
       if (!opened.ok) return opened;
       const value = unframe(key, opened.bytes);
       opened.bytes.fill(0);
