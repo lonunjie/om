@@ -26,6 +26,7 @@ describe("optional media leases", () => {
     expect(request.headers.has("om-admission")).toBe(false);
     const { request_id: id } = await request.json() as { request_id: string };
     if (id === "ff".repeat(16)) return new Response(null, { status: 410 });
+    if (id === "ee".repeat(16)) return new Response(null, { status: 302, headers: { location: "https://elsewhere.example/lease" } });
     let grant = issued.get(id);
     if (!grant) {
       if (issued.size === 2) return new Response(null, { status: 429 });
@@ -69,6 +70,7 @@ describe("optional media leases", () => {
     expect(decodeHomeError(new Uint8Array(await (await issue(home, "33".repeat(16))).arrayBuffer())).name).toBe("quota");
     expect(decodeHomeError(new Uint8Array(await (await issue(exhausted, "44".repeat(16))).arrayBuffer())).name).toBe("quota");
     expect((await issue(home, "ff".repeat(16))).status).toBe(410);
+    expect((await issue(home, "ee".repeat(16))).status).toBe(503);
     expect(issued.size).toBe(2);
   });
 });

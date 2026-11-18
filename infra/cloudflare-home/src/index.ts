@@ -140,9 +140,9 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     if (counted?.state !== "healthy" && counted?.state !== "soft") return fail("quota", { detail: quotaDetail(3, true) });
     const id = hex(parse(decodeTurnRequest, await body(request, 128)));
     try {
-      // A service binding or Unix socket handles this internal request. No DNS or public fetch.
+      // A service binding or Unix socket handles this internal request. No DNS or public fetch. workerd has no redirect:"error", so "manual" is used and any 3xx falls through to the non-ok refusal below.
       const lease = await backend.fetch(new Request(new URL("/lease", url.origin), {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(5000),
+        method: "POST", redirect: "manual", signal: AbortSignal.timeout(5000),
         headers: { "content-type": "application/json" }, body: JSON.stringify({ request_id: id }),
       }));
       if (lease.status === 429) return fail("quota", { detail: quotaDetail(3, true) });
