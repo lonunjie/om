@@ -1174,6 +1174,15 @@ fn relationship_restore_probe_owner_invitation_resumes_existing_contact_thread()
 
 #[test]
 fn relationship_restore_probe_early_binding_waits_for_the_contact_across_restart() {
+    reconnect_across_peer_wait(false);
+}
+
+#[test]
+fn an_expired_reconnect_can_be_restarted_and_keeps_the_original_thread() {
+    reconnect_across_peer_wait(true);
+}
+
+fn reconnect_across_peer_wait(expired: bool) {
     let (mut w, mut f, _) = recovered_with_contact(false);
     let before: Vec<ConversationSummary> =
         w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
@@ -1217,8 +1226,49 @@ fn relationship_restore_probe_early_binding_waits_for_the_contact_across_restart
     let pending: Vec<ReconnectContactView> =
         f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
     assert!(pending[0].conversation_id.is_none());
+    if expired {
+        w.bob.tick(8 * 86_400_000);
+    }
     w.bob.recovery_tick(&w.b, &mono(2, 2 * DELAY_MS + 5));
     settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    if expired {
+        let waiting: Vec<ReconnectContactView> =
+            f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+        assert!(waiting[0].conversation_id.is_none());
+        f.rt.tick(6 * 86_400_000);
+        f.ctx = f.rt.restart().remove(0);
+        assert_eq!(
+            f.go(
+                "renew-reconnect",
+                IntentBody::ReconnectContact {
+                    account_id: candidates[0].account_id.clone(),
+                }
+            ),
+            Some(OutcomeClass::Committed)
+        );
+        f.rt.tick(2 * 86_400_000);
+        let invite: Option<InviteView> = f.rt.query(Query::GetInvite {
+            ctx: f.ctx.clone(),
+            operation_id: "renew-reconnect".into(),
+        });
+        w.bob.dispatch(
+            &w.b,
+            "renew-accept",
+            IntentBody::AcceptInvitation {
+                link: invite.unwrap().link,
+            },
+        );
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        let intro: Vec<IntroductionRequest> =
+            f.rt.query(Query::GetIntroductions { ctx: f.ctx.clone() });
+        f.go(
+            "renew-introduction",
+            IntentBody::AcceptIntroduction {
+                request_id: intro[0].id.clone(),
+            },
+        );
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    }
     let ready: Vec<ReconnectContactView> =
         f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
     assert!(ready[0].conversation_id.is_some());
@@ -1649,6 +1699,30 @@ mod room_rejoin {
         );
         assert_eq!(detail.summary.invited, 0);
         let invite = invitation(&pump(&mut f.rt, &f.ctx));
+        group_do(
+            &mut f.rt,
+            &f.ctx,
+            GroupIntent::Decline {
+                invite_id: invite.clone(),
+            },
+        )
+        .unwrap();
+        send_lane(&mut f.rt, &f.ctx);
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        pump(&mut w.bob, &w.b);
+        w.b = w.bob.restart().remove(0);
+        assert!(
+            rejoin(&w.bob, &w.b)
+                .reviews
+                .iter()
+                .any(|item| item.id == review.id)
+        );
+        group_do(&mut w.bob, &w.b, confirm(&review.id)).unwrap();
+        send_lane(&mut w.bob, &w.b);
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        let retried = invitation(&pump(&mut f.rt, &f.ctx));
+        assert_ne!(invite, retried);
+        let invite = retried;
         let unsolicited = GroupWire::Welcome {
             invite_id: invite.clone(),
             welcome: String::new(),

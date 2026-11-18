@@ -180,3 +180,13 @@ pub struct DepositRevocation {
     pub mailbox: String,
     pub id: String,
 }
+
+impl RoomRouteOffer {
+    pub(crate) fn grant(&self) -> DepositRevocation {
+        DepositRevocation {
+            relay_uri: self.route.relay_uri.clone(),
+            mailbox: crate::crypto::hex(&self.route.mailbox),
+            id: crate::crypto::hex(&self.id),
+        }
+    }
+}

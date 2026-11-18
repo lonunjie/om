@@ -30,6 +30,12 @@ const MAX_VETOES: usize = 16;
 /// A chain with more recovery links than this, or a dossier that does not match its links, is refused (section 8).
 const MAX_DOSSIER_LINKS: usize = 4;
 
+fn reconnect_wrapper_live(wrapper: &[u8], now_s: u64) -> bool {
+    cbor::decode(wrapper)
+        .and_then(|wire| wire.get(7)?.u())
+        .is_ok_and(|expires| now_s <= expires.saturating_add(delivery::CLOCK_SKEW))
+}
+
 /// What a notice (or a dossier entry with its chain) hands the contact, before any of it is trusted.
 pub(super) struct NoticeInput {
     policy: Vec<u8>,
@@ -284,6 +290,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             let Some(dossier) = dossier else { return false };
             let _ = self.peer_commit(&old.id, plan);
             self.observe_dossier(&old.id, &V::M(vec![(5, dossier.clone())]), chain, creds);
+            let now_s = self.now_s();
             if self
                 .st
                 .app
@@ -291,7 +298,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .get(&old.id)
                 .is_some_and(|r| r.peer_recovery.iter().any(PeerRecoveryRec::is_live))
                 && let Some(r) = self.st.app.relationships.get_mut(&fresh.id)
-                && r.recovery_bind.is_none()
+                && r.recovery_bind.as_ref().is_none_or(|held| {
+                    !unhex(&held.bytes).is_ok_and(|bytes| reconnect_wrapper_live(&bytes, now_s))
+                })
             {
                 r.recovery_bind = Some(RecoveryBinding {
                     account_id: fresh.peer_account_id.clone(),
@@ -309,7 +318,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     .and_then(|b| Credential::from_body(&b).ok())
                     .is_some_and(|c| hex(&c.device_id) == fresh.peer_device_id)
         });
-        if accepted_target && old.peer_device_id != fresh.peer_device_id {
+        if accepted_target
+            && (old.peer_device_id != fresh.peer_device_id || old.relinked_from.is_some())
+        {
             fresh.relink = Some(RelationshipRelink {
                 conversation_id: old.id,
                 previous_head: hex(&pinned.hash()),
@@ -332,7 +343,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         self.st.app.relationships.get(&original.conversation_id).is_some_and(|old| {
             !old.blocked && old.peer_account_id == fresh.peer_account_id
-                && old.peer_device_id != fresh.peer_device_id
+                && (old.peer_device_id != fresh.peer_device_id || old.relinked_from.is_some())
                 && matches!(
                     (Acs::from_body(&hb(&old.peer_acs_body).unwrap_or_default()),
                     Acs::from_body(&hb(&fresh.peer_acs_body).unwrap_or_default())),
@@ -1055,7 +1066,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .filter_map(|(id, r)| r.recovery_bind.take().map(|b| (id.clone(), b)))
             .collect();
         for (id, held) in pending {
-            if let Ok(wrapper) = unhex(&held.bytes) {
+            if let Ok(wrapper) = unhex(&held.bytes)
+                && reconnect_wrapper_live(&wrapper, self.now_s())
+            {
                 self.on_session_envelope(&id, &wrapper);
             }
         }

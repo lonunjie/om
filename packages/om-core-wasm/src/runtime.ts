@@ -142,8 +142,9 @@ export interface WasmCoreClient extends CoreClient {
    * frame to `fetchHandle` and send what it returns, then `fetchOpen` when the progress says `complete`.
    */
   readonly direct: {
-    serve(ctx: ProfileExecutionContext, frame: DirectFrame): Promise<readonly DirectFrame[]>;
-    pump(ctx: ProfileExecutionContext, buffered: number): readonly DirectFrame[];
+    serve(ctx: ProfileExecutionContext, frame: DirectFrame, channel?: number): Promise<readonly DirectFrame[]>;
+    pump(ctx: ProfileExecutionContext, buffered: number, channel?: number): readonly DirectFrame[];
+    disconnected(ctx: ProfileExecutionContext, channel: number): void;
     fetchStart(ctx: ProfileExecutionContext, messageId: MessageId, index: number): DirectFrame | null;
     fetchHandle(ctx: ProfileExecutionContext, messageId: MessageId, index: number, frame: DirectFrame): readonly DirectFrame[];
     fetchProgress(ctx: ProfileExecutionContext, messageId: MessageId, index: number): DirectFetchProgress | null;
@@ -227,29 +228,45 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   const MINT_REPLAY_MS = 600_000;
   type MintJournal = { readonly startedAt: number; readonly plan: RoomRouteMint; readonly offer?: RoomRouteOffer };
 
-  /** A Room mint is single-use. Persist before I/O and retire its journal entry before handing it to Core. */
-  const topUpRoomRoutes = (ctx: ProfileExecutionContext): Promise<void> => exclusive(async () => {
+  /** Pending requests and their results stay in the vault until Core commits ownership. */
+  const settleRoomMint = (ctx: ProfileExecutionContext, topUp = false): Promise<void> => exclusive(async () => {
     if (!provider.prepareRoomRoute || !provider.mintRoomRoute || !provider.revokeDeposit) return;
-    const args = { cmd: "supply_room_routes", ctx: ctxOf(ctx) };
-    if ((core.call({ ...args, routes: [] }) as number) > 0) return;
+    const execution = ctxOf(ctx);
     const kv = opts.storage(ctx.profileId);
     const read = await kv.get(ROOM_MINT);
     if (!read.ok) return;
     let pending = read.value === undefined ? undefined : JSON.parse(new TextDecoder().decode(read.value)) as MintJournal;
     const now = Date.now();
-    if (pending === undefined || pending.startedAt > now
-      || (pending.offer === undefined ? now >= pending.startedAt + MINT_REPLAY_MS : pending.offer.expiresAt <= now / 1000)) {
-      pending = { startedAt: now, plan: provider.prepareRoomRoute() };
+    const supply = (routes: readonly RoomRouteOffer[]): number =>
+      core.call({ cmd: "supply_room_routes", ctx: execution, routes }) as number;
+    const clearOrOffer = async (offer: RoomRouteOffer, activeHome: string): Promise<boolean> => {
+      const { relayUri, mailbox, id } = offer;
+      const grant = { relayUri, mailbox, id };
+      if (!(core.call({ cmd: "room_grant_claimed", ctx: execution, grant }) as boolean)) {
+        if (offer.relayUri === activeHome && offer.expiresAt > now / 1000) {
+          if (topUp) supply([offer]);
+          return false;
+        }
+        const retired = core.call({ cmd: "retire_room_grant", ctx: execution, grant, expiresAt: offer.expiresAt }) as { commit: Commit | null };
+        await commit(retired.commit, execution);
+      }
+      return (await kv.delete(ROOM_MINT)).ok;
+    };
+    if (!topUp && pending?.offer === undefined) return;
+    const proposed = provider.prepareRoomRoute();
+    if (pending?.offer !== undefined) {
+      if (!(await clearOrOffer(pending.offer, proposed.relayUri))) return;
+      pending = undefined;
+    }
+    if (!topUp || supply([]) > 0) return;
+    if (pending === undefined || pending.startedAt > now || now >= pending.startedAt + MINT_REPLAY_MS) {
+      pending = { startedAt: now, plan: proposed };
       if (!(await kv.put(ROOM_MINT, new TextEncoder().encode(JSON.stringify(pending)))).ok) return;
     }
-    let offer = pending.offer;
-    if (offer === undefined) {
-      try { offer = await provider.mintRoomRoute(pending.plan); } catch { return; }
-      if (offer === undefined) return;
-      if (!(await kv.put(ROOM_MINT, new TextEncoder().encode(JSON.stringify({ ...pending, offer })))).ok) return;
-    }
-    if (!(await kv.delete(ROOM_MINT)).ok) return;
-    core.call({ ...args, routes: [offer] });
+    const offer = await provider.mintRoomRoute(pending.plan);
+    if (offer === undefined) return;
+    if (!(await kv.put(ROOM_MINT, new TextEncoder().encode(JSON.stringify({ ...pending, offer })))).ok) return;
+    await clearOrOffer(offer, proposed.relayUri);
   }).catch(() => undefined);
 
   const query = (q: CoreQuery): unknown => core.call({ cmd: "query", query: q });
@@ -522,7 +539,8 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     provider,
     storage: opts.storage,
     contextFor: (profileId) => { const c = core.call({ cmd: "context_for", profileId }) as { profileId: string; generation: string }; return captureProfileContext(asProfileId(c.profileId), asProfileGeneration(c.generation)); },
-    topUp: topUpRoomRoutes,
+    topUp: (ctx) => settleRoomMint(ctx, true),
+    settleMint: settleRoomMint,
     wake: (profileId) => { kick(asProfileId(profileId)); },
     ...(opts.groupDriver.retryMs === undefined ? {} : { retryMs: opts.groupDriver.retryMs }),
   });
@@ -703,12 +721,13 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       },
     },
     direct: {
-      serve: (ctx, frame) => exclusive(async () => {
-        const r = core.call({ cmd: "direct_serve", ctx: ctxOf(ctx), frame }) as { frames: DirectFrame[]; commit: Commit | null };
+      serve: (ctx, frame, channel) => exclusive(async () => {
+        const r = core.call({ cmd: "direct_serve", ctx: ctxOf(ctx), frame, channel }) as { frames: DirectFrame[]; commit: Commit | null };
         await commit(r.commit, ctx); // the durable effects of serving: the peer's claim, and a verified receipt
         return r.frames;
       }),
-      pump: (ctx, buffered) => core.call({ cmd: "direct_pump", ctx: ctxOf(ctx), buffered }) as DirectFrame[],
+      pump: (ctx, buffered, channel) => core.call({ cmd: "direct_pump", ctx: ctxOf(ctx), buffered, channel }) as DirectFrame[],
+      disconnected(ctx, channel) { core.call({ cmd: "direct_disconnected", ctx: ctxOf(ctx), channel }); },
       fetchStart(ctx, messageId, index) {
         const r = core.call({ cmd: "direct_fetch_start", ctx: ctxOf(ctx), messageId, index }) as { frame?: DirectFrame };
         return r.frame ?? null;

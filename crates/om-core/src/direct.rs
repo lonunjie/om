@@ -177,6 +177,7 @@ pub struct DirectSender {
     ciphertext: Vec<u8>,
     state: OfferState,
     xfer: Option<Xfer>,
+    channel: Option<u64>,
     /// The transfer whose final ack made the claim; a receipt must name it.
     claim_id: Option<[u8; TRANSFER_ID_LEN]>,
     /// Invalid tags on the current transfer; a fresh transfer has a bounded recovery window.
@@ -232,6 +233,7 @@ impl DirectSender {
             ciphertext,
             state: OfferState::Waiting,
             xfer: None,
+            channel: None,
             claim_id: None,
             bad_receipts: 0,
             receipt_id: None,
@@ -259,6 +261,36 @@ impl DirectSender {
         if self.state == OfferState::Transferring {
             self.state = OfferState::Waiting;
         }
+    }
+
+    pub(crate) fn owns_channel(&self, channel: u64) -> bool {
+        self.channel == Some(channel)
+    }
+
+    pub(crate) fn detach_channel(&mut self, channel: u64) {
+        if self.owns_channel(channel) {
+            self.close_xfer();
+            self.channel = None;
+            self.claim_id = None;
+            self.expected_receipt = None;
+        }
+    }
+
+    pub(crate) fn handle_on(
+        &mut self,
+        channel: u64,
+        frame: &DirectFrame,
+        fresh_id: [u8; TRANSFER_ID_LEN],
+    ) -> Vec<DirectFrame> {
+        let fetch = matches!(frame, DirectFrame::FetchBlob { .. });
+        if !fetch && !self.owns_channel(channel) {
+            return vec![];
+        }
+        let out = self.handle(frame, fresh_id);
+        if fetch && matches!(out.first(), Some(DirectFrame::Begin { .. })) {
+            self.channel = Some(channel);
+        }
+        out
     }
 
     /// Withdraw the offer and drop the ciphertext. Later fetches answer `unavailable`.

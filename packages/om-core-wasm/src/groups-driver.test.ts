@@ -404,6 +404,52 @@ describe.skipIf(!existsSync(WITH_GROUPS))("the driver over two real wasm Cores w
     after.rt.dispose();
   });
 
+  it("keeps grant ownership across an interrupted handoff and a Home change", async () => {
+    const relay = createMemoryProvider();
+    const kv = createMemoryKv();
+    const id = asProfileId("mint-handoff");
+    const plans: RoomRouteMint[] = [];
+    const revoked: DepositRevocation[] = [];
+    const provider: Provider = {
+      ...relay,
+      async mintRoomRoute(plan) { plans.push(plan); return relay.mintRoomRoute?.(plan); },
+      revokeDeposit(grant) { revoked.push(grant); return Promise.resolve(); },
+    };
+    const core = await instantiateCore(readFileSync(WITH_GROUPS));
+    const call = core.call.bind(core);
+    let journalAtHandoff: Uint8Array | undefined;
+    const interrupted = { ...core, call(command: Readonly<Record<string, unknown>>) {
+      if (command["cmd"] === "supply_room_routes" && (command["routes"] as unknown[]).length > 0) {
+        journalAtHandoff = kv.snapshot().get("gdrv/room-mint/v1");
+        throw new Error("interrupted before Core received the grant");
+      }
+      return call(command);
+    } };
+    const rt = await createCoreRuntime({ core: interrupted, provider, storage: () => kv, home: HOME, autoDrain: false, retryMs: 0, groupDriver: { retryMs: 0 } });
+    const ctx = await rt.openProfile(id);
+    await rt.dispatch({ kind: "CreateIdentityProfile", ctx, operationId: op("handoff-create"), label: "Mint test" });
+    expect((await rt.groups.do(ctx, { kind: "create", name: "Mint test", relationshipIds: [] })).ok).toBe(true);
+    await rt.flush(id);
+    await rt.idle();
+    rt.dispose();
+    expect(journalAtHandoff).toBeDefined();
+    const old = plans[0];
+    if (!old) throw new Error("no first mint");
+    const prepare = provider.prepareRoomRoute?.bind(provider);
+    if (prepare === undefined) throw new Error("test provider has no mint");
+    const nextHome = "https://next.example/";
+    const after = await boot({
+      ...provider,
+      prepareRoomRoute: () => ({ ...prepare(), relayUri: nextHome }),
+    }, id, kv);
+    try {
+      await settle(after);
+      expect(revoked).toContainEqual({ relayUri: old.relayUri, mailbox: old.mailbox, id: old.mailbox });
+      expect(plans.filter((plan) => plan.relayUri === nextHome)).toHaveLength(1);
+      expect(kv.snapshot().has("gdrv/room-mint/v1")).toBe(false);
+    } finally { after.rt.dispose(); }
+  });
+
   it.each(["remove", "leave"] as const)("revokes the old Room route after %s, overlap and restart", async (action) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {

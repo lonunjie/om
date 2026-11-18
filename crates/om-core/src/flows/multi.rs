@@ -1468,12 +1468,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     // ------------------------------------------------------------------------------------------------ self-sync in
 
     /// A message our own other device sent, delivered to us on the conversation (self-sync). It is shown as ours.
-    /// Edits and deletes of our own messages from another device are not applied (not built; ignored, never half-applied).
     pub(super) fn on_synced_event(
         &mut self,
         conv: &str,
         ev: &events::Event,
         sender: [u8; 16],
+        bytes: &[u8],
     ) -> bool {
         let Some(mine) = self.st.device.as_ref().map(|d| d.account_id) else {
             return false;
@@ -1495,17 +1495,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if r.equivocated.contains(&eid) {
             return false;
         }
-        if ev.kind == events::K_REACTION {
-            // Our own other device reacted: the same register, set as ours.
-            let Some((target, key, present)) = super::social::read_reaction(ev) else {
-                return false;
-            };
-            super::social::apply_reaction(&mut r.messages, &target, true, &key, present, ev.clock);
-            return true;
-        }
-        if ev.kind == events::K_EDIT || ev.kind == events::K_DELETE {
-            // Our own other device edited or deleted one of our messages.
-            return super::social::apply_edit_delete(&mut r.messages, true, ev);
+        if matches!(
+            ev.kind,
+            events::K_EDIT | events::K_DELETE | events::K_REACTION
+        ) {
+            return self.st.app.direct_mutation(conv, true, ev, bytes, now);
         }
         if ev.kind != events::K_CREATE {
             return true;
@@ -1522,7 +1516,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             r.equivocated.insert(eid);
             return false;
         }
-        let _ = now;
         r.messages.push(Msg {
             id,
             outgoing: true,
@@ -1545,6 +1538,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 ..Social::default()
             },
         });
+        self.st.app.resolve_direct_mutations(conv, ev.event_id, now);
         true
     }
 

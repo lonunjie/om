@@ -144,6 +144,78 @@ pub(super) fn read_reaction(ev: &events::Event) -> Option<(String, String, bool)
     valid_reaction_key(key).then(|| (format!("msg-{}", hex(target)), key.to_string(), present))
 }
 
+impl AppState {
+    pub(super) fn direct_mutation(
+        &mut self,
+        conv: &str,
+        mine: bool,
+        ev: &events::Event,
+        bytes: &[u8],
+        now_ms: u64,
+    ) -> bool {
+        let Some(target) = events::mutation_target(ev) else {
+            return false;
+        };
+        let valid = match ev.kind {
+            events::K_EDIT => ev
+                .body
+                .opt(1)
+                .and_then(events::plain_text)
+                .is_some_and(|text| text.chars().count() <= MAX_MESSAGE_CHARS),
+            events::K_REACTION => read_reaction(ev).is_some(),
+            _ => true,
+        };
+        if !valid {
+            return false;
+        }
+        let Some(rel) = self.relationships.get_mut(conv) else {
+            return false;
+        };
+        let eid = hex(&target);
+        let id = format!("msg-{eid}");
+        if rel.equivocated.contains(&eid) {
+            return true;
+        }
+        if rel.messages.iter().any(|m| m.id == id) {
+            return apply_direct_mutation(rel, ev, mine);
+        }
+        self.dangling_mutations.hold(
+            conv,
+            target,
+            ev,
+            events::MutationAuth::Direct { mine },
+            bytes,
+            now_ms,
+        );
+        true
+    }
+
+    pub(super) fn resolve_direct_mutations(&mut self, conv: &str, target: [u8; 16], now_ms: u64) {
+        let Some(rel) = self.relationships.get_mut(conv) else {
+            return;
+        };
+        for (event, auth) in self.dangling_mutations.take(conv, target, false, now_ms) {
+            if let events::MutationAuth::Direct { mine } = auth
+                && rel.canon_id.as_deref() == Some(&hex(&event.conversation_id))
+                && (mine || rel.peer_account_id == hex(&event.author_account))
+            {
+                apply_direct_mutation(rel, &event, mine);
+            }
+        }
+    }
+}
+
+fn apply_direct_mutation(rel: &mut Relationship, ev: &events::Event, mine: bool) -> bool {
+    if ev.kind == events::K_REACTION {
+        if let Some((target, key, present)) = read_reaction(ev) {
+            apply_reaction(&mut rel.messages, &target, mine, &key, present, ev.clock);
+        }
+        true
+    } else {
+        apply_edit_delete(&mut rel.messages, mine, ev)
+    }
+}
+
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Build a canonical event of `ekind` with `body` and queue it on the relationship like a message, hidden from the
     /// timeline. Records the refusal and returns `None` when the conversation cannot send now; otherwise returns the id

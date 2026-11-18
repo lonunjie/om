@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { asConversationId, asOperationId, asProfileId } from "@om/platform-api";
 import type { ConversationTimelineItem, HomeSummary, MessageId, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { createCoreRuntime, instantiateCore } from "./index";
-import type { DirectCiphertextCache, DirectDriver, DirectTransport, WasmCoreClient } from "./index";
+import type { DirectChannel, DirectCiphertextCache, DirectDriver, DirectFrame, DirectTransport, WasmCoreClient } from "./index";
 import { createDirectDriver } from "./direct-driver";
 import { createDirectFaults } from "./direct-loopback";
 import type { DirectFaults } from "./direct-loopback";
@@ -101,6 +101,66 @@ async function lapse(w: { alice: Party; aConv: string }): Promise<void> {
 const finish = (...d: DirectDriver[]): void => { for (const x of d) x.dispose(); };
 
 describe.skipIf(!present)("direct-transfer host driver, real Core over a loopback channel", () => {
+  it("pumps each transfer only on the channel that opened it", async () => {
+    const w = await world();
+    w.aliceDriver.dispose();
+    const second = await w.alice.rt.attachments.prepareDirect?.(w.alice.ctx, bytesOf(BIG, 6), { mediaType: "video/mp4" });
+    if (!second?.ok) throw new Error("second attachment unavailable");
+    await w.alice.rt.dispatch({ kind: "SendAttachmentsDirect", ctx: w.alice.ctx, operationId: op("d2"), conversationId: asConversationId(w.aConv), draft: { text: "second file" }, attachments: [{ blobId: second.blobId }] });
+    await settle(w.alice, w.bob);
+    const secondMessage = (await lastItem(w.bob, w.bConv))?.messageId;
+    if (secondMessage === undefined) throw new Error("second attachment absent");
+    let accept: ((channel: DirectChannel) => void) | undefined;
+    const driver = createDirectDriver({
+      core: w.alice.rt, cache: w.cache,
+      transport: { connect: () => Promise.resolve(null), listen: (_ctx, onChannel) => { accept = onChannel; return () => {}; } },
+    });
+    const open = (buffered: number) => {
+      let onFrame: (frame: DirectFrame) => void = () => {};
+      let onDrain: () => void = () => {};
+      const frames: DirectFrame[] = [];
+      accept?.({
+        get buffered() { return buffered; },
+        send(frame) { frames.push(frame); return Promise.resolve(); },
+        onFrame(listener) { onFrame = listener; return () => {}; },
+        onDrain(listener) { onDrain = listener; return () => {}; },
+        onClose() { return () => {}; },
+        close() {},
+      });
+      return { frames, receive: (frame: DirectFrame) => { onFrame(frame); }, drain() { buffered = 0; onDrain(); } };
+    };
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const request = (message: MessageId) => {
+      const frame = w.bob.rt.direct.fetchStart(w.bob.ctx, message, 0);
+      if (frame === null) throw new Error("no request");
+      return frame;
+    };
+    try {
+      driver.start(w.alice.ctx);
+      const a = open(300_000);
+      a.receive(request(w.bobMessageId));
+      await tick();
+      const first = a.frames.find((frame) => frame.kind === "begin");
+      if (first === undefined) throw new Error("first transfer did not start");
+      a.receive({ kind: "ack", transferId: first.transferId, offset: 0 });
+      await tick();
+      expect(a.frames.map((frame) => frame.kind)).toEqual(["begin"]);
+
+      const b = open(0);
+      b.receive(request(secondMessage));
+      await tick();
+      const other = b.frames.find((frame) => frame.kind === "begin");
+      if (other === undefined) throw new Error("second transfer did not start");
+      b.receive({ kind: "ack", transferId: other.transferId, offset: 0 });
+      a.drain();
+      await tick();
+      expect(b.frames.every((frame) => "transferId" in frame && frame.transferId === other.transferId)).toBe(true);
+      expect(a.frames.every((frame) => "transferId" in frame && frame.transferId === first.transferId)).toBe(true);
+      expect(a.frames.some((frame) => frame.kind === "end")).toBe(true);
+      expect(b.frames.some((frame) => frame.kind === "end")).toBe(true);
+    } finally { finish(driver, w.bobDriver); }
+  }, 60_000);
+
   it("full transfer: commit before the receipt, receipt before the file opens, equal bytes, only ciphertext cached, sender confirmed", async () => {
     const w = await world();
     expect(await stateOf(w.alice, w.aConv)).toBe("waiting_for_recipient");

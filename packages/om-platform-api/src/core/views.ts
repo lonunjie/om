@@ -173,6 +173,7 @@ export interface ReconnectContactView {
   readonly label: string;
   readonly inviteOperationId: OperationId | null;
   readonly invite: InviteView | null;
+  readonly canRetry?: boolean;
   readonly conversationId: ConversationId | null;
 }
 

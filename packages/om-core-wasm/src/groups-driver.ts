@@ -71,6 +71,7 @@ export interface GroupDriverOptions {
   readonly contextFor: (profileId: ProfileId) => ProfileExecutionContext;
   /** Keep a few route offers in Core (a route is minted for each Accept, Welcome and Room route update). */
   readonly topUp: (ctx: ProfileExecutionContext) => Promise<void>;
+  readonly settleMint?: (ctx: ProfileExecutionContext) => Promise<void>;
   /** Called after a step that queued something on the 1:1 (the runtime then performs it). */
   readonly wake?: (profileId: ProfileId) => void;
   /** Wait before repeating a pass that could not finish (default 2000 ms; 0 = only when `flush` is called). */
@@ -215,6 +216,7 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     // Start-up and after a crash: a Commit that was durable is finished before anything else.
     const first = await core.settle(ctx);
     if (first.ok && (first.events.length > 0 || first.out.length > 0)) { emit(ctx.profileId, first.events); moved = true; }
+    await opts.settleMint?.(ctx);
     for (const grant of await core.routesExpire(ctx)) {
       if (!provider.revokeDeposit) continue;
       try {

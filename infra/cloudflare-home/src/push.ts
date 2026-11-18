@@ -30,7 +30,7 @@ const part = (o: unknown): string => toBase64Url(utf8(JSON.stringify(o)));
 
 export class PushHub extends DurableObject<Env> {
   private readonly sql: SqlStorage;
-  private key: { priv: CryptoKey; pub: string } | undefined;
+  private key: Promise<{ priv: CryptoKey; pub: string }> | undefined;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -39,20 +39,31 @@ export class PushHub extends DurableObject<Env> {
   }
 
   /** The Home's VAPID key: made on first use from the Worker's own randomness, kept only in this object's storage. Returns the public half. */
-  private async vapid(): Promise<{ priv: CryptoKey; pub: string }> {
-    if (this.key !== undefined) return this.key;
-    let jwk = metaString(this.sql, "vapid_jwk");
-    let pub = metaString(this.sql, "vapid_pub");
+  private vapid(): Promise<{ priv: CryptoKey; pub: string }> {
+    return this.key ??= this.loadVapid().catch((error: unknown) => {
+      this.key = undefined;
+      throw error;
+    });
+  }
+
+  private async loadVapid(): Promise<{ priv: CryptoKey; pub: string }> {
+    const saved = metaString(this.sql, "vapid_key");
+    const pairRecord = saved === undefined ? undefined : JSON.parse(saved) as { jwk: string; pub: string };
+    let jwk = pairRecord?.jwk ?? metaString(this.sql, "vapid_jwk");
+    let pub = pairRecord?.pub ?? metaString(this.sql, "vapid_pub");
     if (jwk === undefined || pub === undefined) {
       const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]) as CryptoKeyPair;
       jwk = JSON.stringify(await crypto.subtle.exportKey("jwk", pair.privateKey));
       pub = toBase64Url(new Uint8Array((await crypto.subtle.exportKey("raw", pair.publicKey)) as ArrayBuffer));
-      setMeta(this.sql, "vapid_jwk", jwk);
-      setMeta(this.sql, "vapid_pub", pub);
     }
     const priv = await crypto.subtle.importKey("jwk", JSON.parse(jwk) as JsonWebKey, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-    this.key = { priv, pub };
-    return this.key;
+    if (saved === undefined) {
+      this.ctx.storage.transactionSync(() => {
+        setMeta(this.sql, "vapid_key", JSON.stringify({ jwk, pub }));
+        run(this.sql, "DELETE FROM meta WHERE k IN ('vapid_jwk', 'vapid_pub')");
+      });
+    }
+    return { priv, pub };
   }
 
   async publicKey(): Promise<string> { return (await this.vapid()).pub; }

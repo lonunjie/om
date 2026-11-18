@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   ADMISSION_HEADER, FEATURES, PUSH_PATHS, WAKE_SUBPROTOCOL, admissionHash, encodeQueueCreate, encodeWakeAuth, fromBase64Url, toBase64Url, wakeLabel,
 } from "@om/home-wire";
-import { startHome, type Home } from "./harness";
+import { scratch, startHome, type Home } from "./harness";
 import { asBody, bearer, newCaps, rand, relay, sealed, type Caps } from "./kit";
 
 interface Seen { method: string; path: string; headers: IncomingMessage["headers"]; bytes: number }
@@ -70,6 +70,35 @@ describe("PC-P01 offered only with owner admission and not switched off", () => 
 });
 
 describe("PC-P02 the Home's own key", () => {
+  it("keeps one key across concurrent first use and restart", async () => {
+    const state = scratch();
+    const vars = { OM_ADMISSION: await admissionHash(secret), ...hosts() };
+    let h = await startHome({ persist: state.dir, vars });
+    const publicKey = async () => {
+      const response = await h.fetch(PUSH_PATHS.key);
+      expect(response.status).toBe(200);
+      return (await response.json() as { key: string }).key;
+    };
+    try {
+      const c = await queue(h);
+      const ep = endpoint();
+      const [registration, ...keys] = await Promise.all([
+        reg(h, c, ep), ...Array.from({ length: 16 }, publicKey),
+      ]);
+      expect(registration.status).toBe(200);
+      expect(new Set(keys).size).toBe(1);
+      await h.dispose();
+      h = await startHome({ persist: state.dir, vars });
+      expect(await publicKey()).toBe(keys[0]);
+      await deposit(h, c);
+      await settle();
+      expect(to(ep)[0]?.headers.authorization).toContain(`k=${String(keys[0])}`);
+    } finally {
+      await h.dispose();
+      state.remove();
+    }
+  }, 120_000);
+
   it("serves one stable P-256 public key and holds the private half itself", async () => {
     const a = await (await home.fetch(PUSH_PATHS.key)).json() as { key: string };
     const b = await (await home.fetch(PUSH_PATHS.key)).json() as { key: string };

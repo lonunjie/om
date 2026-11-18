@@ -105,46 +105,56 @@ export class MailboxQueue extends DurableObject<Env> {
   deposit(req: RelayDepositRequest): Promise<Reply> {
     return reply(async () => {
       const bytes = req.envelope;
-      const fp = await fingerprint(req.cap, bytes);
-      const done = await this.replay(req.requestId, fp);
-      if (done) return done;
-      const now = nowSeconds();
-      // A forged, truncated or other-queue capability and a full queue answer identically (PC-A02): no existence oracle.
-      const full = (): HomeError => new HomeError("quota", { detail: quotaDetail(1, this.hard) });
-      if (!this.exists()) throw full();
-      const cap = one<CapRow>(this.sql, "SELECT * FROM dcaps WHERE hash = ?", await capHash(req.cap));
-      if (!cap) throw full();
-      const status = depositCapStatus({ revoked: cap.revoked === 1, expiresAt: cap.expires_at, generation: cap.generation }, { current: metaNumber(this.sql, "generation"), overlapUntil: metaNumber(this.sql, "overlap_until") }, now);
-      if (status !== "ok") throw new HomeError(status);
-      if (bytes.length > LIMITS.maxDepositBytes) throw new HomeError("payload_too_large");
-      let view;
-      try { view = parseDeposit(bytes); } catch { throw new HomeError("invalid_request", { hint: "not a sealed delivery envelope or message request" }); }
-      let expiresAt = now + LIMITS.defaultRetentionSeconds;
-      let tupleKey: string | undefined;
-      if (view.kind === "sealed") {
-        const e = sealedExpiry(view.expiresAt, now);
-        if (!e.ok) throw new HomeError(e.error);
-        expiresAt = e.retainUntil;
-        tupleKey = `${await fingerprint(view.deliveryKeyId)}:${await fingerprint(view.deliveryId)}`;
+      const [rid, fp, hash, wrapperFp] = await Promise.all([
+        fingerprint(req.requestId), fingerprint(req.cap, bytes), capHash(req.cap), fingerprint(bytes),
+      ]);
+      let view: ReturnType<typeof parseDeposit> | undefined;
+      if (bytes.length <= LIMITS.maxDepositBytes) {
+        try { view = parseDeposit(bytes); } catch { /* Report after checking the capability. */ }
       }
-      const wrapperFp = await fingerprint(bytes);
-      const known = one(this.sql, "SELECT 1 AS x FROM seen WHERE fp = ?", wrapperFp) !== undefined;
-      if (!known) {
-        if (cap.max_items !== null) {
-          const n = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM items WHERE cap_hash = ?", cap.hash)?.n ?? 0;
-          if (n >= cap.max_items) throw new HomeError("quota", { detail: quotaDetail(1, this.hard) });
+      const tupleKey = view?.kind === "sealed"
+        ? `${await fingerprint(view.deliveryKeyId)}:${await fingerprint(view.deliveryId)}`
+        : undefined;
+      const result = this.ctx.storage.transactionSync(() => {
+        const done = this.replayById(rid, fp);
+        if (done) return { out: done };
+        const now = nowSeconds();
+        // A forged, truncated or other-queue capability and a full queue answer identically (PC-A02).
+        const full = (): HomeError => new HomeError("quota", { detail: quotaDetail(1, this.hard) });
+        const cap = one<CapRow>(this.sql, "SELECT * FROM dcaps WHERE hash = ?", hash);
+        if (!this.exists() || !cap) throw full();
+        const status = depositCapStatus({ revoked: cap.revoked === 1, expiresAt: cap.expires_at, generation: cap.generation }, { current: metaNumber(this.sql, "generation"), overlapUntil: metaNumber(this.sql, "overlap_until") }, now);
+        if (status !== "ok") throw new HomeError(status);
+        if (bytes.length > LIMITS.maxDepositBytes) throw new HomeError("payload_too_large");
+        if (view === undefined) throw new HomeError("invalid_request", { hint: "not a sealed delivery envelope or message request" });
+        let expiresAt = now + LIMITS.defaultRetentionSeconds;
+        if (view.kind === "sealed") {
+          const e = sealedExpiry(view.expiresAt, now);
+          if (!e.ok) throw new HomeError(e.error);
+          expiresAt = e.retainUntil;
         }
-        const t = takeToken(cap.tokens, cap.tokens_at, now, LIMITS.depositBurst, LIMITS.depositRefillPerSecond);
-        if (!t.allowed) throw new HomeError("rate_limited", { retryAfterSeconds: t.waitSeconds });
-        run(this.sql, "UPDATE dcaps SET tokens = ?, tokens_at = ? WHERE hash = ?", t.tokens, now, cap.hash);
+        purgeExpired(this.sql, now);
+        const known = one(this.sql, "SELECT 1 AS x FROM seen WHERE fp = ?", wrapperFp) !== undefined;
+        if (!known) {
+          if (cap.max_items !== null) {
+            const n = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM items WHERE cap_hash = ?", cap.hash)?.n ?? 0;
+            if (n >= cap.max_items) throw full();
+          }
+          const t = takeToken(cap.tokens, cap.tokens_at, now, LIMITS.depositBurst, LIMITS.depositRefillPerSecond);
+          if (!t.allowed) throw new HomeError("rate_limited", { retryAfterSeconds: t.waitSeconds });
+          run(this.sql, "UPDATE dcaps SET tokens = ?, tokens_at = ? WHERE hash = ?", t.tokens, now, cap.hash);
+        }
+        const limits = limitsOf(this.env);
+        const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard, maxItems: limits.maxQueueItems, maxBytes: limits.maxQueueBytes });
+        const out = encodeDepositReceipt({ itemId: q.id, seq: q.seq });
+        this.rememberById(rid, fp, out, LIMITS.idempotencySeconds);
+        return { out, seq: q.duplicate ? undefined : q.seq };
+      });
+      if ("seq" in result) {
+        await this.schedule();
+        if (result.seq !== undefined && this.wake(result.seq) === 0) this.pushWake();
       }
-      purgeExpired(this.sql, now);
-      const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard, maxItems: limitsOf(this.env).maxQueueItems, maxBytes: limitsOf(this.env).maxQueueBytes });
-      if (!q.duplicate && this.wake(q.seq) === 0) this.pushWake();
-      const out = encodeDepositReceipt({ itemId: q.id, seq: q.seq });
-      await this.remember(req.requestId, fp, out, LIMITS.idempotencySeconds);
-      await this.schedule();
-      return out;
+      return result.out;
     });
   }
 

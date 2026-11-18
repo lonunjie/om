@@ -140,6 +140,8 @@ fn an_acs_change_stages_the_authors_write_in_the_same_transaction() {
     // before anything is flushed: the new write is already in the same committed state as the new head
     w.rt.settle(&step);
     let owed: Vec<_> = w.rt.core.net_ops(&w.ctx).unwrap();
+    let status: RecoveryStatusView = w.rt.query(Query::GetRecoveryStatus { ctx: w.ctx.clone() });
+    assert_ne!(status.record, Some(RecoveryRecordCode::Ready));
     let put = owed
         .iter()
         .find_map(|o| match &o.call {
@@ -241,6 +243,32 @@ fn a_lower_record_is_replaced_against_the_current_etag() {
         r.evidence.tail.len(),
         1,
         "ours (the newer head) is what stands"
+    );
+}
+
+#[test]
+fn conflicting_content_in_the_same_slot_leaves_the_write_unacknowledged() {
+    let mut w = world(true);
+    confirm(&mut w);
+    w.rt.flush_net(&w.ctx);
+    w.rt.core_tick_days(91);
+    let tick = w.rt.core.notice_tick(&w.ctx).unwrap();
+    w.rt.settle(&tick);
+    let mut other = stored(&w);
+    other.generation = record_generation(other.head.generation, 1).unwrap();
+    other.providers[0].host = "other.example".into();
+    let bytes =
+        rr::seal_envelope(&w.keys, &SCOPE, [9; 12], &other.to_padded_bytes().unwrap()).unwrap();
+    w.rt.net.recovery_replace(&w.keys.locator, bytes);
+    for _ in 0..3 {
+        w.rt.flush_net(&w.ctx);
+    }
+    let ctx = w.rt.restart().remove(0);
+    let app = common::app_state(&w.rt, &ctx);
+    assert!(!app["recoveryWriter"]["staged"].is_null());
+    assert_ne!(
+        app["recoveryWriter"]["ackedGeneration"].as_u64(),
+        Some(other.generation)
     );
 }
 

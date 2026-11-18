@@ -700,6 +700,49 @@ fn edit_event(au: &Author, id: u8, ms: u64, target: [u8; 16], text: &str) -> Vec
 }
 
 #[test]
+fn an_early_delete_applies_when_its_message_arrives_after_restart() {
+    let mut p = active_pair();
+    let au = alice_as_author(&p);
+    let event = |event_id, kind, body, physical_ms| {
+        Header {
+            event_id,
+            conversation_id: au.canon,
+            author_account: au.acct,
+            author_device: au.dev,
+            clock: Hlc {
+                physical_ms,
+                logical: 0,
+            },
+            kind,
+            body,
+        }
+        .encode()
+    };
+    let target = [8; 16];
+    alice_sends(
+        &mut p,
+        &event(
+            [9; 16],
+            events::K_DELETE,
+            V::M(vec![(0, V::B(target.to_vec()))]),
+            1_790_000_000_100,
+        ),
+    );
+    assert!(timeline(&p.bob, &p.b, &p.b_conv).is_empty());
+    p.b = p.bob.restart().remove(0);
+    alice_sends(
+        &mut p,
+        &event(
+            target,
+            events::K_CREATE,
+            events::message_create_body_with(Some("initial"), vec![]),
+            1_790_000_000_000,
+        ),
+    );
+    assert!(timeline(&p.bob, &p.b, &p.b_conv).is_empty());
+}
+
+#[test]
 fn reordered_edits_converge_on_the_latest_and_a_stale_edit_changes_nothing() {
     let mut p = active_pair();
     let au = alice_as_author(&p);

@@ -82,6 +82,7 @@ impl AppState {
         env: &mut CarryEnv<'_, Rg>,
         room: &str,
     ) -> R<Vec<u8>> {
+        self.group_carriage.prune_retired(env.now_s);
         let routes = self.group_carriage.mine.get(room);
         if routes.is_some_and(|r| r.len() >= cg::MAX_MINE_PER_ROOM) {
             return err("route_slots_full");
@@ -1406,18 +1407,28 @@ impl AppState {
         let w = hex(held.wrapper);
         let list = &mut self.group_carriage.pending;
         list.retain(|p| p.since_s.saturating_add(cg::PENDING_TTL_S) > held.now_s);
+        let before_welcome = reason == "welcome_missing";
         match list.iter_mut().find(|p| p.wrapper == w) {
             Some(p) => {
                 p.refresh = refresh;
                 p.unanchored = unanchored;
             }
             None => {
-                if list.len() >= cg::MAX_PENDING {
+                let same_room = list.iter().filter(|p| p.room == held.room);
+                if list.len() >= cg::MAX_PENDING
+                    || same_room.clone().count() >= cg::MAX_PENDING / 2
+                    || (before_welcome
+                        && (same_room.filter(|p| p.before_welcome).count() >= cg::MAX_PENDING / 4
+                            || list.iter().filter(|p| p.before_welcome).count()
+                                >= cg::MAX_PENDING / 2))
+                {
                     return err("pending_full");
                 }
                 list.push(cg::PendingFrame {
                     wrapper: w,
                     since_s: held.since.unwrap_or(held.now_s),
+                    room: held.room.to_string(),
+                    before_welcome,
                     refresh,
                     unanchored,
                 });
@@ -1537,6 +1548,7 @@ impl AppState {
             wrapper,
             since,
             now_s,
+            room: &room,
         };
         match cg::decode_frame(&opened.inner_envelope)? {
             FrameBody::Welcome {
@@ -1625,33 +1637,76 @@ impl AppState {
     ) -> R<GroupReply> {
         // The committer and the actor are named by the signatures inside, never by the frame: the intent must verify
         // under the key our own directory holds for a roster device.
+        let committer = cg::envelope_signer(&binding).ok_or(GroupError("malformed"))?;
         if let Some(id) = room.strip_prefix("invite:") {
-            let accepted = self
+            let invite = self
                 .group_invites
                 .get(id)
-                .is_some_and(|i| i.dir == InviteDir::Incoming && i.state == InviteState::Accepted);
-            if !accepted {
-                return err("welcome_without_accepted_invite");
+                .filter(|i| i.dir == InviteDir::Incoming && i.state == InviteState::Accepted)
+                .ok_or(GroupError("welcome_without_accepted_invite"))?;
+            let rel = self
+                .relationships
+                .get(&invite.relationship_id)
+                .filter(|rel| rel.state == RelState::Active && !rel.blocked)
+                .ok_or(GroupError("relationship_missing"))?;
+            let known: Vec<_> = rel
+                .peer_credentials
+                .iter()
+                .filter_map(|h| Credential::from_body(&un(h).ok()?).ok())
+                .collect();
+            let binding_body = super::Binding::decode(&cg::envelope_body(&binding)?)?;
+            if (!invite.conversation_id.is_empty()
+                && binding_body.conversation_id != un(&invite.conversation_id)?)
+                || binding_body.mls_commit_hash != super::binding::mls_commit_hash(&commit)
+            {
+                return err("commit_binding_mismatch");
             }
-            super::Binding::decode(&cg::envelope_body(&binding)?)?;
+            if let Some(cred) = known.iter().find(|cred| cred.device_id == committer) {
+                if !Self::rel_active(rel, cred) {
+                    return err("credential_not_active");
+                }
+                super::binding::verify_binding(&binding, &cred.signing_pk)?;
+            }
+            let actor = cg::envelope_signer(&intent).ok_or(GroupError("malformed"))?;
+            if let Some(cred) = known.iter().find(|cred| cred.device_id == actor) {
+                if !Self::rel_active(rel, cred) {
+                    return err("credential_not_active");
+                }
+                cg::open_intent(&intent, |_| Some(cred.signing_pk.clone()))?;
+            }
             return self.carry_hold(held, "welcome_missing", vec![], vec![]);
         }
         let conv = un(room)?;
         let dir = self.group_devices.get(room).cloned().unwrap_or_default();
-        let committer = cg::envelope_signer(&binding).ok_or(GroupError("malformed"))?;
         let (actor, body) = cg::open_intent(&intent, |d| {
             dir.get(&hex(d)).and_then(|r| unhex(&r.pk).ok())
         })
         .map_err(|_| GroupError("non_roster_sender"))?;
-        if !dir.contains_key(&hex(&committer)) {
-            return err("non_roster_sender");
-        }
+        let pk = dir
+            .get(&hex(&committer))
+            .ok_or(GroupError("non_roster_sender"))?;
+        let committer_pk = un(&pk.pk)?;
         let epoch = self.group_state(&conv)?.mls_epoch_ref;
-        let bound = super::Binding::decode(&cg::envelope_body(&binding)?)?;
+        let bound = super::binding::verify_binding(&binding, &committer_pk)?.binding;
         if bound.conversation_id != conv {
             return err("route_for_another_room");
         }
+        if bound.mls_commit_hash != super::binding::mls_commit_hash(&commit) {
+            return err("commit_binding_mismatch");
+        }
         if bound.previous_mls_epoch > epoch {
+            let actor_rec = dir
+                .get(&hex(&actor))
+                .ok_or(GroupError("non_roster_sender"))?;
+            if !self.group_device_authorized(&un(&pk.account)?, &committer, &committer_pk)
+                || !self.group_device_authorized(
+                    &un(&actor_rec.account)?,
+                    &actor,
+                    &un(&actor_rec.pk)?,
+                )
+            {
+                return err("committer_not_authorized");
+            }
             return self.carry_hold(held, "commit_parent_missing", vec![], vec![]);
         }
         // D93: signed heads the committer attached for the accounts the added devices belong to. Each one is verified
@@ -1893,4 +1948,5 @@ struct Held<'a> {
     wrapper: &'a [u8],
     since: Option<u64>,
     now_s: u64,
+    room: &'a str,
 }

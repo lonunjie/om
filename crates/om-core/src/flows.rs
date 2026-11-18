@@ -444,6 +444,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     fn expire_stale(&mut self) {
         self.maintain_calls();
         let (now_ms, now_s) = (self.now_ms, self.now_s());
+        self.st.app.dangling_mutations.expire(now_ms);
         self.st
             .app
             .relationships
@@ -4445,7 +4446,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         };
         if sibling {
-            return self.on_synced_event(conv, &ev, sender);
+            return self.on_synced_event(conv, &ev, sender, bytes);
         }
         let Some(r) = self.st.app.relationships.get_mut(conv) else {
             return false;
@@ -4517,21 +4518,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         ..Social::default()
                     },
                 });
+                self.st
+                    .app
+                    .resolve_direct_mutations(conv, ev.event_id, self.now_ms);
                 true
             }
-            // Only the author may edit or delete, so the target must be one of the peer's own messages; one that is not here
-            // is accepted with no effect (held-and-never-displayed is unbuilt).
-            events::K_EDIT | events::K_DELETE => {
-                social::apply_edit_delete(&mut r.messages, false, &ev)
-            }
-            // A reaction of the other person on a message of this conversation; one aimed at a message that is not here is
-            // accepted and has no effect (held-and-never-displayed is unbuilt, as for edits).
-            events::K_REACTION => {
-                let Some((target, key, present)) = social::read_reaction(&ev) else {
-                    return false;
-                };
-                social::apply_reaction(&mut r.messages, &target, false, &key, present, ev.clock);
-                true
+            events::K_EDIT | events::K_DELETE | events::K_REACTION => {
+                self.st
+                    .app
+                    .direct_mutation(conv, false, &ev, bytes, self.now_ms)
             }
             events::K_RECEIPT => {
                 // `delivered` and `read` both settle an outgoing message at Delivered (the view has no read state).

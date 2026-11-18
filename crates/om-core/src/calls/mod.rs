@@ -21,6 +21,7 @@ pub(crate) const RING_MS: u64 = 45_000;
 pub(crate) const SPAM_MS: u64 = 600_000;
 pub(crate) const REPLAY_MS: u64 = SPAM_MS + crate::crypto::delivery::CLOCK_SKEW * 1000;
 pub(crate) const SEEN_LIMIT: usize = 512;
+pub(crate) const SEEN_PER_ACCOUNT: usize = SEEN_LIMIT / 8;
 pub(crate) const NOTICE_LIMIT: usize = 64;
 pub(crate) const DEPOSIT_LIMIT: usize = 128;
 pub(crate) const OPERATION_LIMIT: usize = 128;

@@ -461,10 +461,15 @@ fn route_replacement_retires_older_routes_and_returns_the_capabilities_to_revoke
     let revoke = rec.expire_retired(20 + ROUTE_OVERLAP_S);
     assert_eq!(revoke.len(), 1);
     assert_eq!(revoke[0].id, hex(&[1; 16]));
-    assert!(!rec.mine["room"][0].receiving(20 + ROUTE_OVERLAP_S));
+    assert_eq!(rec.mine["room"].len(), 1);
+    let stored = serde_json::to_string(&rec).unwrap();
+    assert!(!stored.contains(&hex(&[1; 32])));
+    let mut rec: GroupCarriageRec = serde_json::from_str(&stored).unwrap();
+    rec.add_mine("room", mk(3, 20 + ROUTE_OVERLAP_S));
     assert_eq!(rec.expire_retired(20 + ROUTE_OVERLAP_S), revoke);
     rec.revoked(&revoke[0], 20 + ROUTE_OVERLAP_S);
-    assert_eq!(rec.mine["room"].len(), 1);
+    assert_eq!(rec.mine["room"].len(), 2);
+    assert!(rec.expire_retired(20 + ROUTE_OVERLAP_S).is_empty());
 }
 
 // ------------------------------------------------------------------------------------------------ two Cores

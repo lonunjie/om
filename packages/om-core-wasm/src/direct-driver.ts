@@ -94,7 +94,15 @@ export interface DirectDriver {
   dispose(): void;
 }
 
-interface Serving { readonly ctx: ProfileExecutionContext; readonly channel: DirectChannel; dead: boolean }
+interface Serving {
+  readonly ctx: ProfileExecutionContext;
+  readonly channel: DirectChannel;
+  readonly id: number;
+  chain: Promise<void>;
+  dead: boolean;
+  detached: boolean;
+}
+let nextChannelId = 1;
 interface Timers { readonly set: (fn: () => void, ms: number) => unknown; readonly clear: (h: unknown) => void }
 
 const MAX_BACKOFF_MS = 30_000;
@@ -111,7 +119,7 @@ export function createDirectDriver(o: DirectDriverOptions): DirectDriver {
     clear: o.clearTimer ?? ((h) => { clearTimeout(h as ReturnType<typeof setTimeout>); }),
   };
   const listening = new Map<ProfileId, () => void>();
-  const serving = new Map<ProfileId, Serving>();
+  const serving = new Map<ProfileId, Set<Serving>>();
   const tickers = new Map<ProfileId, { timer: unknown; busy: boolean }>();
   const fetching = new Map<string, Promise<DirectFetchResult>>();
   const waiting = new Set<() => void>(); // retry waits that dispose() must release
@@ -120,41 +128,69 @@ export function createDirectDriver(o: DirectDriverOptions): DirectDriver {
 
   // ---- sender: serve a channel ----------------------------------------------------------------------------------------------
 
+  const closed = (s: Serving): boolean => s.dead;
+  const detached = (s: Serving): boolean => s.detached;
+
   async function pumpAll(s: Serving): Promise<void> {
-    if (s.dead) return;
-    for (const f of core.direct.pump(s.ctx, s.channel.buffered)) await s.channel.send(f);
+    if (closed(s)) return;
+    for (const f of core.direct.pump(s.ctx, s.channel.buffered, s.id)) {
+      if (closed(s)) break;
+      await s.channel.send(f);
+    }
+  }
+
+  function forget(s: Serving): void {
+    s.dead = true;
+    const channels = serving.get(s.ctx.profileId);
+    channels?.delete(s);
+    if (channels?.size === 0) serving.delete(s.ctx.profileId);
+  }
+
+  function detach(s: Serving): void {
+    s.detached = true;
+    try { core.direct.disconnected(s.ctx, s.id); } catch { /* the profile has already closed */ }
   }
 
   function drop(s: Serving): void {
-    if (s.dead) return;
-    s.dead = true;
-    if (serving.get(s.ctx.profileId) === s) serving.delete(s.ctx.profileId);
+    if (s.detached) return;
+    forget(s);
+    detach(s);
     try { s.channel.close(); } catch { /* already closed */ }
+  }
+
+  function run(s: Serving, work: () => Promise<void>): Promise<void> {
+    s.chain = s.chain.then(work).catch(() => { drop(s); });
+    return s.chain;
   }
 
   function serveChannel(ctx: ProfileExecutionContext, channel: DirectChannel): void {
     if (disposed) { channel.close(); return; }
-    // One channel per profile: a new request supersedes an open transfer in Core (the old channel is gone), so the older one is closed.
-    const prev = serving.get(ctx.profileId);
-    if (prev !== undefined) drop(prev);
-    const s: Serving = { ctx, channel, dead: false };
-    serving.set(ctx.profileId, s);
+    const s: Serving = { ctx, channel, id: nextChannelId++, chain: Promise.resolve(), dead: false, detached: false };
+    const channels = serving.get(ctx.profileId) ?? new Set<Serving>();
+    channels.add(s);
+    serving.set(ctx.profileId, channels);
     let queued = 0;
-    let chain: Promise<void> = Promise.resolve();
-    const run = (work: () => Promise<void>): void => {
-      chain = chain.then(work).catch(() => { drop(s); }); // a refused frame, a send that failed or a stale context ends the channel; Core's state is untouched
-    };
     channel.onFrame((frame) => {
+      if (s.dead) return;
       if (++queued > maxQueued) { drop(s); return; }
-      run(async () => {
+      void run(s, async () => {
         queued--;
-        // A frame that arrived before the channel closed is still handled (a receipt is often the last thing sent): Core decides: an ack is a claim, a receipt is checked, a request is checked against the capability. Nothing is believed here.
-        for (const f of await core.direct.serve(s.ctx, frame)) await channel.send(f);
+        // A receipt already queued before the channel closed still belongs to this transfer.
+        if (detached(s) || (closed(s) && frame.kind === "fetch_blob")) return;
+        const frames = await core.direct.serve(s.ctx, frame, s.id);
+        if (detached(s)) { detach(s); return; } // close during the runtime's commit
+        for (const f of frames) {
+          if (closed(s)) break;
+          await channel.send(f);
+        }
         await pumpAll(s);
       });
     });
-    channel.onDrain(() => { run(() => pumpAll(s)); });
-    channel.onClose(() => { s.dead = true; if (serving.get(ctx.profileId) === s) serving.delete(ctx.profileId); });
+    channel.onDrain(() => { if (!s.dead) void run(s, () => pumpAll(s)); });
+    channel.onClose(() => {
+      forget(s);
+      void run(s, () => { detach(s); return Promise.resolve(); });
+    });
     wake(ctx.profileId);
   }
 
@@ -171,8 +207,7 @@ export function createDirectDriver(o: DirectDriverOptions): DirectDriver {
   }
   async function tick(p: ProfileId, t: { timer: unknown; busy: boolean }): Promise<void> {
     t.busy = true;
-    const s = serving.get(p);
-    if (s !== undefined) { try { await pumpAll(s); } catch { drop(s); } }
+    await Promise.all([...(serving.get(p) ?? [])].map((s) => run(s, () => pumpAll(s))));
     t.busy = false;
     if (disposed || tickers.get(p) !== t) return;
     if (serving.get(p) === undefined) { tickers.delete(p); return; } // nothing open: no timer, nothing retained
@@ -303,8 +338,7 @@ export function createDirectDriver(o: DirectDriverOptions): DirectDriver {
     stop(profileId) {
       listening.get(profileId)?.();
       listening.delete(profileId);
-      const s = serving.get(profileId);
-      if (s !== undefined) drop(s);
+      for (const s of serving.get(profileId) ?? []) drop(s);
       const t = tickers.get(profileId);
       if (t !== undefined && t.timer !== undefined) timers.clear(t.timer);
       tickers.delete(profileId);
@@ -333,7 +367,7 @@ export function createDirectDriver(o: DirectDriverOptions): DirectDriver {
       disposed = true;
       for (const off of listening.values()) off();
       listening.clear();
-      for (const s of [...serving.values()]) drop(s);
+      for (const channels of [...serving.values()]) for (const s of channels) drop(s);
       for (const t of tickers.values()) if (t.timer !== undefined) timers.clear(t.timer);
       tickers.clear();
       for (const r of [...waiting]) r();

@@ -5,6 +5,8 @@
 
 use crate::crypto::cbor::{self, V};
 use crate::crypto::sha256;
+use crate::state::SecretHex;
+use serde::{Deserialize, Serialize};
 
 pub const PROTOCOL_VERSION: u64 = 1;
 pub const KIND_VERSION: u64 = 1;
@@ -490,6 +492,127 @@ pub struct Event {
     pub digest: [u8; 32],
     /// Key 23 as received (registered presentation extensions are read from it by [`crate::present`]).
     pub extensions: Option<V>,
+}
+
+pub(crate) fn mutation_target(ev: &Event) -> Option<[u8; 16]> {
+    if !matches!(ev.kind, K_EDIT | K_DELETE | K_REACTION) {
+        return None;
+    }
+    ev.body.get(0).ok()?.b().ok()?.try_into().ok()
+}
+
+const DANGLING_TTL_MS: u64 = crate::flows::WRAPPER_TTL_S * 1000;
+const MAX_DANGLING: usize = 64;
+const MAX_DANGLING_PER_CONVERSATION: usize = 8;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum MutationAuth {
+    Direct {
+        mine: bool,
+    },
+    Room {
+        epoch: u64,
+        mine: bool,
+        post: bool,
+        reply: bool,
+        react: bool,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct WaitingMutation {
+    conversation: String,
+    event: [u8; 16],
+    target: [u8; 16],
+    auth: MutationAuth,
+    bytes: Option<SecretHex>,
+    seen_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DanglingMutations(Vec<WaitingMutation>);
+
+impl DanglingMutations {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub(crate) fn expire(&mut self, now_ms: u64) {
+        self.0
+            .retain(|m| now_ms.saturating_sub(m.seen_at_ms) < DANGLING_TTL_MS);
+    }
+
+    pub(crate) fn hold(
+        &mut self,
+        conversation: &str,
+        target: [u8; 16],
+        ev: &Event,
+        auth: MutationAuth,
+        bytes: &[u8],
+        now_ms: u64,
+    ) {
+        self.expire(now_ms);
+        let room = matches!(auth, MutationAuth::Room { .. });
+        let same = |entry: &WaitingMutation| {
+            entry.conversation == conversation
+                && matches!(entry.auth, MutationAuth::Room { .. }) == room
+        };
+        let encoded = crate::crypto::hex(bytes);
+        if let Some(entry) = self
+            .0
+            .iter_mut()
+            .find(|entry| same(entry) && entry.event == ev.event_id)
+        {
+            if entry.bytes.as_deref().is_some_and(|held| held != encoded) {
+                entry.bytes = None;
+            }
+            return;
+        }
+        if bytes.len() > 65_536
+            || self.0.len() >= MAX_DANGLING
+            || self.0.iter().filter(|entry| same(entry)).count() >= MAX_DANGLING_PER_CONVERSATION
+        {
+            return;
+        }
+        self.0.push(WaitingMutation {
+            conversation: conversation.into(),
+            event: ev.event_id,
+            target,
+            auth,
+            bytes: Some(encoded.into()),
+            seen_at_ms: now_ms,
+        });
+    }
+
+    pub(crate) fn take(
+        &mut self,
+        conversation: &str,
+        target: [u8; 16],
+        room: bool,
+        now_ms: u64,
+    ) -> Vec<(Event, MutationAuth)> {
+        self.expire(now_ms);
+        let mut ready = vec![];
+        self.0.retain(|entry| {
+            if entry.conversation != conversation
+                || entry.target != target
+                || matches!(entry.auth, MutationAuth::Room { .. }) != room
+            {
+                return true;
+            }
+            if let Some(ev) = entry
+                .bytes
+                .as_deref()
+                .and_then(|b| crate::crypto::unhex(b).ok())
+                .and_then(|bytes| parse(&bytes))
+            {
+                ready.push((ev, entry.auth));
+            }
+            false
+        });
+        ready
+    }
 }
 
 /// Parse after the W0 registry check has passed. Returns `None` for anything the 1:1 profile does not accept.

@@ -410,6 +410,62 @@ fn busy_and_offer_spam_do_not_replace_the_existing_call() {
 }
 
 #[test]
+fn one_contact_leaves_replay_capacity_for_another_after_restart() {
+    let mut p = active_pair();
+    p.bob.core.enable_calls();
+    for n in 0..70 {
+        let attempt = start(&mut p, true, &format!("budget-{n}"));
+        settle(&mut p);
+        end(&mut p, true, &attempt.call_session_id, &format!("end-{n}"));
+        settle(&mut p);
+    }
+    p.b = p.bob.restart().remove(0);
+    p.bob.core.enable_calls();
+    let saved = common::app_state(&p.bob, &p.b);
+    let seen = saved["callOffersSeen"].as_array().unwrap();
+    assert!(seen.len() <= 64);
+
+    let mut carol = Runtime::new("carol", &p.bob.net);
+    let c = common::create_profile(&mut carol, "p-c", "Carol");
+    common::invite(&mut p.bob, &p.b, "carol-invite");
+    let invite: Option<InviteView> = p.bob.query(Query::GetInvite {
+        ctx: p.b.clone(),
+        operation_id: "carol-invite".into(),
+    });
+    carol.dispatch(
+        &c,
+        "accept",
+        IntentBody::AcceptInvitation {
+            link: invite.unwrap().link,
+        },
+    );
+    settle_all(&mut [(&mut carol, &c), (&mut p.bob, &p.b)]);
+    let intro = common::intros(&mut p.bob, &p.b).pop().unwrap();
+    p.bob.dispatch(
+        &p.b,
+        "carol-intro",
+        IntentBody::AcceptIntroduction {
+            request_id: intro.id,
+        },
+    );
+    settle_all(&mut [(&mut carol, &c), (&mut p.bob, &p.b)]);
+    let contacts: Vec<ConversationSummary> =
+        carol.query(Query::GetConversationList { ctx: c.clone() });
+    carol.core.enable_calls();
+    carol.dispatch(
+        &c,
+        "ring",
+        IntentBody::StartCall {
+            target: contacts[0].person_id.clone(),
+            media: CallMedia::Audio,
+            sdp: Some(b"prepared offer".to_vec()),
+        },
+    );
+    settle_all(&mut [(&mut carol, &c), (&mut p.bob, &p.b)]);
+    assert_eq!(view(&p.bob, &p.b).unwrap().state, CallState::Incoming);
+}
+
+#[test]
 fn unsupported_receiver_and_ordinary_context_never_turn_a_signal_into_chat() {
     let mut p = active_pair();
     let call = start(&mut p, true, "start");

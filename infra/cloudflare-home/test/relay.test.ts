@@ -240,6 +240,27 @@ describe("relay semantics", () => {
     expect((await relay.deposit(home, replacement.value.cap, sealed())).ok).toBe(true);
   });
 
+  it("accounts for concurrent deposits and preserves the receipts committed before retirement", async () => {
+    const c = await queue();
+    const grant = await relay.mint(home, c.admin, { ttlSeconds: 3600 });
+    if (!grant.ok) throw new Error("mint failed");
+    const attempts = Array.from({ length: 40 }, () => ({ envelope: sealed(), id: rand(16) }));
+    const results = await Promise.all(attempts.map(({ envelope, id }) => relay.deposit(home, grant.value.cap, envelope, id)));
+    const accepted = results.filter((result) => result.ok).length;
+    expect(accepted).toBeGreaterThanOrEqual(30);
+    expect(accepted).toBeLessThan(40);
+    expect(results.filter((result) => !result.ok).every((result) => result.error.name === "rate_limited")).toBe(true);
+    const first = results.findIndex((result) => result.ok);
+    const attempt = attempts[first];
+    const original = results[first];
+    if (attempt === undefined || !original?.ok) throw new Error("no deposit committed");
+    expect((await relay.revoke(home, c.admin, grant.value.id)).ok).toBe(true);
+    const retried = await relay.deposit(home, grant.value.cap, attempt.envelope, attempt.id);
+    expect(retried.ok && retried.value).toEqual(original.value);
+    expect(errorOf(await relay.deposit(home, grant.value.cap, sealed())).name).toBe("revoked");
+    expect(await drainAll(home, c.receive)).toHaveLength(accepted);
+  });
+
   it("queue creation is idempotent for identical input and refuses a second claimant", async () => {
     const c = newCaps();
     const rid = rand(16);

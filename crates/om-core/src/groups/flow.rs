@@ -978,6 +978,7 @@ impl AppState {
 
     /// Execute one typed intent.
     pub fn group_do(&mut self, ctx: &mut GroupCtx<'_>, intent: GroupIntent) -> R<GroupReply> {
+        self.maintain_rejoin_invites(ctx.now_ms);
         let mut rep = GroupReply::default();
         match intent {
             GroupIntent::Create {
@@ -2118,7 +2119,7 @@ impl AppState {
 
     /// Apply one authenticated, structurally valid event to the Room's message log. `author` is what MLS and the directory
     /// say, never what the event claims. Every register takes an event only if it is ordered after what it holds, so replay,
-    /// reordering and repetition converge. A target that is not here is accepted with no effect (nothing is held for later).
+    /// reordering and repetition converge.
     fn group_apply_event(&mut self, conv: &[u8], author: &Author, ev: &events::Event) -> Applied {
         let order = (author.epoch, ev.clock.physical_ms, ev.clock.logical);
         let members = self.group_member_accounts(conv).unwrap_or_default();
@@ -2327,6 +2328,9 @@ impl AppState {
                 if m.sender_account != author.account {
                     return Applied::Refused("not_author");
                 }
+                if author.epoch < m.epoch {
+                    return Applied::Refused("event_before_target");
+                }
                 if m.deleted {
                     return Applied::Nothing;
                 }
@@ -2381,6 +2385,9 @@ impl AppState {
                 let Some(m) = log.iter_mut().find(|m| m.id == id && !m.deleted) else {
                     return Applied::Nothing;
                 };
+                if author.epoch < m.epoch {
+                    return Applied::Refused("event_before_target");
+                }
                 if let Some(r) = m
                     .reactions
                     .iter_mut()
@@ -2426,6 +2433,92 @@ impl AppState {
         }
     }
 
+    fn group_apply_received_event(
+        &mut self,
+        conv: &[u8],
+        author: &Author,
+        ev: &events::Event,
+        bytes: &[u8],
+    ) -> Applied {
+        let room = h(conv);
+        if let Some(target) = events::mutation_target(ev)
+            && !self.group_msgs.get(&room).is_some_and(|log| {
+                let target = h(&target);
+                log.iter().any(|message| message.id == target)
+            })
+        {
+            let post = author.caps.contains(CAP_POST);
+            let reply = author.caps.contains(CAP_REPLY);
+            let react = author.caps.contains(CAP_REACT);
+            match ev.kind {
+                events::K_EDIT
+                    if !ev
+                        .body
+                        .opt(1)
+                        .and_then(events::plain_text)
+                        .is_some_and(|text| text.len() <= MAX_TEXT_BYTES) =>
+                {
+                    return Applied::Refused("unsupported_event");
+                }
+                events::K_REACTION if read_reaction(ev).is_none() => {
+                    return Applied::Refused("unsupported_event");
+                }
+                events::K_EDIT if !post && !reply => {
+                    return Applied::Refused("sender_not_authorized");
+                }
+                events::K_REACTION if !react => return Applied::Refused("sender_not_authorized"),
+                _ => {}
+            }
+            let proof = events::MutationAuth::Room {
+                epoch: author.epoch,
+                mine: author.mine,
+                post,
+                reply,
+                react,
+            };
+            self.dangling_mutations
+                .hold(&room, target, ev, proof, bytes, author.at_ms);
+            return Applied::Nothing;
+        }
+        let applied = self.group_apply_event(conv, author, ev);
+        if matches!(applied, Applied::Created(_)) {
+            self.group_resolve_mutations(conv, ev.event_id, author.at_ms);
+        }
+        applied
+    }
+
+    fn group_resolve_mutations(&mut self, conv: &[u8], target: [u8; 16], now_ms: u64) {
+        for (event, auth) in self.dangling_mutations.take(&h(conv), target, true, now_ms) {
+            if event.conversation_id.as_slice() != conv {
+                continue;
+            }
+            if let events::MutationAuth::Room {
+                epoch,
+                mine,
+                post,
+                reply,
+                react,
+            } = auth
+            {
+                let caps = [(post, CAP_POST), (reply, CAP_REPLY), (react, CAP_REACT)]
+                    .into_iter()
+                    .filter(|(enabled, _)| *enabled)
+                    .map(|(_, cap)| cap.to_owned())
+                    .collect();
+                let account = h(&event.author_account);
+                let author = Author {
+                    mine,
+                    account,
+                    device: h(&event.author_device),
+                    epoch,
+                    at_ms: now_ms,
+                    caps,
+                };
+                self.group_apply_event(conv, &author, &event);
+            }
+        }
+    }
+
     /// Handle something that arrived. Unsolicited or unauthorized material is dropped with a [`GroupEvent::Dropped`]
     /// and changes nothing; malformed or failing material is an error.
     pub fn group_receive(
@@ -2434,6 +2527,7 @@ impl AppState {
         from: Sender,
         wire: GroupWire,
     ) -> R<GroupReply> {
+        self.maintain_rejoin_invites(ctx.now_ms);
         let mut rep = GroupReply::default();
         match (wire, from) {
             (
@@ -2857,7 +2951,7 @@ impl AppState {
                 mine: account == ctx.my_account,
                 caps,
             };
-            match self.group_apply_event(conv, &author, &ev) {
+            match self.group_apply_received_event(conv, &author, &ev, &d.plaintext) {
                 Applied::Created(id) => rep.events.push(GroupEvent::MessageReceived {
                     conversation_id: conv.to_vec(),
                     id,
@@ -2895,6 +2989,11 @@ impl AppState {
             outgoing: false,
             ..GroupMsg::default()
         });
+        if let Ok(target) =
+            un(&id).and_then(|id| id.try_into().map_err(|_| GroupError("bad_event")))
+        {
+            self.group_resolve_mutations(conv, target, ctx.now_ms);
+        }
         rep.events.push(GroupEvent::MessageReceived {
             conversation_id: conv.to_vec(),
             id,
@@ -2952,7 +3051,7 @@ impl AppState {
             epoch: g.mls_epoch_ref,
         };
         match q {
-            GroupQuery::Rejoin => Ok(GroupView::Rejoin(self.group_rejoin_view(&un(&me)?, &[]))),
+            GroupQuery::Rejoin => Ok(GroupView::Rejoin(self.group_rejoin_view(&un(&me)?, &[], 0))),
             GroupQuery::Groups => {
                 let mut v = Vec::new();
                 for r in self.groups.values() {

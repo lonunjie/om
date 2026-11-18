@@ -237,17 +237,18 @@ function ReconnectContact({ contact, services, copy, inviteLink, copyText, onOpe
           <Text as="p" tone="secondary" role="status">{copy.ready}</Text>
           <Button variant="quiet" onClick={() => { onOpen(conversationId); }}>{copy.open(label)}</Button>
         </>
-      ) : contact.inviteOperationId !== null ? (
-        <>
-          {contact.invite !== null ? (
-            <ReconnectLink key={contact.invite.operationId} link={inviteLink(contact.invite.link)} label={label} copy={copy} copyText={copyText} />
-          ) : null}
-          <Text as="p" tone="secondary" role="status">{copy.waiting}</Text>
-        </>
       ) : (
         <>
-          <Button variant="secondary" disabled={op.locked} onClick={() => { void op.run("reconnect-contact", { accountId: contact.accountId }); }}>{copy.reconnect(label)}</Button>
-          <OperationStatus state={op.state} copy={copy.outcome} done="" />
+          {contact.invite !== null && (
+            <ReconnectLink key={contact.invite.operationId} link={inviteLink(contact.invite.link)} label={label} copy={copy} copyText={copyText} />
+          )}
+          {contact.inviteOperationId !== null && <Text as="p" tone="secondary" role="status">{copy.waiting}</Text>}
+          {(contact.inviteOperationId === null || contact.canRetry === true) && (
+            <>
+              <Button variant="secondary" disabled={op.locked} onClick={() => { void op.run("reconnect-contact", { accountId: contact.accountId }); }}>{copy.reconnect(label)}</Button>
+              <OperationStatus state={op.state} copy={copy.outcome} done="" />
+            </>
+          )}
         </>
       )}
     </div>

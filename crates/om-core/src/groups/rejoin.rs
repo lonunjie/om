@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 //! ADR-0207: an authenticated contact can request an ordinary invitation back to a Room.
 
-use super::carriage::{MAX_LANE_IN, MAX_LANE_OUT, envelope_body};
+use super::carriage::{LANE_OUT_TTL_S, MAX_LANE_IN, MAX_LANE_OUT, envelope_body};
 use super::endpoint::active_in;
 use super::flow::{
-    DeviceRelease, GroupCtx, GroupEvent, GroupInviteRec, GroupReply, GroupWire, Outbound, Target,
-    device_intent_body,
+    DeviceRelease, GroupCtx, GroupEvent, GroupInviteRec, GroupReply, GroupWire, InviteState,
+    Outbound, Target, device_intent_body,
 };
 use super::journal::CommitPlan;
 use super::{GroupError, GroupState, Intent, Principal, R, b, err, op, req, target_of, u};
@@ -19,6 +19,43 @@ use serde::{Deserialize, Serialize};
 pub struct RejoinState {
     pub requests: Vec<PendingRejoin>,
     pub reviews: Vec<RejoinReview>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    closed: Vec<ClosedRejoin>,
+}
+
+/// One decision per current Room membership and verified recovery successor.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct ClosedRejoin {
+    id: String,
+    room: String,
+    relationship: String,
+    device: String,
+}
+
+impl From<RejoinReview> for ClosedRejoin {
+    fn from(r: RejoinReview) -> Self {
+        Self {
+            id: r.id,
+            room: r.room,
+            relationship: r.relationship,
+            device: r.device,
+        }
+    }
+}
+
+fn review_id(
+    room: &[u8],
+    account: &[u8],
+    device: &[u8],
+    head: &[u8],
+    incarnation: &[u8],
+) -> String {
+    hex(&sha256(&[room, account, device, head, incarnation]))
+}
+
+fn invite_lapsed(invite: &GroupInviteRec, now_ms: u64) -> bool {
+    matches!(invite.state, InviteState::Offered | InviteState::Accepted)
+        && now_ms >= invite.created_ms.saturating_add(LANE_OUT_TTL_S * 1000)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,19 +241,28 @@ impl AppState {
             return Ok(());
         }
         let incarnation = room.member(&member).expect("matched").incarnation.clone();
-        let id = hex(&sha256(&[
+        let id = review_id(
             &room.conversation_id,
             &member.id,
             &did,
             &pinned.hash(),
             &incarnation,
-        ]));
-        let reviews = &mut self.group_carriage.rejoin.reviews;
-        if reviews.iter().any(|r| r.id == id) {
+        );
+        let mut prior = std::mem::take(&mut self.group_carriage.rejoin.reviews);
+        prior.retain(|review| {
+            bytes(&review.room)
+                .ok()
+                .and_then(|conv| self.group_state(&conv).ok())
+                .is_some_and(|room| self.rejoin_review_current(review, &room).is_ok())
+        });
+        self.group_carriage.rejoin.reviews = prior;
+        let state = &mut self.group_carriage.rejoin;
+        if state.reviews.iter().any(|r| r.id == id) || state.closed.iter().any(|r| r.id == id) {
             return Ok(());
         }
+        let reviews = &mut state.reviews;
         reviews.retain(|r| r.account != account || r.head == head);
-        if reviews.len() >= MAX_LANE_IN {
+        if reviews.iter().filter(|r| r.invite.is_none()).count() >= MAX_LANE_IN {
             return err("lane_full");
         }
         reviews.push(RejoinReview {
@@ -233,6 +279,51 @@ impl AppState {
         });
         rep.events.push(GroupEvent::RejoinChanged);
         Ok(())
+    }
+
+    fn closed_rejoin_current(&self, r: &ClosedRejoin) -> Option<bool> {
+        let conv = bytes(&r.room).ok()?;
+        let device = bytes(&r.device).ok()?;
+        let rel = self.relationships.get(&r.relationship)?;
+        let account = bytes(&rel.peer_account_id).ok()?;
+        let room = self.group_state(&conv).ok()?;
+        let member = room.member(&Principal::account(account.clone()))?;
+        let head = Acs::from_body(&bytes(&rel.peer_acs_body).ok()?).ok()?;
+        Some(r.id == review_id(&conv, &account, &device, &head.hash(), &member.incarnation))
+    }
+
+    pub(crate) fn maintain_rejoin_invites(&mut self, now_ms: u64) {
+        let state = &mut self.group_carriage.rejoin;
+        if state.reviews.is_empty() && state.closed.is_empty() {
+            return;
+        }
+        let mut reviews = std::mem::take(&mut state.reviews);
+        let mut closed = std::mem::take(&mut state.closed);
+        closed.retain(|r| self.closed_rejoin_current(r) == Some(true));
+        reviews.retain_mut(|r| {
+            if r.declined
+                || r.invite
+                    .as_ref()
+                    .and_then(|id| self.group_invites.get(id))
+                    .is_some_and(|i| i.state == InviteState::Done)
+            {
+                let tombstone = ClosedRejoin::from(r.clone());
+                if self.closed_rejoin_current(&tombstone) == Some(true) {
+                    closed.push(tombstone);
+                }
+                return false;
+            }
+            if let Some(id) = &r.invite
+                && let Some(invite) = self.group_invites.get_mut(id)
+                && (invite.state == InviteState::Declined || invite_lapsed(invite, now_ms))
+            {
+                invite.state = InviteState::Declined;
+                r.invite = None;
+            }
+            true
+        });
+        self.group_carriage.rejoin.reviews = reviews;
+        self.group_carriage.rejoin.closed = closed;
     }
 
     fn rejoin_review_current(&self, r: &RejoinReview, room: &GroupState) -> R<Acs> {
@@ -265,7 +356,8 @@ impl AppState {
             return err("journal_busy");
         }
         if !agree {
-            self.group_carriage.rejoin.reviews[i].declined = true;
+            let state = &mut self.group_carriage.rejoin;
+            state.closed.push(state.reviews.remove(i).into());
             rep.events.push(GroupEvent::RejoinChanged);
             return Ok(());
         }
@@ -517,7 +609,12 @@ impl AppState {
         }
     }
 
-    pub(crate) fn group_rejoin_view(&self, account: &[u8], device: &[u8]) -> RejoinView {
+    pub(crate) fn group_rejoin_view(
+        &self,
+        account: &[u8],
+        device: &[u8],
+        now_ms: u64,
+    ) -> RejoinView {
         let state = &self.group_carriage.rejoin;
         let contacts = if self.rejoin_own_head(account, device).is_some() {
             self.relationships
@@ -533,7 +630,14 @@ impl AppState {
             .reviews
             .iter()
             .filter_map(|r| {
-                if r.declined || r.invite.is_some() {
+                if r.declined
+                    || r.invite
+                        .as_ref()
+                        .and_then(|id| self.group_invites.get(id))
+                        .is_some_and(|invite| {
+                            invite.state != InviteState::Declined && !invite_lapsed(invite, now_ms)
+                        })
+                {
                     return None;
                 }
                 let room = self.group_state(&bytes(&r.room).ok()?).ok()?;

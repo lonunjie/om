@@ -137,6 +137,15 @@ enum Command {
         ctx: ProfileExecutionContext,
         routes: Vec<RoomRouteOffer>,
     },
+    RoomGrantClaimed {
+        ctx: ProfileExecutionContext,
+        grant: DepositRevocation,
+    },
+    RetireRoomGrant {
+        ctx: ProfileExecutionContext,
+        grant: DepositRevocation,
+        expires_at: u64,
+    },
     /// The Home (relay_uri) of each route offer Core still holds.
     OfferHomes,
     /// What the BlobStore advertises (`om.blob.spool.v1` limits); `null` when it offers none. Without it attachments are
@@ -193,12 +202,20 @@ enum Command {
     /// One frame from the other person's device (the sender side). Answers `{frames, commit}`.
     DirectServe {
         ctx: ProfileExecutionContext,
+        #[serde(default)]
+        channel: u64,
         frame: Value,
     },
     /// Frames the sender may send now, given how many bytes the channel still has buffered.
     DirectPump {
         ctx: ProfileExecutionContext,
+        #[serde(default)]
+        channel: u64,
         buffered: usize,
+    },
+    DirectDisconnected {
+        ctx: ProfileExecutionContext,
+        channel: u64,
     },
     /// The first frame of a fetch of a direct attachment (the receiver side): `{frame}` or `{refused}`.
     DirectFetchStart {
@@ -1032,6 +1049,17 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::SupplyRoomRoutes { ctx, routes } => {
                 Ok(json!(self.core()?.supply_room_routes(&ctx, routes)?))
             }
+            Command::RoomGrantClaimed { ctx, grant } => {
+                Ok(json!(self.core()?.room_grant_claimed(&ctx, &grant)?))
+            }
+            Command::RetireRoomGrant {
+                ctx,
+                grant,
+                expires_at,
+            } => {
+                let step = self.core()?.retire_room_grant(&ctx, grant, expires_at)?;
+                Ok(json!({ "commit": step.commit }))
+            }
             Command::SetBlobLimits { limits } => {
                 self.core()?.set_blob_limits(limits);
                 Ok(Value::Null)
@@ -1131,17 +1159,29 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     Err(e) => json!({ "refused": enc(&e) }),
                 },
             ),
-            Command::DirectServe { ctx, frame } => {
+            Command::DirectServe {
+                ctx,
+                channel,
+                frame,
+            } => {
                 let frame = frame_from_json(&frame)?;
-                let (frames, step) = self.core()?.direct_serve(&ctx, &frame)?;
+                let (frames, step) = self.core()?.direct_serve_on(&ctx, channel, &frame)?;
                 Ok(json!({
                     "frames": frames.iter().map(frame_to_json).collect::<Vec<_>>(),
                     "commit": enc(&step.commit),
                 }))
             }
-            Command::DirectPump { ctx, buffered } => {
-                let frames = self.core()?.direct_pump(&ctx, buffered)?;
+            Command::DirectPump {
+                ctx,
+                channel,
+                buffered,
+            } => {
+                let frames = self.core()?.direct_pump_on(&ctx, channel, buffered)?;
                 Ok(json!(frames.iter().map(frame_to_json).collect::<Vec<_>>()))
+            }
+            Command::DirectDisconnected { ctx, channel } => {
+                self.core()?.direct_disconnected(&ctx, channel)?;
+                Ok(Value::Null)
             }
             Command::DirectFetchStart {
                 ctx,

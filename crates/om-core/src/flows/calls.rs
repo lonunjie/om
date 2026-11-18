@@ -5,7 +5,7 @@ use super::*;
 use crate::calls::{
     Body, Call, CallDescription, CallNotice, CallReason, CallRoute, CallState, ContactDevice,
     DEPOSIT_LIMIT, Deposit, DepositKind, DescriptionKind, MediaState, NOTICE_LIMIT, REPLAY_MS,
-    RING_MS, SEEN_LIMIT, SPAM_MS, SeenOffer, Signal, valid_sdp,
+    RING_MS, SEEN_LIMIT, SEEN_PER_ACCOUNT, SPAM_MS, SeenOffer, Signal, valid_sdp,
 };
 use zeroize::Zeroizing;
 
@@ -401,32 +401,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         secret: Zeroizing<[u8; 32]>,
     ) {
         let id_hex = hex(&id);
+        let seen = &self.st.app.call_offers_seen;
+        let caller = || seen.iter().filter(|offer| offer.account == account);
         if seq != 0
             || expires_s
                 > self
                     .now_s()
                     .saturating_add(RING_MS / 1000 + delivery::CLOCK_SKEW)
-            || self.st.app.call_offers_seen.len() >= SEEN_LIMIT
-            || self
-                .st
-                .app
-                .call_offers_seen
-                .iter()
-                .any(|offer| offer.id == id_hex && offer.account == account)
+            || seen.len() >= SEEN_LIMIT
+            || caller().count() >= SEEN_PER_ACCOUNT
+            || caller().any(|offer| offer.id == id_hex)
         {
             return;
         }
 
-        let unanswered = self
-            .st
-            .app
-            .call_offers_seen
-            .iter()
-            .filter(|offer| {
-                offer.account == account
-                    && offer.unanswered
-                    && self.now_ms.saturating_sub(offer.at_ms) < SPAM_MS
-            })
+        let unanswered = caller()
+            .filter(|offer| offer.unanswered && self.now_ms.saturating_sub(offer.at_ms) < SPAM_MS)
             .count();
         self.st.app.call_offers_seen.push(SeenOffer {
             id: id_hex,

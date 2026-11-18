@@ -840,6 +840,10 @@ pub struct PendingFrame {
     /// The sealed wrapper (hex), exactly as it arrived at the route.
     pub wrapper: String,
     pub since_s: u64,
+    #[serde(default)]
+    pub room: String,
+    #[serde(default)]
+    pub before_welcome: bool,
     /// Relationships whose head refresh may supply what is missing (the existing K7 request is sent for each).
     pub refresh: Vec<String>,
     /// Accounts (hex) that still need a verified head. A new relationship can provide a refresh path.
@@ -906,6 +910,13 @@ pub struct RouteDebt {
     pub to: OutTarget,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RetiredGrant {
+    revoke: DepositRevocation,
+    expires_at: u64,
+}
+
 /// Persisted in `AppState.group_carriage` (additive, serde default).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -914,6 +925,11 @@ pub struct GroupCarriageRec {
     /// ConversationID hex.
     #[serde(default)]
     pub mine: BTreeMap<String, Vec<MyRoute>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    retired_grants: Vec<RetiredGrant>,
+    /// The host stages one mint at a time and keeps its journal until this claim is durable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_grant_claim: Option<DepositRevocation>,
     /// `room` -> device (hex) -> its verified route.
     #[serde(default)]
     pub peers: BTreeMap<String, BTreeMap<String, PeerRoute>>,
@@ -989,7 +1005,30 @@ impl GroupCarriageRec {
 
     /// Record a minted route; older routes of the room stay (overlapping) until [`Self::retire_and_expire`].
     pub fn add_mine(&mut self, room: &str, r: MyRoute) {
+        if let Some(grant) = r.revocation() {
+            self.last_grant_claim = Some(grant);
+        }
         self.mine.entry(room.to_string()).or_default().push(r);
+    }
+
+    pub fn owns_grant(&self, grant: &DepositRevocation) -> bool {
+        self.last_grant_claim.as_ref() == Some(grant)
+            || self
+                .mine
+                .values()
+                .flatten()
+                .any(|r| r.revocation().as_ref() == Some(grant))
+            || self.retired_grants.iter().any(|debt| &debt.revoke == grant)
+    }
+
+    pub fn retire_unclaimed(&mut self, grant: DepositRevocation, expires_at: u64) {
+        if !self.owns_grant(&grant) {
+            self.last_grant_claim = Some(grant.clone());
+            self.retired_grants.push(RetiredGrant {
+                revoke: grant,
+                expires_at,
+            });
+        }
     }
 
     /// Route replacement: mark every older route of `room` retired at `now_s` (after a removal, ADR-0189 1.3).
@@ -1016,26 +1055,38 @@ impl GroupCarriageRec {
     /// A retired route stops receiving at the boundary, but its grant metadata survives until DELETE
     /// succeeds or the Home's expiry (including clock skew). Legacy routes have no DELETE target.
     pub fn expire_retired(&mut self, now_s: u64) -> Vec<DepositRevocation> {
-        let mut revoke = vec![];
+        self.prune_retired(now_s);
+        self.retired_grants
+            .iter()
+            .map(|grant| grant.revoke.clone())
+            .collect()
+    }
+
+    pub(super) fn prune_retired(&mut self, now_s: u64) {
+        let debt = &mut self.retired_grants;
+        debt.retain(|grant| now_s <= grant.expires_at.saturating_add(300));
         for routes in self.mine.values_mut() {
             routes.retain(|r| {
                 if r.receiving(now_s) {
                     return true;
                 }
                 if now_s <= r.grant_expires_at.saturating_add(300)
-                    && let Some(debt) = r.revocation()
+                    && let Some(revoke) = r.revocation()
+                    && !debt.iter().any(|grant| grant.revoke == revoke)
                 {
-                    revoke.push(debt);
-                    return true;
+                    debt.push(RetiredGrant {
+                        revoke,
+                        expires_at: r.grant_expires_at,
+                    });
                 }
                 false
             });
         }
         self.mine.retain(|_, routes| !routes.is_empty());
-        revoke
     }
 
     pub fn revoked(&mut self, done: &DepositRevocation, now_s: u64) {
+        self.retired_grants.retain(|grant| &grant.revoke != done);
         for routes in self.mine.values_mut() {
             routes.retain(|r| r.receiving(now_s) || r.revocation().as_ref() != Some(done));
         }

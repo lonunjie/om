@@ -209,6 +209,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             if offer.route.is_valid()
                 && offer.id.len() == 16
                 && offer.expires_at > now
+                && !slot.state.app.group_carriage.owns_grant(&offer.grant())
                 && !slot
                     .room_offers
                     .iter()
@@ -218,6 +219,37 @@ impl<R: RngCore + CryptoRng> Core<R> {
             }
         }
         Ok(slot.room_offers.len())
+    }
+
+    /// True once the encrypted profile owns the mint or its retirement.
+    pub fn room_grant_claimed(
+        &self,
+        ctx: &ProfileExecutionContext,
+        grant: &DepositRevocation,
+    ) -> Result<bool, CoreError> {
+        Ok(self.slot(ctx)?.state.app.group_carriage.owns_grant(grant))
+    }
+
+    /// Retire an unpublished grant at its original Home, even if that Home is currently unavailable.
+    pub fn retire_room_grant(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        grant: DepositRevocation,
+        expires_at: u64,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.st
+                .app
+                .group_carriage
+                .retire_unclaimed(grant.clone(), expires_at);
+            tx.room_offers.retain(|offer| offer.grant() != grant);
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
     }
 
     /// The person stopped using the Home `relay_uri`: every relationship with another route publishes a new RelaySet
@@ -824,6 +856,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.slot(ctx)?;
         let (revoke, commit) = self.txn(&ctx.profile_id, |tx| {
             let now_s = tx.now_ms / 1000;
+            tx.st.app.maintain_rejoin_invites(tx.now_ms);
+            tx.st.app.dangling_mutations.expire(tx.now_ms);
             tx.st.app.carry_outbox_expire(now_s);
             Ok(tx.st.app.carry_routes_expire(now_s))
         })?;
@@ -953,9 +987,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .unwrap_or_default();
         if matches!(q, GroupQuery::Rejoin) {
             let device = slot.state.device.as_ref().map_or(&[][..], |d| &d.device_id);
-            return Ok(Ok(GroupView::Rejoin(
-                slot.state.app.group_rejoin_view(&me, device),
-            )));
+            return Ok(Ok(GroupView::Rejoin(slot.state.app.group_rejoin_view(
+                &me,
+                device,
+                self.clock.now_ms(),
+            ))));
         }
         Ok(slot.state.app.group_query_as(&me, q))
     }
@@ -1254,6 +1290,15 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
         frame: &crate::direct::DirectFrame,
     ) -> Result<(Vec<crate::direct::DirectFrame>, Step), CoreError> {
+        self.direct_serve_on(ctx, 0, frame)
+    }
+
+    pub fn direct_serve_on(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        channel: u64,
+        frame: &crate::direct::DirectFrame,
+    ) -> Result<(Vec<crate::direct::DirectFrame>, Step), CoreError> {
         use crate::direct::{DirectFrame, ErrorCode};
         self.slot(ctx)?;
         let mut stale = self.direct_reconcile(&ctx.profile_id)?;
@@ -1269,7 +1314,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 .direct_senders
                 .get_mut(&(profile.clone(), crate::crypto::hex(blob_id)))
             {
-                Some(s) => s.handle(frame, fresh),
+                Some(s) => s.handle_on(channel, frame, fresh),
                 None => vec![DirectFrame::Error {
                     id: *request_id,
                     code: ErrorCode::Unavailable,
@@ -1279,7 +1324,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 self.direct_senders
                     .iter_mut()
                     .filter(|(k, _)| k.0 == profile)
-                    .flat_map(|(_, s)| s.handle(frame, fresh))
+                    .flat_map(|(_, s)| s.handle_on(channel, frame, fresh))
                     .collect()
             }
             _ => vec![DirectFrame::Error {
@@ -1307,13 +1352,38 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
         buffered: usize,
     ) -> Result<Vec<crate::direct::DirectFrame>, CoreError> {
+        self.direct_pump_on(ctx, 0, buffered)
+    }
+
+    pub fn direct_pump_on(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        channel: u64,
+        buffered: usize,
+    ) -> Result<Vec<crate::direct::DirectFrame>, CoreError> {
         self.slot(ctx)?;
         Ok(self
             .direct_senders
             .iter_mut()
-            .filter(|(k, _)| k.0 == ctx.profile_id)
+            .filter(|(k, sender)| k.0 == ctx.profile_id && sender.owns_channel(channel))
             .flat_map(|(_, s)| s.pump(buffered))
             .collect())
+    }
+
+    pub fn direct_disconnected(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        channel: u64,
+    ) -> Result<(), CoreError> {
+        self.slot(ctx)?;
+        for (_, sender) in self
+            .direct_senders
+            .iter_mut()
+            .filter(|(k, _)| k.0 == ctx.profile_id)
+        {
+            sender.detach_channel(channel);
+        }
+        Ok(())
     }
 
     /// Start (or, after a dropped channel, resume) the direct fetch of one attachment: the request to send. The held
@@ -2334,6 +2404,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                                     account_id: account.clone(),
                                     label: c.label.clone(),
                                     invite_operation_id: invite.map(|i| i.operation_id.clone()),
+                                    can_retry: invite.is_some_and(|i| i.used),
                                     invite: invite
                                         .filter(|i| {
                                             !i.used

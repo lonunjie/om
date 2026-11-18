@@ -783,6 +783,8 @@ pub struct ReconnectContactView {
     pub label: String,
     pub invite_operation_id: Option<OperationId>,
     pub invite: Option<InviteView>,
+    #[serde(default)]
+    pub can_retry: bool,
     pub conversation_id: Option<ConversationId>,
 }
 

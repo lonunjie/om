@@ -6,7 +6,7 @@
 //! steward (the lowest live controller DeviceID) writes refresh slots from 1 for a state it did not author, after a
 //! delay, and refreshes the snapshot when it changes (at most daily) and the record at least every 90 days. The record
 //! is sealed once per staged write; a retry resends the same bytes and request id. A refused compare-and-swap is
-//! settled by reading the record: a copy at or above ours means we are behind and ours is dropped.
+//! settled by reading the record and validating its slot, content and account lineage.
 
 use super::*;
 use crate::crypto::binding::Credential;
@@ -37,15 +37,26 @@ impl AppState {
         if w.paused_for_exclusion {
             return RecoveryRecordStatus::NeedsNewKey;
         }
-        if let Some(s) = &w.staged
-            && now_ms.saturating_sub(s.staged_at_ms) >= ATTENTION_MS
+        let current_ack = self.acs_forks.is_empty()
+            && w.acked_head_hash.as_ref().is_some_and(|hash| {
+                self.acs_chain
+                    .last()
+                    .and_then(|signed| unhex(signed).ok())
+                    .and_then(|signed| ceremony::chain_head(&signed))
+                    .is_some_and(|head| hex(&head.hash()) == *hash)
+            });
+        if w.record_conflict
+            || w.staged
+                .as_ref()
+                .is_some_and(|s| now_ms.saturating_sub(s.staged_at_ms) >= ATTENTION_MS)
+            || (w.enabled && !current_ack && now_ms.saturating_sub(w.head_seen_ms) >= ATTENTION_MS)
         {
             return RecoveryRecordStatus::NeedsAttention;
         }
-        if w.acked_generation == 0 {
-            RecoveryRecordStatus::FinishingSetup
-        } else {
+        if current_ack {
             RecoveryRecordStatus::Ready
+        } else {
+            RecoveryRecordStatus::FinishingSetup
         }
     }
 }
@@ -301,30 +312,32 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let content = hex(&crypto::sha256(&[&snapshot.to_bytes()]));
         let steward = self.is_steward(&head);
         let w = &mut self.st.app.recovery_writer;
+        if let Some(acked) = &w.acked_head_hash {
+            if rr::generation_acs(w.acked_generation) > head.generation {
+                return;
+            }
+            if !states.iter().any(|state| hex(&state.hash()) == *acked) {
+                w.record_conflict = true;
+                return;
+            }
+        }
         let authored = std::mem::take(&mut w.authored);
         let mut slot = None;
         if w.head_hash.as_deref() != Some(head_hash.as_str()) {
             w.head_hash = Some(head_hash);
             w.head_seen_ms = now;
             w.refresh = 0;
+            w.steward_pending = true;
             if authored {
                 slot = Some(0);
-                w.steward_pending = false;
-            } else {
-                w.steward_pending = true;
             }
         } else {
-            let acked_acs = rr::generation_acs(w.acked_generation);
             let staged_acs = w.staged.as_ref().map(|s| rr::generation_acs(s.generation));
-            let covered = acked_acs >= head.generation || staged_acs == Some(head.generation);
+            let covered = w.acked_head_hash.as_deref() == Some(head_hash.as_str())
+                || staged_acs == Some(head.generation);
             let quiet = now.saturating_sub(w.last_write_ms);
-            if w.steward_pending
-                && steward
-                && !covered
-                && now.saturating_sub(w.head_seen_ms) >= STEWARD_DELAY_MS
-            {
+            if steward && !covered && now.saturating_sub(w.head_seen_ms) >= STEWARD_DELAY_MS {
                 slot = Some(w.refresh + 1);
-                w.steward_pending = false;
             } else if steward
                 && covered
                 && w.staged.is_none()
@@ -348,6 +361,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let generation = rr::record_generation(head.generation, refresh).unwrap_or(0);
         let w = &mut self.st.app.recovery_writer;
+        w.steward_pending = false;
         w.refresh = refresh;
         w.last_write_ms = now;
         w.last_content = Some(content);
@@ -356,17 +370,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// The Home acknowledged the put: its `ETag` is the next compare-and-swap.
     pub(crate) fn recovery_put_done(&mut self, generation: u64, etag: Option<Vec<u8>>) {
+        let Some(kit) = self.recovery_kit_value() else {
+            return;
+        };
         let w = &mut self.st.app.recovery_writer;
-        if w.staged
-            .as_ref()
-            .is_some_and(|s| s.generation == generation)
-        {
-            w.staged = None;
-        }
-        if generation >= w.acked_generation {
-            w.acked_generation = generation;
-            w.acked_etag = etag.and_then(|e| String::from_utf8(e).ok());
-        }
+        let Some(staged) = w.staged.as_ref().filter(|s| s.generation == generation) else {
+            return;
+        };
+        let Ok(bytes) = unhex(&staged.envelope) else {
+            return;
+        };
+        let Ok(rr::Plain::Record(record)) =
+            rr::open(&RecordKeys::from_kit(&kit), &kit.scope, &bytes)
+        else {
+            return;
+        };
+        w.staged = None;
+        w.acked_generation = generation;
+        w.acked_head_hash = Some(hex(&record.head.state_hash));
+        w.acked_etag = etag.and_then(|e| String::from_utf8(e).ok());
+        w.record_conflict = false;
     }
 
     /// A refused put (a moved ETag, usually another writer's newer record): read the record to settle it.
@@ -398,30 +421,49 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(staged) = staged.filter(|s| s.generation == generation) else {
             return;
         };
-        let (etag, remote_generation) = match &got {
-            Some((etag, envelope)) => {
-                let Ok(rr::Plain::Record(r)) =
-                    rr::open(&RecordKeys::from_kit(&kit), &kit.scope, envelope)
-                else {
-                    return; // not readable as ours: leave it for the status to surface
-                };
-                (String::from_utf8(etag.clone()).ok(), r.generation)
-            }
-            None => (None, 0),
-        };
-        if remote_generation >= generation {
-            // Another writer's record is at or above ours: ours is dropped, and its ETag is what we compare against.
-            let w = &mut self.st.app.recovery_writer;
-            w.staged = None;
-            w.acked_generation = remote_generation;
-            w.acked_etag = etag;
-            return;
-        }
-        // Ours is newer: resend the same sealed bytes against the current ETag with a fresh request id.
-        let request_id = self.rand16().to_vec();
         let Ok(envelope) = unhex(&staged.envelope) else {
             return;
         };
+        let keys = RecordKeys::from_kit(&kit);
+        let Ok(rr::Plain::Record(ours)) = rr::open(&keys, &kit.scope, &envelope) else {
+            return;
+        };
+        let mut etag = None;
+        if let Some((tag, bytes)) = got {
+            let verified =
+                String::from_utf8(tag)
+                    .ok()
+                    .zip(match rr::open(&keys, &kit.scope, &bytes) {
+                        Ok(rr::Plain::Record(remote))
+                            if remote.recovery_epoch == kit.epoch
+                                && (remote.generation != generation || remote == ours)
+                                && self.verify_writer_lineage(&ours, &remote) =>
+                        {
+                            Some(remote)
+                        }
+                        _ => None,
+                    });
+            let Some((tag, remote)) = verified else {
+                self.st.app.recovery_writer.record_conflict = true;
+                return;
+            };
+            etag = Some(tag);
+            if remote.generation >= generation {
+                let w = &mut self.st.app.recovery_writer;
+                w.staged = None;
+                w.acked_generation = remote.generation;
+                let hash = hex(&remote.head.state_hash);
+                if w.head_hash.as_ref() == Some(&hash) {
+                    w.refresh = w.refresh.max(rr::generation_refresh(remote.generation));
+                }
+                w.acked_head_hash = Some(hash);
+                w.acked_etag = etag;
+                w.record_conflict = false;
+                return;
+            }
+        }
+        // The record is absent or an earlier slot in this lineage. Change only the CAS precondition and request id.
+        let request_id = self.rand16().to_vec();
         self.st.app.recovery_writer.staged = Some(StagedPut {
             request_id: hex(&request_id),
             if_match: etag.clone(),
@@ -439,5 +481,65 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
             Purpose::RecoveryPut { generation },
         );
+    }
+
+    fn verify_writer_lineage(&self, ours: &RecoveryRecord, remote: &RecoveryRecord) -> bool {
+        let (Ok(verified), Some((local, mut chain, mut credentials))) =
+            (remote.verify(), self.acs_head())
+        else {
+            return false;
+        };
+        if local.account_id != verified.head.account_id
+            || verified.policy.epoch() != remote.recovery_epoch
+        {
+            return false;
+        }
+        let Some(first) = verified.states.first() else {
+            return false;
+        };
+        let prefix = if let Some(parent) = first.previous {
+            let Some(index) = chain.iter().position(|signed| {
+                ceremony::chain_head(signed).is_some_and(|state| state.hash() == parent)
+            }) else {
+                return false;
+            };
+            index + 1
+        } else {
+            // A supplied genesis must match the genesis independently held here.
+            if !chain
+                .first()
+                .and_then(|signed| ceremony::chain_head(signed))
+                .is_some_and(|genesis| genesis.hash() == first.hash())
+            {
+                return false;
+            }
+            0
+        };
+        if remote.head.generation < ours.head.generation
+            && !chain.iter().any(|signed| {
+                ceremony::chain_head(signed)
+                    .is_some_and(|state| state.hash() == remote.head.state_hash)
+            })
+        {
+            return false;
+        }
+        chain.truncate(prefix);
+        chain.extend(remote.evidence.tail.iter().cloned());
+        chain.push(remote.evidence.head.clone());
+        if remote.head.generation >= ours.head.generation
+            && !chain.iter().any(|signed| {
+                ceremony::chain_head(signed)
+                    .is_some_and(|state| state.hash() == ours.head.state_hash)
+            })
+        {
+            return false;
+        }
+        for credential in &remote.evidence.credentials {
+            if !credentials.contains(credential) {
+                credentials.push(credential.clone());
+            }
+        }
+        control::verify_chain_with(&chain, &credentials, &self.st.app.link_evidence())
+            .is_ok_and(|head| head.hash() == remote.head.state_hash)
     }
 }

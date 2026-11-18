@@ -990,14 +990,23 @@ fn a_commit_before_welcome_waits_across_restart() {
         })
         .unwrap();
     ps[0].settle_commits();
-    let commit = ps[0]
+    let mut commit = ps[0]
         .outbox()
         .into_iter()
         .filter(|it| matches!(it.wire, GroupWire::Commit { .. }))
         .filter_map(|it| it.to_outbound())
         .find(|o| matches!(&o.to, Target::Device { device, .. } if *device == carol))
         .unwrap();
-    let commit = ps[0].seal(&commit).unwrap().remove(0);
+    let genuine = ps[0].seal(&commit).unwrap().remove(0);
+    let GroupWire::Commit { signed_binding, .. } = &mut commit.wire else {
+        unreachable!()
+    };
+    let last = signed_binding.pop().unwrap();
+    signed_binding.push(if last == '0' { '1' } else { '0' });
+    let invalid = ps[0].seal(&commit).unwrap().remove(0);
+    assert!(ps[2].open(&invalid.wrapper).is_err());
+    assert_eq!(ps[2].pending(), 0);
+    let commit = genuine;
     let reply = ps[2].open(&commit.wrapper).unwrap();
     assert!(
         reply

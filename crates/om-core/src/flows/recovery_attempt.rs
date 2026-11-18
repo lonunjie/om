@@ -110,6 +110,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return reject(RejectReason::NotFound);
         };
+        let previous = candidate.invite_operation_id.clone();
         if self
             .st
             .app
@@ -120,7 +121,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .st
                 .app
                 .reconnect_invite(candidate, self.now_ms)
-                .is_some()
+                .is_some_and(|invite| !invite.used)
         {
             return reject(RejectReason::Conflict);
         }
@@ -134,6 +135,29 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .and_then(|r| r.candidates.get_mut(account))
         {
             candidate.invite_operation_id = Some(op.clone());
+            if let Some(invite) = previous.and_then(|id| self.st.app.invites.get_mut(&id)) {
+                invite.revoked = true;
+                let digest = &invite.request_digest;
+                let mut retired = Vec::new();
+                self.st.app.relationships.retain(|id, rel| {
+                    let old_attempt = rel.state != RelState::Active
+                        && rel.reconnect_account.as_deref() == Some(account)
+                        && rel
+                            .pending_bind
+                            .as_ref()
+                            .is_some_and(|bind| &bind.request_digest == digest);
+                    if old_attempt {
+                        retired.push(id.clone());
+                    }
+                    !old_attempt
+                });
+                self.st.app.outbox.retain_mut(|entry| {
+                    entry
+                        .purpose
+                        .conversation_mut()
+                        .is_none_or(|id| !retired.contains(id))
+                });
+            }
         }
         out
     }

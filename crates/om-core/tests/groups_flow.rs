@@ -1638,6 +1638,53 @@ fn reply_reaction_edit_and_delete_reach_every_member() {
 }
 
 #[test]
+fn room_applies_an_early_delete_after_reopening_the_message_log() {
+    let (mut devs, conv) = room();
+    let target = [8; 16];
+    let create = events::Header {
+        event_id: target,
+        conversation_id: conv.as_slice().try_into().unwrap(),
+        author_account: devs[0].account.as_slice().try_into().unwrap(),
+        author_device: devs[0].id().try_into().unwrap(),
+        clock: events::Hlc {
+            physical_ms: NOW,
+            logical: 0,
+        },
+        kind: events::K_CREATE,
+        body: events::message_create_body_with(Some("initial"), vec![]),
+    }
+    .encode();
+    let create = craft_plain(&mut devs, 0, &conv, &create);
+    let account = devs[0].account[0];
+    let delete = craft(
+        &mut devs,
+        0,
+        &conv,
+        account,
+        (NOW, 1),
+        events::K_DELETE,
+        V::M(vec![(0, V::B(target.to_vec()))]),
+    );
+    assert!(
+        deliver(&mut devs, 0, &delete)
+            .iter()
+            .all(|(_, result)| result.is_ok())
+    );
+    for d in &mut devs[1..] {
+        assert!(msgs(d, &conv).is_empty());
+        d.app = serde_json::from_slice(&serde_json::to_vec(&d.app).unwrap()).unwrap();
+    }
+    assert!(
+        deliver(&mut devs, 0, &create)
+            .iter()
+            .all(|(_, result)| result.is_ok())
+    );
+    for d in &devs[1..] {
+        assert!(msgs(d, &conv).is_empty());
+    }
+}
+
+#[test]
 fn only_the_author_can_edit_or_delete() {
     let (mut devs, conv) = room();
     let a = say(&mut devs, 0, &conv, "mine", None);

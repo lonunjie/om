@@ -883,6 +883,10 @@ pub struct RecoveryWriter {
     /// Highest generation the Home acknowledged, and the ETag it gave (the next compare-and-swap).
     pub acked_generation: u64,
     pub acked_etag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acked_head_hash: Option<Hex>,
+    #[serde(default)]
+    pub record_conflict: bool,
     pub last_write_ms: u64,
     /// SHA-256 (hex) of the relationship snapshot last written.
     pub last_content: Option<Hex>,
@@ -901,6 +905,11 @@ pub enum RecoveryRecordStatus {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppState {
+    #[serde(
+        default,
+        skip_serializing_if = "crate::events::DanglingMutations::is_empty"
+    )]
+    pub dangling_mutations: crate::events::DanglingMutations,
     /// Device-local call preferences and replay tombstones. Neither enters account sync or history export.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub calls_disabled: BTreeSet<String>,
