@@ -4,6 +4,7 @@ import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asConversationId, type CallView as CoreCallView } from "@om/platform-api";
 import { CallTimelineNotice, CallView, type CallCopy } from "./CallView";
+import { ThemeProvider } from "../shell/theme/ThemeProvider";
 
 afterEach(cleanup);
 
@@ -16,7 +17,7 @@ const copy: CallCopy = {
     failed: "Failed", hangup: "Ended", canceled: "Canceled" },
   answerAudio: "Answer audio", answerVideo: "Answer video", decline: "Decline", hangUp: "End call",
   mute: "Mute microphone", unmute: "Unmute microphone", cameraOn: "Turn camera on", cameraOff: "Turn camera off",
-  dismiss: "Dismiss", cancel: "Cancel", preparing: "Preparing", noDirect: "A private route is unavailable",
+  dismiss: "Dismiss", retry: "Try again", cancel: "Cancel", preparing: "Preparing", noDirect: "A private route is unavailable",
   missed: "Missed call", missedSeveral: "Missed calls", time: () => "12:00",
 };
 const incoming: CoreCallView = {
@@ -49,6 +50,49 @@ describe("live calls", () => {
     expect(screen.getByRole("status").textContent).toContain(copy.noDirect);
     expect(screen.queryByRole("button", { name: "Answer audio" })).toBeNull();
     expect(screen.getByRole("button", { name: "Decline" })).toBeTruthy();
+  });
+
+  it("keeps the incoming announcement and actions with reduced motion", () => {
+    const p = props();
+    const { container, rerender } = render(<ThemeProvider motion="full"><CallView {...p} /></ThemeProvider>);
+    expect(container.querySelector(".om-call__pulse")).toBeTruthy();
+    rerender(<ThemeProvider motion="reduced"><CallView {...p} /></ThemeProvider>);
+    expect(container.querySelector(".om-call__pulse")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("Video call from Maria");
+    fireEvent.click(screen.getByRole("button", { name: "Answer video" }));
+    expect(p.onAnswer).toHaveBeenCalledWith("video");
+  });
+
+  it("offers the audio alternative after camera permission fails", () => {
+    const p = props();
+    render(<CallView {...p} error="The camera is unavailable." />);
+    expect(screen.getByRole("alert").textContent).toBe("The camera is unavailable.");
+    expect(screen.queryByRole("button", { name: /listen only|open settings/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Answer audio" }));
+    expect(p.onAnswer).toHaveBeenCalledWith("audio");
+  });
+
+  it("keeps mute, camera and call state independent of the transport route", () => {
+    const p = props();
+    const call = { ...incoming, state: "active", localMediaFlags: 0, route: "direct" } as const;
+    const { container, rerender } = render(<CallView {...p} call={call} cameraAvailable />);
+    const html = container.innerHTML;
+    rerender(<CallView {...p} call={{ ...call, route: "relay" }} cameraAvailable />);
+    expect(container.innerHTML).toBe(html);
+    expect(screen.getByRole("button", { name: copy.unmute })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: copy.cameraOn }));
+    expect(p.onToggle).toHaveBeenCalledWith("video");
+  });
+
+  it("offers an explicit retry for a failed call when a permitted route and target exist", () => {
+    const p = props();
+    const call = { ...incoming, outgoing: true, state: "failed" } as const;
+    const retry = vi.fn();
+    const rendered = render(<CallView {...p} call={call} onRetry={retry} />);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(retry).toHaveBeenCalledOnce();
+    rendered.rerender(<CallView {...p} call={call} onRetry={retry} privacyAllowsDirect={false} />);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("has accessible controls and announcements through each Core state", async () => {

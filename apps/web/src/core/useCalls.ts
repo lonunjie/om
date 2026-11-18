@@ -49,6 +49,7 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
   const reconcile = useRef<(next: CallView | null) => void>(() => undefined);
   const dismissed = useRef<string | null>(null);
   const allowed = useRef(false);
+  const preparation = useRef<AbortController | null>(null);
   const recover = useRef<() => void>(() => undefined);
   const [privacyAllowsDirect, setPrivacyAllowsDirect] = useState(false);
   const intent = useCallback(async (action: Intent): Promise<void> => {
@@ -109,7 +110,7 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
             send: keys.send as Uint8Array<ArrayBuffer>,
             receive: keys.receive as Uint8Array<ArrayBuffer>,
           });
-        })().catch(() => noteFailure(call));
+        })().catch(() => { noteFailure(call); });
       }
       if (!call.keys) return;
       const ice = driver.description(ctx, id, true);
@@ -125,7 +126,7 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
           await intent({ kind: "UpdateCallIce", callSessionId: id, sdp });
           await call.transport.restartComplete();
         }
-      })().catch(() => noteFailure(call));
+      })().catch(() => { noteFailure(call); });
     };
     const onPrivacy = (level: string) => {
       if (!life.current) return;
@@ -133,6 +134,7 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
       allowed.current = direct;
       setPrivacyAllowsDirect(direct);
       const call = selected.current;
+      if (!direct) preparation.current?.abort();
       if (!direct && call) {
         release(call);
         setFailure("privacy");
@@ -164,9 +166,10 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
       void (async () => {
         const sdp = await call.transport.restartOffer();
         if (selected.current === call && allowed.current) await intent({ kind: "UpdateCallIce", callSessionId: id, sdp });
-      })().catch(() => noteFailure(call));
+      })().catch(() => { noteFailure(call); });
     };
     const depart = () => {
+      preparation.current?.abort();
       const call = selected.current;
       if (call) {
         release(call);
@@ -197,13 +200,21 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
     const incoming = target === null ? current.current : null;
     if (target ? (!terminal(current.current) || target.allowCalls === undefined) : incoming?.state !== "incoming") return;
     if (!allowed.current) { setFailure("privacy"); return; }
+    const attempt = new AbortController();
+    preparation.current = attempt;
+    const canProceed = () => life.current && allowed.current && !attempt.signal.aborted;
+    const owns = (call: LiveCall) => canProceed() && selected.current === call;
     busy.current = true;
     setPending(true);
     setFailure(null);
+    if (target) {
+      dismissed.current = current.current?.callSessionId ?? null;
+      setView(null);
+    }
     let call: LiveCall | undefined;
     try {
       const { createCallTransport } = await import("./callTransport");
-      if (!life.current || !allowed.current || (incoming && current.current?.callSessionId !== incoming.callSessionId)) return;
+      if (!canProceed() || (incoming && current.current?.callSessionId !== incoming.callSessionId)) return;
       const transport = createCallTransport((fact) => {
         if (!call || !call.id || selected.current !== call || !allowed.current) return;
         const id = call.id;
@@ -218,17 +229,17 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
         const offer = driver.description(ctx, incoming.callSessionId);
         if (offer?.kind !== "offer") throw new Error("Call offer expired");
         const sdp = await transport.answer(offer.sdp, kind);
-        if (selected.current !== call || !allowed.current) return;
+        if (!owns(call)) return;
         if (current.current?.callSessionId !== incoming.callSessionId || current.current.state !== "incoming") throw new Error("Call offer expired");
         await intent({ kind: "AcceptCall", callSessionId: incoming.callSessionId, sdp, mediaFlags: kind === "video" ? 3 : 1 });
       } else if (target) {
         const sdp = await transport.offer(kind);
-        if (selected.current !== call || !allowed.current) return;
+        if (!owns(call)) return;
         if (!terminal(current.current)) { release(call); return; }
         await intent({ kind: "StartCall", target: target.personId, media: kind, sdp });
         const next = await client.query({ kind: "GetCallView", ctx });
         if (!next?.outgoing || next.conversationId !== target.id) throw new Error("Call unavailable");
-        if (selected.current !== call || !allowed.current) {
+        if (!owns(call)) {
           if (!terminal(next)) await intent({ kind: "EndCall", callSessionId: next.callSessionId });
           return;
         }
@@ -236,17 +247,24 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
         reconcile.current(next);
       }
       const available = await transport.devices().catch(() => []);
-      if (life.current && selected.current === call) setDevices(available);
+      if (owns(call)) setDevices(available);
     } catch (error) {
+      const showFailure = canProceed() && (!call || !terminal(current.current) || call.id === null);
       if (call) release(call);
-      if (life.current && allowed.current && (!call || !terminal(current.current) || !call.id)) setFailure(failureOf(error));
+      if (showFailure) setFailure(failureOf(error));
     } finally {
+      preparation.current = null;
       busy.current = false;
-      if (life.current) setPending(false);
+      finishPreparation();
     }
   }
 
+  function finishPreparation(): void {
+    if (life.current) setPending(false);
+  }
+
   async function end(decline = false): Promise<void> {
+    preparation.current?.abort();
     const call = selected.current;
     if (call) release(call);
     setPending(false);
@@ -269,7 +287,14 @@ export function useCalls(services: ConversationServices, driver?: CallDriver) {
       await intent({ kind: "SetCallMedia", callSessionId: next.callSessionId, mediaFlags: next.localMediaFlags ^ bit });
       if (!enabled && selected.current === call && allowed.current) call.transport.setEnabled(kind, true);
     } catch {
-      if (life.current) setFailure("connection");
+      if (selected.current === call) {
+        setFailure("connection");
+        if (enabled && driver) {
+          // The track is already disabled. If Core cannot commit that state, end the call without reopening capture.
+          release(call);
+          void driver.mediaState(ctx, next.callSessionId, "failed").catch(() => undefined);
+        }
+      }
     } finally {
       busy.current = false;
     }

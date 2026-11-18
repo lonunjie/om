@@ -1,7 +1,9 @@
 import { useId, type ReactNode } from "react";
 import type { CallNotice, CallReason, CallState, CallView as CoreCallView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
+import { Icon } from "../shell/primitives/icons";
 import { Text } from "../shell/primitives/Text";
+import { useReducedMotion } from "../shell/theme/useReducedMotion";
 import "./calls.css";
 
 export interface CallCopy {
@@ -21,6 +23,7 @@ export interface CallCopy {
   readonly cameraOn: string;
   readonly cameraOff: string;
   readonly dismiss: string;
+  readonly retry: string;
   readonly cancel: string;
   readonly preparing: string;
   readonly noDirect: string;
@@ -43,10 +46,12 @@ interface CallViewProps {
   readonly onEnd: (decline?: boolean) => void;
   readonly onToggle: (kind: "audio" | "video") => void;
   readonly onDismiss: () => void;
+  readonly onRetry?: (() => void) | undefined;
 }
 
-export function CallView({ copy, call, name, identity, pending, privacyAllowsDirect, error, media, cameraAvailable, onAnswer, onEnd, onToggle, onDismiss }: CallViewProps) {
+export function CallView({ copy, call, name, identity, pending, privacyAllowsDirect, error, media, cameraAvailable, onAnswer, onEnd, onToggle, onDismiss, onRetry }: CallViewProps) {
   const titleId = useId();
+  const reducedMotion = useReducedMotion();
   if (call === null && !pending && error === null) return null;
   const incoming = call?.state === "incoming";
   const ended = call?.state === "ended" || call?.state === "failed";
@@ -59,8 +64,13 @@ export function CallView({ copy, call, name, identity, pending, privacyAllowsDir
   return (
     <section className="om-call" aria-labelledby={titleId}>
       <div role="status" aria-live="polite" aria-atomic="true">
-        <Text as="h2" id={titleId} weight="bold">{title}</Text>
-        {identity === undefined ? null : <Text as="p" size="sm">{copy.identity(identity)}</Text>}
+        <Text as="h2" id={titleId} weight="bold" className="om-call__title">
+          {incoming ? <span className={pending || reducedMotion ? undefined : "om-call__pulse"}>
+            <Icon name={call.media === "video" ? "video" : "phone"} />
+          </span> : null}
+          <bdi>{title}</bdi>
+        </Text>
+        {identity === undefined ? null : <Text as="p" size="sm"><bdi>{copy.identity(identity)}</bdi></Text>}
         {incoming || call === null ? null : <Text as="p">{ended && call.reason ? copy.reason[call.reason] : copy.state[call.state]}</Text>}
         {pending ? <Text as="p">{copy.preparing}</Text> : null}
         {incoming && !privacyAllowsDirect && error === null ? <Text as="p">{copy.noDirect}</Text> : null}
@@ -73,12 +83,13 @@ export function CallView({ copy, call, name, identity, pending, privacyAllowsDir
           {privacyAllowsDirect && call.media === "video" ? <Button disabled={pending} onClick={() => { onAnswer("video"); }}>{copy.answerVideo}</Button> : null}
           <Button variant="quiet" onClick={() => { onEnd(true); }}>{copy.decline}</Button>
         </> : null}
-        {controls && call ? <>
-          <Button variant="quiet" onClick={() => { onToggle("audio"); }}>{muted ? copy.unmute : copy.mute}</Button>
-          {call.media === "video" && cameraAvailable ? <Button variant="quiet" onClick={() => { onToggle("video"); }}>{camera ? copy.cameraOff : copy.cameraOn}</Button> : null}
+        {controls ? <>
+          <Button variant="quiet" onClick={() => { onToggle("audio"); }}><Icon name="mic" />{muted ? copy.unmute : copy.mute}</Button>
+          {call.media === "video" && cameraAvailable ? <Button variant="quiet" onClick={() => { onToggle("video"); }}><Icon name="video" />{camera ? copy.cameraOff : copy.cameraOn}</Button> : null}
         </> : null}
         {call !== null && !incoming && !ended ? <Button variant="quiet" onClick={() => { onEnd(); }}>{copy.hangUp}</Button> : null}
         {call === null && pending ? <Button variant="quiet" onClick={() => { onEnd(); }}>{copy.cancel}</Button> : null}
+        {call?.state === "failed" && onRetry && privacyAllowsDirect ? <Button onClick={onRetry}>{copy.retry}</Button> : null}
         {ended || (call === null && !pending) ? <Button variant="quiet" onClick={onDismiss}>{copy.dismiss}</Button> : null}
       </div>
     </section>

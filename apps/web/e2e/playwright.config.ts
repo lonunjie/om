@@ -16,7 +16,7 @@ const SETUP_APP = "http://localhost:4179";
 const PROD_APP = "http://localhost:4181";
 // Opt-in (OM_LIVE_RELAY=1): the production build against the LIVE reference Home. Never part of the hermetic run.
 const live = process.env["OM_LIVE_RELAY"] === "1";
-const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
+const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--disable-features=WebRtcHideLocalIpsWithMdns", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
 const OTHER_ENGINE_IGNORE = /(calls|chromium|live-relay|live-invite)\.spec\.ts/;
 

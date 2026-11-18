@@ -80,8 +80,8 @@ async function importKey(kid: bigint, base: Bytes, usage: "encrypt" | "decrypt")
 
 function aead(key: Key, counter: bigint, header: Uint8Array, metadata: Uint8Array): AesGcmParams {
   const iv = key.salt.slice();
-  const bytes = uint64(counter);
-  for (let i = 0; i < bytes.length; i++) iv[i + 4] = iv[i + 4]! ^ bytes[i]!;
+  const nonce = new DataView(iv.buffer);
+  nonce.setBigUint64(4, nonce.getBigUint64(4) ^ counter);
   return { name: "AES-GCM", iv, additionalData: join(header, metadata), tagLength: 128 };
 }
 
@@ -92,6 +92,10 @@ export class SFrameSender {
   #key: Key | undefined;
   #closed = false;
 
+  #installing(kid: bigint): boolean {
+    return !this.#closed && this.#kid === kid;
+  }
+
   async install(kid: bigint, base: Bytes): Promise<void> {
     if (this.#closed || kid <= this.#kid || kid > MAX_UINT64) {
       base.fill(0);
@@ -101,7 +105,7 @@ export class SFrameSender {
     this.#key?.salt.fill(0);
     this.#key = undefined;
     const key = await importKey(kid, base, "encrypt");
-    if (this.#closed || this.#kid !== kid) {
+    if (!this.#installing(kid)) {
       key.salt.fill(0);
       return;
     }
@@ -154,6 +158,10 @@ export class SFrameReceiver {
   #deadline = 0;
   #closed = false;
 
+  #installing(kid: bigint): boolean {
+    return !this.#closed && this.#kid === kid;
+  }
+
   /** Only authenticated key delivery may install an epoch. The overlap is local and defaults to zero. */
   async install(kid: bigint, base: Bytes, overlapMs = 0): Promise<void> {
     if (this.#closed || kid <= this.#kid || kid > MAX_UINT64 ||
@@ -163,7 +171,7 @@ export class SFrameReceiver {
     }
     this.#kid = kid;
     const key = await importKey(kid, base, "decrypt");
-    if (this.#closed || this.#kid !== kid) {
+    if (!this.#installing(kid)) {
       key.salt.fill(0);
       return;
     }
@@ -171,7 +179,7 @@ export class SFrameReceiver {
     if (this.#current && overlapMs > 0) {
       this.#previous = this.#current;
       this.#deadline = performance.now() + overlapMs;
-      this.#expiry = setTimeout(() => this.#forgetPrevious(), overlapMs);
+      this.#expiry = setTimeout(() => { this.#forgetPrevious(); }, overlapMs);
     } else {
       this.#current?.key.salt.fill(0);
     }

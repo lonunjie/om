@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, CallView } from "@om/ui";
-import type { CallView as CoreCallView } from "@om/platform-api";
+import type { CallView as CoreCallView, ConversationSummary } from "@om/platform-api";
 import { callCopy as t } from "../copy/en";
 import type { useCalls } from "./useCalls";
 
@@ -31,6 +31,7 @@ function LiveMedia({ call, calls }: { readonly call: CoreCallView; readonly call
   const [needsPlay, setNeedsPlay] = useState(false);
   const [outputFailed, setOutputFailed] = useState(false);
   const remote = calls.remote;
+  const keepScreenOn = call.state === "active" && ((call.localMediaFlags | call.peerMediaFlags) & 2) !== 0;
   useEffect(() => {
     const player = element.current;
     if (remote === null || player === null) return;
@@ -39,6 +40,29 @@ function LiveMedia({ call, calls }: { readonly call: CoreCallView; readonly call
     player.play().then(() => { if (live) setNeedsPlay(false); }, () => { if (live) setNeedsPlay(true); });
     return () => { live = false; player.srcObject = null; };
   }, [remote]);
+
+  useEffect(() => {
+    const wakeLock = (navigator as { readonly wakeLock?: WakeLock }).wakeLock;
+    if (!keepScreenOn || !wakeLock) return;
+    let live = true;
+    let requesting = false;
+    let screen: WakeLockSentinel | undefined;
+    const hold = () => {
+      if (document.visibilityState !== "visible" || requesting || screen?.released === false) return;
+      requesting = true;
+      void wakeLock.request("screen").then((lock) => {
+        if (!live || document.visibilityState !== "visible") return lock.release();
+        screen = lock;
+      }).catch(() => undefined).finally(() => { requesting = false; });
+    };
+    hold();
+    document.addEventListener("visibilitychange", hold);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", hold);
+      void screen?.release().catch(() => undefined);
+    };
+  }, [keepScreenOn]);
 
   const hasSink = typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
   const video = call.media === "video" && (call.peerMediaFlags & 2) !== 0;
@@ -61,7 +85,12 @@ function LiveMedia({ call, calls }: { readonly call: CoreCallView; readonly call
   );
 }
 
-export function CallHost({ calls, name, identity }: { readonly calls: Calls; readonly name: string; readonly identity: string | undefined }) {
+export function CallHost({ calls, name, identity, contact }: {
+  readonly calls: Calls;
+  readonly name: string;
+  readonly identity: string | undefined;
+  readonly contact: ConversationSummary | undefined;
+}) {
   const call = calls.view;
   const live = call !== null && ["connecting", "active", "reconnecting"].includes(call.state);
   return <CallView
@@ -69,6 +98,7 @@ export function CallHost({ calls, name, identity }: { readonly calls: Calls; rea
     privacyAllowsDirect={calls.privacyAllowsDirect} cameraAvailable={calls.cameraAvailable}
     error={calls.failure === null ? null : t.errors[calls.failure]}
     media={live ? <LiveMedia key={call.callSessionId} call={call} calls={calls} /> : undefined}
+    onRetry={call?.outgoing && contact?.allowCalls !== undefined ? () => { calls.start(contact, call.media); } : undefined}
     onAnswer={calls.answer} onEnd={calls.end} onToggle={calls.toggle} onDismiss={calls.dismiss}
   />;
 }

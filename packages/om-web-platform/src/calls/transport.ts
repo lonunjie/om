@@ -1,4 +1,4 @@
-import type { SFrameInstall, SFrameWorkerFact } from "./sframe-worker";
+import type { SFrameInstall, SFrameMediaProbe, SFrameWorkerFact } from "./sframe-worker";
 
 export type CallMediaKind = "audio" | "video";
 export type CallMediaFact = "active" | "interrupted" | "failed";
@@ -17,14 +17,18 @@ export interface CallTransportEnvironment {
 }
 
 export function browserCallEnvironment(worker: () => Worker): CallTransportEnvironment {
+  const media = (navigator as { readonly mediaDevices?: MediaDevices }).mediaDevices;
+  const webCrypto = (globalThis as { readonly crypto?: Partial<Crypto> }).crypto;
   const supported = globalThis.isSecureContext && typeof RTCPeerConnection === "function" &&
+    typeof RTCRtpSender === "function" && typeof RTCRtpReceiver === "function" &&
     typeof RTCRtpScriptTransform === "function" && "transform" in RTCRtpSender.prototype &&
-    "transform" in RTCRtpReceiver.prototype && Boolean(globalThis.crypto?.subtle && navigator.mediaDevices?.getUserMedia);
+    "transform" in RTCRtpReceiver.prototype && typeof media?.getUserMedia === "function" &&
+    typeof webCrypto?.subtle?.encrypt === "function";
   return {
     stream: () => new MediaStream(),
     ...(supported ? {
       peer: (config: RTCConfiguration) => new RTCPeerConnection(config),
-      media: navigator.mediaDevices,
+      media,
       worker,
       transform: (script: Worker, direction: "send" | "receive") => new RTCRtpScriptTransform(script, { direction }),
     } : {}),
@@ -60,6 +64,7 @@ export class CallTransport {
   #timeout: ReturnType<typeof setTimeout> | undefined;
   #fact: CallMediaFact | undefined;
   #received = false;
+  #probe = 0;
   #keyed = false;
   #recovering = false;
   #inputs: Partial<Record<CallMediaKind, string>> = {};
@@ -70,10 +75,12 @@ export class CallTransport {
   }
 
   async #captureMedia(kind: CallMediaKind, device?: string): Promise<MediaStreamTrack[]> {
+    const media = this.#env.media;
+    if (!media) throw new CallTransportError("unsupported");
     const constraints = device === undefined ? true : { deviceId: { exact: device } };
     let stream: MediaStream;
     try {
-      stream = await this.#env.media!.getUserMedia(device === undefined
+      stream = await media.getUserMedia(device === undefined
         ? { audio: true, video: kind === "video" }
         : { audio: kind === "audio" && constraints, video: kind === "video" && constraints });
     } catch (error) {
@@ -82,7 +89,7 @@ export class CallTransport {
     }
     const tracks = stream.getTracks();
     if (this.#stop.signal.aborted) {
-      tracks.forEach((track) => track.stop());
+      tracks.forEach((track) => { track.stop(); });
       throw new CallTransportError("connection");
     }
     this.#capture.push(...tracks);
@@ -96,7 +103,7 @@ export class CallTransport {
     const script = worker();
     this.#worker = script;
     this.#workerReady = new Promise((resolve, reject) => {
-      const abort = () => reject(new CallTransportError("connection"));
+      const abort = () => { reject(new CallTransportError("connection")); };
       this.#stop.signal.addEventListener("abort", abort, { once: true });
       script.addEventListener("message", (event: MessageEvent<SFrameWorkerFact>) => {
         if (event.data === "ready") {
@@ -104,23 +111,29 @@ export class CallTransport {
           resolve();
         }
         if (event.data === "keyed") this.#keyed = true;
-        if (event.data === "received") this.#received = true;
+        if (typeof event.data === "object" && event.data.received === this.#probe) this.#received = true;
         if (event.data === "failed") this.#report("failed");
         else this.#updateState();
       });
-      script.addEventListener("error", () => this.#report("failed"));
-      script.addEventListener("messageerror", () => this.#report("failed"));
+      script.addEventListener("error", () => { this.#report("failed"); });
+      script.addEventListener("messageerror", () => { this.#report("failed"); });
     });
     // Observe an abort even if the caller is still waiting for media permission.
     void this.#workerReady.catch(() => undefined);
     // With no advertised Home media feature, accepted contacts get direct candidates only.
     const connection = peer({ iceServers: [], iceCandidatePoolSize: 0 });
     this.#connection = connection;
-    this.#remote = this.#env.stream();
-    connection.addEventListener("connectionstatechange", () => this.#updateState());
-    connection.addEventListener("track", ({ track }) => {
+    const remote = this.#env.stream();
+    this.#remote = remote;
+    connection.addEventListener("connectionstatechange", () => { this.#updateState(); });
+    connection.addEventListener("track", ({ track, transceiver }) => {
       if (this.#stop.signal.aborted) return;
-      const remote = this.#remote!;
+      try {
+        this.#attach(transceiver);
+      } catch {
+        this.#report("failed");
+        return;
+      }
       remote.addTrack(track);
       this.#facts.stream(remote);
     });
@@ -129,11 +142,18 @@ export class CallTransport {
 
   #attach(transceiver: RTCRtpTransceiver): void {
     if (this.#transformed.has(transceiver)) return;
-    const transform = this.#env.transform!;
-    const worker = this.#worker!;
+    const { transform } = this.#env;
+    const worker = this.#worker;
+    if (!transform || !worker) throw new CallTransportError("connection");
     transceiver.sender.transform = transform(worker, "send");
     transceiver.receiver.transform = transform(worker, "receive");
     this.#transformed.add(transceiver);
+  }
+
+  #peer(): RTCPeerConnection {
+    const connection = this.#connection;
+    if (!connection) throw new CallTransportError("connection");
+    return connection;
   }
 
   async offer(kind: CallMediaKind): Promise<readonly number[]> {
@@ -159,33 +179,38 @@ export class CallTransport {
   }
 
   async remoteAnswer(answer: readonly number[]): Promise<void> {
-    await this.#connection!.setRemoteDescription(description("answer", answer));
+    await this.#peer().setRemoteDescription(description("answer", answer));
     this.#watchConnection();
   }
 
   async restartOffer(): Promise<readonly number[]> {
+    const connection = this.#peer();
     this.#recovering = true;
     this.#report("interrupted");
     this.#watchConnection();
-    return this.#gather(await this.#connection!.createOffer({ iceRestart: true }));
+    return this.#gather(await connection.createOffer({ iceRestart: true }));
   }
 
   async restartAnswer(offer: readonly number[]): Promise<readonly number[]> {
+    const connection = this.#peer();
     this.#recovering = true;
     this.#report("interrupted");
-    await this.#connection!.setRemoteDescription(description("offer", offer));
+    await connection.setRemoteDescription(description("offer", offer));
+    for (const transceiver of connection.getTransceivers()) this.#attach(transceiver);
     this.#watchConnection();
-    return this.#gather(await this.#connection!.createAnswer());
+    return this.#gather(await connection.createAnswer());
   }
 
   async restartComplete(answer?: readonly number[]): Promise<void> {
-    if (answer !== undefined) await this.#connection!.setRemoteDescription(description("answer", answer));
+    const connection = this.#peer();
+    if (answer !== undefined) await connection.setRemoteDescription(description("answer", answer));
+    this.#probeMedia();
     this.#recovering = false;
     this.#updateState();
   }
 
   async #gather(local: RTCSessionDescriptionInit): Promise<readonly number[]> {
-    const connection = this.#connection!;
+    const connection = this.#peer();
     const signal = this.#stop.signal;
     await connection.setLocalDescription(local);
     if (connection.iceGatheringState !== "complete" && !signal.aborted) {
@@ -211,9 +236,11 @@ export class CallTransport {
 
   async install(keys: SFrameInstall): Promise<void> {
     try {
+      const ready = this.#workerReady;
+      if (!ready || this.#stop.signal.aborted) throw new CallTransportError("connection");
       this.#watchConnection();
-      await this.#workerReady;
-      if (!this.#worker || this.#stop.signal.aborted) throw new CallTransportError("connection");
+      await ready;
+      if (!this.#worker) throw new CallTransportError("connection");
       // Transfer ownership once. The worker clears the buffers after importing into WebCrypto.
       const buffers = [...new Set([keys.send.buffer, keys.receive.buffer])];
       this.#worker.postMessage(keys, buffers);
@@ -224,8 +251,14 @@ export class CallTransport {
   }
 
   #watchConnection(): void {
+    if (this.#stop.signal.aborted) return;
     clearTimeout(this.#timeout);
-    this.#timeout = setTimeout(() => this.#report("failed"), CONNECT_MS);
+    this.#timeout = setTimeout(() => { this.#report("failed"); }, CONNECT_MS);
+  }
+
+  #probeMedia(): void {
+    this.#received = false;
+    this.#worker?.postMessage({ probe: ++this.#probe } satisfies SFrameMediaProbe);
   }
 
   #updateState(): void {
@@ -234,7 +267,10 @@ export class CallTransport {
       clearTimeout(this.#timeout);
       this.#report("active");
     } else if (state === "disconnected" || state === "failed") {
-      if (this.#fact === "active") this.#watchConnection();
+      if (this.#fact === "active") {
+        this.#watchConnection();
+        this.#probeMedia();
+      }
       this.#report("interrupted");
     }
   }
@@ -279,12 +315,13 @@ export class CallTransport {
     clearTimeout(this.#timeout);
     this.#connection?.close();
     this.#worker?.terminate();
-    this.#capture.forEach((track) => track.stop());
-    this.#remote?.getTracks().forEach((track) => track.stop());
+    this.#capture.forEach((track) => { track.stop(); });
+    this.#remote?.getTracks().forEach((track) => { track.stop(); });
     this.#capture = [];
     this.#transformed.clear();
     this.#connection = undefined;
     this.#worker = undefined;
+    this.#workerReady = undefined;
     this.#remote = undefined;
   }
 }

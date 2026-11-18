@@ -6,7 +6,8 @@ export type SFrameInstall = {
   readonly receive: Uint8Array<ArrayBuffer>;
 };
 
-export type SFrameWorkerFact = "ready" | "keyed" | "received" | "failed";
+export type SFrameWorkerFact = "ready" | "keyed" | "failed" | { readonly received: number };
+export type SFrameMediaProbe = { readonly probe: number };
 
 interface EncodedFrame { data: ArrayBuffer }
 interface TransformEvent extends Event {
@@ -20,8 +21,10 @@ interface TransformEvent extends Event {
 const sender = new SFrameSender();
 const receiver = new SFrameReceiver();
 let keyed = false;
-let received = false;
+let probe = 0;
+let lastReportedProbe = -1;
 let failed = false;
+let installing = false;
 
 function fail(): void {
   if (failed) return;
@@ -32,14 +35,19 @@ function fail(): void {
   postMessage("failed" satisfies SFrameWorkerFact);
 }
 
-addEventListener("message", (event: MessageEvent<SFrameInstall>) => {
+addEventListener("message", (event: MessageEvent<SFrameMediaProbe | (Omit<SFrameInstall, "generation"> & { generation: number })>) => {
+  if ("probe" in event.data) {
+    probe = event.data.probe;
+    return;
+  }
   const { generation, send, receive } = event.data;
-  if (failed || generation !== 0 || send.length !== 32 || receive.length !== 32) {
+  if (failed || installing || generation !== 0 || send.length !== 32 || receive.length !== 32) {
     send.fill(0);
     receive.fill(0);
     fail();
     return;
   }
+  installing = true;
   void Promise.all([sender.install(0n, send), receiver.install(0n, receive)]).then(() => {
     if (failed) return;
     keyed = true;
@@ -52,14 +60,15 @@ addEventListener("rtctransform", (event) => {
   const transform = new TransformStream<EncodedFrame, EncodedFrame>({
     async transform(frame, controller) {
       if (!keyed) return;
+      const frameProbe = probe;
       const data = new Uint8Array(frame.data);
       const output = options.direction === "send" ? (await sender.seal(data))?.buffer : await receiver.open(data);
       if (output === undefined || failed) return;
       frame.data = output;
       controller.enqueue(frame);
-      if (options.direction === "receive" && !received) {
-        received = true;
-        postMessage("received" satisfies SFrameWorkerFact);
+      if (options.direction === "receive" && frameProbe === probe && lastReportedProbe !== probe) {
+        lastReportedProbe = probe;
+        postMessage({ received: probe } satisfies SFrameWorkerFact);
       }
     },
   });

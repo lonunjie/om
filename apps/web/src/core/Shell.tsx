@@ -333,9 +333,9 @@ export function Shell({ services, callDriver, groupsSetup, capture, devicesExtra
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
     const [command, ...words] = query.trim().toLowerCase().split(/\s+/);
     const kind = command === callCopy.commands.audio ? "audio" : command === callCopy.commands.video ? "video" : null;
-    if (calls && kind && words.length > 0 && list.status === "ready") {
+    if (calls && command !== undefined && kind && words.length > 0 && list.status === "ready") {
       return list.value.flatMap((contact) => {
-        const label = callCopy.commandLabel(command!, shownName(contact));
+        const label = callCopy.commandLabel(command, shownName(contact));
         const entry: OmniEntry = { id: `${command}-${contact.id}`, kind: "action", label, run: () => { calls.start(contact, kind); } };
         return contact.allowCalls !== undefined && scoreEntry(entry, query) !== null ? [entry] : [];
       });
@@ -367,7 +367,7 @@ export function Shell({ services, callDriver, groupsSetup, capture, devicesExtra
   const callContact = calls && list.status === "ready" ? list.value.find((row) => row.id === calls.view?.conversationId) : undefined;
   const hasCall = calls && (calls.view !== null || calls.pending || calls.failure !== null);
   const common = {
-    liveCall: hasCall ? <CallHost calls={calls} name={callContact ? shownName(callContact) : callCopy.unknownContact}
+    liveCall: hasCall ? <CallHost calls={calls} contact={callContact} name={callContact ? shownName(callContact) : callCopy.unknownContact}
       identity={profiles.length > 1 ? me?.label : undefined} /> : undefined,
     destinations: [{ id: "chats", label: t.chats, icon: <Icon name="chat" size={20} /> }], activeDestination: settings === null && !savingCode ? "chats" : "",
     onDestinationChange: () => { if (place.kind !== "chats" || place.chat !== null) toChatsRoot(); }, labels: shellLabels, profileControl,
@@ -555,7 +555,7 @@ export function Shell({ services, callDriver, groupsSetup, capture, devicesExtra
               callNotices={calls?.notices.some((notice) => notice.conversationId === selected) ? (
                 <ul aria-label={callCopy.missedSeveral} className="om-conv-view__timeline">
                   {calls.notices.filter((notice) => notice.conversationId === selected).map((notice, index) => (
-                    <CallTimelineNotice key={`${notice.callSessionId}-${index}`} notice={notice} copy={callCopy} />
+                    <CallTimelineNotice key={`${notice.callSessionId}-${String(index)}`} notice={notice} copy={callCopy} />
                   ))}
                 </ul>
               ) : undefined}

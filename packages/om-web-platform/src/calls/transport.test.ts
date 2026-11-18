@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 import { CallTransport, type CallTransportEnvironment } from "./transport";
 
 class Track {
@@ -55,7 +55,9 @@ class FakeConnection extends EventTarget {
   getSenders = () => this.transceivers.map(({ sender }) => sender);
 
   gathered(): void {
-    this.localDescription = { ...this.localDescription!, sdp: `${this.localDescription!.sdp} candidate` };
+    const local = this.localDescription;
+    assert(local?.sdp !== undefined, "gathering requires a local description");
+    this.localDescription = { ...local, sdp: `${local.sdp} candidate` };
     this.iceGatheringState = "complete";
     this.dispatchEvent(new Event("icegatheringstatechange"));
   }
@@ -69,7 +71,7 @@ class FakeConnection extends EventTarget {
 class FakeWorker extends EventTarget {
   postMessage = vi.fn();
   terminate = vi.fn();
-  send(data: string): void { this.dispatchEvent(new MessageEvent("message", { data })); }
+  send(data: string | { received: number }): void { this.dispatchEvent(new MessageEvent("message", { data })); }
 }
 
 function fixture(overrides: Partial<CallTransportEnvironment> = {}, supported = true) {
@@ -86,7 +88,7 @@ function fixture(overrides: Partial<CallTransportEnvironment> = {}, supported = 
   const transport = new CallTransport({
     peer: createPeer,
     worker: () => worker as unknown as Worker,
-    ...(supported ? { transform: (_worker: Worker, direction: "send" | "receive") => ({ direction }) as unknown as RTCRtpScriptTransform } : {}),
+    ...(supported ? { transform: (_worker: Worker, direction: "send" | "receive") => ({ direction }) } : {}),
     media: { getUserMedia, enumerateDevices: () => Promise.resolve([]) },
     stream: () => stream(),
     ...overrides,
@@ -124,7 +126,7 @@ describe("CallTransport", () => {
     f.connection.connected("connected");
     f.worker.send("keyed");
     expect(f.state).not.toHaveBeenCalled();
-    f.worker.send("received");
+    f.worker.send({ received: 0 });
     expect(f.state).toHaveBeenCalledWith("active");
     f.transport.close();
     expect(f.mic.stop).toHaveBeenCalledOnce();
@@ -151,6 +153,24 @@ describe("CallTransport", () => {
     expect(f.camera.stop).not.toHaveBeenCalled();
   });
 
+  it("bounds candidate gathering to three seconds", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    try {
+      const complete = vi.fn();
+      const offer = f.transport.offer("audio").then(complete);
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(f.connection.setLocalDescription).toHaveBeenCalledOnce();
+      expect(complete).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await offer;
+      expect(complete).toHaveBeenCalledWith(encode("offer"));
+    } finally {
+      f.transport.close();
+      vi.useRealTimers();
+    }
+  });
+
   it("uses the same transport and key installation across ICE restart", async () => {
     const f = fixture();
     const offer = f.transport.offer("audio");
@@ -161,7 +181,7 @@ describe("CallTransport", () => {
     f.worker.send("ready");
     await f.transport.install({ generation: 0, send: new Uint8Array(32), receive: new Uint8Array(32) });
     f.worker.send("keyed");
-    f.worker.send("received");
+    f.worker.send({ received: 0 });
     f.connection.connected("connected");
     const restart = f.transport.restartOffer();
     await vi.waitFor(() => { expect(f.connection.setLocalDescription).toHaveBeenCalledTimes(2); });
@@ -169,8 +189,12 @@ describe("CallTransport", () => {
     expect(await restart).toEqual(encode("restart candidate"));
     expect(f.connection.createOffer).toHaveBeenLastCalledWith({ iceRestart: true });
     await f.transport.restartComplete(encode("new answer"));
+    f.worker.send({ received: 0 });
+    expect(f.state.mock.calls).toEqual([["active"], ["interrupted"]]);
+    f.worker.send({ received: 1 });
     expect(f.state.mock.calls).toEqual([["active"], ["interrupted"], ["active"]]);
-    expect(f.worker.postMessage).toHaveBeenCalledOnce();
+    expect(f.worker.postMessage).toHaveBeenCalledTimes(2);
+    expect(f.worker.postMessage).toHaveBeenLastCalledWith({ probe: 1 });
     expect(f.createPeer).toHaveBeenCalledOnce();
     f.transport.close();
   });
@@ -197,5 +221,32 @@ describe("CallTransport", () => {
     f.transport.close();
     expect(f.worker.terminate).toHaveBeenCalledOnce();
     expect(f.connection.close).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed and clears unsent keys if the worker never becomes ready", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    try {
+      const offer = f.transport.offer("audio");
+      await vi.advanceTimersByTimeAsync(0);
+      f.connection.gathered();
+      await offer;
+      const send = new Uint8Array(32).fill(1);
+      const receive = new Uint8Array(32).fill(2);
+      const install = f.transport.install({ generation: 0, send, receive });
+      const refused = expect(install).rejects.toMatchObject({ reason: "connection" });
+      await vi.advanceTimersByTimeAsync(20_000);
+      await refused;
+      expect(f.worker.postMessage).not.toHaveBeenCalled();
+      expect(f.state.mock.calls).toEqual([["failed"]]);
+      expect(send).toEqual(new Uint8Array(32));
+      expect(receive).toEqual(new Uint8Array(32));
+      expect(f.mic.stop).toHaveBeenCalledOnce();
+      expect(f.worker.terminate).toHaveBeenCalledOnce();
+      expect(f.connection.close).toHaveBeenCalledOnce();
+    } finally {
+      f.transport.close();
+      vi.useRealTimers();
+    }
   });
 });
