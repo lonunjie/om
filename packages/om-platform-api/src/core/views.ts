@@ -47,6 +47,7 @@ export interface ConversationSummary {
   readonly relationship: RelationshipStateCode;
   /** Hex of the contact's account once bound; absent before that and for restored history. Two entries with the same account are one person. */
   readonly peerAccount?: string;
+  readonly relinkedFrom?: ConversationId;
   /** The recovery of this person's account this device is tracking (ADR-0190 section 4); absent when there is none. */
   readonly peerRecovery?: PeerRecoveryView;
 }
@@ -149,13 +150,22 @@ export interface ReplyView {
 }
 /** One reaction on a message: how many people have it set (at most two in a one-to-one chat) and whether one of them is you. */
 export interface ReactionView { readonly key: string; readonly count: number; readonly mine: boolean }
-interface TimelineExtras { readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
+interface TimelineExtras { readonly readOnly?: boolean; readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
 
 export type ConversationTimelineItem =
   | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)
   | ({ readonly direction: "incoming"; readonly messageId: MessageId; readonly text: string; readonly sentAt: number } & TimelineExtras);
 
 export interface ConversationView { readonly summary: ConversationSummary; readonly timeline: readonly ConversationTimelineItem[] }
+
+/** Advisory contact and progress of an explicitly started invitation after owner recovery. */
+export interface ReconnectContactView {
+  readonly accountId: string;
+  readonly label: string;
+  readonly inviteOperationId: OperationId | null;
+  readonly invite: InviteView | null;
+  readonly conversationId: ConversationId | null;
+}
 
 export interface PendingOperationView { readonly operationId: OperationId; readonly intentKind: CoreIntentKind; readonly outcome: OutcomeClass }
 

@@ -386,9 +386,12 @@ fn delivery_code(d: &DeliveryState) -> u8 {
 pub fn collect(app: &AppState, exported_at_ms: u64) -> Result<HistoryArchive, BackupError> {
     let mut chats: Vec<ArchivedChat> = vec![];
     for r in app.relationships.values() {
-        let messages: Vec<ArchivedMsg> = r
-            .messages
-            .iter()
+        let messages: Vec<ArchivedMsg> = app
+            .relationship_history
+            .get(&r.id)
+            .into_iter()
+            .flatten()
+            .chain(r.messages.iter())
             .filter(|m| !m.deleted && !m.lane)
             .map(|m| ArchivedMsg {
                 id: m.id.clone(),

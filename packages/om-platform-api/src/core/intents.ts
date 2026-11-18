@@ -75,6 +75,7 @@ export interface ConfirmRecoveryKeyStored extends IntentBase { readonly kind: "C
 /** Asks Core for a confirmation nonce bound to a destructive intent `intentKind` and its `target` (see `confirmationTarget`). */
 export interface IssueConfirmation extends IntentBase { readonly kind: "IssueConfirmation"; readonly intentKind: DestructiveIntentKind; readonly target: string }
 export interface CreateInvite extends IntentBase { readonly kind: "CreateInvite" }
+export interface ReconnectContact extends IntentBase { readonly kind: "ReconnectContact"; readonly accountId: string }
 export interface AcceptInvitation extends IntentBase { readonly kind: "AcceptInvitation"; readonly link: string }
 
 // Device linking (NoSilentLink): the new device offers, the existing device opens the offer, sees who is asking and the
@@ -132,7 +133,7 @@ export type CoreIntent =
   | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
-  | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
+  | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | ReconnectContact | AcceptInvitation
   | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | SetContactNickname | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery | RequestRecovery | CancelRecovery | CheckRecoveryAgain | OfferRecoveryApproval | JoinRecoveryApproval | ReplaceRecoveryKey;
 
 export type CoreIntentKind = CoreIntent["kind"];
@@ -141,7 +142,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
-  "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",
+  "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "ReconnectContact", "AcceptInvitation",
   "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "SetContactNickname", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery", "RequestRecovery", "CancelRecovery", "CheckRecoveryAgain", "OfferRecoveryApproval", "JoinRecoveryApproval", "ReplaceRecoveryKey",
 ];
 

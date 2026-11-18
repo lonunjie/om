@@ -398,6 +398,14 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (k === null) return null;
     return { intent: (ctx, op) => ({ kind: "ConfirmRecoveryKeyStored", ctx, operationId: op, keyOperationId: asOperationId(k) }) };
   } },
+  "reconnect-contact": {
+    destructive: false,
+    parse: (p) => {
+      const accountId = p.accountId;
+      if (!exactly(p, ["accountId"]) || typeof accountId !== "string" || !/^[0-9a-f]{64}$/.test(accountId)) return null;
+      return { intent: (ctx, op) => ({ kind: "ReconnectContact", ctx, operationId: op, accountId }) };
+    },
+  },
   "create-invite": { destructive: false, parse: () => ({ intent: (ctx, op) => ({ kind: "CreateInvite", ctx, operationId: op }) }) },
   "accept-invitation": { destructive: false, parse: (p) => {
     const link = p["link"];

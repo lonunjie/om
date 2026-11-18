@@ -946,6 +946,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         st.relationships
             .values()
             .flat_map(|r| r.messages.iter())
+            .chain(st.relationship_history.values().flatten())
             .find(|m| m.id == message_id && !m.deleted)
             .and_then(|m| m.attachments.get(index))
             .and_then(crate::flows::rec_ref)
@@ -2082,6 +2083,46 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 let st = &self.slot(ctx)?.state;
                 match q {
                     Query::GetConversationList { .. } => Ok(to(&conversation_list(st))),
+                    Query::GetRelationshipRestore { .. } => {
+                        let now = self.clock.now_ms();
+                        let contacts: Vec<_> = st
+                            .app
+                            .relationship_restore
+                            .iter()
+                            .flat_map(|r| &r.candidates)
+                            .map(|(account, c)| {
+                                let invite = st.app.reconnect_invite(c, now);
+                                ReconnectContactView {
+                                    account_id: account.clone(),
+                                    label: c.label.clone(),
+                                    invite_operation_id: invite.map(|i| i.operation_id.clone()),
+                                    invite: invite
+                                        .filter(|i| {
+                                            !i.used
+                                                && st.app.ops.get(&i.operation_id).is_some_and(
+                                                    |op| op.outcome == OutcomeClass::Committed,
+                                                )
+                                        })
+                                        .map(|i| InviteView {
+                                            operation_id: i.operation_id.clone(),
+                                            link: i.link.clone(),
+                                            expires_at: i.expires_at,
+                                        }),
+                                    conversation_id: st
+                                        .app
+                                        .relationships
+                                        .values()
+                                        .find(|r| {
+                                            r.peer_account_id == *account
+                                                && r.state == RelState::Active
+                                                && !r.blocked
+                                        })
+                                        .map(|r| r.id.clone()),
+                                }
+                            })
+                            .collect();
+                        Ok(to(&contacts))
+                    }
                     Query::PlanAttachment { size, .. } => Ok(to(&self.plan_attachment(*size))),
                     Query::GetDirectOffers { .. } => Ok(to(&self.direct_offer_views(ctx, st))),
                     Query::GetConversationView {
@@ -2092,7 +2133,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         {
                             return Ok(to(&ConversationView {
                                 summary: restored_summary(r),
-                                timeline: r.messages.iter().map(restored_item).collect(),
+                                timeline: r
+                                    .messages
+                                    .iter()
+                                    .map(|m| restored_item(m, false))
+                                    .collect(),
                             }));
                         }
                         let rel = st
@@ -2102,16 +2147,40 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .ok_or(CoreError::NotFound("conversation"))?;
                         Ok(to(&ConversationView {
                             summary: summary(rel, &st.app),
-                            timeline: rel
-                                .messages
-                                .iter()
-                                .filter(|m| !m.deleted && !m.lane)
-                                .map(|m| {
-                                    self.overlay_transfers(
-                                        ctx,
-                                        timeline_item(m, &rel.messages, &st.app.direct_offers),
-                                    )
-                                })
+                            timeline: st
+                                .app
+                                .relationship_backup(rel)
+                                .into_iter()
+                                .flat_map(|r| r.messages.iter().map(|m| restored_item(m, true)))
+                                .chain(
+                                    st.app
+                                        .relationship_history
+                                        .get(conversation_id)
+                                        .into_iter()
+                                        .flat_map(|history| {
+                                            history.iter().filter(|m| !m.deleted).map(|m| {
+                                                timeline_item(
+                                                    m,
+                                                    history,
+                                                    &st.app.direct_offers,
+                                                    true,
+                                                )
+                                            })
+                                        }),
+                                )
+                                .chain(rel.messages.iter().filter(|m| !m.deleted && !m.lane).map(
+                                    |m| {
+                                        self.overlay_transfers(
+                                            ctx,
+                                            timeline_item(
+                                                m,
+                                                &rel.messages,
+                                                &st.app.direct_offers,
+                                                false,
+                                            ),
+                                        )
+                                    },
+                                ))
                                 .collect(),
                         }))
                     }
@@ -2265,9 +2334,26 @@ fn summary(r: &Relationship, app: &AppState) -> ConversationSummary {
         display_name: r.display_name.clone(),
         nickname: r.nickname.clone(),
         peer_account: (!r.peer_account_id.is_empty()).then(|| r.peer_account_id.clone()),
-        last_message_at: r.messages.iter().rev().find(|m| !m.lane).map(|m| m.sent_at),
+        last_message_at: r
+            .messages
+            .iter()
+            .rev()
+            .find(|m| !m.lane)
+            .map(|m| m.sent_at)
+            .or_else(|| {
+                app.relationship_history
+                    .get(&r.id)
+                    .and_then(|history| history.iter().rev().find(|m| !m.deleted))
+                    .map(|m| m.sent_at)
+            })
+            .or_else(|| {
+                app.relationship_backup(r)
+                    .and_then(|backup| backup.messages.last())
+                    .map(|m| m.sent_at)
+            }),
         notices,
         peer_recovery: peer_recovery_view(r, app),
+        relinked_from: r.relinked_from.clone(),
         relationship: match r.state {
             RelState::AwaitingAcceptance => RelationshipStateCode::AwaitingAcceptance,
             RelState::AcceptedUnbound => RelationshipStateCode::AcceptedUnbound,
@@ -2332,7 +2418,12 @@ fn reply_view(m: &Msg, all: &[Msg]) -> Option<ReplyView> {
     )
 }
 
-fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineItem {
+fn timeline_item(
+    m: &Msg,
+    all: &[Msg],
+    offers: &BTreeMap<Hex, DirectOfferRec>,
+    read_only: bool,
+) -> TimelineItem {
     let reply = reply_view(m, all);
     let reactions = crate::flows::reaction_views(m);
     let edited = m.social.edited;
@@ -2348,6 +2439,7 @@ fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -
             reply,
             reactions,
             edited,
+            read_only,
         },
         // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
         (None, true) => TimelineItem::Outgoing {
@@ -2361,6 +2453,7 @@ fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -
             reply,
             reactions,
             edited,
+            read_only,
         },
         _ => TimelineItem::Incoming {
             message_id: m.id.clone(),
@@ -2371,6 +2464,7 @@ fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -
             reply,
             reactions,
             edited,
+            read_only,
         },
     }
 }
@@ -2385,16 +2479,22 @@ fn restored_summary(r: &RestoredChat) -> ConversationSummary {
         notices: vec![],
         peer_account: None,
         peer_recovery: None,
+        relinked_from: None,
         relationship: RelationshipStateCode::Restored,
     }
 }
 
 /// A restored message has no operation behind it. Outgoing ones keep their old state as far as it is still true: an
 /// attempt that never left the old device is shown as not sent, since nothing will ever retry it.
-fn restored_item(m: &RestoredMsg) -> TimelineItem {
+fn restored_item(m: &RestoredMsg, in_live_thread: bool) -> TimelineItem {
+    let message_id = if in_live_thread {
+        format!("restored:{}", m.id)
+    } else {
+        m.id.clone()
+    };
     if m.outgoing {
         TimelineItem::Outgoing {
-            message_id: m.id.clone(),
+            message_id,
             operation_id: format!("restored:{}", m.id),
             text: m.text.clone(),
             sent_at: m.sent_at,
@@ -2410,10 +2510,11 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
             reply: None,
             reactions: vec![],
             edited: false,
+            read_only: true,
         }
     } else {
         TimelineItem::Incoming {
-            message_id: m.id.clone(),
+            message_id,
             text: m.text.clone(),
             sent_at: m.sent_at,
             attachments: vec![],
@@ -2421,6 +2522,7 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
             reply: None,
             reactions: vec![],
             edited: false,
+            read_only: true,
         }
     }
 }
@@ -2432,22 +2534,23 @@ fn conversation_list(st: &ProfileState) -> Vec<ConversationSummary> {
         .relationships
         .values()
         .map(|r| {
-            (
-                r.messages
-                    .iter()
-                    .rev()
-                    .find(|m| !m.lane)
-                    .map(|m| m.sent_at)
-                    .unwrap_or(r.created_at),
-                summary(r, &st.app),
-            )
+            let view = summary(r, &st.app);
+            (view.last_message_at.unwrap_or(r.created_at), view)
         })
+        .collect();
+    let attached_backups: std::collections::BTreeSet<_> = st
+        .app
+        .relationships
+        .values()
+        .filter_map(|r| st.app.relationship_backup(r).map(|old| &old.id))
         .collect();
     v.extend(
         st.app
             .restored
             .values()
-            .filter(|r| !st.app.relationships.contains_key(&r.id))
+            .filter(|r| {
+                !st.app.relationships.contains_key(&r.id) && !attached_backups.contains(&r.id)
+            })
             .map(|r| {
                 (
                     r.messages.last().map(|m| m.sent_at).unwrap_or(r.created_at),

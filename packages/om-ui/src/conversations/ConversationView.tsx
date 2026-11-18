@@ -198,7 +198,8 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
           <ol className="om-conv-view__timeline">
             {view.timeline.map((item, i) => {
               const outgoing = item.direction === "outgoing";
-              const delivery = item.direction === "outgoing" ? deliveryOf(item.delivery, ops.get(item.operationId)) : null;
+              const editable = item.readOnly !== true && view.summary.relationship === "active";
+              const delivery = item.direction === "outgoing" ? deliveryOf(item.delivery, item.readOnly === true ? undefined : ops.get(item.operationId)) : null;
               const prev = view.timeline[i - 1];
               const next = view.timeline[i + 1];
               const joinsPrev = prev !== undefined && prev.direction === item.direction && item.sentAt - prev.sentAt < RUN_GAP_MS;
@@ -211,25 +212,25 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                   <div className="om-conv-view__row">
                   <div className="om-conv-view__bubble" data-state={delivery?.kind}>
                     {item.reply === undefined ? null : <Quote reply={item.reply} name={shownName(view.summary)} copy={copy.reply} onJump={jumpTo} />}
-                    {editing?.id === item.messageId ? (
+                    {editable && editing?.id === item.messageId ? (
                       <EditForm copy={copy.change} text={editing.text} onChange={(next) => { setEditing({ id: item.messageId, text: next }); }} onSave={() => { change("edit-message", item.messageId, editing.text, copy.change.editFailed); }} onCancel={() => { setEditing(null); }} />
                     ) : <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />}
                     <MessageAttachments services={services} item={item} copy={copy.attachments} />
                   </div>
-                  {view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
+                  {!editable || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
                     <ReactionControl
                       copy={copy.react} gist={messageGist(item, copy)} open={picking === item.messageId}
                       onToggle={() => { setPicking((p) => (p === item.messageId ? null : item.messageId)); }} onClose={() => { setPicking(null); }}
                       onPick={(key, present) => { react(item.messageId, key, present); }} isMine={(key) => item.reactions?.some((r) => r.key === key && r.mine) ?? false}
                     />
                   )}
-                  {outgoing && view.summary.relationship === "active" && (delivery?.kind === "sent" || delivery?.kind === "delivered") ? (
+                  {outgoing && editable && (delivery?.kind === "sent" || delivery?.kind === "delivered") ? (
                     <>
                       {item.presentation?.locationCard === undefined ? <IconButton className="om-conv-view__reply" label={`${copy.change.edit}: ${messageGist(item, copy)}`} icon={<Icon name="edit" size={18} />} onClick={() => { setDeleting(null); setEditing({ id: item.messageId, text: item.text }); }} /> : null}
                       <IconButton className="om-conv-view__reply" label={`${copy.change.delete}: ${messageGist(item, copy)}`} icon={<Icon name="trash" size={18} />} onClick={() => { setEditing(null); setDeleting(item.messageId); }} />
                     </>
                   ) : null}
-                  {onReply === undefined || view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
+                  {onReply === undefined || !editable || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
                     <IconButton
                       className="om-conv-view__reply" label={`${copy.reply.action}: ${messageGist(item, copy)}`} icon={<Icon name="reply" size={18} />}
                       aria-pressed={replyingTo === item.messageId}
@@ -237,14 +238,14 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                     />
                   )}
                   </div>
-                  {deleting === item.messageId ? <DeleteConfirm copy={copy.change} onConfirm={() => { change("delete-message", item.messageId, null, copy.change.deleteFailed); }} onCancel={() => { setDeleting(null); }} /> : null}
-                  <ReactionChips copy={copy.react} reactions={item.reactions ?? []} onPick={(key, present) => { react(item.messageId, key, present); }} />
+                  {editable && deleting === item.messageId ? <DeleteConfirm copy={copy.change} onConfirm={() => { change("delete-message", item.messageId, null, copy.change.deleteFailed); }} onCancel={() => { setDeleting(null); }} /> : null}
+                  <ReactionChips copy={copy.react} reactions={item.reactions ?? []} {...(editable ? { onPick: (key, present) => { react(item.messageId, key, present); } } : {})} />
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">
                       <time dateTime={new Date(item.sentAt).toISOString()}>{copy.view.formatTime(item.sentAt)}</time>
                       {item.edited === true ? <span className="om-conv-view__edited">{copy.change.edited}</span> : null}
                       {delivery ? <DeliveryIndicator delivery={delivery} copy={copy.delivery} /> : null}
-                      {delivery?.kind === "rejected" && view.summary.relationship !== "restored" && RETRYABLE_REASONS.has(delivery.reason)
+                      {delivery?.kind === "rejected" && item.readOnly !== true && view.summary.relationship !== "restored" && RETRYABLE_REASONS.has(delivery.reason)
                         ? <Button variant="quiet" disabled={retrying.current.has(item.messageId)} onClick={() => { retry(item.messageId); }}>{copy.view.retry}</Button>
                         : null}
                     </span>

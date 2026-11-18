@@ -3,12 +3,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asOperationId, asProfileId } from "@om/platform-api";
+import { asConversationId, asOperationId, asProfileId, type ReconnectContactView } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testApproveCopy, testLostCopy } from "../devices/__fixtures__/copy";
 import type { SettingsServices } from "../devices/operation";
-import { ApproveRecovery, LostDevices } from "./index";
+import { ApproveRecovery, LostDevices, ReconnectContacts, type ReconnectCopy } from "./index";
 
 afterEach(cleanup);
 const axeViolations = async (el: Element): Promise<string[]> => {
@@ -51,6 +51,52 @@ describe("I lost my devices", () => {
     const { container } = render(<ApproveRecovery services={services} copy={testApproveCopy} onClose={onClose} />);
     expect(await screen.findByRole("heading", { name: testApproveCopy.heading })).toBeTruthy();
     expect(screen.queryByRole("button", { name: testApproveCopy.confirm })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe("Reconnect after owner recovery", () => {
+  it("starts only the selected contact and shows waiting separately from a live chat", async () => {
+    const { services } = setup();
+    const dispatch = vi.spyOn(services.client, "dispatch");
+    const onOpen = vi.fn();
+    const copyText = vi.fn<(text: string) => Promise<boolean>>().mockResolvedValue(true);
+    const copy: ReconnectCopy = {
+      heading: "Reconnect with your contacts",
+      reconnect: (name) => `Reconnect with ${name}`,
+      link: (name) => `Invitation link for ${name}`,
+      share: "Send this link to the person.",
+      copyLink: "Copy link",
+      copied: "Link copied",
+      copyFailed: "Couldn’t copy the link.",
+      waiting: "Waiting to reconnect",
+      ready: "Ready to chat",
+      open: (name) => `Open chat with ${name}`,
+      outcome: testLostCopy.outcome,
+    };
+    const bob: ReconnectContactView = { accountId: "ab".repeat(32), label: "Bob", inviteOperationId: null, invite: null, conversationId: null };
+    const other: ReconnectContactView = { ...bob, accountId: "cd".repeat(32), label: "Other" };
+    const show = (contact: ReconnectContactView) => <ReconnectContacts services={services} copy={copy} contacts={[contact, other]} inviteLink={(link) => link} copyText={copyText} onOpen={onOpen} />;
+    const { rerender, container } = render(show(bob));
+    expect(dispatch).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Reconnect with Bob" }));
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ kind: "ReconnectContact", accountId: bob.accountId }));
+
+    const op = asOperationId("pending");
+    rerender(show({ ...bob, inviteOperationId: op, invite: { operationId: op, expiresAt: 99_000, link: "om:invite/example" } }));
+    expect(screen.getByRole("textbox", { name: "Invitation link for Bob" })).toHaveProperty("readOnly", true);
+    await userEvent.click(screen.getByRole("button", { name: copy.copyLink }));
+    expect(copyText).toHaveBeenCalledWith("om:invite/example");
+    expect(await screen.findByText(copy.copied)).toBeTruthy();
+    expect(screen.getByText(copy.waiting)).toBeTruthy();
+    expect(screen.queryByText(copy.ready)).toBeNull();
+
+    const conversationId = asConversationId("bob-chat");
+    rerender(show({ ...bob, conversationId }));
+    expect(screen.queryByText(copy.waiting)).toBeNull();
+    expect(screen.getByText(copy.ready)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Open chat with Bob" }));
+    expect(onOpen).toHaveBeenCalledWith(conversationId);
     expect(await axeViolations(container)).toEqual([]);
   });
 });

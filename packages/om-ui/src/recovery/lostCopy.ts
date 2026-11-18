@@ -64,3 +64,17 @@ export interface ApproveRecoveryCopy {
   readonly state: Readonly<Record<"waiting_for_device" | "awaiting_confirmation" | "approved" | "declined" | "failed" | "expired", string>>;
   readonly outcome: OutcomeCopy;
 }
+
+export interface ReconnectCopy {
+  readonly heading: string;
+  readonly reconnect: (name: string) => string;
+  readonly link: (name: string) => string;
+  readonly share: string;
+  readonly copyLink: string;
+  readonly copied: string;
+  readonly copyFailed: string;
+  readonly waiting: string;
+  readonly ready: string;
+  readonly open: (name: string) => string;
+  readonly outcome: OutcomeCopy;
+}

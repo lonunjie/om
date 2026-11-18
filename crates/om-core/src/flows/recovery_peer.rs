@@ -232,6 +232,208 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .collect()
     }
 
+    /// A known account keeps its contact-local verification across a fresh invitation.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn check_reconnect_binding(
+        &mut self,
+        fresh: &mut Relationship,
+        head: &Acs,
+        chain: &[Vec<u8>],
+        creds: &[Vec<u8>],
+        dossier: Option<&V>,
+        wrapper: &[u8],
+    ) -> bool {
+        if fresh
+            .reconnect_account
+            .as_ref()
+            .is_some_and(|account| *account != fresh.peer_account_id)
+        {
+            return false;
+        }
+        let Some(old) = self
+            .st
+            .app
+            .relationships
+            .values()
+            .find(|r| {
+                r.id != fresh.id
+                    && r.state == RelState::Active
+                    && r.peer_account_id == fresh.peer_account_id
+            })
+            .cloned()
+        else {
+            return true;
+        };
+        if old.blocked {
+            return false;
+        }
+        let Some((pinned, _)) = self.peer_pinned(&old.id) else {
+            return false;
+        };
+        let Some(states) = chain_states(chain) else {
+            return false;
+        };
+        let Some(at) = states.iter().position(|s| s.hash() == pinned.hash()) else {
+            return false; // stale or unrelated to the trusted head
+        };
+        let Some(plan) = Self::peer_plan(&old, &chain[at + 1..], creds) else {
+            return false;
+        };
+        if plan.head.hash() != head.hash() {
+            // Verify and observe the recovery against the original pin. The new invitation cannot credit its timer.
+            let Some(dossier) = dossier else { return false };
+            let _ = self.peer_commit(&old.id, plan);
+            self.observe_dossier(&old.id, &V::M(vec![(5, dossier.clone())]), chain, creds);
+            if self
+                .st
+                .app
+                .relationships
+                .get(&old.id)
+                .is_some_and(|r| r.peer_recovery.iter().any(PeerRecoveryRec::is_live))
+                && let Some(r) = self.st.app.relationships.get_mut(&fresh.id)
+                && r.recovery_bind.is_none()
+            {
+                r.recovery_bind = Some(RecoveryBinding {
+                    account_id: fresh.peer_account_id.clone(),
+                    bytes: hex(wrapper),
+                });
+            }
+            return false;
+        }
+        let accepted_target = old.peer_recovery.iter().rev().any(|r| {
+            r.state == PeerRecoveryState::Accepted
+                && r.obs
+                    .successor
+                    .as_ref()
+                    .and_then(|s| unhex(&s.credential).ok())
+                    .and_then(|b| Credential::from_body(&b).ok())
+                    .is_some_and(|c| hex(&c.device_id) == fresh.peer_device_id)
+        });
+        if accepted_target && old.peer_device_id != fresh.peer_device_id {
+            fresh.relink = Some(RelationshipRelink {
+                conversation_id: old.id,
+                previous_head: hex(&pinned.hash()),
+            });
+        }
+        true
+    }
+
+    pub(super) fn restore_contact(&self, account: &str) -> bool {
+        self.st
+            .app
+            .relationship_restore
+            .as_ref()
+            .is_some_and(|r| r.candidates.contains_key(account))
+    }
+
+    pub(super) fn relink_is_current(&self, fresh: &Relationship) -> bool {
+        let Some(original) = &fresh.relink else {
+            return true;
+        };
+        self.st.app.relationships.get(&original.conversation_id).is_some_and(|old| {
+            !old.blocked && old.peer_account_id == fresh.peer_account_id
+                && old.peer_device_id != fresh.peer_device_id
+                && matches!(
+                    (Acs::from_body(&hb(&old.peer_acs_body).unwrap_or_default()),
+                    Acs::from_body(&hb(&fresh.peer_acs_body).unwrap_or_default())),
+                    (Ok(old), Ok(new)) if hex(&old.hash()) == original.previous_head || old.hash() == new.hash()
+                )
+        })
+    }
+
+    /// After the normal handshake, use the original local thread with the new relationship's wire identity,
+    /// mailbox and session. Old events stay outside the live reducer and old envelopes never follow the thread.
+    pub(super) fn relink_ready(&mut self, conv: &str) {
+        let Some(target) = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .filter(|r| r.state == RelState::Active)
+            .and_then(|r| r.relink.as_ref().map(|l| l.conversation_id.clone()))
+        else {
+            return;
+        };
+        let Some(old) = self.st.app.relationships.remove(&target) else {
+            return;
+        };
+        let Some(mut fresh) = self.st.app.relationships.remove(conv) else {
+            self.st.app.relationships.insert(target, old);
+            return;
+        };
+        fresh.id = target.clone();
+        fresh.person_id = old.person_id;
+        fresh.nickname = old.nickname;
+        fresh.created_at = old.created_at;
+        fresh.blocked = old.blocked;
+        fresh.peer_links = old.peer_links;
+        fresh.peer_recovery = old.peer_recovery;
+        fresh.relink = None;
+        fresh.relinked_from = Some(conv.into());
+        self.st.app.outbox.retain_mut(|e| {
+            if let Some(c) = e.purpose.conversation_mut() {
+                if *c == target {
+                    return false;
+                }
+                if *c == conv {
+                    *c = target.clone();
+                }
+            }
+            if let Some(f) = &mut e.failover
+                && f.conversation_id == conv
+            {
+                f.conversation_id = target.clone();
+            }
+            true
+        });
+        for offer in self
+            .st
+            .app
+            .direct_offers
+            .values_mut()
+            .filter(|o| o.conversation_id == target)
+        {
+            if offer.status.is_live() {
+                offer.status = DirectStatus::Withdrawn;
+            }
+        }
+        let mut history = Vec::new();
+        for mut message in old.messages {
+            if message.lane {
+                continue;
+            }
+            message.envelope = None;
+            message.queued_event = None;
+            message.fan.clear();
+            if matches!(
+                message.delivery,
+                DeliveryState::PendingNetwork
+                    | DeliveryState::PendingReconciliation
+                    | DeliveryState::WaitingForPeerRecovery
+            ) {
+                message.delivery = DeliveryState::Rejected {
+                    reason: RejectReason::StaleState,
+                };
+                if let Some(op) = &message.operation_id {
+                    self.set_outcome(
+                        op,
+                        OutcomeClass::Rejected {
+                            reason: RejectReason::StaleState,
+                        },
+                    );
+                }
+            }
+            history.push(message);
+        }
+        self.st
+            .app
+            .relationship_history
+            .entry(target.clone())
+            .or_default()
+            .extend(history);
+        self.st.app.relationships.insert(target, fresh);
+    }
+
     // ------------------------------------------------------------------------------------------ sender (3.1)
 
     /// The recovering device pushes a `RecoveryNotice` to every active contact over the existing sealed 1:1 deposit
@@ -839,6 +1041,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         self.retry_held(conv);
         self.settle_peer_outgoing(conv, true);
+        let pending: Vec<_> = self
+            .st
+            .app
+            .relationships
+            .iter_mut()
+            .filter(|(_, r)| {
+                r.recovery_bind
+                    .as_ref()
+                    .is_some_and(|b| b.account_id == hex(&account))
+            })
+            .filter_map(|(id, r)| r.recovery_bind.take().map(|b| (id.clone(), b)))
+            .collect();
+        for (id, held) in pending {
+            if let Ok(wrapper) = unhex(&held.bytes) {
+                self.on_session_envelope(&id, &wrapper);
+            }
+        }
     }
 
     /// What happens to the texts written while a contact's recovery was pending, once no recovery of theirs is pending

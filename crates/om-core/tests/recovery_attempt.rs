@@ -678,3 +678,385 @@ fn a_veto_from_the_surviving_controller_reaches_the_owner_through_the_home_and_e
     f.tick(&mono(1, DELAY_MS));
     assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Vetoed));
 }
+
+fn recovered_with_contact(peer_ready: bool) -> (World, Fresh, String) {
+    let mut w = world();
+    let list: Vec<ConversationSummary> = w
+        .alice
+        .query(Query::GetConversationList { ctx: w.a.clone() });
+    let canonical =
+        w.alice.core.debug_app_state(&w.a).unwrap()["relationships"][&list[0].id]["canonId"]
+            .as_str()
+            .expect("the conversation was bound")
+            .to_string();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    assert_eq!(
+        f.go("req", IntentBody::RequestRecovery),
+        Some(OutcomeClass::Committed)
+    );
+    settle_all(&mut [(&mut w.bob, &w.b)]);
+    f.tick(&mono(1, 0));
+    w.bob.recovery_tick(&w.b, &mono(1, 0));
+    f.tick(&mono(1, DELAY_MS + 5));
+    assert!(f.view().is_none(), "account recovery finished");
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    if peer_ready {
+        w.bob.recovery_tick(&w.b, &mono(1, DELAY_MS + 5));
+    }
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    (w, f, canonical)
+}
+
+#[test]
+fn relationship_restore_probe_older_snapshot_stays_outdated_after_restart() {
+    let w = world();
+    let (_, older) = w.net.recovery_record(&w.keys.locator).unwrap();
+    replace_record(&w, |record| record.generation += 1);
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    assert_eq!(f.view().unwrap().stage, JoinStage::Found);
+    let floor = f.app()["recoveryFloors"].clone();
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    w.net.recovery_replace(&w.keys.locator, older);
+    assert_eq!(
+        f.go("recheck", IntentBody::CheckRecoveryAgain),
+        Some(OutcomeClass::Committed)
+    );
+    assert_eq!(f.view().unwrap().stage, JoinStage::OutOfDate);
+    assert_eq!(f.app()["recoveryFloors"], floor);
+    assert_eq!(
+        f.go("request", IntentBody::RequestRecovery),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::StaleState
+        })
+    );
+}
+
+#[test]
+fn relationship_restore_probe_replays_the_same_notice_once_after_contact_restart() {
+    use om_core::host::{NetCall, NetResult};
+
+    let mut w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    let first_deposit = w.net.deposit_log().len();
+    assert_eq!(
+        f.go("req", IntentBody::RequestRecovery),
+        Some(OutcomeClass::Committed)
+    );
+    let log = w.net.deposit_log();
+    let [(mailbox, wrapped)] = &log[first_deposit..] else {
+        panic!("expected the initial contact notice");
+    };
+    settle_all(&mut [(&mut w.bob, &w.b)]);
+    w.bob.recovery_tick(&w.b, &mono(1, 0));
+    w.bob.recovery_tick(&w.b, &mono(1, DELAY_MS / 2));
+    let list: Vec<ConversationSummary> =
+        w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
+    let before = list[0].peer_recovery.clone().unwrap();
+
+    w.bob.restart();
+    w.b = w.bob.open("p-b");
+    assert!(matches!(
+        w.net.perform(&NetCall::Deposit {
+            mailbox: mailbox.clone(),
+            relay_uri: None,
+            bytes: wrapped.clone(),
+        }),
+        NetResult::Ok
+    ));
+    settle_all(&mut [(&mut w.bob, &w.b)]);
+    let list: Vec<ConversationSummary> =
+        w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
+    assert_eq!(list[0].peer_recovery, Some(before));
+    let app = w.bob.core.debug_app_state(&w.b).unwrap();
+    assert_eq!(
+        app["relationships"][&list[0].id]["peerRecovery"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn relationship_restore_probe_explicit_reintroduction_allows_new_messages() {
+    let (mut w, mut f, original_canonical) = recovered_with_contact(true);
+    w.bob
+        .dispatch(&w.b, "reconnect-invite", IntentBody::CreateInvite);
+    w.bob.flush_net(&w.b);
+    let invite: Option<InviteView> = w.bob.query(Query::GetInvite {
+        ctx: w.b.clone(),
+        operation_id: "reconnect-invite".into(),
+    });
+    f.rt.dispatch(
+        &f.ctx,
+        "reconnect-accept",
+        IntentBody::AcceptInvitation {
+            link: invite.unwrap().link,
+        },
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let introductions: Vec<IntroductionRequest> =
+        w.bob.query(Query::GetIntroductions { ctx: w.b.clone() });
+    assert_eq!(introductions.len(), 1);
+    w.bob.dispatch(
+        &w.b,
+        "reconnect-introduction",
+        IntentBody::AcceptIntroduction {
+            request_id: introductions[0].id.clone(),
+        },
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let restored: Vec<ConversationSummary> =
+        f.rt.query(Query::GetConversationList { ctx: f.ctx.clone() });
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].relationship, RelationshipStateCode::Active);
+    let canonical = f.app()["relationships"][&restored[0].id]["canonId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert_ne!(
+        canonical, original_canonical,
+        "a normal invitation establishes a fresh wire conversation"
+    );
+
+    let bob_chats: Vec<ConversationSummary> =
+        w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
+    assert_eq!(
+        bob_chats.len(),
+        1,
+        "the fresh session replaced the original local thread"
+    );
+    let bob_conversation = &bob_chats[0].id;
+    let text = "Welcome back";
+    w.bob.dispatch(
+        &w.b,
+        "reconnected-message",
+        IntentBody::SendMessage {
+            conversation_id: bob_conversation.clone(),
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
+        },
+    );
+    settle_all(&mut [(&mut w.bob, &w.b), (&mut f.rt, &f.ctx)]);
+    let view: Option<ConversationView> = f.rt.query(Query::GetConversationView {
+        ctx: f.ctx.clone(),
+        conversation_id: restored[0].id.clone(),
+    });
+    assert!(view.unwrap().timeline.iter().any(
+        |item| matches!(item, TimelineItem::Incoming { text: message, .. } if message == text)
+    ));
+}
+
+#[test]
+fn relationship_restore_probe_owner_invitation_resumes_existing_contact_thread() {
+    let (mut w, mut f, _) = recovered_with_contact(true);
+    let chats: Vec<ConversationSummary> =
+        w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
+    let original = &chats[0];
+    assert_eq!(
+        original.peer_recovery.as_ref().map(|r| r.state),
+        Some(om_core::state::PeerRecoveryState::Accepted)
+    );
+
+    let candidates: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].label, "Bob");
+    assert!(candidates[0].conversation_id.is_none());
+    assert!(candidates[0].invite_operation_id.is_none());
+    assert_eq!(
+        f.go(
+            "owner-reconnect-invite",
+            IntentBody::ReconnectContact {
+                account_id: candidates[0].account_id.clone(),
+            }
+        ),
+        Some(OutcomeClass::Committed)
+    );
+    let invite: Option<InviteView> = f.rt.query(Query::GetInvite {
+        ctx: f.ctx.clone(),
+        operation_id: "owner-reconnect-invite".into(),
+    });
+    w.bob.dispatch(
+        &w.b,
+        "owner-reconnect-accept",
+        IntentBody::AcceptInvitation {
+            link: invite.unwrap().link,
+        },
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let introductions: Vec<IntroductionRequest> =
+        f.rt.query(Query::GetIntroductions { ctx: f.ctx.clone() });
+    assert_eq!(introductions.len(), 1);
+    f.rt.dispatch(
+        &f.ctx,
+        "owner-reconnect-bind",
+        IntentBody::AcceptIntroduction {
+            request_id: introductions[0].id.clone(),
+        },
+    );
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    f.rt.flush_net(&f.ctx);
+    w.bob.poll(&w.b);
+    w.bob.flush_net(&w.b);
+    f.rt.poll(&f.ctx);
+    f.rt.flush_net(&f.ctx);
+    let waiting: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert!(
+        waiting[0].conversation_id.is_none(),
+        "a relay acknowledgement alone does not finish reconnecting"
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let ready: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert!(ready[0].conversation_id.is_some());
+    let restored: Vec<ConversationSummary> =
+        f.rt.query(Query::GetConversationList { ctx: f.ctx.clone() });
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].relationship, RelationshipStateCode::Active);
+
+    let text = "Welcome back to our chat";
+    w.bob.dispatch(
+        &w.b,
+        "owner-reconnect-original-thread",
+        IntentBody::SendMessage {
+            conversation_id: original.id.clone(),
+            draft: Draft {
+                text: text.into(),
+                reply_to: None,
+            },
+        },
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let view: Option<ConversationView> = f.rt.query(Query::GetConversationView {
+        ctx: f.ctx.clone(),
+        conversation_id: restored[0].id.clone(),
+    });
+    assert!(
+        view.unwrap().timeline.iter().any(
+            |item| matches!(item, TimelineItem::Incoming { text: message, .. } if message == text)
+        ),
+        "the original contact thread should send through the restored relationship"
+    );
+}
+
+#[test]
+fn relationship_restore_probe_early_binding_waits_for_the_contact_across_restart() {
+    let (mut w, mut f, _) = recovered_with_contact(false);
+    let before: Vec<ConversationSummary> =
+        w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
+    let original = before[0].id.clone();
+    let candidates: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    f.go(
+        "invite-early",
+        IntentBody::ReconnectContact {
+            account_id: candidates[0].account_id.clone(),
+        },
+    );
+    let invite: Option<InviteView> = f.rt.query(Query::GetInvite {
+        ctx: f.ctx.clone(),
+        operation_id: "invite-early".into(),
+    });
+    w.bob.dispatch(
+        &w.b,
+        "accept-early",
+        IntentBody::AcceptInvitation {
+            link: invite.unwrap().link,
+        },
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let intros: Vec<IntroductionRequest> =
+        f.rt.query(Query::GetIntroductions { ctx: f.ctx.clone() });
+    f.go(
+        "intro-early",
+        IntentBody::AcceptIntroduction {
+            request_id: intros[0].id.clone(),
+        },
+    );
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let pending: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert!(pending[0].conversation_id.is_none());
+    w.bob.restart();
+    w.b = w.bob.open("p-b");
+    w.bob.recovery_tick(&w.b, &mono(2, DELAY_MS + 5)); // no credit across restart
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let pending: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert!(pending[0].conversation_id.is_none());
+    w.bob.recovery_tick(&w.b, &mono(2, 2 * DELAY_MS + 5));
+    settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+    let ready: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert!(ready[0].conversation_id.is_some());
+    let after: Vec<ConversationSummary> =
+        w.bob.query(Query::GetConversationList { ctx: w.b.clone() });
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].id, original);
+}
+
+#[test]
+fn relationship_restore_probe_uses_the_newest_same_head_snapshot() {
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("request", IntentBody::RequestRecovery);
+    replace_record(&w, |record| {
+        record.generation += 1;
+        let rr::Relationships::Plain(snapshot) = &mut record.relationships else {
+            panic!("plain snapshot")
+        };
+        snapshot.entries[0].label = Some("Updated label".into());
+    });
+    f.tick(&mono(1, 0));
+    f.tick(&mono(1, DELAY_MS + 10));
+    assert!(f.view().is_none());
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    let contacts: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert_eq!(contacts.len(), 1);
+    assert_eq!(contacts[0].label, "Updated label");
+}
+
+#[test]
+fn relationship_restore_probe_conflicted_snapshot_cannot_be_staged_after_restart() {
+    let w = world();
+    let (_, original) = w.net.recovery_record(&w.keys.locator).unwrap();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("request", IntentBody::RequestRecovery);
+    replace_record(&w, |record| {
+        let rr::Relationships::Plain(snapshot) = &mut record.relationships else {
+            panic!("plain snapshot")
+        };
+        snapshot.entries[0].label = Some("Conflicting label".into());
+    });
+    f.tick(&mono(1, 0));
+    f.tick(&mono(1, DELAY_MS + 10));
+    assert!(f.view().is_some(), "the conflicting round refused adoption");
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    w.net.recovery_replace(&w.keys.locator, original);
+    f.tick(&mono(2, 0));
+    assert!(
+        f.view().is_none(),
+        "the owner can adopt the independently verified account"
+    );
+    let contacts: Vec<ReconnectContactView> =
+        f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+    assert!(
+        contacts.is_empty(),
+        "replaying one side of the conflict cannot restore the snapshot"
+    );
+}

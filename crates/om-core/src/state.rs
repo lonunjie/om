@@ -552,6 +552,31 @@ pub struct Relationship {
     /// seconds. Local: the dossier a verifier forwards never contains it (ADR-0190 section 8).
     #[serde(default)]
     pub peer_links: Vec<RecoveryLinkRec>,
+    /// A returning peer's original local thread, proven by the invitation binding.
+    #[serde(default)]
+    pub relink: Option<RelationshipRelink>,
+    #[serde(default)]
+    pub relinked_from: Option<String>,
+    /// A contact selected for this recovery invitation. The binding must authenticate this account.
+    #[serde(default)]
+    pub reconnect_account: Option<Hex>,
+    /// One sealed invitation response held while the existing contact verifies recovery.
+    #[serde(default)]
+    pub recovery_bind: Option<RecoveryBinding>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelationshipRelink {
+    pub conversation_id: String,
+    pub previous_head: Hex,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryBinding {
+    pub account_id: Hex,
+    pub bytes: Hex,
 }
 
 /// A sealed wrapper held while the peer's control head is refreshed.
@@ -738,6 +763,44 @@ pub enum Purpose {
     Ack,
 }
 
+impl Purpose {
+    pub(crate) fn conversation_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::DepositRequest {
+                conversation_id, ..
+            }
+            | Self::GrantKeyFetch { conversation_id }
+            | Self::DepositAccept {
+                conversation_id, ..
+            }
+            | Self::DepositBind { conversation_id }
+            | Self::FetchPeerKeys {
+                conversation_id, ..
+            }
+            | Self::DepositHello {
+                conversation_id, ..
+            }
+            | Self::DepositKeys { conversation_id }
+            | Self::DepositAcs { conversation_id }
+            | Self::DepositRecoveryNotice { conversation_id }
+            | Self::DepositRelaySet { conversation_id }
+            | Self::DepositMessage {
+                conversation_id, ..
+            }
+            | Self::PutBlob {
+                conversation_id, ..
+            }
+            | Self::DepositFan {
+                conversation_id, ..
+            }
+            | Self::FetchDeviceKeys {
+                conversation_id, ..
+            } => Some(conversation_id),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutboxEntry {
     pub id: u64,
@@ -903,6 +966,12 @@ pub struct AppState {
     /// Record floors by RecoveryStore scope (hex), kept apart from the join and from the account pin (ADR-0202 section 1).
     #[serde(default)]
     pub recovery_floors: BTreeMap<Hex, RecordFloorRec>,
+    /// Advisory reconnect work staged with adoption, scoped to this encrypted profile.
+    #[serde(default)]
+    pub relationship_restore: Option<RelationshipRestore>,
+    /// Earlier local messages of a re-linked thread. Display only, outside the live event reducer.
+    #[serde(default)]
+    pub relationship_history: BTreeMap<String, Vec<Msg>>,
     /// This person's own privacy level, when set. Hardened and Maximum make a contact confirm a recovery of someone
     /// else's account before accepting it; `None` is Recommended (ADR-0190 section 4). Additive.
     #[serde(default)]
@@ -1030,6 +1099,56 @@ pub struct RecordFloorRec {
     pub digest: Hex,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelationshipRestore {
+    pub successor: Hex,
+    pub record_generation: u64,
+    pub candidates: BTreeMap<Hex, ReconnectCandidate>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconnectCandidate {
+    pub conversation_id: Hex,
+    pub label: String,
+    pub invite_operation_id: Option<OperationId>,
+}
+
+impl AppState {
+    pub(crate) fn reconnect_invite(
+        &self,
+        candidate: &ReconnectCandidate,
+        now: u64,
+    ) -> Option<&InviteRec> {
+        let id = candidate.invite_operation_id.as_ref()?;
+        self.invites.get(id).filter(|i| {
+            !i.revoked
+                && i.expires_at > now
+                && self.ops.get(id).is_some_and(|op| {
+                    !matches!(op.outcome, crate::api::OutcomeClass::Rejected { .. })
+                })
+        })
+    }
+
+    /// A matching backup is presentation only. A live, authenticated account and the snapshot's prior
+    /// conversation are both required before attaching its history to the new chat.
+    pub(crate) fn relationship_backup(&self, rel: &Relationship) -> Option<&RestoredChat> {
+        if rel.state != RelState::Active || rel.blocked {
+            return None;
+        }
+        let candidate = self
+            .relationship_restore
+            .as_ref()?
+            .candidates
+            .get(&rel.peer_account_id)?;
+        self.restored.values().find(|r| {
+            r.peer_account_id == rel.peer_account_id
+                && r.canon_id.as_ref() == Some(&candidate.conversation_id)
+        })
+    }
+}
+
 /// Where the record's evidence stands against what the owner independently holds.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1098,6 +1217,9 @@ pub struct OwnerAttemptRec {
     pub reconciling: bool,
     #[serde(default)]
     pub round_conflict: bool,
+    /// A conflicted snapshot can be replaced only by a newer verified refresh.
+    #[serde(default)]
+    pub snapshot_conflict_generation: Option<u64>,
     /// Links of the pinned chain that need their recovery evidence (from a controller's evidence), in chain order.
     #[serde(default)]
     pub links: Vec<RecoveryLinkRec>,

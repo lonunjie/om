@@ -276,6 +276,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           return null; // the simulator has no second device to approve a recovery
         case "GetPrivacyLevel":
           return stateFor(q.ctx).privacyLevel;
+        case "GetRelationshipRestore":
+          stateFor(q.ctx);
+          return [];
         case "GetRecoveryStatus":
           stateFor(q.ctx);
           return sim.queries.recovery(q.ctx.profileId);
@@ -580,6 +583,8 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         if (!st.recoveryKeys.delete(intent.keyOperationId)) return rejected("not_found");
         return record(intent, { kind: "Committed" });
       }
+      case "ReconnectContact":
+        return rejected("not_found");
       case "CreateInvite": {
         st.invites.set(intent.operationId, {
           operationId: intent.operationId, link: `om:invite/${randomChars(B64URL, 22)}`, expiresAt: clock() + INVITE_TTL_MS,

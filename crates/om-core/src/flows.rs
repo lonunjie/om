@@ -426,9 +426,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .app
             .relationships
             .retain(|_, r| match (&r.pending_bind, r.state) {
-                (Some(b), RelState::AwaitingAcceptance | RelState::AcceptedUnbound) => {
-                    b.deadline_ms > now_ms
-                }
+                (
+                    Some(b),
+                    RelState::AwaitingAcceptance
+                    | RelState::AcceptedUnbound
+                    | RelState::Establishing,
+                ) => b.deadline_ms > now_ms,
                 _ => true,
             });
         self.st
@@ -920,6 +923,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 place,
             } => self.begin_recovery(op, recovery_key, home, place.as_deref()),
             IntentBody::RequestRecovery => self.request_recovery(),
+            IntentBody::ReconnectContact { account_id } => self.reconnect_contact(op, account_id),
             IntentBody::OfferRecoveryApproval => self.offer_recovery_approval(op),
             IntentBody::JoinRecoveryApproval { link } => self.join_recovery_approval(op, link),
             IntentBody::CancelRecovery => self.cancel_recovery(),
@@ -1433,6 +1437,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 multi: Multi::default(),
                 peer_recovery: vec![],
                 peer_links: vec![],
+                relink: None,
+                relinked_from: None,
+                reconnect_account: self
+                    .st
+                    .app
+                    .relationship_restore
+                    .as_ref()
+                    .and_then(|restore| {
+                        restore.candidates.iter().find_map(|(account, candidate)| {
+                            (candidate.invite_operation_id.as_ref()
+                                == Some(&intro.invite_operation_id))
+                            .then(|| account.clone())
+                        })
+                    }),
+                recovery_bind: None,
             },
         );
         self.st.app.intros.remove(request_id);
@@ -2776,7 +2795,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 // Both bindings verified and the session's first message is out: the inviter's side is now ACTIVE and
                 // anything queued while it was establishing goes out, sealed.
                 self.set_outcome(&operation_id, OutcomeClass::Committed);
-                if let Some(r) = self.st.app.relationships.get_mut(&conversation_id)
+                let awaiting_reply =
+                    self.st
+                        .app
+                        .relationships
+                        .get(&conversation_id)
+                        .is_some_and(|r| {
+                            r.relink.is_some() || self.restore_contact(&r.peer_account_id)
+                        });
+                if !awaiting_reply
+                    && let Some(r) = self.st.app.relationships.get_mut(&conversation_id)
                     && r.state == RelState::Establishing
                 {
                     r.state = RelState::Active;
@@ -3047,6 +3075,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 multi: Multi::default(),
                 peer_recovery: vec![],
                 peer_links: vec![],
+                relink: None,
+                relinked_from: None,
+                reconnect_account: None,
+                recovery_bind: None,
             },
         );
         self.enqueue(
@@ -3461,7 +3493,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 expires_at: wrapper_exp,
             },
         );
-        let verdict = self.process_inner(conv, &opened.inner_envelope, is_bootstrap);
+        let verdict = self.process_inner(conv, &opened.inner_envelope, is_bootstrap, wrapper);
         if verdict == Inner::Held {
             // ADR-0144: indeterminate because the held peer head may be stale. No replay verdict is recorded (the exact
             // wrapper may be processed again), the wrapper waits unprocessed, and a head refresh is asked for.
@@ -3484,6 +3516,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             return;
         }
+        if let Some(r) = self.st.app.relationships.get_mut(conv)
+            && r.recovery_bind
+                .as_ref()
+                .is_some_and(|b| b.bytes == hex(wrapper))
+        {
+            r.replay.remove(&rkey);
+            if let Some(b) = r.bootstrap.as_mut() {
+                b.candidates
+                    .retain(|candidate| candidate != &hex(&crypto::sha256(&[wrapper])));
+            }
+            return;
+        }
         let accepted = verdict == Inner::Accepted;
         // 8. COMPLETE or REJECTED in the same transaction as the inner acceptance.
         if let Some(rel) = self.st.app.relationships.get_mut(conv) {
@@ -3501,6 +3545,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             rel.replay
                 .retain(|_, r| r.expires_at.saturating_add(delivery::CLOCK_SKEW) >= now_s);
         }
+        self.relink_ready(conv);
     }
 
     /// Process one complete inner payload. Returns whether it was definitively accepted (a duplicate of an
@@ -3509,7 +3554,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Before the relationship is bound the payload is not a session envelope: the requester's bootstrap key admits
     /// exactly one thing, the inviter's Accept, and an unbound inviter admits exactly the requester's Bind
     /// (ADR-0181 section 3). Both are plain CBOR inside the sealed delivery and authenticate by their own signatures.
-    fn process_inner(&mut self, conv: &str, env: &[u8], via_bootstrap: bool) -> Inner {
+    fn process_inner(
+        &mut self,
+        conv: &str,
+        env: &[u8],
+        via_bootstrap: bool,
+        wrapper: &[u8],
+    ) -> Inner {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return Inner::Rejected;
         };
@@ -3532,9 +3583,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .filter(|p| p.get(0).and_then(|x| x.u()).ok() == Some(kind))
                 .is_some_and(|p| {
                     if via_bootstrap {
-                        self.on_accept(conv, &p)
+                        self.on_accept(conv, &p, wrapper)
                     } else {
-                        self.on_bind(conv, &p)
+                        self.on_bind(conv, &p, wrapper)
                     }
                 });
             if ok && let Some(r) = self.st.app.relationships.get_mut(conv) {
@@ -3617,7 +3668,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // The Hello is the first session message after both bindings verified; it activates the requester.
             KIND_HELLO => !sibling && self.on_hello(conv, &p),
             // Nothing but the Hello is accepted while the relationship is not yet bound.
-            _ if !live => false,
+            _ if !live || !self.relink_is_current(&rel) => false,
             KIND_KEYS => self
                 .for_sender(conv, sender, sibling, |tx| tx.on_keys(conv, &p))
                 .unwrap_or(false),
@@ -3655,6 +3706,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 r.seen_envelopes.remove(0);
             }
         }
+        if rel.state == RelState::Establishing
+            && !sibling
+            && hex(&sender) == rel.peer_device_id
+            && (rel.relink.is_some() || self.restore_contact(&rel.peer_account_id))
+            && let Some(r) = self.st.app.relationships.get_mut(conv)
+        {
+            r.state = RelState::Active;
+            r.pending_bind = None;
+            let _ = self.release_queued(conv);
+        }
         // The device answered (so the session it was sent on is confirmed), or its session replaced ours: copies sent
         // on the lost one go again on the winner. Anything that waited for a session or route goes out now.
         self.after_inbound(conv, sender, replaced);
@@ -3683,7 +3744,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Requester: the inviter's Accept arrived on the request-scoped bootstrap key (the winning commit, ADR-0145).
     /// Verify the inviter's `IntroIdentityBinding` for the intro key the link committed to, pin its account, install
     /// its established delivery key, and answer with our own Bind.
-    fn on_accept(&mut self, conv: &str, p: &V) -> bool {
+    fn on_accept(&mut self, conv: &str, p: &V, wrapper: &[u8]) -> bool {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return false;
         };
@@ -3704,8 +3765,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return false;
         };
+        let (Some(chain), Some(creds)) = (bytes_list(p.get(5)), bytes_list(p.get(6))) else {
+            return false;
+        };
         let Some((head, creds)) =
-            Self::first_contact_head(bytes_list(p.get(5)), bytes_list(p.get(6)), p.opt(8))
+            Self::first_contact_head(Some(chain.clone()), Some(creds), p.opt(8))
         else {
             return false;
         };
@@ -3753,6 +3817,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some((bind, bind_route, grant)) = self.build_bind(&upd, &pd, &my_intro, &rk) else {
             return false;
         };
+        if !self.check_reconnect_binding(&mut upd, &head, &chain, &creds, p.opt(8), wrapper) {
+            return false;
+        }
         let Some(dev) = self.st.device.as_mut() else {
             return false;
         };
@@ -3782,7 +3849,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Inviter: the requester's Bind arrived. Verify its binding for the intro key it signed the request with, pin its
     /// account, install its established key, and start the session (the Hello follows once its device bundle is fetched).
-    fn on_bind(&mut self, conv: &str, p: &V) -> bool {
+    fn on_bind(&mut self, conv: &str, p: &V, wrapper: &[u8]) -> bool {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return false;
         };
@@ -3799,8 +3866,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return false;
         };
+        let (Some(chain), Some(creds)) = (bytes_list(p.get(3)), bytes_list(p.get(4))) else {
+            return false;
+        };
         let Some((head, creds)) =
-            Self::first_contact_head(bytes_list(p.get(3)), bytes_list(p.get(4)), p.opt(8))
+            Self::first_contact_head(Some(chain.clone()), Some(creds), p.opt(8))
         else {
             return false;
         };
@@ -3834,6 +3904,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(km) = self.verify_peer_record(&upd, &record, &route) else {
             return false;
         };
+        if !self.check_reconnect_binding(&mut upd, &head, &chain, &creds, p.opt(8), wrapper) {
+            return false;
+        }
         let Some(dev) = self.st.device.as_mut() else {
             return false;
         };
@@ -4035,12 +4108,35 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         if rel.state != RelState::AcceptedUnbound
             || rel.canon_id.as_deref() != Some(hex(&canon).as_str())
+            || !self.relink_is_current(rel)
         {
             return false;
         }
         if let Some(r) = self.st.app.relationships.get_mut(conv) {
             r.state = RelState::Active;
             r.pending_bind = None;
+        }
+        // The signed delivery record also confirms to the inviter that the fresh session reached us.
+        let key = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .filter(|r| {
+                r.relink.is_some()
+                    || self.restore_contact(&r.peer_account_id)
+                    || !self.st.app.recovery_links.is_empty()
+            })
+            .and_then(|r| r.my_delivery.first().cloned());
+        if let Some(record) = key.and_then(|k| self.signed_key_record(&k).ok()) {
+            let payload = cbor::encode(&V::M(vec![(0, V::U(KIND_KEYS)), (3, V::B(record))]));
+            self.send_control(
+                conv,
+                &payload,
+                Purpose::DepositKeys {
+                    conversation_id: conv.into(),
+                },
+            );
         }
         // Anything composed while unbound goes out now, sealed (a failure leaves it queued).
         let _ = self.release_queued(conv);

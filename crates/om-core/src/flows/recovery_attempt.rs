@@ -17,7 +17,7 @@ use crate::crypto::binding::Credential;
 use crate::crypto::delivery::{self as dlv, KeyMaterial};
 use crate::flows::recovery_watch as watch;
 use crate::host::MonotonicSample;
-use crate::recovery::{self, RecoveryPolicy, RecoveryRequest, RecoveryRoot};
+use crate::recovery::{self, RecoveryPolicy, RecoveryRequest, RecoveryRoot, SuccessorBundle};
 use crate::recovery_record::{self as rr, Plain, RecordKeys};
 use crate::route::RelayEntry;
 
@@ -76,6 +76,45 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let policy = RecoveryPolicy::from_body(&unhex(&a.policy).ok()?).ok()?;
         (hex(&head.hash()) == a.parent && head.recovery_commitment == Some(policy.hash()))
             .then_some((head, creds, policy))
+    }
+
+    pub(super) fn reconnect_contact(&mut self, op: &OperationId, account: &str) -> OutcomeClass {
+        let reject = |reason| OutcomeClass::Rejected { reason };
+        let Some(candidate) = self
+            .st
+            .app
+            .relationship_restore
+            .as_ref()
+            .and_then(|r| r.candidates.get(account))
+        else {
+            return reject(RejectReason::NotFound);
+        };
+        if self
+            .st
+            .app
+            .relationships
+            .values()
+            .any(|r| r.peer_account_id == account && r.state == RelState::Active)
+            || self
+                .st
+                .app
+                .reconnect_invite(candidate, self.now_ms)
+                .is_some()
+        {
+            return reject(RejectReason::Conflict);
+        }
+        let out = self.create_invite(op);
+        if out == OutcomeClass::PendingNetwork
+            && let Some(candidate) = self
+                .st
+                .app
+                .relationship_restore
+                .as_mut()
+                .and_then(|r| r.candidates.get_mut(account))
+        {
+            candidate.invite_operation_id = Some(op.clone());
+        }
+        out
     }
 
     // --------------------------------------------------------------------------------------------- intents
@@ -228,6 +267,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             pending_reads: 0,
             reconciling: false,
             round_conflict: false,
+            snapshot_conflict_generation: None,
             links: vec![],
             approval: None,
         };
@@ -304,22 +344,30 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// The notice to each contact of the record's snapshot, over a route and key revalidated now (ADR-0199 section 7):
     /// a key that expired or is not bound to its route is skipped, never sent in the clear.
     fn owner_send_notices(&mut self) {
-        let (Some(j), Some(a)) = (self.st.app.recovery_join.clone(), self.attempt().cloned())
+        let Some(notice) = self
+            .attempt()
+            .and_then(|a| a.notice.as_deref())
+            .and_then(|n| unhex(n).ok())
         else {
             return;
         };
-        let (Some(notice), Some(plain)) = (
-            a.notice.as_deref().and_then(|n| unhex(n).ok()),
-            j.record.as_deref().and_then(|r| unhex(r).ok()),
-        ) else {
+        let Some(record) = self.owner_record() else {
             return;
         };
-        let Ok(Plain::Record(record)) = rr::read_plaintext(&plain) else {
-            return;
-        };
-        let rr::Relationships::Plain(snapshot) = &record.relationships else {
-            return;
-        };
+        if let rr::Relationships::Plain(snapshot) = &record.relationships {
+            self.owner_deposit_notices(snapshot, &notice);
+        }
+    }
+
+    fn owner_record(&self) -> Option<Box<rr::RecoveryRecord>> {
+        let plain = unhex(self.st.app.recovery_join.as_ref()?.record.as_deref()?).ok()?;
+        match rr::read_plaintext(&plain).ok()? {
+            Plain::Record(record) => Some(record),
+            _ => None,
+        }
+    }
+
+    fn owner_deposit_notices(&mut self, snapshot: &rr::RelationshipSnapshot, notice: &[u8]) {
         let now_s = self.now_s();
         for e in &snapshot.entries {
             let routes: Vec<RelayEntry> = e.routes.iter().filter_map(RelayEntry::from_v).collect();
@@ -340,7 +388,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 &route.relay_uri,
                 &route.capability,
                 expires,
-                &notice,
+                notice,
                 self.rng,
             ) else {
                 continue;
@@ -504,12 +552,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             };
             let Ok(v) = r.verify() else { continue };
             let lineage = hex(&v.head.account_id);
-            match self.apply_floor(&hex(&scope), &lineage, r.generation, &plain) {
+            let scope_id = hex(&scope);
+            match self.apply_floor(&scope_id, &lineage, r.generation, &plain) {
                 Ok(()) => {}
                 Err(JoinStage::OutOfDate) => return, // an old copy: no evidence either way
                 Err(_) => {
+                    let floor = self
+                        .st
+                        .app
+                        .recovery_floors
+                        .get(&scope_id)
+                        .map(|f| f.generation);
                     if let Some(a) = self.attempt_mut() {
                         a.round_conflict = true;
+                        a.snapshot_conflict_generation = a.snapshot_conflict_generation.max(floor);
                     }
                     return;
                 }
@@ -518,7 +574,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 return;
             };
             if hex(&v.head.hash()) == a.parent {
-                return; // the same head the request names: unchanged
+                // A higher refresh of the same parent supersedes the advisory snapshot.
+                if let Some(current) = self.st.app.recovery_join.as_mut()
+                    && current
+                        .record
+                        .as_ref()
+                        .and_then(|p| unhex(p).ok())
+                        .and_then(|p| rr::read_plaintext(&p).ok())
+                        .is_none_or(
+                            |p| matches!(p, Plain::Record(old) if r.generation > old.generation),
+                        )
+                {
+                    current.record = Some(hex(&plain));
+                }
+                return;
             }
             // A different head. It supersedes the request only when it verifies as an extension of the parent.
             let Some((parent, creds, _)) = self.attempt_ctx() else {
@@ -783,6 +852,54 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.st.app.recovery_kit = Some(SecretHex::from(hex(&kit.to_bytes())));
             self.st.app.recovery_writer.enabled = true;
             self.st.app.recovery_writer.authored = true;
+        }
+        self.st.app.relationship_restore = None;
+        if let Some(record) = self.owner_record()
+            && record.head.state_hash == head.hash()
+            && a.snapshot_conflict_generation
+                .is_none_or(|g| record.generation > g)
+            && let rr::Relationships::Plain(snapshot) = record.relationships
+        {
+            let bundle = SuccessorBundle {
+                child,
+                next_policy: next_body,
+                credential: cred_body,
+            };
+            let bridge: Vec<_> = a.chain.iter().filter_map(|c| unhex(c).ok()).collect();
+            if let Some(notice) = recovery_peer::build_notice(
+                &policy.body(),
+                &req_bytes,
+                &bridge,
+                &creds,
+                Some(&bundle),
+                &[],
+            ) {
+                self.owner_deposit_notices(&snapshot, &notice);
+            }
+            let candidates = snapshot
+                .entries
+                .into_iter()
+                .filter(|e| e.peer_account_id != new_head.account_id)
+                .map(|e| {
+                    (
+                        hex(&e.peer_account_id),
+                        ReconnectCandidate {
+                            conversation_id: hex(&e.conversation_id),
+                            label: e
+                                .label
+                                .map(|s| sanitize_label(&s))
+                                .filter(|s| !s.is_empty())
+                                .unwrap_or_else(|| "Contact".into()),
+                            invite_operation_id: None,
+                        },
+                    )
+                })
+                .collect();
+            self.st.app.relationship_restore = Some(RelationshipRestore {
+                successor: hex(&child_hash),
+                record_generation: record.generation,
+                candidates,
+            });
         }
         self.st.device = Some(dev);
         self.st.app.recovery_join = None;

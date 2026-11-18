@@ -6,10 +6,10 @@ import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
-  AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
+  AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, ReplyTarget, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -95,6 +95,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     return () => { live = false; };
   }, [draftSync]);
   const list = useConversationList(services);
+  const reconnect = useLiveQuery(services, { kind: "GetRelationshipRestore", ctx: services.ctx }, "reconnect");
+  const reconnectContacts = reconnect.status === "ready" ? reconnect.value.value : [];
   // What each row shows beyond name and time: the latest message, and what has arrived since the chat was last shown here.
   const groups = useGroups(services);
   // Invitations held before this device has the group files (D70): listed by a base-module query, never accepted.
@@ -226,7 +228,11 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   }, [newChatAfter, list, newChatOpened, go]);
 
   // An address that names nothing real (a chat that is not here, a step this host does not have) falls back to the root, not to an error.
-  const chatGone = selected !== null && newChatAfter === null && chatRows !== null && !chatRows.some((c) => c.id === selected);
+  const relinked = selected === null ? undefined : chatRows?.find((c) => c.relinkedFrom === selected);
+  useEffect(() => {
+    if (relinked !== undefined) go({ kind: "chats", chat: relinked.id }, { replace: true });
+  }, [relinked, go]);
+  const chatGone = selected !== null && newChatAfter === null && relinked === undefined && chatRows !== null && !chatRows.some((c) => c.id === selected);
   /** Copies a public line (the setup value for a backup delivery service) through the Action Registry like every platform capability. */
   const copyText = async (text: string): Promise<boolean> => {
     if (invite === undefined) return false;
@@ -417,7 +423,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
       </>
     );
   }
-  const emptyInviteFirst = list.status === "ready" && list.value.length === 0 && groups.groups.length === 0 && groups.invites.length === 0 && heldGroups.held.invitations.length === 0 && heldGroups.held.overflow.invites === 0 && heldGroups.held.overflow.replies === 0 && invite !== undefined && incoming?.token == null;
+  const emptyInviteFirst = reconnectContacts.length === 0 && list.status === "ready" && list.value.length === 0 && groups.groups.length === 0 && groups.invites.length === 0 && heldGroups.held.invitations.length === 0 && heldGroups.held.overflow.invites === 0 && heldGroups.held.overflow.replies === 0 && invite !== undefined && incoming?.token == null;
   return (
     <>
       <AppShell
@@ -455,6 +461,11 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                 />
               </section>
             ) : null}
+            {invite === undefined ? null : (
+              <div className="om-page" hidden={reconnectContacts.length === 0}>
+                <ReconnectContacts services={services} copy={reconnectCopy} contacts={reconnectContacts} inviteLink={invite.shareLink ?? ((link) => link)} copyText={copyText} onOpen={select} />
+              </div>
+            )}
             <StrangerPressure services={services} copy={conversationCopy.pressure} />
             <Requests services={services} contacts={requestContacts} />
             {list.status === "loading" ? <div className="om-page"><Text>{t.loading}</Text></div> : null}

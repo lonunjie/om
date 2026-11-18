@@ -132,6 +132,72 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     for (const bytes of provider.deposited()) for (const n of needles) expect(bytes).not.toContain(n);
   });
 
+  it("reconnects an owner through the original contact thread after restart", async () => {
+    const provider = createMemoryProvider();
+    provider.setRecoveryPlace({ host: "home.example", scope: "ab".repeat(32) });
+    const { alice, bob, aConv, bConv } = await connect(provider);
+    const key = await alice.rt.query({ kind: "GetRecoveryKey", ctx: alice.ctx, keyOperationId: op("a-create") });
+    if (!key?.sheet) throw new Error("missing recovery sheet");
+    await bob.rt.dispatch({ kind: "SendMessage", ctx: bob.ctx, operationId: op("before"), conversationId: asConversationId(bConv), draft: { text: "Before recovery" } });
+    await settle(alice, bob);
+    await alice.rt.dispatch({ kind: "ConfirmRecoveryKeyStored", ctx: alice.ctx, operationId: op("a-saved"), keyOperationId: op("a-create") });
+    await settle(alice, bob);
+    const backupPlan = alice.rt.backupPlan();
+    const backupKey = new Uint8Array(32);
+    const file = alice.rt.exportBackup(alice.ctx, backupPlan, backupKey);
+    expect(await timeline(alice, aConv)).toEqual(["in:Before recovery"]);
+    alice.rt.dispose();
+
+    const fresh = await boot(createMemoryKv(), provider, asProfileId("recovered"));
+    await fresh.rt.dispatch({ kind: "BeginRecovery", ctx: fresh.ctx, operationId: op("find"), recoveryKey: key.sheet });
+    await settle(fresh);
+    await fresh.rt.dispatch({ kind: "RequestRecovery", ctx: fresh.ctx, operationId: op("request") });
+    await settle(fresh, bob);
+    const delay = 72 * 60 * 60 * 1000 + 1;
+    const tick = async (p: Party, elapsedMs: number) => p.rt.recoveryTick(p.ctx, { bootSession: "0abc", elapsedMs });
+    await tick(fresh, 0);
+    await tick(bob, 0);
+    await tick(fresh, delay);
+    await settle(fresh, bob);
+    await tick(bob, delay);
+    expect((await fresh.rt.query({ kind: "GetRecoveryStatus", ctx: fresh.ctx })).recovering).toBeUndefined();
+
+    const [candidate] = await fresh.rt.query({ kind: "GetRelationshipRestore", ctx: fresh.ctx });
+    expect(candidate).toMatchObject({ label: "Bob", inviteOperationId: null, invite: null, conversationId: null });
+    if (!candidate) throw new Error("missing contact");
+    expect(await fresh.rt.query({ kind: "GetConversationList", ctx: fresh.ctx })).toEqual([]);
+    await fresh.rt.importBackup(fresh.ctx, file, backupKey);
+    expect((await fresh.rt.query({ kind: "GetConversationList", ctx: fresh.ctx }))[0]?.relationship).toBe("restored");
+    await fresh.rt.dispatch({ kind: "ReconnectContact", ctx: fresh.ctx, operationId: op("reconnect"), accountId: candidate.accountId });
+    await settle(fresh);
+    const [waiting] = await fresh.rt.query({ kind: "GetRelationshipRestore", ctx: fresh.ctx });
+    expect(waiting?.conversationId).toBeNull();
+    if (!waiting?.invite) throw new Error("missing reconnect invitation");
+    await bob.rt.dispatch({ kind: "AcceptInvitation", ctx: bob.ctx, operationId: op("join-again"), link: waiting.invite.link });
+    await settle(fresh, bob);
+    const [request] = await fresh.rt.query({ kind: "GetIntroductions", ctx: fresh.ctx });
+    if (!request) throw new Error("missing reconnect introduction");
+    await fresh.rt.dispatch({ kind: "AcceptIntroduction", ctx: fresh.ctx, operationId: op("bind-again"), requestId: request.id });
+    fresh.rt.dispose();
+    const restored = await boot(fresh.kv, provider, fresh.id);
+    await settle(restored, bob);
+    const [ready] = await restored.rt.query({ kind: "GetRelationshipRestore", ctx: restored.ctx });
+    expect(ready?.conversationId).toBeTruthy();
+    if (!ready?.conversationId) throw new Error("chat still pending");
+    expect((await bob.rt.query({ kind: "GetConversationList", ctx: bob.ctx })).map(({ id }) => id)).toEqual([bConv]);
+
+    await bob.rt.dispatch({ kind: "SendMessage", ctx: bob.ctx, operationId: op("after"), conversationId: asConversationId(bConv), draft: { text: "After recovery" } });
+    await settle(restored, bob);
+    expect((await restored.rt.query({ kind: "GetConversationList", ctx: restored.ctx })).map(({ id }) => id)).toEqual([ready.conversationId]);
+    const view = await restored.rt.query({ kind: "GetConversationView", ctx: restored.ctx, conversationId: ready.conversationId });
+    expect(view.timeline.map(({ text, readOnly }) => [text, readOnly ?? false])).toEqual([
+      ["Before recovery", true],
+      ["After recovery", false],
+    ]);
+    bob.rt.dispose();
+    restored.rt.dispose();
+  }, 60_000);
+
   it("first contact on the real Core: the request is unverified, the relationship is unbound until both bindings verify", async () => {
     const provider = createMemoryProvider();
     const alice = await boot(createMemoryKv(), provider, asProfileId("alice"));

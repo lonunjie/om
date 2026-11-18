@@ -1,3 +1,4 @@
+import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { MessageId, ReactionView, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
@@ -65,15 +66,22 @@ export function ReactionControl({ copy, gist, open, onToggle, onClose, onPick, i
 }
 
 /** The reactions under a message: a chip per key; a tap adds your reaction, or removes it when it is yours. */
-export function ReactionChips({ copy, reactions, onPick }: { readonly copy: ConversationCopy["react"]; readonly reactions: readonly ReactionView[]; readonly onPick: (key: string, present: boolean) => void }) {
+export function ReactionChips({ copy, reactions, onPick }: { readonly copy: ConversationCopy["react"]; readonly reactions: readonly ReactionView[]; readonly onPick?: (key: string, present: boolean) => void }) {
   if (reactions.length === 0) return null;
   return (
     <ul className="om-react__chips" aria-label={copy.list}>
       {reactions.map((r) => (
         <li key={r.key}>
-          <button type="button" className="om-react__chip" data-mine={r.mine ? "true" : undefined} aria-pressed={r.mine} aria-label={copy.chip(r.key, r.count, r.mine)} onClick={() => { onPick(r.key, !r.mine); }}>
-            <span aria-hidden="true">{r.key}{r.count > 1 ? ` ${String(r.count)}` : ""}</span>
-          </button>
+          {onPick === undefined ? (
+            <span className="om-react__chip">
+              <VisuallyHidden>{copy.chip(r.key, r.count, r.mine)}</VisuallyHidden>
+              <span aria-hidden="true">{r.key}{r.count > 1 ? ` ${String(r.count)}` : ""}</span>
+            </span>
+          ) : (
+            <button type="button" className="om-react__chip" data-mine={r.mine ? "true" : undefined} aria-pressed={r.mine} aria-label={copy.chip(r.key, r.count, r.mine)} onClick={() => { onPick(r.key, !r.mine); }}>
+              <span aria-hidden="true">{r.key}{r.count > 1 ? ` ${String(r.count)}` : ""}</span>
+            </button>
+          )}
         </li>
       ))}
     </ul>

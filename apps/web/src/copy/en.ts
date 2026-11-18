@@ -1112,6 +1112,20 @@ export const joinCopy: JoinCopy = {
 
 /** First run, extended with \u201cI already use OM\u201d (deviation D24). Declared here because it uses the join copy, which uses the shared outcome wording. */
 /** "I lost my devices" (ADR-0200, ADR-0202, ADR-0203). Plain words: no pins, heads, epochs or technical names of the delivery service. */
+export const reconnectCopy = {
+  heading: "Reconnect with your contacts",
+  reconnect: (name: string) => `Reconnect with ${name}`,
+  link: (name: string) => `Invitation link for ${name}`,
+  share: "Send this link to this person. Accept their request when it arrives.",
+  copyLink: "Copy link",
+  copied: "Link copied",
+  copyFailed: "Couldn’t copy the link. You can select and copy it yourself.",
+  waiting: "Waiting to reconnect",
+  ready: "Ready to chat",
+  open: (name: string) => `Open chat with ${name}`,
+  outcome: outcomeCopy("Could not reconnect."),
+};
+
 export const lostDevicesCopy: LostDevicesCopy = {
   heading: "Get your account back",
   intro: "Enter the recovery key you saved when you made your account. Nothing is sent until you ask for your account back.",

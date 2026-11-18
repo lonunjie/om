@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { RecoveringView } from "@om/platform-api";
+import type { ConversationId, ReconnectContactView, RecoveringView } from "@om/platform-api";
 import { RECOVERY_APPROVAL_LINK } from "../actions/registry";
 import { FocusHeading } from "../devices/FocusHeading";
 import { OperationStatus, useLiveQuery, useOperation, type SettingsServices } from "../devices/operation";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
-import type { LostDevicesCopy } from "./lostCopy";
+import type { LostDevicesCopy, ReconnectCopy } from "./lostCopy";
 import "../devices/devices.css";
 
 export interface LostDevicesProps {
@@ -196,5 +196,78 @@ function Approval({ services, copy, view, scanLink }: { readonly services: Setti
       {note === null ? null : <p role="alert">{note}</p>}
       <OperationStatus state={op.state} copy={copy.outcome} done="" />
     </section>
+  );
+}
+
+/** The owner decides whom to re-introduce. Readiness comes from Core's established session. */
+export function ReconnectContacts({ services, copy, contacts, inviteLink, copyText, onOpen }: {
+  readonly services: SettingsServices;
+  readonly copy: ReconnectCopy;
+  readonly contacts: readonly ReconnectContactView[];
+  readonly inviteLink: (link: string) => string;
+  readonly copyText: (text: string) => Promise<boolean>;
+  readonly onOpen: (id: ConversationId) => void;
+}) {
+  if (contacts.length === 0) return null;
+  return (
+    <section className="om-settings__step" aria-labelledby="om-reconnect-h">
+      <Text as="h2" id="om-reconnect-h" weight="bold">{copy.heading}</Text>
+      {contacts.map((contact) => (
+        <ReconnectContact key={contact.accountId} contact={contact} services={services} copy={copy} inviteLink={inviteLink} copyText={copyText} onOpen={onOpen} />
+      ))}
+    </section>
+  );
+}
+
+function ReconnectContact({ contact, services, copy, inviteLink, copyText, onOpen }: {
+  readonly contact: ReconnectContactView;
+  readonly services: SettingsServices;
+  readonly copy: ReconnectCopy;
+  readonly inviteLink: (link: string) => string;
+  readonly copyText: (text: string) => Promise<boolean>;
+  readonly onOpen: (id: ConversationId) => void;
+}) {
+  const op = useOperation(services);
+  const { label, conversationId } = contact;
+  return (
+    <div className="om-settings__step">
+      <Text as="p" weight="bold"><bdi>{label}</bdi></Text>
+      {conversationId !== null ? (
+        <>
+          <Text as="p" tone="secondary" role="status">{copy.ready}</Text>
+          <Button variant="quiet" onClick={() => { onOpen(conversationId); }}>{copy.open(label)}</Button>
+        </>
+      ) : contact.inviteOperationId !== null ? (
+        <>
+          {contact.invite !== null ? (
+            <ReconnectLink key={contact.invite.operationId} link={inviteLink(contact.invite.link)} label={label} copy={copy} copyText={copyText} />
+          ) : null}
+          <Text as="p" tone="secondary" role="status">{copy.waiting}</Text>
+        </>
+      ) : (
+        <>
+          <Button variant="secondary" disabled={op.locked} onClick={() => { void op.run("reconnect-contact", { accountId: contact.accountId }); }}>{copy.reconnect(label)}</Button>
+          <OperationStatus state={op.state} copy={copy.outcome} done="" />
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function ReconnectLink({ link, label, copy, copyText }: {
+  readonly link: string;
+  readonly label: string;
+  readonly copy: ReconnectCopy;
+  readonly copyText: (text: string) => Promise<boolean>;
+}) {
+  const [copied, setCopied] = useState<boolean | null>(null);
+  return (
+    <>
+      <Text as="p" tone="secondary">{copy.share}</Text>
+      <input className="om-settings__input" type="text" aria-label={copy.link(label)} readOnly value={link} onFocus={(event) => { event.currentTarget.select(); }} />
+      <Button variant="quiet" onClick={() => { void copyText(link).then(setCopied, () => { setCopied(false); }); }}>{copy.copyLink}</Button>
+      <Text as="p" tone="secondary" role="status">{copied === null ? "" : copied ? copy.copied : copy.copyFailed}</Text>
+    </>
   );
 }

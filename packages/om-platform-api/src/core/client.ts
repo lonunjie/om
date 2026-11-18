@@ -5,7 +5,7 @@ import type { AttachmentApi } from "./attachments";
 import type { GroupApi } from "./groups";
 import type { PrivacyPolicyLevel } from "./intents";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryApprovalOfferView, RecoveryStatusView } from "./devices";
-import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
+import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, ReconnectContactView, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
 export interface GetConversationList { readonly kind: "GetConversationList"; readonly ctx: ProfileExecutionContext }
@@ -23,6 +23,7 @@ export interface GetLinkOffer { readonly kind: "GetLinkOffer"; readonly ctx: Pro
 export interface GetHistoryTransfer { readonly kind: "GetHistoryTransfer"; readonly ctx: ProfileExecutionContext }
 /** The controller's recovery approval offer produced by an OfferRecoveryApproval operation (`null` until Core has one). */
 export interface GetRecoveryApprovalOffer { readonly kind: "GetRecoveryApprovalOffer"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
+export interface GetRelationshipRestore { readonly kind: "GetRelationshipRestore"; readonly ctx: ProfileExecutionContext }
 export interface GetRecoveryStatus { readonly kind: "GetRecoveryStatus"; readonly ctx: ProfileExecutionContext }
 /** The nonce an `IssueConfirmation` operation produced (`null` once expired or unknown). */
 export interface GetConfirmation { readonly kind: "GetConfirmation"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
@@ -36,7 +37,7 @@ export interface GetDirectOffers { readonly kind: "GetDirectOffers"; readonly ct
 export interface GetPrivacyLevel { readonly kind: "GetPrivacyLevel"; readonly ctx: ProfileExecutionContext }
 export type CoreQuery =
   | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
-  | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetRecoveryApprovalOffer | GetConfirmation | GetIntroductionLoad
+  | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetRelationshipRestore | GetRecoveryApprovalOffer | GetConfirmation | GetIntroductionLoad
   | PlanAttachment | GetDirectOffers | GetPrivacyLevel;
 
 export interface QueryResultMap {
@@ -53,6 +54,7 @@ export interface QueryResultMap {
   GetLinkOffer: LinkOfferView | null;
   GetHistoryTransfer: HistoryTransferView | null;
   GetRecoveryStatus: RecoveryStatusView;
+  GetRelationshipRestore: readonly ReconnectContactView[];
   GetRecoveryApprovalOffer: RecoveryApprovalOfferView | null;
   GetConfirmation: ConfirmationView | null;
   GetIntroductionLoad: IntroductionLoad;

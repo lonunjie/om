@@ -327,6 +327,9 @@ pub enum IntentBody {
         key_operation_id: OperationId,
     },
     CreateInvite,
+    ReconnectContact {
+        account_id: String,
+    },
     AcceptInvitation {
         link: String,
     },
@@ -475,6 +478,7 @@ impl IntentBody {
             IntentBody::CreateIdentityProfile { .. } => "CreateIdentityProfile",
             IntentBody::ConfirmRecoveryKeyStored { .. } => "ConfirmRecoveryKeyStored",
             IntentBody::CreateInvite => "CreateInvite",
+            IntentBody::ReconnectContact { .. } => "ReconnectContact",
             IntentBody::AcceptInvitation { .. } => "AcceptInvitation",
             IntentBody::OfferDeviceLink => "OfferDeviceLink",
             IntentBody::RequestDeviceLink { .. } => "RequestDeviceLink",
@@ -616,6 +620,9 @@ pub enum Query {
         ctx: ProfileExecutionContext,
         operation_id: OperationId,
     },
+    GetRelationshipRestore {
+        ctx: ProfileExecutionContext,
+    },
     GetRecoveryStatus {
         ctx: ProfileExecutionContext,
     },
@@ -665,6 +672,7 @@ impl Query {
             | Query::GetDevices { ctx }
             | Query::GetLinkRequest { ctx, .. }
             | Query::GetLinkOffer { ctx, .. }
+            | Query::GetRelationshipRestore { ctx }
             | Query::GetRecoveryStatus { ctx }
             | Query::GetRecoveryApprovalOffer { ctx, .. }
             | Query::GetHistoryTransfer { ctx }
@@ -678,6 +686,16 @@ impl Query {
 }
 
 // ---------------------------------------------------------------------------------------------- views
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconnectContactView {
+    pub account_id: String,
+    pub label: String,
+    pub invite_operation_id: Option<OperationId>,
+    pub invite: Option<InviteView>,
+    pub conversation_id: Option<ConversationId>,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
@@ -727,6 +745,9 @@ pub struct ConversationSummary {
     /// that two entries are the same account, which a name cannot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub peer_account: Option<String>,
+    /// Local route to the temporary conversation replaced by this thread.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relinked_from: Option<ConversationId>,
     /// The recovery of this person's account this contact is tracking, if any (ADR-0190 section 4). Omitted when
     /// there is none, so existing readers are unaffected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -794,6 +815,8 @@ pub enum TimelineItem {
         reactions: Vec<ReactionView>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         edited: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        read_only: bool,
     },
     Incoming {
         message_id: MessageId,
@@ -809,6 +832,8 @@ pub enum TimelineItem {
         reactions: Vec<ReactionView>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         edited: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        read_only: bool,
     },
 }
 
