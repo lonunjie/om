@@ -67,6 +67,8 @@ Web Push would wake a service worker when the app is closed. It is **not** shipp
 
 If built later, it is a separate optional feature (`om.relay.push.v1`: register an opaque subscription for a queue, per-profile, revocable, expiring), a user-visible opt-in with a plain disclosure, and a declared linkage point in the Home's MetadataExposureDescriptor. It would not replace this channel: while the app is open the socket is cheaper and has no third party.
 
+**Update 2026-11-18.** The smallest version of this feature is specified and built by [ADR-0210](../../../decisions/ADR-0210-push-wake-through-the-persons-own-home.md) (`om.relay.push.v1`): the Home's own key, an empty signed push, per-device opt-in, and the metadata table. It fills the gaps this section left; the paragraphs above are unchanged.
+
 ## 6. Cost model on the reference Home
 
 Facts below are from memory of Cloudflare's published pricing and must be checked on the day (AGENTS.md "External facts"). A WebSocket upgrade is one Worker request and one Durable Object request. An incoming WebSocket message is billed at 20 to 1 as a request, so a ping costs a twentieth of a request; messages the Home sends are not requests. A Durable Object using the hibernation API is not billed for duration while idle, so an idle queue with open sockets costs only its pings. A deposit costs what it always did (one Worker plus one Durable Object request) and now also wakes any listener for free.

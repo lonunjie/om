@@ -26,7 +26,7 @@ const hosts = () => ({ OM_PUSH_HOSTS: origin });
 beforeAll(async () => {
   svc = createServer((req, res) => { seen.push({ method: req.method ?? "", path: req.url ?? "", headers: req.headers, bytes: 0 }); req.on("data", (d: Buffer) => { (seen.at(-1) as Seen).bytes += d.length; }); req.on("end", () => { res.statusCode = status; res.end(); }); });
   await new Promise<void>((r) => svc.listen(0, "127.0.0.1", r));
-  origin = `http://127.0.0.1:${(svc.address() as { port: number }).port}`;
+  origin = `http://127.0.0.1:${String((svc.address() as { port: number }).port)}`;
   const adm = await admissionHash(secret);
   home = await startHome({ vars: { OM_ADMISSION: adm, ...hosts() } });
   paced = await startHome({ vars: { OM_ADMISSION: adm, ...hosts(), OM_PUSH_MIN_INTERVAL_SECONDS: "0", OM_PUSH_PER_DAY: "2" } });
@@ -45,11 +45,11 @@ async function queue(h: Home): Promise<Caps> {
 }
 const body = (endpoint: string): string => JSON.stringify({ endpoint });
 let n = 0;
-const endpoint = (): string => `${origin}/push/${Date.now()}-${n++}`;
+const endpoint = (): string => `${origin}/push/${String(Date.now())}-${String(n++)}`;
 const reg = (h: Home, c: Caps, ep: string, headers: Record<string, string> = adm, cap: Uint8Array = c.receive) =>
   h.fetch(PUSH_PATHS.subscription, { method: "PUT", headers: { "content-type": "application/json", ...bearer(cap), ...headers }, body: body(ep) });
 const unreg = (h: Home, c: Caps, ep: string) => h.fetch(PUSH_PATHS.subscription, { method: "DELETE", headers: { "content-type": "application/json", ...bearer(c.receive) }, body: body(ep) });
-const deposit = async (h: Home, c: Caps) => expect((await relay.deposit(h, c.deposit, sealed())).ok).toBe(true);
+const deposit = async (h: Home, c: Caps): Promise<void> => { expect((await relay.deposit(h, c.deposit, sealed())).ok).toBe(true); };
 const settle = (ms = 400) => new Promise((r) => setTimeout(r, ms));
 const to = (ep: string): Seen[] => seen.filter((s) => s.path === new URL(ep).pathname + new URL(ep).search);
 
@@ -88,7 +88,7 @@ describe("PC-P03 registering", () => {
     const other = await queue(home);
     const ep = endpoint();
     const bad = [await reg(home, c, ep, {}), await reg(home, c, ep, { [ADMISSION_HEADER]: toBase64Url(rand(32)) }), await reg(home, c, ep, adm, c.deposit), await reg(home, c, ep, adm, c.admin), await reg(home, c, ep, adm, rand(32)), await reg(home, c, ep, adm, other.deposit)];
-    const texts = await Promise.all(bad.map(async (r) => `${r.status} ${await r.text()}`));
+    const texts = await Promise.all(bad.map(async (r) => `${String(r.status)} ${await r.text()}`));
     expect(new Set(texts).size).toBe(1);
     expect(bad[0]?.status).toBe(401);
     const good = await reg(home, c, ep);
@@ -147,7 +147,7 @@ describe("PC-P04 a wake is an empty signed push", () => {
     const pub = await crypto.subtle.importKey("raw", fromBase64Url(k as string), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
     const sig = fromBase64Url(s as string);
     expect(sig).toHaveLength(64);
-    expect(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, sig, new TextEncoder().encode(`${h}.${p}`))).toBe(true);
+    expect(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, sig, new TextEncoder().encode(`${String(h)}.${String(p)}`))).toBe(true);
     const claims = JSON.parse(new TextDecoder().decode(fromBase64Url(p as string))) as { aud: string; exp: number; sub: string };
     expect(claims.aud).toBe(origin);
     expect(claims.exp).toBeGreaterThan(Date.now() / 1000);
@@ -231,10 +231,10 @@ describe("PC-P06 graceful absence and cleanup", () => {
     expect((await reg(fast, c, dead)).status).toBe(400);
     const stop = createServer(); await new Promise<void>((r) => stop.listen(0, "127.0.0.1", r));
     const port = (stop.address() as { port: number }).port; await new Promise((r) => stop.close(r));
-    const h = await startHome({ vars: { OM_ADMISSION: await admissionHash(secret), OM_PUSH_HOSTS: `http://127.0.0.1:${port}` } });
+    const h = await startHome({ vars: { OM_ADMISSION: await admissionHash(secret), OM_PUSH_HOSTS: `http://127.0.0.1:${String(port)}` } });
     try {
       const q = await queue(h);
-      expect((await reg(h, q, `http://127.0.0.1:${port}/x`)).status).toBe(200);
+      expect((await reg(h, q, `http://127.0.0.1:${String(port)}/x`)).status).toBe(200);
       const t0 = Date.now();
       await deposit(h, q);
       expect(Date.now() - t0).toBeLessThan(3000);

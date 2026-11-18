@@ -89,7 +89,8 @@ export function createAlertsServices(env: AlertsEnv): AlertsServices {
       } catch { return "failed"; }
       if (sub === undefined) return "failed";
       const r = await push.register(sub.endpoint).catch((): PushRegistration => ({ registered: 0, failed: 1, reason: "unreachable" }));
-      if (r.registered === 0) {
+      // No mailbox is open yet (just started): the provider keeps the endpoint and registers each mailbox as it opens, and the next start renews it.
+      if (r.registered === 0 && (r.failed > 0 || r.reason === "unsupported")) {
         if (created) await sub.unsubscribe().catch(() => false);
         return fail(r.reason);
       }

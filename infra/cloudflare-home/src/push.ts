@@ -45,7 +45,7 @@ export class PushHub extends DurableObject<Env> {
     let pub = metaString(this.sql, "vapid_pub");
     if (jwk === undefined || pub === undefined) {
       const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]) as CryptoKeyPair;
-      jwk = JSON.stringify((await crypto.subtle.exportKey("jwk", pair.privateKey)) as unknown as JsonWebKey);
+      jwk = JSON.stringify(await crypto.subtle.exportKey("jwk", pair.privateKey));
       pub = toBase64Url(new Uint8Array((await crypto.subtle.exportKey("raw", pair.publicKey)) as ArrayBuffer));
       setMeta(this.sql, "vapid_jwk", jwk);
       setMeta(this.sql, "vapid_pub", pub);
@@ -91,7 +91,8 @@ export class PushHub extends DurableObject<Env> {
     // Claim the slot before the network call: a second arrival that interleaves with the send must find the interval already used.
     for (const r of due) run(this.sql, "UPDATE subs SET last_sent = ?, day = ?, day_count = ? WHERE label = ? AND id = ?", now, today, r.day === today ? r.day_count + 1 : 1, label, r.id);
     const { priv, pub } = await this.vapid();
-    const subject = metaString(this.sql, "subject") ?? "https://invalid.example";
+    const subject = metaString(this.sql, "subject");
+    if (subject === undefined) return; // no registration was ever made here
     await Promise.all(due.map(async (r) => {
       const verdict = await this.send(r.endpoint, priv, pub, subject, now);
       if (verdict === "gone") run(this.sql, "DELETE FROM subs WHERE label = ? AND id = ?", label, r.id);

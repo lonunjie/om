@@ -67,16 +67,33 @@ test("the alerts switch: off until turned on, registers at the Home, renews on r
     wire.push({ method: q.method(), url: r.url(), admission: q.headers()["om-admission"] !== undefined, body: q.postData(), status: r.status() });
   });
 
-  await page.goto("/");
-  await seedPending(page, hex(E2E_ADMISSION_SECRET));
-  await page.getByRole("button", { name: "Get started" }).click();
-  await chooseOwnRelay(page);
-  await page.getByLabel("Address of your delivery service").fill(LOCKED_RELAY);
-  await page.getByRole("button", { name: "Check and continue" }).click();
-  await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 });
-  await walkSetup(page, { stopAt: "invite" });
-  await page.getByRole("button", { name: "Skip for now" }).click();
+  const firstRun = async (p: Page): Promise<void> => {
+    await p.goto("/");
+    await seedPending(p, hex(E2E_ADMISSION_SECRET));
+    await p.getByRole("button", { name: "Get started" }).click();
+    await chooseOwnRelay(p);
+    await p.getByLabel("Address of your delivery service").fill(LOCKED_RELAY);
+    await p.getByRole("button", { name: "Check and continue" }).click();
+    await expect(p.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 });
+    await walkSetup(p, { stopAt: "invite" });
+  };
+  // A second person (another browser profile) makes an invitation, so that this one has a conversation and therefore a mailbox at the Home.
+  const other = await (await page.context().browser()?.newContext({ baseURL: "http://localhost:4179" }))?.newPage();
+  if (other === undefined) throw new Error("no second browser profile");
+  await noPasskeys(other);
+  await firstRun(other);
+  await other.getByRole("button", { name: "Show my QR" }).click();
+  const link = ((await other.locator("code[translate=no]").first().textContent()) ?? "").trim();
+  expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
+
+  const all: string[] = [];
+  page.on("request", (r) => { if (r.url().startsWith(LOCKED_RELAY)) all.push(`${r.method()} ${new URL(r.url()).pathname}`); });
+  await firstRun(page);
+  await page.getByText("Have an invite?").click();
+  await page.getByLabel("Invitation link").fill(link);
+  await page.getByRole("button", { name: "Accept invitation" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect.poll(() => all.includes("POST /v1/relay/queues"), { timeout: 60_000 }).toBe(true);
 
   // Off by default: nothing was asked and nothing registered while the page was only used.
   expect(wire).toEqual([]);

@@ -66,6 +66,11 @@ describe("enable", () => {
       expect(r.store.size).toBe(0);
     }
   });
+  it("is on even when no mailbox is open yet: the provider registers each as it opens", async () => {
+    const r = rig({ register: { registered: 0, failed: 0, reason: undefined } });
+    expect(await r.svc.enable({ confirmedMaximum: false })).toBe("enabled");
+    expect(r.store.size).toBe(1);
+  });
   it("fails cleanly without a usable key or when the browser will not subscribe", async () => {
     expect(await rig({ key: undefined }).svc.enable({ confirmedMaximum: false })).toBe("failed");
     expect(await rig({ subscribeThrows: true }).svc.enable({ confirmedMaximum: false })).toBe("failed");
