@@ -3,9 +3,11 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni" | "attach" | "mic" | "pin" | "file" | "play" | "users" | "user" | "reply" | "smile" | "edit" | "trash";
+  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni" | "attach" | "mic" | "pin" | "file" | "play" | "users" | "user" | "reply" | "smile" | "edit" | "trash" | "phone" | "video";
 
 const PATHS: Readonly<Record<IconName, ReactNode>> = {
+  phone: <path d="M6 3h4l1.5 5-2.5 2a13 13 0 0 0 5 5l2-2.5 5 1.5v4c0 1.7-1.4 3-3 3C10 20.5 3.5 14 3 6c0-1.6 1.3-3 3-3z" />,
+  video: <><rect x="3" y="6" width="12" height="12" rx="2" /><path d="m15 10 6-4v12l-6-4" /></>,
   back: <path d="M19 12H5M11 5l-7 7 7 7" />,
   send: <path d="M12 19V5M5 12l7-7 7 7" />,
   chevron: <path d="M9 5l7 7-7 7" />,

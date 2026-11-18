@@ -18,7 +18,7 @@ const PROD_APP = "http://localhost:4181";
 const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
-const OTHER_ENGINE_IGNORE = /(chromium|live-relay|live-invite)\.spec\.ts/;
+const OTHER_ENGINE_IGNORE = /(calls|chromium|live-relay|live-invite)\.spec\.ts/;
 
 export default defineConfig({
   testDir: ".",

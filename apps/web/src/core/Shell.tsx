@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
-  AlertsScreen, useAlertsRefresh, AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
-  type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions, introductionCollisions,
+  AlertsScreen, CallTimelineNotice, useAlertsRefresh, AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
+  type IconName, type OmniEntry, scoreEntry, useProfiles, useConversationDigests, shownName, contactCollisions, introductionCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { AlertsServices, ComposerCapture, ReplyTarget, SearchStore, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, alertsCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
+import { appStrings as t, callCopy, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, alertsCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -23,6 +23,11 @@ import { LockScreen } from "./LockScreen";
 import { GroupsGate, type GroupsSetup } from "./GroupsGate";
 import { takeOpenNewGroup } from "./loadCore";
 import type { LockServices } from "./lockServices";
+import type { CallDriver } from "@om/core-wasm";
+import { useCalls } from "./useCalls";
+import { CallHost } from "./CallHost";
+
+const useCallSurface = import.meta.env.VITE_OM_CALLS === "1" ? useCalls : () => undefined;
 
 /** The display-once safety code Core still holds: setup did not ask for it (ADR-0111), so the shell offers it on the user's time. */
 export interface SafetyCodeOffer {
@@ -45,6 +50,7 @@ const NO_STAGED: readonly StagedItem[] = [];
 
 export interface ShellProps {
   readonly services: ConversationServices;
+  readonly callDriver?: CallDriver | undefined;
   /** Present while this device has not loaded the groups module: groups are then offered, and the first use fetches it (ADR-0187). */
   readonly groupsSetup?: GroupsSetup;
   /** What this device can attach or record. Each control is offered only where it exists. */
@@ -80,11 +86,13 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, callDriver, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
   useAlertsRefresh(services, alerts); // renews the Home's registration at start when alerts are on (ADR-0210)
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
+  const { profiles } = useProfiles();
+  const calls = useCallSurface(services, callDriver);
   const mode = useLayoutMode();
   // A replacement safety code (ADR-0205) being shown from Settings > Recovery; nothing changes until the person confirms it is saved.
   const [replacingKey, setReplacingKey] = useState<OperationId | null>(null);
@@ -323,9 +331,18 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   }, [chatRows, contactNames, groupsOffered, services.ctx, invite, lock, backup, alerts, home, onAddProfile, safetyCode, go, openNew]);
   // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
+    const [command, ...words] = query.trim().toLowerCase().split(/\s+/);
+    const kind = command === callCopy.commands.audio ? "audio" : command === callCopy.commands.video ? "video" : null;
+    if (calls && kind && words.length > 0 && list.status === "ready") {
+      return list.value.flatMap((contact) => {
+        const label = callCopy.commandLabel(command!, shownName(contact));
+        const entry: OmniEntry = { id: `${command}-${contact.id}`, kind: "action", label, run: () => { calls.start(contact, kind); } };
+        return contact.allowCalls !== undefined && scoreEntry(entry, query) !== null ? [entry] : [];
+      });
+    }
     if (invite === undefined || !parseInviteLink(query).ok) return [];
     return [{ id: "use-link", kind: "action", label: t.omniActions.useLink, keywords: t.omniKeywords.useLink, run: () => { openNew("share", query.trim()); } }];
-  }, [invite, openNew]);
+  }, [invite, openNew, calls, list]);
   // Search over what this device has already decrypted, chats and groups: kept at rest only as ciphertext in this identity's vault (ADR-0208), read back after unlock, gone with the identity.
   const localSearch = useLocalSearch(services, searchStore);
   // The search function is pinned while the Omnibar is open, so a message arriving meanwhile cannot move a result under the person's finger (NV-06).
@@ -347,7 +364,11 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   }, [go, services.ctx]);
   const openOmni = (): void => { setOmniOpen(true); };
   const trigger = <OmnibarTrigger copy={omnibarCopy} shortcut={shortcut} onOpen={openOmni} />;
+  const callContact = calls && list.status === "ready" ? list.value.find((row) => row.id === calls.view?.conversationId) : undefined;
+  const hasCall = calls && (calls.view !== null || calls.pending || calls.failure !== null);
   const common = {
+    liveCall: hasCall ? <CallHost calls={calls} name={callContact ? shownName(callContact) : callCopy.unknownContact}
+      identity={profiles.length > 1 ? me?.label : undefined} /> : undefined,
     destinations: [{ id: "chats", label: t.chats, icon: <Icon name="chat" size={20} /> }], activeDestination: settings === null && !savingCode ? "chats" : "",
     onDestinationChange: () => { if (place.kind !== "chats" || place.chat !== null) toChatsRoot(); }, labels: shellLabels, profileControl,
     omnibarTrigger: trigger,
@@ -433,7 +454,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                   : settings === "protection" ? <ProtectionScreen services={services} copy={protectionCopy} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
-                  : settings === "alerts" && alerts !== undefined ? <AlertsScreen services={services} alerts={alerts} copy={alertsCopy} />
+                  : settings === "alerts" && alerts !== undefined ? <><AlertsScreen services={services} alerts={alerts} copy={alertsCopy} />{calls ? <Text as="p">{callCopy.openApp}</Text> : null}</>
                   : settings === "help" ? <HelpScreen />
                   : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy, renderQr: (payload) => <QrCode payload={payload} /> }} {...(invite ? { replace: { copy: replaceRecoveryCopy, onStarted: setReplacingKey } } : {})} />}
               </SubPage>
@@ -504,6 +525,13 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                 />
               </div>
             ) : null}
+            {calls && list.status === "ready" ? calls.notices.slice(-1).map((notice) => {
+              const contact = list.value.find((row) => row.id === notice.conversationId);
+              if (!contact) return null;
+              return <div className="om-page" key={notice.callSessionId}>
+                <Button variant="quiet" onClick={() => { select(contact.id); }}>{callCopy.missedFrom(shownName(contact))}</Button>
+              </div>;
+            }) : null}
             {chatRows !== null && !emptyInviteFirst ? <ConversationList conversations={chatRows} selectedId={selected} onSelect={select} copy={conversationCopy} digests={digests} drafts={drafts} unread={unread} marks={groupRows.marks} sameNameCopy={groupsCopy.sameName} /> : null}
           </>
         }
@@ -518,6 +546,19 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             />
           ) : (
             <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats}
+              callActions={calls === undefined ? undefined : (contact) => contact.allowCalls === undefined ? null : (
+                <div className="om-call__controls">
+                  <IconButton label={callCopy.audio} icon={<Icon name="phone" />} onClick={() => { calls.start(contact, "audio"); }} />
+                  <IconButton label={callCopy.video} icon={<Icon name="video" />} onClick={() => { calls.start(contact, "video"); }} />
+                </div>
+              )}
+              callNotices={calls?.notices.some((notice) => notice.conversationId === selected) ? (
+                <ul aria-label={callCopy.missedSeveral} className="om-conv-view__timeline">
+                  {calls.notices.filter((notice) => notice.conversationId === selected).map((notice, index) => (
+                    <CallTimelineNotice key={`${notice.callSessionId}-${index}`} notice={notice} copy={callCopy} />
+                  ))}
+                </ul>
+              ) : undefined}
               onReply={(target) => { setReplies((m) => new Map(m).set(selected, target)); }} replyingTo={replies.get(selected)?.messageId ?? null} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
           )
         }

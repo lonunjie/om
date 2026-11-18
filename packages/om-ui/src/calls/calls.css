@@ -1,0 +1,38 @@
+.om-call {
+  display: grid;
+  gap: var(--om-space-2);
+  padding: var(--om-space-3);
+  background: var(--om-color-bg-surface);
+}
+
+.om-call__controls,
+.om-call__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--om-space-2);
+}
+
+.om-call__notice {
+  padding: var(--om-space-2) var(--om-space-3);
+}
+
+
+.om-call__device {
+  display: grid;
+  gap: var(--om-space-1);
+  min-inline-size: 0;
+}
+
+.om-call__device select {
+  min-block-size: var(--om-target-min);
+  max-inline-size: 100%;
+  color: inherit;
+  background: var(--om-color-bg-surface);
+  font: inherit;
+}
+
+.om-call__media {
+  max-inline-size: 100%;
+  max-block-size: 25dvh;
+}

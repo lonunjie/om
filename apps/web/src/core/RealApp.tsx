@@ -286,7 +286,7 @@ function Connected({ rt, vault, drafts, searchKv, platform, capture: composerToo
     <>
     <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={activeId} services={settingsServices} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} {...(alerts === undefined ? {} : { alerts })} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={`${activeId}:${ctx.generation}`} services={settingsServices} callDriver={rt.calls} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} {...(alerts === undefined ? {} : { alerts })} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />

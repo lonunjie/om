@@ -1,4 +1,6 @@
 interface ImportMetaEnv {
+  /** Experimental calls, only in a non-release build while V-007 remains open. */
+  readonly VITE_OM_CALLS?: string;
   /** "1" only for `pnpm build:harness` and dev; selects the dev-only Core harness entry. */
   readonly VITE_OM_DEV_HARNESS?: string;
   /** "1" only for `pnpm build:core-e2e`; selects the real Core with the in-page TEST loopback provider. */

@@ -69,6 +69,8 @@ export interface CallDescription {
 }
 
 export interface CallDriver {
+  /** Signals may change the host-only descriptions without changing the public CallView. */
+  onChange(ctx: ProfileExecutionContext, listener: () => void): Unsubscribe;
   tick(ctx: ProfileExecutionContext): Promise<void>;
   description(ctx: ProfileExecutionContext, callSessionId: string, ice?: boolean): CallDescription | null;
   mediaState(ctx: ProfileExecutionContext, callSessionId: string, state: "active" | "interrupted" | "failed"): Promise<void>;
@@ -556,6 +558,11 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   }
 
   const calls: CallDriver | undefined = opts.calls !== true || core.takeCallKeys === undefined ? undefined : {
+    onChange(ctx, listener) {
+      const scoped = (profileId: ProfileId) => { if (ctx.profileId === profileId) listener(); };
+      changeListeners.add(scoped);
+      return () => { changeListeners.delete(scoped); };
+    },
     tick: (ctx) => callStep(ctx, { cmd: "call_tick" }),
     description: (ctx, callSessionId, ice = false) => core.call({ cmd: "call_description", ctx: ctxOf(ctx), callSessionId, ice }) as CallDescription | null,
     mediaState: (ctx, callSessionId, state) => callStep(ctx, { cmd: "call_media_state", callSessionId, state }),

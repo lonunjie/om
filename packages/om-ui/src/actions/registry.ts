@@ -104,7 +104,49 @@ function parseRoomSetting(v: unknown): GroupRoomSetting | null {
   }
 }
 
+const callId = (value: unknown): string | null => typeof value === "string" && /^[0-9a-f]{32}$/.test(value) ? value : null;
+const callSdp = (value: unknown): value is readonly number[] =>
+  Array.isArray(value) && value.length > 0 && value.length <= 16_384 &&
+  Array.from(value).every((byte: unknown) => typeof byte === "number" && Number.isInteger(byte) && byte >= 0 && byte <= 255);
+const mediaFlags = (value: unknown): value is number => value === 0 || value === 1 || value === 2 || value === 3;
+
 const SPECS: Readonly<Record<string, Spec>> = {
+  "start-call": { destructive: false, parse: (p) => {
+    const target = id(p["target"]);
+    const media = oneOf(p["media"], ["audio", "video"]);
+    const sdp = p["sdp"];
+    if (!target || !media || !callSdp(sdp) || !exactly(p, ["target", "media", "sdp"])) return null;
+    return { intent: (ctx, op) => ({ kind: "StartCall", ctx, operationId: op, target: asPersonId(target), media, sdp }) };
+  } },
+  "accept-call": { destructive: false, parse: (p) => {
+    const callSessionId = callId(p["callSessionId"]);
+    const sdp = p["sdp"];
+    const flags = p["mediaFlags"];
+    if (!callSessionId || !callSdp(sdp) || !mediaFlags(flags) || !exactly(p, ["callSessionId", "sdp", "mediaFlags"])) return null;
+    return { intent: (ctx, op) => ({ kind: "AcceptCall", ctx, operationId: op, callSessionId, sdp, mediaFlags: flags }) };
+  } },
+  "decline-call": { destructive: false, parse: (p) => {
+    const callSessionId = callId(p["callSessionId"]);
+    if (!callSessionId || !exactly(p, ["callSessionId"])) return null;
+    return { intent: (ctx, op) => ({ kind: "DeclineCall", ctx, operationId: op, callSessionId }) };
+  } },
+  "end-call": { destructive: false, parse: (p) => {
+    const callSessionId = callId(p["callSessionId"]);
+    if (!callSessionId || !exactly(p, ["callSessionId"])) return null;
+    return { intent: (ctx, op) => ({ kind: "EndCall", ctx, operationId: op, callSessionId }) };
+  } },
+  "update-call-ice": { destructive: false, parse: (p) => {
+    const callSessionId = callId(p["callSessionId"]);
+    const sdp = p["sdp"];
+    if (!callSessionId || !callSdp(sdp) || !exactly(p, ["callSessionId", "sdp"])) return null;
+    return { intent: (ctx, op) => ({ kind: "UpdateCallIce", ctx, operationId: op, callSessionId, sdp }) };
+  } },
+  "set-call-media": { destructive: false, parse: (p) => {
+    const callSessionId = callId(p["callSessionId"]);
+    const flags = p["mediaFlags"];
+    if (!callSessionId || !mediaFlags(flags) || !exactly(p, ["callSessionId", "mediaFlags"])) return null;
+    return { intent: (ctx, op) => ({ kind: "SetCallMedia", ctx, operationId: op, callSessionId, mediaFlags: flags }) };
+  } },
   "open-conversation": { destructive: false, parse: (p, ctx) => {
     const c = id(p["conversationId"]);
     if (c === null) return null;

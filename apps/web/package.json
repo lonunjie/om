@@ -7,7 +7,7 @@
     "check:size-budget": "node build/size-budget.mjs",
     "repro": "node build/check-reproducible.mjs",
     "build:e2e": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_RELAY_URL= OM_BUNDLE_DEV=1 vite build --outDir dist-e2e --emptyOutDir",
-    "build:relay-e2e": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_RELAY_URL=http://127.0.0.1:8788 VITE_OM_ALLOW_LOOPBACK_RELAY=1 OM_BUNDLE_DEV=1 vite build --outDir dist-relay-e2e --emptyOutDir",
+    "build:relay-e2e": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_RELAY_URL=http://127.0.0.1:8788 VITE_OM_ALLOW_LOOPBACK_RELAY=1 VITE_OM_CALLS=1 OM_BUNDLE_DEV=1 vite build --outDir dist-relay-e2e --emptyOutDir",
     "build:setup-e2e": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_RELAY_URL= VITE_OM_ALLOW_LOOPBACK_RELAY=1 VITE_OM_RELAY_DEPLOY_URL=https://deploy.example.test/start OM_BUNDLE_DEV=1 vite build --outDir dist-setup-e2e --emptyOutDir",
     "build:live-relay": "node build/build-live-relay.mjs",
     "e2e:live": "pnpm build:live-relay && OM_LIVE_RELAY=1 playwright test -c e2e live-relay.spec.ts --project=live-chromium",
