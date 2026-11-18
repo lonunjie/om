@@ -4225,6 +4225,41 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0225-owner-recovery-checkpoint-evidence-lineage-floors-and-relationship-key-custody.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0226-recovery-inbox-epochs-request-refresh-veto-board-pacing-and-ceremony-replay.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0227-safety-code-replacement-quorum-kit-delivery-to-main-devices-and-the-retired-code-promise.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0228-calls-per-device-media-secrets-ordered-signalling-answer-retry-watchdog-and-turn-lease-lookup.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0229-room-account-evidence-scope-queue-retirement-preference-causal-evidence-and-reaction-compaction.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
