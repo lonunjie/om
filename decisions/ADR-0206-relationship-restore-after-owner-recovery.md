@@ -11,11 +11,14 @@ Read in part: ADR-0190 (verification, sender and receiver paths, local timing, a
 the freshness rules in [ASYNC_KEY_MATERIAL.md](../docs/architecture/crypto/ASYNC_KEY_MATERIAL.md), and the
 roster and account-control rules in
 [GROUP_COMMIT_AND_STATE_CONVERGENCE.md](../docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md).
-The remaining mapped Core, client and UI sources were not read in full. Their design gate still applies to implementation.
+The delegated-rulings follow-up also read ADR-0173 rule 4, ADR-0176, ADR-0184,
+[GROUP_COMMIT_AND_STATE_CONVERGENCE.md](../docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md),
+and the group state and binding layouts in [`group.cddl`](../spec/cddl/group.cddl). The remaining mapped Core, client
+and UI sources were not read in full. Their design gate still applies to implementation.
 
-- **Status:** Accepted by delegation, 2026-11-18, for local sequencing and presentation only.
+- **Status:** Accepted by delegation, 2026-11-18, including the Q-REL-1 and Q-REL-2 rulings below.
 - **Scope:** D157 in [the implementation ledger](../docs/reports/2026-10-28-relay-status.md). Existing wire formats,
-  admission, authorization, retry and security rules apply. Automatic reconnect requires separate protocol decisions.
+  admission, authorization, retry and security rules apply. This ADR amends no audited text.
 
 ## Context
 
@@ -33,39 +36,36 @@ Group membership and old message history each have their own recovery rules.
    Deduplicate that work across restart and repeated completion. Any surviving newer floor or conflicting
    observation supersedes the affected candidate. A split snapshot is usable only after opening its independent
    layer. Candidate data stays in the encrypted profile and never enters the live relationship table.
-2. **Show progress from Core's actual work.** The reference client may say “Getting your chats back” while Core
-   has real reconnect work in progress. A delivered notice, an accepted owner successor and a relay acknowledgement
-   each leave the chat pending. A chat is ready when the normal session path has established a fresh usable session
-   on the existing relationship. When reconciliation cannot proceed, offer the ordinary re-introduction path
-   from ADR-0190 §3.4. Keep the backup-file action separate. ADR-0184 imported conversations stay read-only,
-   even if a new live conversation exists with the same person.
-3. **Resume lazily.** Use ADR-0120 P1 for session repair. The ADR-0190 notice is still allowed on its existing
-   sealed route and schedule. Its receipt does not enable key fetch, messaging or group admission during the
-   contact's wait. Before a fresh PQXDH session, the existing relationship verifier must establish the current
-   eligible credentials, preserve any surviving relationship and prekey floors, and validate the private route
-   and delivery key. Start with fresh keys and publish through the existing durable outbox. Carry no peer-local
-   timer credit, ratchet, replay ledger or message history into session setup.
-4. **Use current Room admission for a fresh device.** ADR-0173 rule 4 limits the roster-neutral external-commit and
-   re-add path to devices already eligible in the canonical Room roster. A recovered account has a fresh
-   DeviceID. A current Room member must verify its account evidence and current Room policy, remove revoked
-   leaves as required by the audited account-control rules, and add the new device through an authorized,
-   journaled Room transition. The stable account alone cannot authorize a fresh MLS leaf. Group-only relationships
-   are outside the 1:1 snapshot.
+2. **Reconnect by explicit re-introduction (Q-REL-1).** The recovered owner chooses “Reconnect” for one
+   contact or for all listed contacts. The snapshot supplies the advisory list. The ordinary contact introduction
+   or invitation flow in ADR-0190 §3.4 supplies the authenticated contact anchor and private return path. The
+   contact verifies the recovery notice against its own account-chain evidence. A notice or relay acknowledgement
+   leaves the chat pending. A chat is ready when the normal handshake establishes a fresh usable session.
+3. **Re-link the thread by AccountID.** Use the authenticated AccountID for local presentation once the new
+   session is usable. Old messages appear through the separately chosen ADR-0184 backup-file import and stay
+   read-only. The existing verifier preserves any surviving relationship and prekey floors, verifies current
+   credentials and routes, and establishes fresh keys through the durable outbox. Timer credit, ratchets, replay
+   ledgers and history never transfer into the new session.
+4. **Ask a current Room member to re-add the device (Q-REL-2).** The owner chooses “Ask to rejoin” over an
+   existing Room route or contact route. The Room shows a pending state until a member of the canonical chain
+   performs the roster-neutral re-add under ADR-0173 rule 4. The ruling calls for the recovered device to appear
+   in the canonical roster through its authenticated account chain. Room policy, revoked-leaf removal and the
+   journaled Commit rules still apply. The recovered device cannot admit itself.
 
-## Open protocol questions
+## Room implementation boundary
 
-- Which independently authenticated evidence binds a recorded contact and its established security floor to the
-  recovered owner after total loss? Which private carrier supplies the current peer state, credentials, key
-  service and return route before either side releases messaging secrets? RecoveryRecord AEAD, a Home's key
-  bundle response and an AccountID string are insufficient. Older snapshots can omit even the advisory peer
-  head and fetch capability.
-- Which current, authenticated Room member supplies the Room locator and initiates the authorized fresh-device
-  Add, including when no 1:1 relationship can reach the Room? ADR-0199 §7 defines no Room entry, and ADR-0173's
-  roster-neutral recovery Commit cannot provide admission.
+ADR-0173 rule 4 re-adds devices of a losing branch that are already in the canonical device roster. Owner
+recovery creates a fresh DeviceID that never belonged to that branch. The audited group convergence rules
+require validating the account chain and Room policy for a new leaf. ADR-0176 defines a `device.add` intent
+carrying the validated account-head hash. The recovery binding has no intent hash and leaves the state hash
+unchanged. The ruling does not specify the authorized transition that makes the fresh DeviceID roster-eligible
+before rule 4 can run.
 
-Until these paths are specified, the existing contact notice, ordinary re-introduction and authorized Room
-invitation remain available. History still comes from the separately chosen backup file. No new registry entry,
-wire field, Home endpoint or authority rule is defined here.
+ADR-0199 §7 supplies neither a Room locator nor routes for group-only members. With no surviving Room route,
+the owner needs authenticated Room information from a current member before sending the request. Which
+existing flow supplies that information and which authorized transition enrolls the fresh DeviceID are
+implementation blockers for Room rejoin. Ordinary Room invitations remain available for account admission
+under current policy.
 
 ## Where did authority go?
 
