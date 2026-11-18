@@ -126,8 +126,13 @@ export class LocalRuntime {
       const match = /^([a-z]+--[a-z0-9-]+)\.sqlite$/.exec(file);
       const key = match?.[1];
       if (!key || !this.scope(key)) continue;
-      const db = new DatabaseSync(this.path(key), { readOnly: true });
-      try { this.recordAlarm(key, new Storage(db).alarmTime()); } finally { db.close(); }
+      // Opened for writing on purpose: a crash in the middle of a write leaves a rollback journal, and only a writer can roll it back.
+      // A read-only open of such a file fails ("attempt to write a readonly database") and would keep the Home from starting.
+      const db = new DatabaseSync(this.path(key));
+      try {
+        db.exec("PRAGMA synchronous=FULL");
+        this.recordAlarm(key, new Storage(db).alarmTime());
+      } finally { db.close(); }
     }
     this.timer = setInterval(() => {
       for (const [key, due] of this.alarms) {

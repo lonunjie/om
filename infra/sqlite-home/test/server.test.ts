@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { readdirSync } from "node:fs";
+import { cpSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { toHex } from "@om/home-wire";
@@ -153,4 +153,38 @@ it("PC-H04 keeps the data directory private to its owner, including one that alr
   chmodSync(dir.dir, 0o755);
   home = await startSqliteHome({ persist: dir.dir, direct: true });
   expect(statSync(dir.dir).mode & 0o077).toBe(0);
+});
+
+it("PC-H05 starts again after a crash that left a hot rollback journal beside a mailbox file", async () => {
+  home = await startSqliteHome({ persist: dir.dir, direct: true });
+  const c = newCaps();
+  expect((await relay.create(home, c)).ok).toBe(true);
+  const delivered = await relay.deposit(home, c.deposit, sealed());
+  expect(delivered.ok).toBe(true);
+  await home.dispose();
+
+  // Reproduce what a SIGKILL in the middle of a write leaves behind: the database file partly rewritten and its journal still
+  // there. The copy is taken while the transaction is open, then the original is rolled back and discarded.
+  const name = `queue--q-${toHex(c.prefix)}.sqlite`;
+  const source = join(dir.dir, name);
+  const writer = new DatabaseSync(source);
+  const snapshot = scratch();
+  try {
+    writer.exec("PRAGMA cache_size=1; PRAGMA synchronous=FULL; BEGIN IMMEDIATE");
+    writer.exec("CREATE TABLE crash_junk (x BLOB)");
+    const insert = writer.prepare("INSERT INTO crash_junk VALUES (?)");
+    for (let i = 0; i < 400; i++) insert.run(new Uint8Array(4096).fill(i % 251));
+    writer.exec("DELETE FROM ops");
+    for (const f of readdirSync(dir.dir)) if (f.startsWith(name)) cpSync(join(dir.dir, f), join(snapshot.dir, f));
+    expect(readdirSync(snapshot.dir).some((f) => f.endsWith("-journal"))).toBe(true);
+  } finally {
+    writer.close();
+  }
+  for (const f of readdirSync(dir.dir)) if (f.startsWith(name)) rmSync(join(dir.dir, f));
+  for (const f of readdirSync(snapshot.dir)) cpSync(join(snapshot.dir, f), join(dir.dir, f));
+  snapshot.remove();
+
+  home = await startSqliteHome({ persist: dir.dir, direct: true });
+  const drained = await relay.drain(home, c.receive);
+  expect(drained.ok && drained.value.items).toHaveLength(1);
 });
