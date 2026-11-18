@@ -59,6 +59,19 @@ impl Drop for SecretHex {
     }
 }
 
+/// A replacement recovery key that is shown but not yet confirmed saved (ADR-0205). Nothing of it is in force: the account's
+/// recovery policy, the kit and the record change only when the person confirms the key is stored. Dropped on confirmation, on
+/// a newer replacement and on any failure.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingRecovery {
+    pub key_operation_id: OperationId,
+    /// The `RecoveryPolicy` body the new root's method key belongs to (epoch one above the current one).
+    pub policy: Hex,
+    /// The type-38 bytes of the kit for the new root, when the account has a recovery place.
+    pub kit: Option<SecretHex>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryKeyRec {
@@ -802,6 +815,9 @@ pub struct AppState {
     pub label: String,
     pub created_at: u64,
     pub recovery_key: Option<RecoveryKeyRec>,
+    /// A replacement for the recovery key, shown and not yet confirmed (ADR-0205).
+    #[serde(default)]
+    pub pending_recovery: Option<PendingRecovery>,
     pub recovery_key_saved: bool,
     /// The device-private `RecoveryKit` (hex of its type-38 bytes). Never in a backup, never sent to a Home.
     #[serde(default)]

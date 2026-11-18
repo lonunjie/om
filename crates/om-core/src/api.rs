@@ -363,6 +363,9 @@ pub enum IntentBody {
     JoinRecoveryApproval {
         link: String,
     },
+    /// Make a new recovery key for this account (ADR-0205): a controller device stages a new root and its policy and shows the new
+    /// key once (`GetRecoveryKey` under this operation id). Nothing changes until `ConfirmRecoveryKeyStored` names this operation.
+    ReplaceRecoveryKey,
     /// Close this device's own recovery attempt.
     CancelRecovery,
     /// Ask again now: re-read the record (before an attempt) or the Homes' boards and record (during one).
@@ -479,6 +482,7 @@ impl IntentBody {
             IntentBody::RequestRecovery => "RequestRecovery",
             IntentBody::OfferRecoveryApproval => "OfferRecoveryApproval",
             IntentBody::JoinRecoveryApproval { .. } => "JoinRecoveryApproval",
+            IntentBody::ReplaceRecoveryKey => "ReplaceRecoveryKey",
             IntentBody::CancelRecovery => "CancelRecovery",
             IntentBody::CheckRecoveryAgain => "CheckRecoveryAgain",
             IntentBody::ApproveDeviceLink { .. } => "ApproveDeviceLink",

@@ -9,7 +9,7 @@ import {
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, ReplyTarget, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, approveRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, recoveryCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -81,6 +81,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
   const mode = useLayoutMode();
+  // A replacement safety code (ADR-0205) being shown from Settings > Recovery; nothing changes until the person confirms it is saved.
+  const [replacingKey, setReplacingKey] = useState<OperationId | null>(null);
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   // Files and voice notes waiting to be sent. Memory only: they survive switching chats but never reach disk, and locking or switching identity drops them.
   const [replies, setReplies] = useState<ReadonlyMap<ConversationId, ReplyTarget>>(() => new Map());
@@ -335,6 +337,26 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     </Sheet>
   ) : null;
 
+  if (replacingKey !== null && invite !== undefined) {
+    const done = (): void => { setReplacingKey(null); };
+    return (
+      <>
+        <AppShell
+          {...common}
+          conversationOpen
+          onBack={done}
+          list={<Text>{t.loading}</Text>}
+          detail={(
+            <div className="om-page">
+              <SubPage label={t.backToSettings} onBack={done}>
+                <RecoveryKeyStep services={services} platform={invite.platform} keyOperationId={replacingKey} copy={onboardingCopy.recovery} onConfirmed={done} />
+              </SubPage>
+            </div>
+          )}
+        />
+      </>
+    );
+  }
   if (savingCode) {
     return (
       <>
@@ -385,7 +407,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />
-                  : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy, renderQr: (payload) => <QrCode payload={payload} /> }} />}
+                  : <RecoveryScreen services={services} copy={recoveryCopy} approve={{ copy: approveRecoveryCopy, renderQr: (payload) => <QrCode payload={payload} /> }} {...(invite ? { replace: { copy: replaceRecoveryCopy, onStarted: setReplacingKey } } : {})} />}
               </SubPage>
             </div>
           )}

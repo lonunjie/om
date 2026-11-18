@@ -1,3 +1,4 @@
+import type { OperationId } from "@om/platform-api";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { isTerminalOutcome } from "@om/platform-api";
@@ -16,6 +17,8 @@ export interface RecoveryScreenProps {
   readonly services: SettingsServices;
   readonly copy: RecoveryCopy;
   /** Lets this device help another device get the account back (ADR-0203). Offered only when the account keeps a recovery record. */
+  /** Makes a new safety code (ADR-0205): for an account with no recovery record yet, or one that wants a sheet with a newer checkpoint. */
+  readonly replace?: { readonly copy: { readonly action: string; readonly body: string }; readonly onStarted: (keyOperationId: OperationId) => void };
   readonly approve?: { readonly copy: ApproveRecoveryCopy; readonly renderQr?: (payload: string) => ReactNode };
 }
 
@@ -28,7 +31,7 @@ const isPendingKind = (k: string): k is RecoveryPendingKind => (PENDING as reado
  * Settings > Recovery. Status, custodians, scopes and timers are Core data. Starting or stopping a recovery happens in
  * its own step, never from a status row. The recovery key is display-once: this screen never offers to show it again.
  */
-export function RecoveryScreen({ services, copy, approve }: RecoveryScreenProps) {
+export function RecoveryScreen({ services, copy, approve, replace }: RecoveryScreenProps) {
   const [view, setView] = useState<View>({ kind: "status" });
   const live = useLiveQuery(services, { kind: "GetRecoveryStatus", ctx: services.ctx }, "recovery");
   const toStatus = (): void => { setView({ kind: "status" }); };
@@ -50,6 +53,7 @@ export function RecoveryScreen({ services, copy, approve }: RecoveryScreenProps)
       {view.kind === "start" ? <StartRecovery services={services} copy={copy} status={status} onBack={toStatus} /> : null}
       {view.kind === "stop" && stopping ? <StopRecovery services={services} copy={copy} request={stopping} onBack={toStatus} /> : null}
       {view.kind === "approve" && approve ? <ApproveRecovery services={services} copy={approve.copy} {...(approve.renderQr ? { renderQr: approve.renderQr } : {})} onClose={toStatus} /> : null}
+      {view.kind === "status" && replace ? <ReplaceKey services={services} copy={copy} replace={replace} /> : null}
       {view.kind === "status" || (view.kind === "stop" && !stopping) ? (
         <Status copy={copy} status={status} approveLabel={status.record !== undefined ? approve?.copy.action : undefined} pending={ops.filter((o) => isPendingKind(o.intentKind) && !isTerminalOutcome(o.outcome))} onView={setView} />
       ) : null}
@@ -190,6 +194,22 @@ function StopRecovery({ services, copy, request, onBack }: { readonly services: 
         </div>
       ) : <Text as="p" className="om-devices__state" data-state={request.state}>{copy.requestState[request.state]}</Text>}
       <OperationStatus state={op.state} copy={copy.outcome} done={c.done} />
+    </section>
+  );
+}
+
+function ReplaceKey({ services, copy, replace }: { readonly services: SettingsServices; readonly copy: RecoveryCopy; readonly replace: NonNullable<RecoveryScreenProps["replace"]> }) {
+  const op = useOperation(services);
+  const go = async (): Promise<void> => {
+    const id = await op.run("replace-recovery-key", {});
+    if (id !== null) replace.onStarted(id);
+  };
+  return (
+    <section className="om-settings__group" aria-labelledby="om-recovery-new-h">
+      <Text as="h2" size="lg" weight="bold" id="om-recovery-new-h">{replace.copy.action}</Text>
+      <Text as="p">{replace.copy.body}</Text>
+      <div className="om-settings__actions"><Button disabled={op.locked} onClick={() => { void go(); }}>{replace.copy.action}</Button></div>
+      <OperationStatus state={op.state} copy={copy.outcome} done="" />
     </section>
   );
 }

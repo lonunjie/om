@@ -380,6 +380,7 @@ const SPECS: Readonly<Record<string, Spec>> = {
   "request-recovery": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "RequestRecovery", ctx, operationId: op }) } : null) },
   "cancel-recovery": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "CancelRecovery", ctx, operationId: op }) } : null) },
   "check-recovery-again": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "CheckRecoveryAgain", ctx, operationId: op }) } : null) },
+  "replace-recovery-key": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "ReplaceRecoveryKey", ctx, operationId: op }) } : null) },
   "offer-recovery-approval": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "OfferRecoveryApproval", ctx, operationId: op }) } : null) },
   "join-recovery-approval": { destructive: false, parse: (p) => {
     const link = p["link"];

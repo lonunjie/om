@@ -211,3 +211,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0202 — Owner recovery evidence, stale requests and controller approval (accepted by operator delegation 2026-11-18)](ADR-0202-owner-recovery-evidence-and-controller-approval.md)
 - [ADR-0203 — Owner recovery checkpoint and approval carriage](ADR-0203-owner-recovery-carriage.md)
 - [ADR-0204 — Typing indicators: off unless the person turns them on, direct channel only (accepted with gates; implementation blocked)](ADR-0204-typing-indicators.md)
+- [ADR-0205 — Replacing the recovery key: accounts without a kit, a newer sheet checkpoint, and what stays open (accepted by delegation 2026-11-18)](ADR-0205-replacing-the-recovery-key-and-what-stays-open.md)

@@ -40,6 +40,11 @@ async function connectToHome(page: Page): Promise<void> {
 async function saveSafetyCode(page: Page): Promise<string[]> {
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Save my safety code" }).click();
+  return writeDown(page);
+}
+
+/** The safety-code step itself: read the groups, write them back as the check asks, confirm. */
+async function writeDown(page: Page): Promise<string[]> {
   const items = page.getByRole("list", { name: "Safety code" }).getByRole("listitem");
   await expect(items.first()).toBeVisible();
   const groups = (await items.allTextContents()).map((t) => t.replace(/^Group \d+ of \d+:?\s*/, "").trim());
@@ -98,6 +103,46 @@ test("a person with no device left asks for the account back, and the first devi
   await a.getByRole("button", { name: "Show the link and code" }).click();
   const link = ((await a.locator("code.om-devices__link").textContent()) ?? "").trim();
   expect(link).toMatch(/^om:recover-approve\//);
+  await b.getByLabel("Link from your other device").fill(link);
+  await b.getByRole("button", { name: "Continue" }).click();
+  const codeB = await b.getByText(/^\d{6}$/).first().textContent({ timeout: 90_000 });
+  const codeA = await a.getByText(/^\d{6}$/).first().textContent({ timeout: 90_000 });
+  expect(codeA).toBe(codeB);
+  await a.getByRole("button", { name: "Yes, this is me" }).click();
+  await expect(b.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 120_000 });
+});
+
+test("a new safety code replaces the first: only the new one brings the account back", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const ctxA = await browser.newContext({ baseURL: "http://localhost:4179" });
+  const a = await ctxA.newPage();
+  await noPasskeys(a);
+  await connectToHome(a);
+  await walkSetup(a, { name: "Maya" });
+  const first = await saveSafetyCode(a);
+  await a.waitForTimeout(8_000);
+  await openRecovery(a);
+  await a.getByRole("button", { name: "Make a new safety code" }).first().click();
+  const second = await writeDown(a);
+  expect(second.join("")).not.toBe(first.join(""));
+  await a.waitForTimeout(8_000); // the record under the new key is written before a new device looks
+
+  const ctxB = await browser.newContext({ baseURL: "http://localhost:4179" });
+  const b = await ctxB.newPage();
+  await noPasskeys(b);
+  await connectToHome(b);
+  await b.getByRole("button", { name: "I lost my devices" }).click();
+  await b.getByRole("button", { name: "Next: Secure this device" }).click();
+  await expect(b.getByRole("heading", { name: "Get your account back" })).toBeVisible({ timeout: 60_000 });
+  await b.getByLabel("Your recovery key").fill(second.join(" "));
+  await b.getByRole("button", { name: "Find my account" }).click();
+  await expect(b.getByRole("heading", { name: "Your saved account was found" })).toBeVisible({ timeout: 60_000 });
+  await b.getByRole("button", { name: "Ask for my account back" }).click();
+  await a.getByRole("button", { name: "Settings" }).click().catch(() => undefined);
+  await openRecovery(a);
+  await a.getByRole("button", { name: "Help another device get the account back" }).click();
+  await a.getByRole("button", { name: "Show the link and code" }).click();
+  const link = ((await a.locator("code.om-devices__link").textContent()) ?? "").trim();
   await b.getByLabel("Link from your other device").fill(link);
   await b.getByRole("button", { name: "Continue" }).click();
   const codeB = await b.getByText(/^\d{6}$/).first().textContent({ timeout: 90_000 });

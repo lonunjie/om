@@ -42,9 +42,16 @@ pub struct World {
 /// Alice with a recovery place and Bob as an active contact; the key is confirmed saved, so the record (with the
 /// snapshot of Bob) is on the Home.
 pub fn world() -> World {
+    world_with(true)
+}
+
+/// `with_place: false` is an account made while the Home offered no recovery place: it has no kit and no sheet.
+pub fn world_with(with_place: bool) -> World {
     let net = LoopbackNetwork::default();
     let mut alice = Runtime::new("alice", &net);
-    alice.set_recovery_place(Some(place()));
+    if with_place {
+        alice.set_recovery_place(Some(place()));
+    }
     let a = super::create_profile(&mut alice, "p-a", "Alice");
     let key: RecoveryKeyView = alice
         .query::<Option<RecoveryKeyView>>(Query::GetRecoveryKey {
@@ -82,27 +89,30 @@ pub fn world() -> World {
         },
     );
     settle_all(&mut [(&mut alice, &a), (&mut bob, &b)]);
-    assert_eq!(net.recovery_puts().len(), 1, "the record is written");
-    let root = {
-        const A: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        let mut bits = String::new();
-        for c in key.groups.concat().chars() {
-            bits.push_str(&format!("{:05b}", A.find(c).unwrap()));
-        }
-        let v: Vec<u8> = (0..32)
-            .map(|i| u8::from_str_radix(&bits[i * 8..i * 8 + 8], 2).unwrap())
-            .collect();
-        <[u8; 32]>::try_from(v).unwrap()
-    };
+    assert_eq!(net.recovery_puts().len(), usize::from(with_place), "the record is written only with a place");
+    let root = root_of(&key.groups);
     World {
         net,
         alice,
         a,
         bob,
         b,
-        sheet: key.sheet.expect("sheet"),
+        sheet: if with_place { key.sheet.expect("sheet") } else { String::new() },
         keys: RecordKeys::derive(&root, &SCOPE),
     }
+}
+
+/// The RecoveryRoot a displayed key encodes (the first 32 bytes of its groups).
+pub fn root_of(groups: &[String]) -> [u8; 32] {
+    const A: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let mut bits = String::new();
+    for c in groups.concat().chars() {
+        bits.push_str(&format!("{:05b}", A.find(c).unwrap()));
+    }
+    let v: Vec<u8> = (0..32)
+        .map(|i| u8::from_str_radix(&bits[i * 8..i * 8 + 8], 2).unwrap())
+        .collect();
+    <[u8; 32]>::try_from(v).unwrap()
 }
 
 pub struct Fresh {

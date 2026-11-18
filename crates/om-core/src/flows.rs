@@ -31,6 +31,7 @@ mod recovery_attempt;
 mod recovery_inbox;
 mod recovery_owner;
 mod recovery_peer;
+mod recovery_rotate;
 mod recovery_watch;
 mod recovery_writer;
 pub(crate) mod social;
@@ -776,8 +777,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let outcome = match &intent.body {
             IntentBody::CreateIdentityProfile { label } => self.create_identity(op, label),
+            IntentBody::ReplaceRecoveryKey => self.replace_recovery_key(op),
             IntentBody::ConfirmRecoveryKeyStored { key_operation_id } => {
                 match &self.st.app.recovery_key {
+                    Some(k)
+                        if &k.key_operation_id == key_operation_id
+                            && self.st.app.pending_recovery.is_some() =>
+                    {
+                        self.commit_recovery_replacement(key_operation_id)
+                    }
                     Some(k) if &k.key_operation_id == key_operation_id => {
                         self.st.app.recovery_key = None;
                         self.st.app.recovery_key_saved = true;

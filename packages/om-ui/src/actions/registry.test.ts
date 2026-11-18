@@ -64,7 +64,7 @@ describe("Action Registry", () => {
       "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
       "create-invite": {}, "accept-invitation": { link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" },
       "offer-device-link": {}, "request-device-link": { link: "om:link/AAAAAAAAAAAAAAAAAAAAAA" }, "reject-device-link": { requestId: "lr-1" },
-      "begin-recovery": { recoveryKey: "ABCD EFGH" }, "request-recovery": {}, "cancel-recovery": {}, "check-recovery-again": {}, "offer-recovery-approval": {},
+      "begin-recovery": { recoveryKey: "ABCD EFGH" }, "request-recovery": {}, "cancel-recovery": {}, "check-recovery-again": {}, "offer-recovery-approval": {}, "replace-recovery-key": {},
       "join-recovery-approval": { link: "om:recover-approve/AAAAAAAAAAAAAAAAAAAAAA" },
     };
     for (const [actionId, params] of Object.entries(samples)) {

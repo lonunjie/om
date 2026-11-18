@@ -1176,6 +1176,12 @@ export const lostDevicesCopy: LostDevicesCopy = {
   outcome: joinCopy.outcome,
 };
 
+/** A new safety code from Settings > Recovery (ADR-0205). */
+export const replaceRecoveryCopy = {
+  action: "Make a new safety code",
+  body: "Use this if you have no safety code yet, or want a fresh one. Your current code keeps working until you confirm you saved the new one; then only the new code works.",
+} as const;
+
 /** A device that still works helps another device get the account back (ADR-0203). */
 export const approveRecoveryCopy: ApproveRecoveryCopy = {
   action: "Help another device get the account back",

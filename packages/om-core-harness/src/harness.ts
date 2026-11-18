@@ -572,6 +572,10 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         st.recoveryKeys.set(intent.operationId, fakeRecoveryGroups());
         return record(intent, { kind: "Committed" });
       }
+      case "ReplaceRecoveryKey": {
+        st.recoveryKeys.set(intent.operationId, fakeRecoveryGroups());
+        return record(intent, { kind: "Committed" });
+      }
       case "ConfirmRecoveryKeyStored": {
         if (!st.recoveryKeys.delete(intent.keyOperationId)) return rejected("not_found");
         return record(intent, { kind: "Committed" });

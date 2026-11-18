@@ -1810,6 +1810,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/recovery_rotate.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows/recovery_watch.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -2315,6 +2322,13 @@
     },
     {
       "path": "crates/om-core/tests/recovery_record_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/recovery_replace.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -3862,6 +3876,13 @@
     },
     {
       "path": "decisions/ADR-0204-typing-indicators.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0205-replacing-the-recovery-key-and-what-stays-open.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
