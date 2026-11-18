@@ -1125,6 +1125,7 @@ pub enum Action {
     Suspend,
     /// Permanent removal: terminal for that DeviceID.
     Revoke,
+    Promote,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1151,6 +1152,20 @@ pub fn plan(
     action: Action,
     target: &[u8; 16],
 ) -> Result<Acs, PlanError> {
+    let (child, needs_signers) = plan_device_change(head, me, action, target)?;
+    if needs_signers {
+        return Err(PlanError::NeedsOtherSigners);
+    }
+    Ok(child)
+}
+
+/// Construct the exact candidate even when it still needs other parent controllers' votes.
+pub(crate) fn plan_device_change(
+    head: &Acs,
+    me: &[u8; 16],
+    action: Action,
+    target: &[u8; 16],
+) -> Result<(Acs, bool), PlanError> {
     if !head.control.contains(me) || head.quarantined.contains(me) {
         return Err(PlanError::NotController);
     }
@@ -1158,6 +1173,12 @@ pub fn plan(
     child.generation = head.generation + 1;
     child.previous = Some(head.hash());
     match action {
+        Action::Promote => {
+            if head.control.contains(target) || !head.messaging.contains(target) {
+                return Err(PlanError::Conflict);
+            }
+            child.control.insert(*target);
+        }
         Action::Suspend => {
             if head.messaging.contains(target) {
                 return Err(PlanError::Conflict); // messaging devices are removed, never quarantined
@@ -1194,14 +1215,14 @@ pub fn plan(
     };
     match authorize(&pm, &cm, &alone) {
         Verdict::Accept(why) if why.contains("SAFETY_FREEZE") => Err(PlanError::WouldFreeze),
-        Verdict::Accept(_) => Ok(child),
+        Verdict::Accept(_) => Ok((child, false)),
         Verdict::Pending(_) | Verdict::Reject(_) => {
             let all = Ctx {
                 signers: pm.control.difference(&pm.quarantined).cloned().collect(),
                 ..Ctx::default()
             };
             match authorize(&pm, &cm, &all) {
-                Verdict::Accept(_) => Err(PlanError::NeedsOtherSigners),
+                Verdict::Accept(_) => Ok((child, true)),
                 _ if after_invariants(&cm).is_empty() => Err(PlanError::Forbidden),
                 _ => Err(PlanError::Conflict),
             }

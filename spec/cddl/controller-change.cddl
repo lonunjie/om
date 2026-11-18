@@ -1,0 +1,33 @@
+; SPDX-License-Identifier: Apache-2.0
+; ADR-0216 private ceremony v1 plaintexts, inside the existing ceremony envelope.
+; OM-CBOR applies to every encoded array and nested byte string.
+
+controller-request = promotion-request / removal-request
+promotion-request = [1, device-proof, null, bstr .size 1216]
+removal-request = [1, device-proof, signed-control-state, null]
+controller-reply = [bstr .cbor controller-reply-body, device-proof]
+controller-reply-body = [2, signed-control-state, kit-transfer / null]
+kit-transfer = [bstr, bstr .size 1120, bstr .size (17..4112)]
+
+device-proof = bstr .size 3373
+signed-control-state = bstr
+controller-binding = [
+  "om.controller_change.v1",
+  0 / 1, ; promotion or removal
+  bstr .size 32, ; AccountID
+  bstr .size 32, ; parent hash
+  bstr .size 16, ; originating controller
+  bstr .size 16, ; selected DeviceID
+  bstr .size 32, ; its parent-committed credential hash
+  bstr .size 32, ; exact candidate child hash
+]
+controller-key-context = [bstr .cbor controller-binding, bstr]
+controller-proof = ["om.controller_change.v1", bstr .size 32, bstr .cbor controller-binding]
+controller-request-proof = [bstr .cbor controller-proof, bstr .size 1216 / null]
+controller-reply-binding = [
+  "om.controller_change.v1",
+  "reply" / "kit",
+  bstr .size 32, ; ceremony ID
+  bstr .size 32, ; SHA-256 of the request plaintext
+  bstr .size 32, ; SHA-256 of reply body (reply) or candidate child hash (kit)
+]

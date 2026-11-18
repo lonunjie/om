@@ -26,7 +26,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !head.control.contains(&me) || head.quarantined.contains(&me) {
             return rejected(RejectReason::Unauthorized);
         }
-        if !self.st.app.recovery_requests.is_empty() {
+        if self
+            .st
+            .app
+            .recovery_requests
+            .values()
+            .any(|r| r.state == crate::state::RecoveryObsState::Waiting)
+        {
             return rejected(RejectReason::Conflict);
         }
         let epoch = self
@@ -97,8 +103,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if &pending.key_operation_id != op {
             return rejected(RejectReason::NotFound);
         }
-        let (Some((head, _, creds)), Some(dev)) = (self.acs_head(), self.st.device.as_ref())
-        else {
+        let (Some((head, _, creds)), Some(dev)) = (self.acs_head(), self.st.device.as_ref()) else {
             return rejected(RejectReason::StaleState);
         };
         if !head.control.contains(&dev.device_id) || head.quarantined.contains(&dev.device_id) {
@@ -124,6 +129,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.st.app.recovery_key_saved = true;
         self.st.app.recovery_kit = pending.kit;
         // A new lineage at the Home: the writer starts over under the new kit (the old record is left to its retention).
+        self.discard_recovery_puts();
         let w = &mut self.st.app.recovery_writer;
         *w = crate::state::RecoveryWriter::default();
         if self.st.app.recovery_kit.is_some() {

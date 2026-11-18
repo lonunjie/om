@@ -214,12 +214,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(payload) = self.acs_update_payload(head.previous, &[]) else {
             return;
         };
-        for sibling in head
-            .control
-            .iter()
-            .chain(&head.messaging)
-            .filter(|d| **d != me)
-        {
+        for sibling in head.control.union(&head.messaging).filter(|d| **d != me) {
             self.deliver_enrolled(&hex(sibling), &payload);
         }
     }
@@ -288,6 +283,55 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some((head, have, have_creds)) = self.acs_head() else {
             return false;
         };
+        let Some(local) = chain_states(&have) else {
+            return false;
+        };
+        let Some(incoming) = chain_states(&chain) else {
+            return false;
+        };
+        // A branch may omit the common ancestor. Verify from our own retained copy of it.
+        if let Some((from, ancestor)) = incoming.iter().enumerate().find_map(|(i, state)| {
+            let parent = state.previous?;
+            let at = local.iter().position(|s| s.hash() == parent)?;
+            let next = local.get(at + 1)?;
+            (next.hash() != state.hash()).then_some((i, at))
+        }) {
+            let Some(branch) = ceremony::stage_enrollment(
+                local[ancestor].clone(),
+                have[..=ancestor].to_vec(),
+                have_creds,
+                &chain[from..],
+                &creds,
+                &[],
+            ) else {
+                return false;
+            };
+            let Some(tip) = branch.chain.last().and_then(|s| ceremony::chain_head(s)) else {
+                return false;
+            };
+            if !branch.extended || !AppState::carry_head_matches(&tip, &branch.creds, signed) {
+                return false;
+            }
+            if self.st.app.acs_forks.len() < MAX_UPDATE_STATES {
+                self.st
+                    .app
+                    .acs_forks
+                    .entry(hex(&tip.hash()))
+                    .or_insert_with(|| {
+                        (
+                            branch.chain[ancestor + 1..]
+                                .iter()
+                                .map(|s| hex(s))
+                                .collect(),
+                            branch.creds.iter().map(|s| hex(s)).collect(),
+                        )
+                    });
+            }
+            return true;
+        }
+        if !self.st.app.acs_forks.is_empty() {
+            return false;
+        }
         let Some(staged) = ceremony::stage_enrollment(head, have, have_creds, &chain, &creds, &[])
         else {
             return false;

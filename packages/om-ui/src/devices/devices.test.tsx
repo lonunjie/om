@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asOperationId, asProfileId } from "@om/platform-api";
+import type { CoreQuery, DevicesView, QueryResult } from "@om/platform-api";
 import { createHarness, type SeedDevices } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testDevicesCopy, testJoinCopy } from "./__fixtures__/copy";
@@ -36,6 +37,19 @@ function setup(account: SeedDevices = TWO, opIds: string[] = []) {
   return { h, services, registry };
 }
 const kinds = async (h: ReturnType<typeof setup>["h"], s: SettingsServices) => (await h.pendingOperations(s.ctx)).map((o) => o.intentKind);
+
+function withDeviceView(services: SettingsServices, view: DevicesView): SettingsServices {
+  const core = services.client;
+  return {
+    ...services,
+    client: {
+      ...core,
+      query: <Q extends CoreQuery>(q: Q): Promise<QueryResult<Q>> => q.kind === "GetDevices"
+        ? Promise.resolve(view as QueryResult<Q>)
+        : core.query(q),
+    },
+  };
+}
 
 describe("Devices screen", () => {
   it("lists devices from Core; rows only open details (no action runs from a list row)", async () => {
@@ -93,6 +107,37 @@ describe("Devices screen", () => {
     expect(await screen.findByText("Suspended", { selector: "p" })).toBeTruthy();
     expect(await kinds(h, services)).toEqual(["IssueConfirmation", "SuspendDevice"]);
     expect(screen.getByText("Suspended", { selector: "li" })).toBeTruthy();
+  });
+
+  it("offers a new safety code after Core pauses recovery updates", async () => {
+    const { h, services } = setup();
+    const paused = { ...(await h.query({ kind: "GetDevices", ctx: services.ctx })), recoveryKeyReplacementNeeded: true };
+    const open = vi.fn();
+    const { container } = render(<DevicesScreen services={withDeviceView(services, paused)} copy={testDevicesCopy}
+      recoveryPaused={{ action: "Make a new safety code", pausedBody: "Updates are paused. Your current code still opens what was saved.", open }} />);
+    const path = await screen.findByRole("button", { name: "Make a new safety code" });
+    expect(screen.getByRole("status").textContent).toContain("Your current code still opens what was saved");
+    await userEvent.click(path);
+    expect(open).toHaveBeenCalledOnce();
+    expect(await kinds(h, services)).toEqual([]);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("explains the promotion before it opens an approval link for the selected device", async () => {
+    const { h, services } = setup();
+    const devices = await h.query({ kind: "GetDevices", ctx: services.ctx });
+    const withPromotion = {
+      ...devices,
+      devices: devices.devices.map((d) => d.id === "d-tablet" ? { ...d, actions: ["promote"] as const } : d),
+    };
+    const { container } = render(<DevicesScreen services={withDeviceView(services, withPromotion)} copy={testDevicesCopy} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Tablet/ }));
+    await userEvent.click(screen.getByRole("button", { name: testDevicesCopy.controller.promote }));
+    expect(await screen.findByText(testDevicesCopy.controller.promotionBody)).toBeTruthy();
+    expect(await kinds(h, services)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: testDevicesCopy.controller.promote }));
+    expect(await kinds(h, services)).toEqual(["OfferControllerChange"]);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it("Safety Freeze is shown on the reserved surface and no device change is offered", async () => {

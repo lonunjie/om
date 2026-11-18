@@ -389,6 +389,20 @@ pub enum IntentBody {
         #[serde(default)]
         nickname: Option<String>,
     },
+    OfferControllerChange {
+        device_id: DeviceId,
+        remove: bool,
+    },
+    JoinControllerChange {
+        link: String,
+    },
+    ConfirmControllerChange {
+        request_id: String,
+        confirmation: ConfirmationToken,
+    },
+    CancelControllerChange {
+        request_id: String,
+    },
     ApproveDeviceLink {
         request_id: String,
         confirmation: ConfirmationToken,
@@ -437,7 +451,7 @@ pub enum IntentBody {
 }
 
 /// The destructive intent kinds that need a Core-issued confirmation (mirrors `DESTRUCTIVE_INTENT_KINDS`).
-pub const DESTRUCTIVE_KINDS: [&str; 10] = [
+pub const DESTRUCTIVE_KINDS: [&str; 11] = [
     "BlockPerson",
     "SuspendDevice",
     "ChangePrivacyPolicy",
@@ -448,6 +462,7 @@ pub const DESTRUCTIVE_KINDS: [&str; 10] = [
     "ConfirmRecovery",
     "DeclinePeerRecovery",
     "ConfirmPeerRecovery",
+    "ConfirmControllerChange",
 ];
 
 impl IntentBody {
@@ -489,6 +504,10 @@ impl IntentBody {
             IntentBody::ReplaceRecoveryKey => "ReplaceRecoveryKey",
             IntentBody::CancelRecovery => "CancelRecovery",
             IntentBody::CheckRecoveryAgain => "CheckRecoveryAgain",
+            IntentBody::OfferControllerChange { .. } => "OfferControllerChange",
+            IntentBody::JoinControllerChange { .. } => "JoinControllerChange",
+            IntentBody::ConfirmControllerChange { .. } => "ConfirmControllerChange",
+            IntentBody::CancelControllerChange { .. } => "CancelControllerChange",
             IntentBody::ApproveDeviceLink { .. } => "ApproveDeviceLink",
             IntentBody::RejectDeviceLink { .. } => "RejectDeviceLink",
             IntentBody::RetryDeviceNotice { .. } => "RetryDeviceNotice",
@@ -511,7 +530,8 @@ impl IntentBody {
             IntentBody::BlockPerson { person_id, .. } => Some(person_id.clone()),
             IntentBody::SuspendDevice { device_id, .. }
             | IntentBody::RevokeDevice { device_id, .. } => Some(device_id.clone()),
-            IntentBody::ApproveDeviceLink { request_id, .. }
+            IntentBody::ConfirmControllerChange { request_id, .. }
+            | IntentBody::ApproveDeviceLink { request_id, .. }
             | IntentBody::VetoRecovery { request_id, .. }
             | IntentBody::ConfirmRecovery { request_id, .. }
             | IntentBody::DeclinePeerRecovery { request_id, .. }
@@ -530,6 +550,7 @@ impl IntentBody {
             IntentBody::BlockPerson { confirmation, .. }
             | IntentBody::SuspendDevice { confirmation, .. }
             | IntentBody::ChangePrivacyPolicy { confirmation, .. }
+            | IntentBody::ConfirmControllerChange { confirmation, .. }
             | IntentBody::ApproveDeviceLink { confirmation, .. }
             | IntentBody::RevokeDevice { confirmation, .. }
             | IntentBody::StartRecovery { confirmation, .. }
@@ -1104,6 +1125,8 @@ pub enum LastSeenClass {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DeviceActionCode {
+    Promote,
+    RevokeWithApproval,
     Suspend,
     Revoke,
     /// Try again now to tell this device about a newly linked device (ADR-0193).
@@ -1268,6 +1291,24 @@ pub struct DevicesView {
     /// The strict reading of ADR-0193 section 8 is on for this device.
     #[serde(default)]
     pub strict_notice: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controller_change: Option<ControllerChangeView>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub can_join_controller_change: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub recovery_key_replacement_needed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ControllerChangeView {
+    pub request_id: String,
+    pub device_id: DeviceId,
+    pub remove: bool,
+    pub host: bool,
+    pub waiting: bool,
+    pub verification_code: Option<String>,
+    pub link: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1310,6 +1351,7 @@ pub enum RecoveryRecordCode {
     FinishingSetup,
     Ready,
     NeedsAttention,
+    NeedsNewKey,
 }
 
 /// The restricted recovery state of a device that has entered a recovery key but has no account yet.
@@ -1328,6 +1370,8 @@ pub struct RecoveringView {
     /// Where this device's own attempt stands, once one was asked for.
     #[serde(default)]
     pub attempt: Option<crate::state::AttemptState>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub retry_from_verified_head: bool,
     /// Milliseconds of this device's own interval still to run (monotonic credit only), once an attempt is waiting.
     #[serde(default)]
     pub remaining_ms: Option<u64>,

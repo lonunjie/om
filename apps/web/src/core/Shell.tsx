@@ -426,7 +426,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               <SubPage label={t.backToSettings} onBack={() => { back({ kind: "settings", page: "menu" }); }}>
                 {settings === "devices" ? (
                   <>
-                    <DevicesScreen services={services} copy={devicesCopy} showNotices={false} renderQr={(payload) => <QrCode payload={payload} />} />
+                    <DevicesScreen services={services} copy={devicesCopy} showNotices={false} scanQr={inviteScan.scanQr} recoveryPaused={{ ...replaceRecoveryCopy, open: () => { go({ kind: "settings", page: "recovery" }); } }} renderQr={(payload) => <QrCode payload={payload} />} />
                     {devicesExtra}
                   </>
                 ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} {...(invite === undefined ? {} : { copyText })} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />

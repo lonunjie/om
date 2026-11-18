@@ -129,7 +129,13 @@ export interface ReplaceRecoveryKey extends IntentBase { readonly kind: "Replace
 /** On the restricted device with its request waiting: send that exact request to the controller whose `om:recover-approve/` link it was given. An enrollment link is refused. */
 export interface JoinRecoveryApproval extends IntentBase { readonly kind: "JoinRecoveryApproval"; readonly link: string }
 
+export interface OfferControllerChange extends IntentBase { readonly kind: "OfferControllerChange"; readonly deviceId: DeviceId; readonly remove: boolean }
+export interface JoinControllerChange extends IntentBase { readonly kind: "JoinControllerChange"; readonly link: string }
+export interface ConfirmControllerChange extends IntentBase { readonly kind: "ConfirmControllerChange"; readonly requestId: string; readonly confirmation: ConfirmationToken }
+export interface CancelControllerChange extends IntentBase { readonly kind: "CancelControllerChange"; readonly requestId: string }
+
 export type CoreIntent =
+  | OfferControllerChange | JoinControllerChange | ConfirmControllerChange | CancelControllerChange
   | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
@@ -139,6 +145,7 @@ export type CoreIntent =
 export type CoreIntentKind = CoreIntent["kind"];
 
 export const INTENT_KINDS: readonly CoreIntentKind[] = [
+  "OfferControllerChange", "JoinControllerChange", "ConfirmControllerChange", "CancelControllerChange",
   "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
@@ -148,7 +155,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
 
 /** Intents that require an explicit confirmation token; learned/ranked suggestions can never supply one (UI-11). */
 export const DESTRUCTIVE_INTENT_KINDS = [
-  "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery",
+  "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "ConfirmControllerChange",
 ] as const;
 export type DestructiveIntentKind = (typeof DESTRUCTIVE_INTENT_KINDS)[number];
 
@@ -160,7 +167,7 @@ export function confirmationTarget(intent: Extract<CoreIntent, { readonly confir
   switch (intent.kind) {
     case "BlockPerson": return intent.personId;
     case "SuspendDevice": case "RevokeDevice": return intent.deviceId;
-    case "ApproveDeviceLink": case "VetoRecovery": case "ConfirmRecovery": case "DeclinePeerRecovery": case "ConfirmPeerRecovery": return intent.requestId;
+    case "ConfirmControllerChange": case "ApproveDeviceLink": case "VetoRecovery": case "ConfirmRecovery": case "DeclinePeerRecovery": case "ConfirmPeerRecovery": return intent.requestId;
     case "ChangePrivacyPolicy": return intent.policy;
     case "StartRecovery": return `${intent.scope}:${intent.custodian}`;
   }

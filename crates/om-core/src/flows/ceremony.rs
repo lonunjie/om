@@ -456,7 +456,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// The response queue is open: its receive capability completes the link.
     pub(super) fn on_open_queue(&mut self, op: &str, cap: Option<Vec<u8>>) {
-        if self.approval_open_queue(op, cap.clone()) {
+        if self.controller_open_queue(op, cap.as_deref())
+            || self.approval_open_queue(op, cap.clone())
+        {
             return;
         }
         let now_s = self.now_s();
@@ -503,6 +505,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony deposit or queue creation was refused for good: the ceremony ends, nothing is half adopted.
     pub(super) fn ceremony_failed(&mut self, op: &str, approval: bool) {
+        self.controller_failed(op, approval);
         self.approval_failed(op, approval);
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
             if !o.state.is_terminal() {
@@ -634,7 +637,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony queue item. Returns `false` when the mailbox is not a ceremony queue of this profile.
     pub(super) fn on_ceremony_mailbox(&mut self, mailbox: &str, bytes: &[u8]) -> bool {
-        if self.approval_mailbox(mailbox, bytes) {
+        if self.controller_mailbox(mailbox, bytes) || self.approval_mailbox(mailbox, bytes) {
             return true;
         }
         let offer = self
@@ -1784,6 +1787,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// A sibling sent the enrollment of a new device with the chain that lists it. Our own head advances only along a
     /// verified descent, and the notice must verify against it before it is shown. `false` is a rejection.
     pub(super) fn on_enrolled(&mut self, p: &V) -> Option<Vec<Vec<u8>>> {
+        if !self.st.app.acs_forks.is_empty() {
+            return None;
+        }
         let (Ok(notice), Some(chain), Some(creds)) = (
             p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
             bytes_list(p.get(2)),
@@ -2378,12 +2384,17 @@ pub fn poll_targets(st: &ProfileState, now_ms: u64) -> Vec<crate::host::PollTarg
         });
     }
     super::recovery_approval::approval_poll_targets(st, now_ms, &mut out);
+    if let Some(poll) = super::controller_change::poll_target(st, now_ms) {
+        out.push(poll);
+    }
     out
 }
 
 /// The Home and explicit capability for acknowledging a ceremony mailbox (`None`: not a ceremony mailbox).
 pub(super) fn ack_route(st: &ProfileState, mailbox: &str) -> Option<(String, Vec<u8>)> {
-    if let Some(r) = super::recovery_approval::approval_ack_route(st, mailbox) {
+    if let Some(r) = super::controller_change::ack_route(st, mailbox)
+        .or_else(|| super::recovery_approval::approval_ack_route(st, mailbox))
+    {
         return Some(r);
     }
     if let Some(o) = st.app.link_offers.values().find(|o| o.a_mailbox == mailbox) {

@@ -1596,6 +1596,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 recovery_place: self.recovery_place.clone(),
             };
             let v = f(&mut tx)?;
+            tx.expire_controller_change();
             tx.maintain_recovery_record();
             tx.maintain_relays();
             (v, tx.changed)
@@ -2685,10 +2686,14 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
             link_requests: crate::flows::pending_requests(st, now_ms),
             notices: crate::flows::notice_views(st),
             strict_notice: st.app.link_strict_notice,
+            controller_change: None,
+            can_join_controller_change: false,
+            recovery_key_replacement_needed: false,
         };
     };
     use crate::control::{Action, PlanError, plan};
-    let me_active = head.control.contains(&me) && !head.quarantined.contains(&me);
+    let forked = !st.app.acs_forks.is_empty();
+    let me_active = !forked && head.control.contains(&me) && !head.quarantined.contains(&me);
     let voting = head.control.difference(&head.quarantined).count();
     let frozen = crate::control::safety_frozen(&head);
     let summary = |id: &[u8; 16], role: DeviceRole, state: DeviceStateCode| {
@@ -2740,8 +2745,19 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
                     Err(_) => {}
                 }
             }
-            if plan(&head, &me, Action::Revoke, id).is_ok() {
-                actions.push(DeviceActionCode::Revoke);
+            match plan(&head, &me, Action::Revoke, id) {
+                Ok(_) => actions.push(DeviceActionCode::Revoke),
+                Err(PlanError::NeedsOtherSigners)
+                    if voting == 2
+                        && role == DeviceRole::Control
+                        && state == DeviceStateCode::Active =>
+                {
+                    actions.push(DeviceActionCode::RevokeWithApproval);
+                }
+                _ => {}
+            }
+            if role == DeviceRole::Messaging && plan(&head, &me, Action::Promote, id).is_ok() {
+                actions.push(DeviceActionCode::Promote);
             }
         }
         DeviceSummary {
@@ -2773,14 +2789,16 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
         };
         devices.push(summary(id, DeviceRole::Control, state));
     }
-    for id in &head.messaging {
+    for id in head.messaging.difference(&head.control) {
         devices.push(summary(id, DeviceRole::Messaging, DeviceStateCode::Active));
     }
     for id in &head.revoked {
         devices.push(summary(id, DeviceRole::Messaging, DeviceStateCode::Revoked));
     }
     DevicesView {
-        control_state: if frozen {
+        control_state: if forked {
+            AccountControlStateCode::ForkDetected
+        } else if frozen {
             AccountControlStateCode::SafetyFreeze
         } else {
             AccountControlStateCode::Normal
@@ -2789,6 +2807,17 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
         link_requests: crate::flows::pending_requests(st, now_ms),
         notices: crate::flows::notice_views(st),
         strict_notice: st.app.link_strict_notice,
+        controller_change: crate::flows::controller_change::view(st, &head, now_ms),
+        recovery_key_replacement_needed: me_active
+            && !frozen
+            && st.app.recovery_writer.paused_for_exclusion,
+        can_join_controller_change: !forked
+            && !frozen
+            && head
+                .control
+                .iter()
+                .any(|d| *d != me && !head.quarantined.contains(d))
+            && (head.messaging.contains(&me) || me_active),
     }
 }
 
@@ -2873,6 +2902,10 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             restricted: true,
             evidence: j.evidence,
             attempt: j.attempt.as_ref().map(|a| a.state),
+            retry_from_verified_head: j
+                .attempt
+                .as_ref()
+                .is_some_and(crate::state::OwnerAttemptRec::can_retry_from_verified_head),
             approval: j
                 .attempt
                 .as_ref()
@@ -2900,6 +2933,9 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             }
             crate::state::RecoveryRecordStatus::NeedsAttention => {
                 Some(crate::api::RecoveryRecordCode::NeedsAttention)
+            }
+            crate::state::RecoveryRecordStatus::NeedsNewKey => {
+                Some(crate::api::RecoveryRecordCode::NeedsNewKey)
             }
         },
     }

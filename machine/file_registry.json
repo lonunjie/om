@@ -1859,6 +1859,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/controller_change.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows/ceremony_continuation_tests.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -4086,6 +4093,13 @@
     },
     {
       "path": "decisions/ADR-0215-account-private-contact-nickname-sync.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0216-controller-approval-ceremony.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -11764,6 +11778,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "spec/cddl/controller-change.cddl",
+      "class": "spec_artifact",
+      "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "spec/cddl/delivery.cddl",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
@@ -13375,6 +13396,13 @@
     },
     {
       "path": "verification/prototypes/device-link-ceremony/check_node.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/device-link-ceremony/gen_controller_change_vector.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -16294,6 +16322,13 @@
     },
     {
       "path": "verification/vectors/call-signal-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/controller-change-v1.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

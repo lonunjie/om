@@ -307,6 +307,27 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["link"]) || typeof link !== "string" || !parseDeviceLink(link).ok) return null;
     return { intent: (ctx, op) => ({ kind: "RequestDeviceLink", ctx, operationId: op, link: link.trim() }) };
   } },
+  "offer-controller-change": { destructive: false, parse: (p) => {
+    const deviceId = id(p["deviceId"]);
+    const remove = p["remove"];
+    if (!exactly(p, ["deviceId", "remove"]) || deviceId === null || typeof remove !== "boolean") return null;
+    return { intent: (ctx, op) => ({ kind: "OfferControllerChange", ctx, operationId: op, deviceId: asDeviceId(deviceId), remove }) };
+  } },
+  "join-controller-change": { destructive: false, parse: (p) => {
+    const link = p["link"];
+    if (!exactly(p, ["link"]) || typeof link !== "string" || !/^om:controller-change\/[01]\/[0-9a-f]{32}\/[A-Za-z0-9_-]{1,200}$/.test(link.trim())) return null;
+    return { intent: (ctx, op) => ({ kind: "JoinControllerChange", ctx, operationId: op, link: link.trim() }) };
+  } },
+  "confirm-controller-change": { destructive: true, parse: (p) => {
+    const requestId = id(p["requestId"]);
+    if (!exactly(p, ["requestId"]) || requestId === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "ConfirmControllerChange", ctx, operationId: op, requestId, confirmation }) };
+  } },
+  "cancel-controller-change": { destructive: false, parse: (p) => {
+    const requestId = id(p["requestId"]);
+    if (!exactly(p, ["requestId"]) || requestId === null) return null;
+    return { intent: (ctx, op) => ({ kind: "CancelControllerChange", ctx, operationId: op, requestId }) };
+  } },
   "approve-device-link": { destructive: true, parse: (p) => {
     const r = id(p["requestId"]);
     if (!exactly(p, ["requestId"]) || r === null) return null;

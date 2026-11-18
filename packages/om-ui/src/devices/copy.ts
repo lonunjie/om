@@ -113,7 +113,25 @@ export interface NoticeCopy {
   readonly accountTooLarge: string;
 }
 
+export interface ControllerChangeCopy {
+  readonly promote: string;
+  readonly remove: string;
+  readonly promotionBody: string;
+  readonly removalBody: string;
+  readonly removalHere: string;
+  readonly join: string;
+  readonly open: string;
+  readonly scan: string;
+  readonly link: string;
+  readonly linkHelp: string;
+  readonly waiting: string;
+  readonly compare: string;
+  readonly confirm: string;
+  readonly cancel: string;
+}
+
 export interface DevicesCopy {
+  readonly controller: ControllerChangeCopy;
   readonly heading: string;
   readonly loading: string;
   readonly loadFailed: string;

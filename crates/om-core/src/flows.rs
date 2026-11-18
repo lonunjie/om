@@ -23,6 +23,7 @@ use std::sync::OnceLock;
 
 mod blobs;
 mod ceremony;
+pub(crate) mod controller_change;
 mod group_lane;
 mod multi;
 mod owed;
@@ -769,6 +770,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let unsupported = rejected(RejectReason::Unsupported);
+        if !self.st.app.acs_forks.is_empty()
+            && matches!(
+                intent.body,
+                IntentBody::OfferDeviceLink
+                    | IntentBody::ApproveDeviceLink { .. }
+                    | IntentBody::SuspendDevice { .. }
+                    | IntentBody::RevokeDevice { .. }
+                    | IntentBody::ReplaceRecoveryKey
+                    | IntentBody::ConfirmRecoveryKeyStored { .. }
+                    | IntentBody::OfferRecoveryApproval
+                    | IntentBody::ConfirmRecovery { .. }
+                    | IntentBody::OfferControllerChange { .. }
+                    | IntentBody::JoinControllerChange { .. }
+                    | IntentBody::ConfirmControllerChange { .. }
+            )
+        {
+            self.record(op, kind, rejected(RejectReason::Conflict), None);
+            return Ok(());
+        }
+
         // A device that has asked to join an account is not a profile of its own until the approval verifies.
         if self
             .st
@@ -917,6 +938,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::ClearAdaptiveNavigation
             | IntentBody::OpenOmnibarResult { .. }
             | IntentBody::PinNavigationTarget { .. } => OutcomeClass::Committed,
+            IntentBody::OfferControllerChange { device_id, remove } => {
+                self.offer_controller_change(op, device_id, *remove)
+            }
+            IntentBody::JoinControllerChange { link } => self.join_controller_change(op, link),
+            IntentBody::ConfirmControllerChange { request_id, .. } => {
+                self.confirm_controller_change(request_id)
+            }
+            IntentBody::CancelControllerChange { request_id } => {
+                self.cancel_controller_change(request_id)
+            }
             IntentBody::OfferDeviceLink => self.offer_device_link(op),
             IntentBody::RequestDeviceLink { link } => self.request_device_link(op, link),
             IntentBody::BeginRecovery {

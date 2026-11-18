@@ -18,7 +18,7 @@ export interface RecoveryScreenProps {
   readonly copy: RecoveryCopy;
   /** Lets this device help another device get the account back (ADR-0203). Offered only when the account keeps a recovery record. */
   /** Makes a new safety code (ADR-0205): for an account with no recovery record yet, or one that wants a sheet with a newer checkpoint. */
-  readonly replace?: { readonly copy: { readonly action: string; readonly body: string }; readonly onStarted: (keyOperationId: OperationId) => void };
+  readonly replace?: { readonly copy: { readonly action: string; readonly body: string; readonly pausedBody: string }; readonly onStarted: (keyOperationId: OperationId) => void };
   readonly approve?: { readonly copy: ApproveRecoveryCopy; readonly renderQr?: (payload: string) => ReactNode };
 }
 
@@ -53,7 +53,7 @@ export function RecoveryScreen({ services, copy, approve, replace }: RecoveryScr
       {view.kind === "start" ? <StartRecovery services={services} copy={copy} status={status} onBack={toStatus} /> : null}
       {view.kind === "stop" && stopping ? <StopRecovery services={services} copy={copy} request={stopping} onBack={toStatus} /> : null}
       {view.kind === "approve" && approve ? <ApproveRecovery services={services} copy={approve.copy} {...(approve.renderQr ? { renderQr: approve.renderQr } : {})} onClose={toStatus} /> : null}
-      {view.kind === "status" && replace ? <ReplaceKey services={services} copy={copy} replace={replace} /> : null}
+      {view.kind === "status" && replace ? <ReplaceKey services={services} copy={copy} replace={replace} paused={status.record === "needs_new_key"} /> : null}
       {view.kind === "status" || (view.kind === "stop" && !stopping) ? (
         <Status copy={copy} status={status} approveLabel={status.record !== undefined ? approve?.copy.action : undefined} pending={ops.filter((o) => isPendingKind(o.intentKind) && !isTerminalOutcome(o.outcome))} onView={setView} />
       ) : null}
@@ -198,7 +198,7 @@ function StopRecovery({ services, copy, request, onBack }: { readonly services: 
   );
 }
 
-function ReplaceKey({ services, copy, replace }: { readonly services: SettingsServices; readonly copy: RecoveryCopy; readonly replace: NonNullable<RecoveryScreenProps["replace"]> }) {
+function ReplaceKey({ services, copy, replace, paused }: { readonly paused: boolean; readonly services: SettingsServices; readonly copy: RecoveryCopy; readonly replace: NonNullable<RecoveryScreenProps["replace"]> }) {
   const op = useOperation(services);
   const go = async (): Promise<void> => {
     const id = await op.run("replace-recovery-key", {});
@@ -207,7 +207,7 @@ function ReplaceKey({ services, copy, replace }: { readonly services: SettingsSe
   return (
     <section className="om-settings__group" aria-labelledby="om-recovery-new-h">
       <Text as="h2" size="lg" weight="bold" id="om-recovery-new-h">{replace.copy.action}</Text>
-      <Text as="p">{replace.copy.body}</Text>
+      <Text as="p" role={paused ? "status" : undefined}>{paused ? replace.copy.pausedBody : replace.copy.body}</Text>
       <div className="om-settings__actions"><Button disabled={op.locked} onClick={() => { void go(); }}>{replace.copy.action}</Button></div>
       <OperationStatus state={op.state} copy={copy.outcome} done="" />
     </section>

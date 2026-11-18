@@ -21,6 +21,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Hand what a drain brought to the verifier (it needs the tick's monotonic reading), then keep the inbox registered,
     /// acknowledge what was handled and drain again when due.
     pub(crate) fn inbox_tick(&mut self, mono: &MonotonicSample) {
+        let shared_policy = self
+            .recovery_ctx()
+            .filter(|(head, _, _)| head.control.len() > 1)
+            .map(|(_, _, policy)| policy);
         let items = std::mem::take(&mut self.st.app.recovery_inbox.pending);
         for it in items {
             if let Ok(bytes) = unhex(&it.bytes) {
@@ -29,8 +33,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     2 => self.observe_recovery_veto(&bytes, mono),
                     _ => Ok(()),
                 };
+                // This is a shared, destructive acknowledgement. Leave authenticated requests
+                // for the other devices, even when this device sees a different parent.
+                if it.kind == 1
+                    && shared_policy
+                        .as_ref()
+                        .and_then(|policy| policy.recovery_key())
+                        .is_some_and(|key| crate::recovery::open_request(&bytes, key).is_ok())
+                {
+                    continue;
+                }
             }
-            // Handled either way: an item that does not verify is acknowledged and forgotten.
+            // The separate veto board survives inbox acknowledgement.
             let acks = &mut self.st.app.recovery_inbox.to_ack;
             if !acks.contains(&it.id) {
                 acks.push(it.id);
@@ -95,6 +109,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 kind: u8::from(registered),
             },
         );
+    }
+
+    /// A single-controller acknowledgement that has not been sent cannot settle a shared inbox.
+    pub(super) fn cancel_inbox_acks(&mut self) {
+        let before = self.st.app.outbox.len();
+        self.st
+            .app
+            .outbox
+            .retain(|e| !matches!(e.purpose, Purpose::RecoveryInbox { kind: 2 }));
+        let inbox = &mut self.st.app.recovery_inbox;
+        inbox.to_ack.clear();
+        if self.st.app.outbox.len() != before {
+            inbox.in_flight = false;
+        }
     }
 
     /// An inbox call finished (`None`: refused or unreachable for good; it is tried again on the next due tick).

@@ -61,7 +61,11 @@ pub fn keys(
     a_cap: &[u8],
     b_recv: &[u8],
 ) -> CeremonyKeys {
-    let id = ds_hash(LBL_KDF, &context(expiry_s, home_uri, a_cap, b_recv));
+    keys_in_context(&context(expiry_s, home_uri, a_cap, b_recv), secret)
+}
+
+pub(crate) fn keys_in_context(context: &[u8], secret: &[u8]) -> CeremonyKeys {
+    let id = ds_hash(LBL_KDF, context);
     let derive = |purpose: &str| {
         let mut out = [0u8; 32];
         let info = cbor::encode(&V::A(vec![V::T(LBL_KDF.into()), V::T(purpose.into())]));

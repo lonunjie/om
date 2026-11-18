@@ -112,8 +112,8 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
     );
     assert_eq!(
         phone.actions,
-        vec![DeviceActionCode::Revoke],
-        "one controller may remove a messaging device"
+        vec![DeviceActionCode::Revoke, DeviceActionCode::Promote],
+        "one controller may remove or offer to promote a linked messaging device"
     );
     // Messaging devices are removed, never quarantined (section 4.1).
     let confirmation = nonce(&mut rt, &ctx, "SuspendDevice", &id);

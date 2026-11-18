@@ -992,6 +992,7 @@ fn begin_recovery_keeps_the_checked_key_in_a_restricted_state_with_no_authority(
             restricted: true,
             evidence: om_core::state::EvidenceStage::Unpinned,
             attempt: None,
+            retry_from_verified_head: false,
             remaining_ms: None,
             approval: None,
         })

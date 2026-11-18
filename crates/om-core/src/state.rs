@@ -853,6 +853,9 @@ pub struct StagedPut {
 pub struct RecoveryWriter {
     /// Set when the person confirmed the recovery key is stored: the first write follows.
     pub enabled: bool,
+    /// The current recovery key may still be held by an excluded controller.
+    #[serde(default)]
+    pub paused_for_exclusion: bool,
     /// Hash (hex) of the ACS head the writer last saw.
     pub head_hash: Option<Hex>,
     pub head_seen_ms: u64,
@@ -878,6 +881,7 @@ pub enum RecoveryRecordStatus {
     FinishingSetup,
     Ready,
     NeedsAttention,
+    NeedsNewKey,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -921,6 +925,9 @@ pub struct AppState {
     /// Every DeviceCredential body this account has committed to, current and historical (hex).
     #[serde(default)]
     pub acs_credentials: Vec<Hex>,
+    /// Verified competing sibling branches. The pinned branch remains in acs_chain.
+    #[serde(default)]
+    pub acs_forks: BTreeMap<Hex, (Vec<Hex>, Vec<Hex>)>,
     /// Local display data for devices (never authority).
     #[serde(default)]
     pub device_meta: BTreeMap<Hex, DeviceMeta>,
@@ -942,6 +949,9 @@ pub struct AppState {
     /// Recovery approval ceremonies this (surviving controller) device offered (ADR-0203), by operation id.
     #[serde(default)]
     pub approval_offers: BTreeMap<OperationId, ApprovalOffer>,
+    #[serde(default)]
+    pub controller_change: Option<ControllerChange>,
+
     /// Enrollment notices received for devices that joined our account (newest last, bounded).
     #[serde(default)]
     pub notices: Vec<NoticeRec>,
@@ -1200,6 +1210,9 @@ pub struct OwnerAttemptRec {
     pub device: SecretHex,
     pub obs: RecoveryObsRec,
     pub state: AttemptState,
+    /// An authenticated approval reply supplied a newer head with the same recovery policy.
+    #[serde(default)]
+    pub retry_from_verified_head: bool,
     /// The parent head the request names, its generation, the policy epoch and the target credential hash.
     pub parent: Hex,
     pub parent_generation: u64,
@@ -1237,6 +1250,34 @@ pub struct OwnerAttemptRec {
     /// This device's side of the approval ceremony with a surviving controller (ADR-0203), once it joined one.
     #[serde(default)]
     pub approval: Option<ApprovalJoin>,
+}
+
+impl OwnerAttemptRec {
+    pub(crate) fn can_retry_from_verified_head(&self) -> bool {
+        self.state == AttemptState::Stale && self.retry_from_verified_head
+    }
+}
+
+/// ADR-0216. A single short-lived account-control exchange, separate from device enrollment and recovery.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControllerChange {
+    pub operation_id: OperationId,
+    pub expires_at: u64,
+    pub secret: SecretHex,
+    pub a_cap: SecretHex,
+    pub b_recv: SecretHex,
+    pub mailbox: Hex,
+    pub relay_uri: String,
+    pub origin: Hex,
+    pub target: Hex,
+    pub parent: Hex,
+    pub child: Hex,
+    pub remove: bool,
+    /// The response queue deposit capability. Absent on the joining device.
+    pub response_cap: Option<SecretHex>,
+    pub confirmed: bool,
+    pub request: Option<Hex>,
+    pub recipient_seed: Option<SecretHex>,
 }
 
 /// The controller's side of a recovery approval ceremony (ADR-0203): two queues on its own Home, a fresh secret, and

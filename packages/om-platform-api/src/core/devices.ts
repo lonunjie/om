@@ -7,7 +7,7 @@ export type DeviceRole = "control" | "messaging";
 export type DeviceStateCode = "active" | "quarantined" | "revocation_pending" | "revoked";
 export type LastSeenClass = "now" | "recent" | "this_week" | "this_month" | "long_ago" | "never";
 /** Actions Core will accept for a device right now. The UI offers nothing else. */
-export type DeviceActionCode = "suspend" | "revoke" | "retry_notice";
+export type DeviceActionCode = "suspend" | "revoke" | "retry_notice" | "promote" | "revoke_with_approval";
 /** Whether a device has been told about the devices added to the account (ADR-0193). `owed`: a notice is owed and not yet acknowledged ("Not told yet"); `held`: the device is paused and will be told when it is active again; `not_set_up`: the approval that added it never reached it, so it holds nothing and can only be removed ("Not set up yet"). */
 export type DeviceNoticeState = "told" | "owed" | "held" | "not_set_up";
 export type DeviceCautionCode =
@@ -76,7 +76,20 @@ export interface HistoryTransferView {
   readonly state: "in_progress" | "complete" | "degraded";
 }
 
+export interface ControllerChangeView {
+  readonly requestId: string;
+  readonly deviceId: DeviceId;
+  readonly remove: boolean;
+  readonly host: boolean;
+  readonly waiting: boolean;
+  readonly verificationCode: string | null;
+  readonly link: string | null;
+}
+
 export interface DevicesView {
+  readonly canJoinControllerChange?: boolean;
+  readonly recoveryKeyReplacementNeeded?: boolean;
+  readonly controllerChange?: ControllerChangeView;
   readonly controlState: AccountControlStateCode;
   readonly devices: readonly DeviceSummary[];
   readonly linkRequests: readonly LinkRequestView[];
@@ -129,7 +142,7 @@ export interface RecoveryStatusView {
   /** Set only on a recovering device that has entered its key (`BeginRecovery`): the restricted recovery state. */
   readonly recovering?: RecoveringView;
   /** How far the recovery record kept at the Home is; absent when the account keeps none (no recovery place). */
-  readonly record?: "finishing_setup" | "ready" | "needs_attention";
+  readonly record?: "finishing_setup" | "ready" | "needs_attention" | "needs_new_key";
 }
 
 /** A device that entered a recovery key but has no account yet: it cannot send as the identity. */
@@ -153,6 +166,7 @@ export interface RecoveringView {
   readonly attempt?: "waiting" | "vetoed" | "stale" | "cancelled" | null;
   /** Milliseconds of this device's own interval still to run (monotonic credit only). */
   readonly remainingMs?: number | null;
+  readonly retryFromVerifiedHead?: boolean;
   /** The approval exchange with a surviving controller, once this device joined one (ADR-0203). */
   readonly approval?: RecoveryApprovalView | null;
 }

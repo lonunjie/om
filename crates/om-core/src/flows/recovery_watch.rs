@@ -330,6 +330,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Apply the held successor of `digest` if it verifies as complete (delay run with no veto) without any further
     /// signature. A veto or a verification failure leaves the request waiting (a veto already made it `Vetoed`).
     fn try_complete(&mut self, digest: &str) {
+        if !self.st.app.acs_forks.is_empty() {
+            return;
+        }
         let Some((head, creds, policy)) = self.recovery_ctx() else {
             return;
         };
@@ -399,6 +402,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return;
         };
         self.st.app.recovery_policy = Some(held.next_policy.clone());
+        self.discard_recovery_puts();
+        self.st.app.recovery_kit = None;
+        self.st.app.recovery_writer = RecoveryWriter::default();
         if let Some(dev) = self.st.device.as_mut() {
             dev.acs_generation = head.generation;
         }

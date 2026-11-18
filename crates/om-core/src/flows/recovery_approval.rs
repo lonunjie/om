@@ -941,9 +941,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return self.approval_end(LinkState::Failed);
         };
+        let latest_links: Vec<_> = links
+            .iter()
+            .map(|l| RecoveryLinkRec {
+                child_hash: hex(&l.child_hash),
+                policy: hex(&l.policy),
+                next_policy: hex(&l.next_policy),
+                request: hex(&l.request),
+                elapsed_seconds: l.elapsed_seconds,
+            })
+            .collect();
         let parent = h32(&unhex(&a.parent).unwrap_or_default());
         if head.hash() != d.parent || Some(head.hash()) != parent {
-            // A newer state: it supersedes the request only when it extends this device's parent.
+            // Learn a verified descendant of the pinned head. Ending this request cannot
+            // authorize another request: the person must ask again against the new parent.
             let extends = ev.successor.is_none()
                 && ev
                     .states
@@ -960,6 +971,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             {
                 at.state = AttemptState::Stale;
                 at.obs.state = RecoveryObsState::Stale;
+                if j.evidence == EvidenceStage::Pinned
+                    && head.recovery_commitment == Some(policy.hash())
+                    && watch::live(&head, &d.controller)
+                    && ev.vetoes.is_empty()
+                    && a.snapshot_conflict_generation.is_none()
+                {
+                    at.chain = ev.states.iter().map(|s| hex(s)).collect();
+                    at.creds = ev.creds.iter().map(|c| hex(c)).collect();
+                    at.links = latest_links;
+                    at.retry_from_verified_head = true;
+                }
             }
             return self.approval_end(LinkState::Failed);
         }
@@ -970,16 +992,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mut next = a.clone();
         next.chain = ev.states.iter().map(|s| hex(s)).collect();
         next.creds = ev.creds.iter().map(|c| hex(c)).collect();
-        next.links = links
-            .iter()
-            .map(|l| RecoveryLinkRec {
-                child_hash: hex(&l.child_hash),
-                policy: hex(&l.policy),
-                next_policy: hex(&l.next_policy),
-                request: hex(&l.request),
-                elapsed_seconds: l.elapsed_seconds,
-            })
-            .collect();
+        next.links = latest_links;
         if let Some(b) = &ev.successor {
             let (Some(original), Some(cosigned)) = (a.obs.successor.clone(), child_of(&b.child))
             else {

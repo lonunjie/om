@@ -108,7 +108,7 @@ function Restricted({ services, copy, view, scanLink, onCancel }: { readonly ser
       </section>
     );
   }
-  if (attempt === null) {
+  if (attempt === null || view.retryFromVerifiedHead) {
     return (
       <section className="om-settings__step" aria-labelledby="om-lost-h">
         <FocusHeading id="om-lost-h">{copy.foundHeading}</FocusHeading>

@@ -982,6 +982,22 @@ const outcomeCopy = (prefix: string): OutcomeCopy => ({
 });
 
 export const devicesCopy: DevicesCopy = {
+  controller: {
+    promote: "Make this a main device",
+    remove: "Remove with approval",
+    promotionBody: "A main device can approve account changes and help you get your account back.",
+    removalBody: "Both main devices must approve this removal. Once removed, this device stops receiving new messages and can't be used on this account again.",
+    removalHere: "This will remove the device you're using from your account for good.",
+    join: "Open a device approval",
+    open: "Open approval link",
+    scan: "Scan approval code",
+    link: "Private approval link",
+    linkHelp: "On the selected device, open Devices and choose Open a device approval. Keep this link private.",
+    waiting: "Waiting for your other device.",
+    compare: "Check that both devices show the same code.",
+    confirm: "The codes match",
+    cancel: "Cancel approval",
+  },
   heading: "Devices",
   loading: "Loading your devices",
   loadFailed: "Your devices could not be loaded. Try again in a moment.",
@@ -1003,7 +1019,7 @@ export const devicesCopy: DevicesCopy = {
   },
   linkLater: "Using the same account on a second device is not ready yet. Until it is, set OM up on each device and invite each one.",
   removedHeading: "Removed devices",
-  role: { control: "Can manage your account", messaging: "Can send and read messages" },
+  role: { control: "Main device", messaging: "Can send and read messages" },
   state: { active: "Active", quarantined: "Suspended", revocation_pending: "Removal waiting for approval", revoked: "Removed for good" },
   lastSeen: {
     now: "In use now", recent: "Used recently", this_week: "Used this week", this_month: "Used this month",
@@ -1225,6 +1241,7 @@ export const lostDevicesCopy: LostDevicesCopy = {
 /** A new safety code from Settings > Recovery (ADR-0205). */
 export const replaceRecoveryCopy = {
   action: "Make a new safety code",
+  pausedBody: "OM has paused updates to your saved recovery information after a change to your main devices. Your current code still opens what was saved. Make a new one to start saving updates again.",
   body: "Use this if you have no safety code yet, or want a fresh one. Your current code keeps working until you confirm you saved the new one; then only the new code works.",
 } as const;
 

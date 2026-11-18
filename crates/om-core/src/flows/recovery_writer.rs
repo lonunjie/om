@@ -34,6 +34,9 @@ impl AppState {
         if self.recovery_kit.is_none() {
             return RecoveryRecordStatus::Off;
         }
+        if w.paused_for_exclusion {
+            return RecoveryRecordStatus::NeedsNewKey;
+        }
         if let Some(s) = &w.staged
             && now_ms.saturating_sub(s.staged_at_ms) >= ATTENTION_MS
         {
@@ -223,6 +226,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         );
     }
 
+    pub(super) fn discard_recovery_puts(&mut self) {
+        self.st.app.recovery_writer.staged = None;
+        self.st.app.outbox.retain(|e| {
+            !matches!(
+                e.purpose,
+                Purpose::RecoveryPut { .. } | Purpose::RecoveryReconcile { .. }
+            )
+        });
+    }
+
     /// Called at the end of every transaction: stage a write when the schedule calls for one.
     pub(crate) fn maintain_recovery_record(&mut self) {
         if !self.st.app.recovery_writer.enabled {
@@ -232,8 +245,56 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return;
         };
         let Some((head, chain, creds)) = self.acs_head() else {
+            self.discard_recovery_puts();
             return;
         };
+        // An eligible controller could have received the kit even if delivery was not acknowledged.
+        // Recovery itself advances the policy epoch but derives the record key from the same root.
+        // Walk back across those verified recovery links and stop at a new key's policy transition.
+        let Some(states) = multi::chain_states(&chain) else {
+            self.discard_recovery_puts();
+            return;
+        };
+        let excluded = states
+            .windows(2)
+            .rev()
+            .take_while(|pair| {
+                let (parent, child) = (&pair[0], &pair[1]);
+                parent.recovery_commitment == child.recovery_commitment
+                    || self
+                        .st
+                        .app
+                        .recovery_links
+                        .iter()
+                        .any(|link| link.child_hash == hex(&child.hash()))
+            })
+            .any(|pair| {
+                let previous = &pair[0];
+                previous
+                    .control
+                    .difference(&previous.quarantined)
+                    .any(|id| !recovery_watch::live(&head, id))
+            });
+        self.st.app.recovery_writer.paused_for_exclusion = excluded;
+        let current_policy = self
+            .st
+            .app
+            .recovery_policy
+            .as_deref()
+            .and_then(|h| unhex(h).ok())
+            .and_then(|body| crate::recovery::RecoveryPolicy::from_body(&body).ok())
+            .is_some_and(|policy| {
+                head.recovery_commitment == Some(policy.hash()) && policy.epoch() == kit.epoch
+            });
+        let live = self
+            .st
+            .device
+            .as_ref()
+            .is_some_and(|dev| recovery_watch::live(&head, &dev.device_id));
+        if excluded || !current_policy || !live || !self.st.app.acs_forks.is_empty() {
+            self.discard_recovery_puts();
+            return;
+        }
         let now = self.now_ms;
         let head_hash = hex(&head.hash());
         let snapshot = self.recovery_snapshot();

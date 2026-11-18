@@ -951,3 +951,612 @@ fn authorized_roster_transfer_resumes_after_restart_before_final_link_cleanup() 
     assert_eq!(app["linkOffers"]["offer"]["secret"], "");
     assert_eq!(w.asked().unwrap().state, LinkRequestState::Approved);
 }
+mod controller_probes {
+    use super::*;
+    use om_core::control;
+    use om_core::crypto::binding::Acs;
+    use om_core::crypto::cbor::{self, V};
+    use om_core::crypto::rng::insecure_test_rng::InsecureTestRng;
+    use om_core::crypto::{hex, unhex};
+    use om_core::host::MonotonicSample;
+    use om_core::recovery_record::RecoveryPlace;
+    use om_core::state::ProfileState;
+
+    fn get(rt: &Runtime, profile: &str) -> ProfileState {
+        ProfileState::decode("probe".into(), &rt.store.records(profile)).unwrap()
+    }
+
+    fn put(rt: &mut Runtime, profile: &str, st: ProfileState) -> ProfileExecutionContext {
+        for (key, value) in st.encode().unwrap() {
+            rt.store.replace_record(profile, &key, value);
+        }
+        rt.restart().remove(0)
+    }
+
+    fn head(st: &ProfileState) -> Acs {
+        let chain = chain(st);
+        control::verify_chain_with(&chain, &creds(st), &st.app.link_evidence()).unwrap()
+    }
+
+    fn chain(st: &ProfileState) -> Vec<Vec<u8>> {
+        st.app.acs_chain.iter().map(|s| unhex(s).unwrap()).collect()
+    }
+
+    fn creds(st: &ProfileState) -> Vec<Vec<u8>> {
+        st.app
+            .acs_credentials
+            .iter()
+            .map(|s| unhex(s).unwrap())
+            .collect()
+    }
+
+    fn intent(value: serde_json::Value) -> IntentBody {
+        serde_json::from_value(value).expect("controller ceremony intent")
+    }
+
+    fn controller_view(rt: &Runtime, ctx: &ProfileExecutionContext) -> serde_json::Value {
+        let view: serde_json::Value = rt.query(Query::GetDevices { ctx: ctx.clone() });
+        view["controllerChange"].clone()
+    }
+
+    fn controller_change(w: &mut World, device_id: &str, remove: bool) {
+        use serde_json::json;
+        let (host, host_ctx, guest, guest_ctx) = if remove {
+            (&mut w.phone, &mut w.n, &mut w.alice, &mut w.a)
+        } else {
+            (&mut w.alice, &mut w.a, &mut w.phone, &mut w.n)
+        };
+        let operation =
+            |name: &str| format!("{name}-{}", if remove { "remove" } else { "promote" });
+        host.dispatch(
+            host_ctx,
+            &operation("offer"),
+            intent(json!({
+                "kind": "OfferControllerChange", "deviceId": device_id, "remove": remove,
+            })),
+        );
+        settle_all(&mut [(host, host_ctx), (guest, guest_ctx)]);
+        let offer = controller_view(host, host_ctx);
+        let link = offer["link"].as_str().expect("controller link");
+        guest.dispatch(
+            guest_ctx,
+            &operation("join"),
+            intent(json!({
+                "kind": "JoinControllerChange", "link": link,
+            })),
+        );
+        let joined = controller_view(guest, guest_ctx);
+        let session = joined["requestId"].as_str().expect("guest request");
+        assert_eq!(offer["verificationCode"], joined["verificationCode"]);
+        let confirm = |rt: &mut Runtime, ctx: &ProfileExecutionContext| {
+            intent(json!({
+                "kind": "ConfirmControllerChange", "requestId": session,
+                "confirmation": nonce(rt, ctx, "ConfirmControllerChange", session),
+            }))
+        };
+
+        // The host's own confirmation, even if replayed or issued before the second vote, does not change the head.
+        let early = confirm(host, host_ctx);
+        host.dispatch(host_ctx, &operation("early"), early);
+        assert_eq!(
+            host.outcome(host_ctx, &operation("early")),
+            Some(OutcomeClass::Rejected {
+                reason: RejectReason::StaleState
+            })
+        );
+
+        *guest_ctx = guest.restart().remove(0);
+        let guest_confirm = confirm(guest, guest_ctx);
+        guest.dispatch(guest_ctx, &operation("guest"), guest_confirm.clone());
+        guest.dispatch(guest_ctx, &operation("guest-replay"), guest_confirm);
+        assert_eq!(
+            guest.outcome(guest_ctx, &operation("guest-replay")),
+            Some(OutcomeClass::Rejected {
+                reason: RejectReason::Unauthorized
+            })
+        );
+        settle_all(&mut [(host, host_ctx), (guest, guest_ctx)]);
+        let ready = controller_view(host, host_ctx);
+        assert_eq!(ready["waiting"], false);
+        assert_eq!(ready["verificationCode"], joined["verificationCode"]);
+        assert_eq!(ready["requestId"], session);
+        *host_ctx = host.restart().remove(0);
+        let host_confirm = confirm(host, host_ctx);
+        host.dispatch(host_ctx, &operation("host"), host_confirm.clone());
+        assert_eq!(
+            host.outcome(host_ctx, &operation("host")),
+            Some(OutcomeClass::Committed)
+        );
+        host.dispatch(host_ctx, &operation("host-replay"), host_confirm);
+        assert_eq!(
+            host.outcome(host_ctx, &operation("host-replay")),
+            Some(OutcomeClass::Rejected {
+                reason: RejectReason::Unauthorized
+            })
+        );
+        settle_all(&mut [(host, host_ctx), (guest, guest_ctx)]);
+    }
+
+    #[test]
+    fn promotes_an_existing_device_and_shares_the_kit() {
+        let (mut w, _) = linked_with_kit();
+        let target = hex(&get(&w.phone, "p-n").device.unwrap().device_id);
+        controller_change(&mut w, &target, false);
+        let a = get(&w.alice, "p-a");
+        let b = get(&w.phone, "p-n");
+        assert_eq!(head(&a), head(&b));
+        assert_eq!(head(&a).control.len(), 2);
+        assert!(head(&b).control.contains(&h16_for_test(&target)));
+        assert!(b.app.recovery_kit.is_some() && b.app.recovery_kit == a.app.recovery_kit);
+    }
+
+    #[test]
+    fn promotion_offer_rejects_a_different_account_and_a_changed_parent() {
+        use serde_json::json;
+        let (mut w, _) = linked_with_kit();
+        let target = hex(&get(&w.phone, "p-n").device.unwrap().device_id);
+        w.alice.dispatch(
+            &w.a,
+            "offer-stale",
+            intent(json!({
+                "kind": "OfferControllerChange", "deviceId": target, "remove": false,
+            })),
+        );
+        w.settle();
+        let offer = controller_view(&w.alice, &w.a);
+        let link = offer["link"].as_str().unwrap();
+        let join = intent(json!({ "kind": "JoinControllerChange", "link": link }));
+        w.carol.dispatch(&w.c, "wrong-account", join.clone());
+        assert!(matches!(
+            w.carol.outcome(&w.c, "wrong-account"),
+            Some(OutcomeClass::Rejected { .. })
+        ));
+        w.phone.dispatch(&w.n, "join-stale", join);
+        let request_id = offer["requestId"].as_str().unwrap();
+        let guest_confirmation = nonce(&mut w.phone, &w.n, "ConfirmControllerChange", request_id);
+        w.phone.dispatch(
+            &w.n,
+            "guest-stale",
+            IntentBody::ConfirmControllerChange {
+                request_id: request_id.into(),
+                confirmation: guest_confirmation,
+            },
+        );
+        w.settle();
+        let confirmation = nonce(&mut w.alice, &w.a, "ConfirmControllerChange", request_id);
+        let (_, step) = w.alice.core.debug_link_messaging_device(&w.a).unwrap();
+        assert!(w.alice.settle(&step));
+        let parent = head(&get(&w.alice, "p-a"));
+        w.alice.dispatch(
+            &w.a,
+            "host-stale",
+            IntentBody::ConfirmControllerChange {
+                request_id: request_id.into(),
+                confirmation,
+            },
+        );
+        assert!(matches!(
+            w.alice.outcome(&w.a, "host-stale"),
+            Some(OutcomeClass::Rejected { .. })
+        ));
+        w.settle();
+        assert_eq!(head(&get(&w.alice, "p-a")), parent);
+        assert!(get(&w.phone, "p-n").app.recovery_kit.is_none());
+    }
+
+    fn h16_for_test(device: &str) -> [u8; 16] {
+        unhex(device).unwrap().try_into().unwrap()
+    }
+
+    fn linked_with_kit() -> (World, String) {
+        let mut w = world();
+        w.alice.set_recovery_place(Some(RecoveryPlace {
+            host: "home.example".into(),
+            port: None,
+            scope: [7; 32],
+        }));
+        w.alice
+            .dispatch(&w.a, "replace", IntentBody::ReplaceRecoveryKey);
+        let sheet = w
+            .alice
+            .query::<Option<RecoveryKeyView>>(Query::GetRecoveryKey {
+                ctx: w.a.clone(),
+                key_operation_id: "replace".into(),
+            })
+            .unwrap()
+            .sheet
+            .unwrap();
+        w.alice.dispatch(
+            &w.a,
+            "saved",
+            IntentBody::ConfirmRecoveryKeyStored {
+                key_operation_id: "replace".into(),
+            },
+        );
+        w.settle();
+        let request = w.offer_and_ask();
+        assert_eq!(w.approve(&request, "ok"), Some(OutcomeClass::Committed));
+        w.settle();
+        w.say("phone", "warm", "Start sibling session");
+        w.settle();
+
+        (w, sheet)
+    }
+
+    fn controllers() -> (World, String) {
+        let (mut w, sheet) = linked_with_kit();
+        let target = hex(&get(&w.phone, "p-n").device.unwrap().device_id);
+        controller_change(&mut w, &target, false);
+        (w, sheet)
+    }
+
+    #[test]
+    fn fork_of_valid_sibling_heads_freezes_control_after_restart() {
+        let (mut w, _) = controllers();
+        let mut a = get(&w.alice, "p-a");
+        let mut b = get(&w.phone, "p-n");
+        let parent = head(&a);
+        let mut rng = InsecureTestRng::from_label(b"fork probe");
+        let ad = a.device.as_ref().unwrap();
+        let bd = b.device.as_ref().unwrap();
+        let target = hex(&ad.device_id);
+        let signing_device = [(ad, [1; 32]), (bd, [2; 32])];
+        let branches = signing_device.map(|(d, commitment)| {
+            let mut child = parent.clone();
+            child.previous = Some(parent.hash());
+            child.generation += 1;
+            child.transparency = Some(commitment);
+            let signed = control::sign_acs(&child.body(), &[(&d.device_id, &d.signer)], &mut rng);
+            assert!(control::verify_successor(&parent, &signed, &creds(&a)).is_ok());
+            (child, signed)
+        });
+        let [(_, own), (tip, competing)] = branches;
+        a.app.acs_chain.push(hex(&own));
+        b.app.acs_chain.push(hex(&competing));
+        let signed_tip = b
+            .app
+            .carry_sign_head_for_peers(&bd.signer, &bd.device_id, &tip, &mut rng)
+            .unwrap();
+        w.a = put(&mut w.alice, "p-a", a);
+        w.n = put(&mut w.phone, "p-n", b);
+        let update = cbor::encode(&V::M(vec![
+            (0, V::U(8)),
+            (1, V::A(vec![V::B(competing)])),
+            (2, V::A(vec![])),
+            (6, V::B(signed_tip)),
+        ]));
+        let (queued, step) = w
+            .phone
+            .core
+            .debug_send_to_sibling(&w.n, &target, &update)
+            .unwrap();
+        assert!(queued);
+        assert!(w.phone.settle(&step));
+        w.phone.flush_net(&w.n);
+        assert!(w.alice.poll(&w.a) > 0);
+        w.a = w.alice.restart().remove(0);
+        assert!(matches!(
+            w.devices(true).control_state,
+            AccountControlStateCode::ForkDetected | AccountControlStateCode::SafetyFreeze
+        ));
+        assert!(w.devices(true).devices.iter().all(|d| d.actions.is_empty()));
+        w.alice
+            .dispatch(&w.a, "fork-new-key", IntentBody::ReplaceRecoveryKey);
+        assert_eq!(
+            w.alice.outcome(&w.a, "fork-new-key"),
+            Some(OutcomeClass::Rejected {
+                reason: RejectReason::Conflict
+            })
+        );
+    }
+
+    #[test]
+    fn acknowledging_on_one_controller_still_alerts_the_other() {
+        let (mut w, sheet) = controllers();
+        let mut fresh = Runtime::new("restricted", &w.net);
+        let ctx = fresh.open("restricted");
+        let mono = MonotonicSample {
+            boot_session: vec![1; 8],
+            elapsed_ms: 0,
+        };
+        let tick = |rt: &mut Runtime, ctx: &ProfileExecutionContext| {
+            rt.tick(61_000);
+            rt.recovery_tick(ctx, &mono);
+            rt.flush_net(ctx);
+        };
+        tick(&mut w.alice, &w.a);
+        tick(&mut w.phone, &w.n);
+        fresh.dispatch(
+            &ctx,
+            "begin",
+            IntentBody::BeginRecovery {
+                recovery_key: sheet,
+                home: String::new(),
+                place: None,
+            },
+        );
+        fresh.flush_net(&ctx);
+        fresh.dispatch(&ctx, "request", IntentBody::RequestRecovery);
+        fresh.flush_net(&ctx);
+        assert!(!w.net.recovery_requests().is_empty());
+
+        // A drains and verifies while B is offline. Reading on A must not remove B's alert.
+        tick(&mut w.alice, &w.a);
+        tick(&mut w.alice, &w.a);
+        assert_eq!(
+            w.alice
+                .query::<RecoveryStatusView>(Query::GetRecoveryStatus { ctx: w.a.clone() })
+                .requests
+                .len(),
+            1
+        );
+        w.n = w.phone.restart().remove(0);
+        tick(&mut w.phone, &w.n);
+        tick(&mut w.phone, &w.n);
+        assert_eq!(
+            w.phone
+                .query::<RecoveryStatusView>(Query::GetRecoveryStatus { ctx: w.n.clone() })
+                .requests
+                .len(),
+            1
+        );
+    }
+    #[test]
+    fn a_removed_controllers_kit_cannot_open_the_next_record() {
+        use om_core::recovery_record::{RecordKeys, RecoveryKit, open_envelope};
+
+        let (mut w, sheet) = controllers();
+        let a = get(&w.alice, "p-a");
+        let target = a.device.as_ref().unwrap().device_id;
+        let parent = head(&a);
+        let kit = RecoveryKit::from_bytes(&unhex(a.app.recovery_kit.as_deref().unwrap()).unwrap())
+            .unwrap();
+        let (_, previous) = w.net.recovery_record(&kit.locator()).unwrap();
+        let prior_puts = w.net.recovery_puts().len();
+        let old_keys = RecordKeys::from_kit(&kit);
+        assert!(open_envelope(&old_keys, &kit.scope, &previous).is_ok());
+
+        controller_change(&mut w, &hex(&target), true);
+        let b = get(&w.phone, "p-n");
+        let child = head(&b);
+        assert_eq!(head(&get(&w.alice, "p-a")), child);
+        assert!(child.revoked.contains(&target));
+        let signed = chain(&b).pop().unwrap();
+        let (_, body, signers) = control::open_signed(&signed, &creds(&b), Some(&parent)).unwrap();
+        assert_eq!(signers, parent.control);
+        for device in [a.device.as_ref().unwrap(), b.device.as_ref().unwrap()] {
+            let one = control::sign_acs(
+                &body,
+                &[(&device.device_id, &device.signer)],
+                &mut InsecureTestRng::from_label(b"one vote"),
+            );
+            assert!(control::verify_successor(&parent, &one, &creds(&b)).is_err());
+        }
+        assert!(control::verify_successor(&child, &signed, &creds(&b)).is_err());
+        assert!(get(&w.alice, "p-a").app.recovery_kit.is_none());
+
+        w.n = w.phone.restart().remove(0);
+        w.phone.tick(91 * 86_400_000);
+        w.phone.recovery_tick(
+            &w.n,
+            &MonotonicSample {
+                boot_session: vec![1],
+                elapsed_ms: 0,
+            },
+        );
+        w.phone.flush_net(&w.n);
+        let status = |rt: &Runtime, ctx: &ProfileExecutionContext| {
+            rt.query::<RecoveryStatusView>(Query::GetRecoveryStatus { ctx: ctx.clone() })
+        };
+        assert_eq!(
+            status(&w.phone, &w.n).record,
+            Some(RecoveryRecordCode::NeedsNewKey)
+        );
+        assert_eq!(w.net.recovery_record(&kit.locator()).unwrap().1, previous);
+
+        // The old code still reads the saved record while updates are paused.
+        let mut fresh = common::recovery_world::fresh(&w.net);
+        fresh.begin(&sheet);
+        assert!(fresh.view().is_some());
+
+        w.phone
+            .dispatch(&w.n, "new-key", IntentBody::ReplaceRecoveryKey);
+        assert_eq!(
+            status(&w.phone, &w.n).record,
+            Some(RecoveryRecordCode::NeedsNewKey)
+        );
+        assert_eq!(w.net.recovery_record(&kit.locator()).unwrap().1, previous);
+        w.phone.dispatch(
+            &w.n,
+            "stored",
+            IntentBody::ConfirmRecoveryKeyStored {
+                key_operation_id: "new-key".into(),
+            },
+        );
+        assert_eq!(
+            w.phone.outcome(&w.n, "stored"),
+            Some(OutcomeClass::Committed)
+        );
+        w.phone.flush_net(&w.n);
+        let b = get(&w.phone, "p-n");
+        let new_kit =
+            RecoveryKit::from_bytes(&unhex(b.app.recovery_kit.as_deref().unwrap()).unwrap())
+                .unwrap();
+        assert_ne!(kit.locator(), new_kit.locator());
+        let (_, newer) = w.net.recovery_record(&new_kit.locator()).unwrap();
+        assert!(open_envelope(&old_keys, &new_kit.scope, &newer).is_err());
+        for (_, _, envelope) in &w.net.recovery_puts()[prior_puts..] {
+            assert!(open_envelope(&old_keys, &kit.scope, envelope).is_err());
+        }
+        assert!(open_envelope(&RecordKeys::from_kit(&new_kit), &new_kit.scope, &newer).is_ok());
+        assert_eq!(
+            status(&w.phone, &w.n).record,
+            Some(RecoveryRecordCode::Ready)
+        );
+        assert_eq!(w.net.recovery_record(&kit.locator()).unwrap().1, previous);
+    }
+
+    #[test]
+    fn the_second_controller_can_approve_recovery_while_record_writes_are_paused() {
+        let (mut w, sheet) = controllers();
+        let removed = hex(&get(&w.alice, "p-a").device.unwrap().device_id);
+        controller_change(&mut w, &removed, true);
+        let previous_puts = w.net.recovery_puts().len();
+        let survivor = head(&get(&w.phone, "p-n"));
+        assert!(survivor.revoked.contains(&h16_for_test(&removed)));
+
+        let mut fresh = common::recovery_world::fresh(&w.net);
+        fresh.begin(&sheet);
+        assert_eq!(
+            fresh.go("old-head", IntentBody::RequestRecovery),
+            Some(OutcomeClass::Committed)
+        );
+
+        let join = |w: &mut World, fresh: &mut common::recovery_world::Fresh, op: &str| {
+            w.phone
+                .dispatch(&w.n, op, IntentBody::OfferRecoveryApproval);
+            w.phone.flush_net(&w.n);
+            let offer = w
+                .phone
+                .query::<Option<RecoveryApprovalOfferView>>(Query::GetRecoveryApprovalOffer {
+                    ctx: w.n.clone(),
+                    operation_id: op.into(),
+                })
+                .unwrap();
+            assert_eq!(
+                fresh.go(
+                    op,
+                    IntentBody::JoinRecoveryApproval {
+                        link: offer.link.unwrap()
+                    }
+                ),
+                Some(OutcomeClass::Committed)
+            );
+            settle_all(&mut [(&mut w.phone, &w.n), (&mut fresh.rt, &fresh.ctx)]);
+        };
+
+        // The first attempt names the saved record's older parent. Its authenticated rejection
+        // supplies the verified successor. It never releases the restricted device on its own.
+        join(&mut w, &mut fresh, "old-parent");
+        let stale = fresh.view().unwrap();
+        assert_eq!(stale.attempt, Some(om_core::state::AttemptState::Stale));
+        assert!(stale.retry_from_verified_head);
+        fresh.ctx = fresh.rt.restart().remove(0);
+        assert_eq!(
+            fresh.go("updated-head", IntentBody::RequestRecovery),
+            Some(OutcomeClass::Committed)
+        );
+        join(&mut w, &mut fresh, "current-parent");
+        let offer = w
+            .phone
+            .query::<Option<RecoveryApprovalOfferView>>(Query::GetRecoveryApprovalOffer {
+                ctx: w.n.clone(),
+                operation_id: "current-parent".into(),
+            })
+            .unwrap();
+        assert_eq!(offer.state, ApprovalOfferCode::AwaitingConfirmation);
+        assert_eq!(
+            offer.verification_code,
+            fresh.view().unwrap().approval.unwrap().verification_code
+        );
+        let request_id = offer.request_id.unwrap();
+        let confirmation = nonce(&mut w.phone, &w.n, "ConfirmRecovery", &request_id);
+        w.phone.dispatch(
+            &w.n,
+            "recover",
+            IntentBody::ConfirmRecovery {
+                request_id,
+                confirmation,
+            },
+        );
+        assert_eq!(
+            w.phone.outcome(&w.n, "recover"),
+            Some(OutcomeClass::Committed)
+        );
+        settle_all(&mut [(&mut w.phone, &w.n), (&mut fresh.rt, &fresh.ctx)]);
+        assert!(fresh.view().is_none());
+        let recovered = head(&get(&fresh.rt, "q"));
+        assert_eq!(recovered.previous, Some(survivor.hash()));
+        assert_eq!(recovered.control.len(), 1);
+        assert!(survivor.control.is_subset(&recovered.revoked));
+        assert_eq!(
+            w.net.recovery_puts().len(),
+            previous_puts,
+            "an epoch change reuses the record key and must stay paused"
+        );
+        let status = fresh
+            .rt
+            .query::<RecoveryStatusView>(Query::GetRecoveryStatus {
+                ctx: fresh.ctx.clone(),
+            });
+        assert_eq!(status.record, Some(RecoveryRecordCode::NeedsNewKey));
+    }
+
+    #[test]
+    fn existing_owner_approval_accepts_either_controller_vote() {
+        for approve_on_phone in [false, true] {
+            let (mut w, sheet) = controllers();
+            let mono = MonotonicSample {
+                boot_session: vec![1; 8],
+                elapsed_ms: 0,
+            };
+            w.alice.recovery_tick(&w.a, &mono);
+            w.alice.flush_net(&w.a);
+            let parent = head(&get(&w.alice, "p-a"));
+            let mut f = common::recovery_world::fresh(&w.net);
+            f.begin(&sheet);
+            assert_eq!(
+                f.go("request", IntentBody::RequestRecovery),
+                Some(OutcomeClass::Committed)
+            );
+            let (host, ctx, profile) = if approve_on_phone {
+                (&mut w.phone, &w.n, "p-n")
+            } else {
+                (&mut w.alice, &w.a, "p-a")
+            };
+            host.dispatch(ctx, "offer-recovery", IntentBody::OfferRecoveryApproval);
+            host.flush_net(ctx);
+            let offer = |rt: &Runtime| {
+                rt.query::<Option<RecoveryApprovalOfferView>>(Query::GetRecoveryApprovalOffer {
+                    ctx: ctx.clone(),
+                    operation_id: "offer-recovery".into(),
+                })
+                .unwrap()
+            };
+            let link = offer(host).link.unwrap();
+            assert_eq!(
+                f.go("join", IntentBody::JoinRecoveryApproval { link }),
+                Some(OutcomeClass::Committed)
+            );
+            settle_all(&mut [(host, ctx), (&mut f.rt, &f.ctx)]);
+            let held = offer(host);
+            assert_eq!(held.state, ApprovalOfferCode::AwaitingConfirmation);
+            assert_eq!(
+                held.verification_code,
+                f.view().unwrap().approval.unwrap().verification_code
+            );
+            let request_id = held.request_id.unwrap();
+            let confirmation = nonce(host, ctx, "ConfirmRecovery", &request_id);
+            host.dispatch(
+                ctx,
+                "confirm",
+                IntentBody::ConfirmRecovery {
+                    request_id,
+                    confirmation,
+                },
+            );
+            assert_eq!(host.outcome(ctx, "confirm"), Some(OutcomeClass::Committed));
+            for _ in 0..4 {
+                settle_all(&mut [(host, ctx), (&mut f.rt, &f.ctx)]);
+            }
+            assert!(f.view().is_none(), "recovery completed without a timer");
+            let st = get(host, profile);
+            let bytes = chain(&st).pop().unwrap();
+            let envelope = cbor::decode(&bytes).unwrap();
+            let recovered = Acs::from_body(envelope.get(1).unwrap().b().unwrap()).unwrap();
+            assert_eq!(recovered.previous, Some(parent.hash()));
+            assert!(parent.control.is_subset(&recovered.revoked));
+            assert_eq!(envelope.get(2).unwrap().a().unwrap().len(), 2);
+        }
+    }
+}

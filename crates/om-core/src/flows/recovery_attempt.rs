@@ -49,6 +49,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// credentials and the policy the head commits to. `None` when any of it no longer verifies.
     fn attempt_ctx(&self) -> Option<(Acs, Vec<Vec<u8>>, RecoveryPolicy)> {
         let a = self.attempt()?;
+        let (head, creds, policy) = Self::verified_owner_head(a)?;
+        (hex(&head.hash()) == a.parent).then_some((head, creds, policy))
+    }
+
+    fn verified_owner_head(a: &OwnerAttemptRec) -> Option<(Acs, Vec<Vec<u8>>, RecoveryPolicy)> {
         let chain: Vec<Vec<u8>> = a
             .chain
             .iter()
@@ -74,8 +79,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .collect::<Option<_>>()?;
         let head = control::verify_chain_with(&chain, &creds, &links).ok()?;
         let policy = RecoveryPolicy::from_body(&unhex(&a.policy).ok()?).ok()?;
-        (hex(&head.hash()) == a.parent && head.recovery_commitment == Some(policy.hash()))
-            .then_some((head, creds, policy))
+        (head.recovery_commitment == Some(policy.hash())).then_some((head, creds, policy))
     }
 
     pub(super) fn reconnect_contact(&mut self, op: &OperationId, account: &str) -> OutcomeClass {
@@ -127,7 +131,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(j) = self.st.app.recovery_join.clone() else {
             return rejected(RejectReason::NotFound);
         };
-        if self.st.device.is_some() || j.attempt.is_some() {
+        let retry = j
+            .attempt
+            .as_ref()
+            .filter(|a| a.can_retry_from_verified_head());
+        if self.st.device.is_some() || (j.attempt.is_some() && retry.is_none()) {
             return rejected(RejectReason::Conflict);
         }
         if j.stage != JoinStage::Found || j.evidence == EvidenceStage::Conflict {
@@ -149,7 +157,37 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return rejected(RejectReason::IntegrityFailure);
         };
-        let (head, policy) = (v.head.clone(), v.policy.clone());
+        let (head, policy, chain, credentials, links) = if let Some(a) = retry {
+            let Some((head, credentials, policy)) = Self::verified_owner_head(a) else {
+                return rejected(RejectReason::IntegrityFailure);
+            };
+            let extends_record = head.generation > v.head.generation
+                && a.chain.iter().any(|s| {
+                    unhex(s)
+                        .ok()
+                        .and_then(|s| super::ceremony::chain_head(&s))
+                        .is_some_and(|s| s.hash() == v.head.hash())
+                });
+            if !extends_record || j.evidence != EvidenceStage::Pinned {
+                return rejected(RejectReason::StaleState);
+            }
+            (head, policy, a.chain.clone(), credentials, a.links.clone())
+        } else {
+            let chain = record
+                .evidence
+                .tail
+                .iter()
+                .chain(std::iter::once(&record.evidence.head))
+                .map(|s| hex(s))
+                .collect();
+            (
+                v.head,
+                v.policy,
+                chain,
+                record.evidence.credentials.clone(),
+                vec![],
+            )
+        };
         let epoch = policy.epoch();
         if policy.recovery_key() != Some(root.auth_public_key(epoch).as_slice())
             || policy.state != recovery::STATE_ON
@@ -214,13 +252,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 scope: p.scope.map(|s| hex(&s)).unwrap_or_default(),
             });
         }
-        let chain: Vec<Hex> = record
-            .evidence
-            .tail
-            .iter()
-            .chain(std::iter::once(&record.evidence.head))
-            .map(|s| hex(s))
-            .collect();
         let digest = hex(&req.digest());
         let notice = crate::flows::recovery_peer::build_notice(
             &policy.body(),
@@ -229,7 +260,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .iter()
                 .filter_map(|c| unhex(c).ok())
                 .collect::<Vec<_>>(),
-            &record.evidence.credentials,
+            &credentials,
             Some(&bundle),
             &[],
         );
@@ -252,12 +283,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 state: RecoveryObsState::Waiting,
             },
             state: AttemptState::Waiting,
+            retry_from_verified_head: false,
             parent: hex(&head.hash()),
             parent_generation: head.generation,
             epoch,
             target: hex(&cred.hash()),
             chain,
-            creds: record.evidence.credentials.iter().map(|c| hex(c)).collect(),
+            creds: credentials.iter().map(|c| hex(c)).collect(),
             policy: hex(&policy.body()),
             homes,
             notice: notice.as_deref().map(hex),
@@ -268,7 +300,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             reconciling: false,
             round_conflict: false,
             snapshot_conflict_generation: None,
-            links: vec![],
+            links,
             approval: None,
         };
         if let Some(j) = self.st.app.recovery_join.as_mut() {
@@ -588,6 +620,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     current.record = Some(hex(&plain));
                 }
                 return;
+            }
+            if v.head.generation < a.parent_generation
+                && a.chain.iter().any(|s| {
+                    unhex(s)
+                        .ok()
+                        .and_then(|s| super::ceremony::chain_head(&s))
+                        .is_some_and(|s| s.hash() == v.head.hash())
+                })
+            {
+                return; // The older saved record is already an ancestor of this verified parent.
             }
             // A different head. It supersedes the request only when it verifies as an extension of the parent.
             let Some((parent, creds, _)) = self.attempt_ctx() else {

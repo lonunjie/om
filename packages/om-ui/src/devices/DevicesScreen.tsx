@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { isTerminalOutcome } from "@om/platform-api";
-import type { DeviceId, DeviceSummary, DevicesView, OperationId, PendingOperationView } from "@om/platform-api";
+import type { ControllerChangeView, DeviceId, DeviceSummary, DevicesView, OperationId, PendingOperationView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import { SecurityNoticeBanner } from "../shell/theme/SecurityNoticeBanner";
@@ -16,6 +16,8 @@ export interface DevicesScreenProps {
   readonly copy: DevicesCopy;
   /** Draws the QR code for the link that adds a device (deviation D24: this device shows it, the new device scans or types it). */
   readonly renderQr?: (payload: string) => ReactNode;
+  readonly scanQr?: () => Promise<string | null>;
+  readonly recoveryPaused?: { readonly action: string; readonly pausedBody: string; readonly open: () => void };
   /** Whether this screen shows the enrollment notices itself. Off when the host shows them on every screen (`DeviceNotices`). Default true. */
   readonly showNotices?: boolean;
   /** "later" while Core cannot link a device: never offer a flow that ends in "unsupported" (UX brief section 5). Default "available". */
@@ -26,6 +28,7 @@ type View =
   | { readonly kind: "list" }
   | { readonly kind: "device"; readonly id: DeviceId }
   | { readonly kind: "add" }
+  | { readonly kind: "controller_join" }
   | { readonly kind: "review"; readonly operationId: OperationId };
 
 const PENDING_KINDS: readonly DevicePendingKind[] = ["OfferDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "SuspendDevice", "RevokeDevice"];
@@ -35,7 +38,7 @@ const isPendingKind = (k: string): k is DevicePendingKind => (PENDING_KINDS as r
  * Settings > Devices. Every state, allowed action and outcome comes from Core. List rows only open details:
  * security-critical actions run from their dedicated step, never from a list row (deep-link rule).
  */
-export function DevicesScreen({ services, copy, renderQr, showNotices = true, linking = "available" }: DevicesScreenProps) {
+export function DevicesScreen({ services, copy, renderQr, scanQr, recoveryPaused, showNotices = true, linking = "available" }: DevicesScreenProps) {
   const [view, setView] = useState<View>({ kind: "list" });
   const live = useLiveQuery(services, { kind: "GetDevices", ctx: services.ctx }, "devices");
   // The copy of older chats to a newly linked device: only a timed-out, partial transfer is worth a line (counts only, never content).
@@ -49,6 +52,9 @@ export function DevicesScreen({ services, copy, renderQr, showNotices = true, li
 
   let body: ReactNode;
   switch (view.kind) {
+    case "controller_join":
+      body = <JoinControllerChange services={services} copy={copy} onBack={toList} scanQr={scanQr} />;
+      break;
     case "add":
       body = <AddDevice services={services} copy={copy} onClose={toList} {...(renderQr ? { renderQr } : {})} />;
       break;
@@ -68,8 +74,14 @@ export function DevicesScreen({ services, copy, renderQr, showNotices = true, li
     <section className="om-settings om-devices" aria-labelledby="om-devices-h">
       <Text as="h1" size="xl" weight="bold" id="om-devices-h">{copy.heading}</Text>
       <ControlBanners copy={copy} view={value} notices={showNotices} />
+      {value.recoveryKeyReplacementNeeded && recoveryPaused ? <div className="om-settings__group">
+        <Text as="p" role="status">{recoveryPaused.pausedBody}</Text>
+        <Button onClick={recoveryPaused.open}>{recoveryPaused.action}</Button>
+      </div> : null}
       {degraded === null ? null : <Text as="p" role="status" className="om-devices__history">{copy.historyDegraded[degraded]}</Text>}
-      {body}
+      {value.controllerChange
+        ? <ControllerExchange services={services} copy={copy} change={value.controllerChange} renderQr={renderQr} />
+        : body}
     </section>
   );
 }
@@ -124,6 +136,9 @@ function DeviceList({ services, copy, view, ops, onOpen, linking }: { readonly s
       <DeviceGroup id="om-devices-current-h" heading={copy.currentHeading} devices={current} copy={copy} onOpen={onOpen} />
       <DeviceGroup id="om-devices-other-h" heading={copy.otherHeading} devices={others} copy={copy} onOpen={onOpen} empty={copy.noOtherDevices} />
       {removed.length > 0 ? <DeviceGroup id="om-devices-removed-h" heading={copy.removedHeading} devices={removed} copy={copy} onOpen={onOpen} /> : null}
+      {view.canJoinControllerChange ? <div className="om-settings__actions">
+        <Button onClick={() => { onOpen({ kind: "controller_join" }); }}>{copy.controller.join}</Button>
+      </div> : null}
       {canAdd && linking !== "later" ? <StrictOption services={services} copy={copy} on={view.strictNotice} /> : null}
       {linking === "later" ? <Text as="p" tone="secondary">{copy.linkLater}</Text> : canAdd ? (
         <div className="om-settings__actions">
@@ -193,13 +208,14 @@ interface DeviceDetailsProps {
   readonly onBack: () => void;
 }
 
-type Confirming = "suspend" | "revoke" | null;
+type Confirming = "suspend" | "revoke" | "promote" | "revoke_with_approval" | null;
 
 function DeviceDetails({ services, copy, view, device, onBack }: DeviceDetailsProps) {
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [ran, setRan] = useState<"suspend" | "revoke" | null>(null);
   const op = useOperation(services);
   const frozen = view.controlState !== "normal";
+  const controllerOp = useOperation(services);
   const actionCopy: DeviceActionCopy | null = confirming === "suspend" ? copy.suspend : confirming === "revoke" ? copy.revoke : null;
 
   const confirm = (which: "suspend" | "revoke"): void => {
@@ -232,7 +248,18 @@ function DeviceDetails({ services, copy, view, device, onBack }: DeviceDetailsPr
           {device.cautions.map((c) => <li key={c} data-caution={c}>{copy.cautions[c]}</li>)}
         </ul>
       ) : null}
-      {actionCopy && confirming ? (
+      {confirming === "promote" || confirming === "revoke_with_approval" ? (
+        <div className="om-settings__confirm">
+          <Text as="p">{confirming === "promote" ? copy.controller.promotionBody : copy.controller.removalBody}</Text>
+          <div className="om-settings__actions">
+            <Button variant="primary" disabled={controllerOp.locked} onClick={() => {
+              void controllerOp.run("offer-controller-change", { deviceId: device.id, remove: confirming === "revoke_with_approval" });
+            }}>{confirming === "promote" ? copy.controller.promote : copy.controller.remove}</Button>
+            <Button variant="quiet" disabled={controllerOp.locked} onClick={() => { setConfirming(null); }}>{copy.back}</Button>
+          </div>
+          <OperationStatus state={controllerOp.state} copy={copy.outcome} done="" />
+        </div>
+      ) : actionCopy && confirming ? (
         <div className="om-settings__confirm" role="group" aria-labelledby="om-device-confirm-h" data-action={confirming}>
           <Text as="h3" size="md" weight="bold" id="om-device-confirm-h">{actionCopy.heading(device.label)}</Text>
           <ul className="om-settings__list">{actionCopy.consequences.map((c) => <li key={c}>{c}</li>)}</ul>
@@ -243,6 +270,8 @@ function DeviceDetails({ services, copy, view, device, onBack }: DeviceDetailsPr
         </div>
       ) : (
         <div className="om-settings__actions">
+          {device.actions.includes("promote") ? <Button onClick={() => { setConfirming("promote"); }}>{copy.controller.promote}</Button> : null}
+          {device.actions.includes("revoke_with_approval") ? <Button data-danger="true" onClick={() => { setConfirming("revoke_with_approval"); }}>{copy.controller.remove}</Button> : null}
           {!op.locked && device.actions.includes("suspend") ? <Button onClick={() => { setConfirming("suspend"); }}>{copy.suspend.action}</Button> : null}
           {!op.locked && device.actions.includes("revoke") ? <Button data-danger="true" onClick={() => { setConfirming("revoke"); }}>{copy.revoke.action}</Button> : null}
           {device.actions.length === 0 && !device.isCurrent ? <Text as="p" tone="secondary">{frozen ? copy.frozenNoActions : copy.noActions}</Text> : null}
@@ -251,4 +280,62 @@ function DeviceDetails({ services, copy, view, device, onBack }: DeviceDetailsPr
       <OperationStatus state={op.state} copy={copy.outcome} done={ran === "revoke" ? copy.revoke.done : copy.suspend.done} />
     </section>
   );
+}
+
+function JoinControllerChange({ services, copy, onBack, scanQr }: {
+  readonly services: SettingsServices;
+  readonly copy: DevicesCopy;
+  readonly onBack: () => void;
+  readonly scanQr: (() => Promise<string | null>) | undefined;
+}) {
+  const [link, setLink] = useState("");
+  const op = useOperation(services);
+  const c = copy.controller;
+  return <section className="om-settings__step" aria-labelledby="om-controller-join">
+    <Button variant="quiet" onClick={onBack}>{copy.back}</Button>
+    <FocusHeading id="om-controller-join">{c.join}</FocusHeading>
+    {scanQr ? <Button disabled={op.locked} onClick={() => {
+      void scanQr().then((text) => { if (text !== null) setLink(text); });
+    }}>{c.scan}</Button> : null}
+    <form className="om-settings__form" onSubmit={(e) => {
+      e.preventDefault();
+      if (link.trim() && !op.locked) void op.run("join-controller-change", { link });
+    }}>
+      <label htmlFor="om-controller-link">{c.link}</label>
+      <input id="om-controller-link" className="om-settings__input" value={link} onChange={(e) => { setLink(e.target.value); }} autoComplete="off" autoCapitalize="off" spellCheck={false} />
+      <Button type="submit" disabled={!link.trim() || op.locked}>{c.open}</Button>
+    </form>
+    <OperationStatus state={op.state} copy={copy.outcome} done="" />
+  </section>;
+}
+
+function ControllerExchange({ services, copy, change, renderQr }: {
+  readonly services: SettingsServices;
+  readonly copy: DevicesCopy;
+  readonly change: ControllerChangeView;
+  readonly renderQr: ((payload: string) => ReactNode) | undefined;
+}) {
+  const op = useOperation(services);
+  const c = copy.controller;
+  const params = { requestId: change.requestId };
+  return <section className="om-settings__step" aria-labelledby="om-controller-heading">
+    <FocusHeading id="om-controller-heading">{change.remove ? c.remove : c.promote}</FocusHeading>
+    <Text as="p">{change.remove ? change.host ? c.removalBody : c.removalHere : c.promotionBody}</Text>
+    {change.link ? <div className="om-devices__offer">
+      <Text as="p">{c.linkHelp}</Text>
+      {renderQr ? <figure className="om-devices__qr" aria-label={c.link}>{renderQr(change.link)}</figure> : null}
+      <Text as="p" id="om-controller-link-label" weight="bold">{c.link}</Text>
+      <code className="om-devices__link" aria-labelledby="om-controller-link-label" translate="no">{change.link}</code>
+    </div> : null}
+    {change.verificationCode ? <>
+      <Text as="p">{c.compare}</Text>
+      <Text as="p" size="xl" weight="bold">{change.verificationCode.replace(/^(...)(...)$/, "$1 $2")}</Text>
+    </> : null}
+    {change.waiting ? <Text as="p" role="status">{c.waiting}</Text>
+      : <Button variant="primary" disabled={op.locked} onClick={() => { void op.run("confirm-controller-change", params); }}>{c.confirm}</Button>}
+    {change.host || !change.waiting
+      ? <Button variant="quiet" disabled={op.locked} onClick={() => { void op.run("cancel-controller-change", params); }}>{c.cancel}</Button>
+      : null}
+    <OperationStatus state={op.state} copy={copy.outcome} done="" />
+  </section>;
 }
