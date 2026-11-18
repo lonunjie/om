@@ -343,6 +343,14 @@ enum GroupIntentJson {
         conversation_id: String,
         relationship_id: String,
     },
+    AskToRejoin {
+        relationship_id: String,
+        room_hint: String,
+    },
+    ResolveRejoin {
+        request_id: String,
+        agree: bool,
+    },
     Accept {
         invite_id: String,
         #[serde(default)]
@@ -422,6 +430,16 @@ impl GroupIntentJson {
                 conversation_id: unhex(&conversation_id)?,
                 relationship_id,
             },
+            Self::AskToRejoin {
+                relationship_id,
+                room_hint,
+            } => GroupIntent::AskToRejoin {
+                relationship_id,
+                room_hint,
+            },
+            Self::ResolveRejoin { request_id, agree } => {
+                GroupIntent::ResolveRejoin { request_id, agree }
+            }
             Self::Accept {
                 invite_id,
                 siblings,
@@ -511,6 +529,7 @@ enum GroupFromJson {
 )]
 enum GroupQueryJson {
     Groups,
+    Rejoin,
     Group { conversation_id: String },
     Invites,
     Messages { conversation_id: String },
@@ -520,6 +539,10 @@ enum GroupQueryJson {
 fn group_event_json(e: &GroupEvent) -> Value {
     use om_core::crypto::hex;
     match e {
+        GroupEvent::RejoinChanged => json!({ "kind": "rejoin_changed" }),
+        GroupEvent::DeviceRemoved { conversation_id } => {
+            json!({ "kind": "device_removed", "conversationId": hex(conversation_id) })
+        }
         GroupEvent::Created { conversation_id } => {
             json!({ "kind": "created", "conversationId": hex(conversation_id) })
         }
@@ -665,6 +688,7 @@ fn group_message_json(m: &om_core::groups::flow::GroupMsg) -> Value {
 
 fn group_view_json(v: &GroupView) -> Value {
     match v {
+        GroupView::Rejoin(r) => json!({ "kind": "rejoin", "rejoin": r }),
         GroupView::Groups(g) => json!({ "kind": "groups", "groups": g }),
         GroupView::Group(d) => json!({ "kind": "group", "group": d }),
         GroupView::Invites(i) => json!({ "kind": "invites", "invites": i }),
@@ -1164,6 +1188,7 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::GroupQuery { ctx, query } => {
                 let q = match query {
                     GroupQueryJson::Groups => GroupQuery::Groups,
+                    GroupQueryJson::Rejoin => GroupQuery::Rejoin,
                     GroupQueryJson::Invites => GroupQuery::Invites,
                     GroupQueryJson::Group { conversation_id } => GroupQuery::Group {
                         conversation_id: unhex(&conversation_id)?,

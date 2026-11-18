@@ -45,6 +45,8 @@ pub const CAP_GROUP: &str = "om.group.v1";
 pub const KIND_INVITE: u64 = 15;
 pub const KIND_ACCEPT: u64 = 16;
 pub const KIND_DECLINE: u64 = 17;
+pub const KIND_REJOIN_REQUEST: u64 = 18;
+pub const CAP_REJOIN: &str = "om.group.rejoin.v1";
 /// An Accept is a `ConversationEvent` (Q2 ruling): the object's registered limit.
 pub const MAX_ACCEPT_BYTES: usize = 65_536;
 /// `GroupTransportFrame.body` upper bound (`bstr .size (1..131000)`).
@@ -914,6 +916,8 @@ pub struct GroupCarriageRec {
     /// host can tell the person.
     #[serde(default)]
     pub lane_out_lost: u32,
+    #[serde(default)]
+    pub rejoin: super::rejoin::RejoinState,
 }
 
 /// A verified head of an account the device has no relationship head for: the state body and its credential bodies.
@@ -1029,6 +1033,10 @@ pub enum LaneBody {
     Decline {
         invite_id: [u8; 16],
     },
+    RejoinRequest {
+        account: [u8; 32],
+        room_hint: String,
+    },
 }
 
 impl LaneBody {
@@ -1037,13 +1045,7 @@ impl LaneBody {
             LaneBody::Invite { .. } => KIND_INVITE,
             LaneBody::Accept { .. } => KIND_ACCEPT,
             LaneBody::Decline { .. } => KIND_DECLINE,
-        }
-    }
-    pub fn invite_id(&self) -> [u8; 16] {
-        match self {
-            LaneBody::Invite { invite_id, .. }
-            | LaneBody::Accept { invite_id, .. }
-            | LaneBody::Decline { invite_id } => *invite_id,
+            LaneBody::RejoinRequest { .. } => KIND_REJOIN_REQUEST,
         }
     }
     fn to_v(&self) -> V {
@@ -1069,11 +1071,23 @@ impl LaneBody {
                 (2, V::B(head.clone())),
             ]),
             LaneBody::Decline { invite_id } => V::M(vec![(0, V::B(invite_id.to_vec()))]),
+            LaneBody::RejoinRequest { account, room_hint } => V::M(vec![
+                (0, V::B(account.to_vec())),
+                (1, V::T(room_hint.clone())),
+            ]),
         }
     }
 }
 
-/// The canonical `ConversationEvent` of a lane body: kind 15, 16 or 17 with `required_capabilities = ["om.group.v1"]`.
+fn lane_capability(kind: u64) -> &'static str {
+    if kind == KIND_REJOIN_REQUEST {
+        CAP_REJOIN
+    } else {
+        CAP_GROUP
+    }
+}
+
+/// The canonical `ConversationEvent` of a relationship-lane body.
 /// Checked against the W1 registry (which bounds the body and, for an Accept, the whole event at 65,536 bytes).
 #[allow(clippy::too_many_arguments)]
 pub fn lane_event(
@@ -1093,7 +1107,10 @@ pub fn lane_event(
         kind: body.kind(),
         body: body.to_v(),
     }
-    .encode_full(None, Some(V::A(vec![V::T(CAP_GROUP.to_string())])));
+    .encode_full(
+        None,
+        Some(V::A(vec![V::T(lane_capability(body.kind()).to_string())])),
+    );
     if bytes.len() > MAX_ACCEPT_BYTES {
         return drop_("accept_too_large");
     }
@@ -1101,17 +1118,15 @@ pub fn lane_event(
     Ok(bytes)
 }
 
-/// Is this inner payload a group lane event at all (kind 15 to 17)? Read without validating.
+/// Is this inner payload a group lane event at all (kind 15 to 18)? Read without validating.
 pub fn is_lane_event(bytes: &[u8]) -> bool {
     cbor::decode(bytes)
         .ok()
         .and_then(|v| v.get(8).ok()?.u().ok())
-        .is_some_and(|k| (KIND_INVITE..=KIND_DECLINE).contains(&k))
+        .is_some_and(|k| (KIND_INVITE..=KIND_REJOIN_REQUEST).contains(&k))
 }
 
-/// Strictly parse a lane event: W1 registry check (kinds 15 to 17 are valid only to a W1 decoder), the Accept size
-/// limit of 65,536 bytes, the required capability `om.group.v1` (Q3: without it the event is rejected), and the typed
-/// body. Returns the generic event (authority checks are the caller's) and the typed body.
+/// Check the W1 registry, size, kind version and the exact per-kind capability, then decode the body.
 pub fn parse_lane_event(bytes: &[u8]) -> R<(events::Event, LaneBody)> {
     if bytes.len() > MAX_ACCEPT_BYTES {
         return drop_("accept_too_large");
@@ -1119,12 +1134,10 @@ pub fn parse_lane_event(bytes: &[u8]) -> R<(events::Event, LaneBody)> {
     if registry().check("ConversationEvent", bytes, false).is_err() {
         return drop_("event_invalid");
     }
-    // `parse_group_lane` accepts exactly `["om.group.v1"]` when key 10 is present; kinds 15 to 17 must carry it.
     let v = c(cbor::decode(bytes))?;
-    if v.opt(10).is_none() {
-        return drop_("capability_missing");
-    }
-    let ev = events::parse_group_lane(bytes).ok_or(GroupError("capability_missing"))?;
+    let kind = c(c(v.get(8))?.u())?;
+    let ev = events::parse_group_lane(bytes, lane_capability(kind))
+        .ok_or(GroupError("capability_missing"))?;
     let body = match ev.kind {
         KIND_INVITE => LaneBody::Invite {
             invite_id: bytes16(c(ev.body.get(0))?)?,
@@ -1144,6 +1157,10 @@ pub fn parse_lane_event(bytes: &[u8]) -> R<(events::Event, LaneBody)> {
         },
         KIND_DECLINE => LaneBody::Decline {
             invite_id: bytes16(c(ev.body.get(0))?)?,
+        },
+        KIND_REJOIN_REQUEST => LaneBody::RejoinRequest {
+            account: c(c(ev.body.get(0))?.b32())?,
+            room_hint: c(c(ev.body.get(1))?.t())?.to_string(),
         },
         _ => return drop_("event_invalid"),
     };

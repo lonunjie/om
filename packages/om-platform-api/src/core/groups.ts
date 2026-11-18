@@ -23,6 +23,8 @@ export interface GroupDeviceRelease { readonly device: string; readonly keyPacka
 export type GroupIntent =
   | { readonly kind: "create"; readonly name: string; readonly relationshipIds: readonly ConversationId[] }
   | { readonly kind: "invite"; readonly conversationId: GroupId; readonly relationshipId: ConversationId }
+  | { readonly kind: "ask_to_rejoin"; readonly relationshipId: ConversationId; readonly roomHint: string }
+  | { readonly kind: "resolve_rejoin"; readonly requestId: string; readonly agree: boolean }
   | { readonly kind: "accept"; readonly inviteId: string; readonly siblings?: readonly GroupDeviceRelease[] }
   | { readonly kind: "decline"; readonly inviteId: string }
   | { readonly kind: "leave"; readonly conversationId: GroupId }
@@ -60,6 +62,8 @@ export type GroupIntentKind = GroupIntent["kind"];
 
 /** What happened; the UI owns the words. */
 export type GroupEvent =
+  | { readonly kind: "rejoin_changed" }
+  | { readonly kind: "device_removed"; readonly conversationId: GroupId }
   | { readonly kind: "created"; readonly conversationId: GroupId }
   | { readonly kind: "invite_sent" | "invite_received" | "invite_accepted" | "invite_declined"; readonly inviteId: string }
   /** A Commit was prepared and is durable; the driver carries it and Core accepts it itself (ADR-0189 section 2). Progress only. */
@@ -197,6 +201,20 @@ export interface GroupMessageView {
 }
 export interface GroupReactionView { readonly key: string; readonly count: number; readonly mine: boolean }
 
+export interface GroupRejoinReviewView {
+  readonly id: string;
+  readonly conversationId: GroupId;
+  readonly relationshipId: ConversationId;
+  readonly working: boolean;
+  readonly canInvite: boolean;
+}
+
+export interface GroupRejoinView {
+  readonly contacts: readonly ConversationId[];
+  readonly pending: readonly { readonly relationshipId: ConversationId; readonly roomHint: string }[];
+  readonly reviews: readonly GroupRejoinReviewView[];
+}
+
 /**
  * The groups path of a CoreClient. `do` and `receive` resolve once the step is durable; only then may the host send
  * `out`. A client built without a group engine reports `available() === false` and refuses every step
@@ -210,6 +228,7 @@ export interface GroupApi {
   /** `null` when the group is unknown here. */
   get(ctx: ProfileExecutionContext, conversationId: GroupId): GroupDetailView | null;
   invites(ctx: ProfileExecutionContext): readonly GroupInviteView[];
+  rejoin?(ctx: ProfileExecutionContext): GroupRejoinView;
   messages(ctx: ProfileExecutionContext, conversationId: GroupId): readonly GroupMessageView[];
   /** The announced changes of a Room's settings, oldest first. */
   notices(ctx: ProfileExecutionContext, conversationId: GroupId): readonly GroupNoticeView[];

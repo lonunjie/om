@@ -51,7 +51,8 @@
     "event_kind": {
       "15": "W1",
       "16": "W1",
-      "17": "W1"
+      "17": "W1",
+      "18": "W1"
     },
     "lan_frame_kind": {
       "8": "W1"
@@ -144,7 +145,8 @@
       "14": "message.topic.set",
       "15": "group.invite",
       "16": "group.accept",
-      "17": "group.decline"
+      "17": "group.decline",
+      "18": "group.rejoin_request"
     },
     "receipt_type": {
       "1": "delivered",
@@ -6982,6 +6984,32 @@
             "bstr": [
               16,
               16
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupRejoinRequestBody": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "room_hint",
+          "type": {
+            "tstr": [
+              1,
+              256
             ]
           },
           "req": true

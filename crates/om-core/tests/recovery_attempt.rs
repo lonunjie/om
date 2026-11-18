@@ -680,7 +680,10 @@ fn a_veto_from_the_surviving_controller_reaches_the_owner_through_the_home_and_e
 }
 
 fn recovered_with_contact(peer_ready: bool) -> (World, Fresh, String) {
-    let mut w = world();
+    recover_with_contact(world(), peer_ready)
+}
+
+fn recover_with_contact(mut w: World, peer_ready: bool) -> (World, Fresh, String) {
     let list: Vec<ConversationSummary> = w
         .alice
         .query(Query::GetConversationList { ctx: w.a.clone() });
@@ -1059,4 +1062,531 @@ fn relationship_restore_probe_conflicted_snapshot_cannot_be_staged_after_restart
         contacts.is_empty(),
         "replaying one side of the conflict cannot restore the snapshot"
     );
+}
+
+mod room_rejoin {
+    use super::*;
+    use om_core::groups::GroupError;
+    use om_core::groups::flow::{
+        GroupEvent, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Sender,
+    };
+    use om_core::groups::rejoin::RejoinView;
+
+    fn group_do(
+        rt: &mut Runtime,
+        ctx: &ProfileExecutionContext,
+        intent: GroupIntent,
+    ) -> Result<GroupReply, GroupError> {
+        let (r, step) = rt.core.group_do(ctx, intent).unwrap();
+        assert!(rt.settle(&step));
+        r
+    }
+
+    fn commits(rt: &mut Runtime, ctx: &ProfileExecutionContext) -> Vec<GroupEvent> {
+        let (r, step) = rt.core.group_settle(ctx).unwrap();
+        assert!(rt.settle(&step));
+        r.unwrap().into_iter().flat_map(|r| r.events).collect()
+    }
+
+    fn send_lane(rt: &mut Runtime, ctx: &ProfileExecutionContext) {
+        rt.supply_routes(8);
+        loop {
+            let (r, step) = rt.core.group_lane_flush(ctx).unwrap();
+            assert!(rt.settle(&step));
+            if !r.unwrap() {
+                break;
+            }
+        }
+    }
+
+    fn pump(rt: &mut Runtime, ctx: &ProfileExecutionContext) -> Vec<GroupEvent> {
+        let (r, step) = rt.core.group_lane_pump(ctx).unwrap();
+        assert!(rt.settle(&step));
+        r.into_iter().flat_map(|(_, r)| r.unwrap().events).collect()
+    }
+
+    fn finish_routes(rt: &mut Runtime, ctx: &ProfileExecutionContext, conv: &[u8]) {
+        rt.supply_routes(8);
+        let (r, step) = rt.core.group_route_update(ctx, conv).unwrap();
+        r.unwrap();
+        assert!(rt.settle(&step));
+    }
+
+    fn deliver_frames(
+        from: &mut Runtime,
+        fc: &ProfileExecutionContext,
+        to: &mut Runtime,
+        tc: &ProfileExecutionContext,
+        wanted: impl Fn(&GroupWire) -> bool,
+    ) -> Vec<GroupEvent> {
+        let mut events = vec![];
+        for item in from
+            .core
+            .group_outbox(fc)
+            .unwrap()
+            .into_iter()
+            .filter(|i| wanted(&i.wire))
+        {
+            from.supply_routes(8);
+            let (sealed, step) = from
+                .core
+                .group_frame_send(fc, &item.to_outbound().unwrap())
+                .unwrap();
+            assert!(from.settle(&step));
+            for s in sealed.unwrap() {
+                let (r, step) = to.core.group_frame_receive(tc, &s.wrapper).unwrap();
+                assert!(to.settle(&step));
+                events.extend(r.unwrap().events);
+            }
+            let step = from.core.group_outbox_done(fc, &[item.id]).unwrap();
+            assert!(from.settle(&step));
+        }
+        events
+    }
+
+    fn chat(rt: &mut Runtime, ctx: &ProfileExecutionContext) -> String {
+        let list: Vec<ConversationSummary> =
+            rt.query(Query::GetConversationList { ctx: ctx.clone() });
+        assert_eq!(list.len(), 1);
+        list[0].id.clone()
+    }
+
+    fn room(
+        from: &mut Runtime,
+        fc: &ProfileExecutionContext,
+        to: &mut Runtime,
+        tc: &ProfileExecutionContext,
+        name: &str,
+    ) -> Vec<u8> {
+        let relationship = chat(from, fc);
+        let r = group_do(
+            from,
+            fc,
+            GroupIntent::CreateWithProtection {
+                name: name.into(),
+                relationship_ids: vec![relationship],
+                protection: 3,
+            },
+        )
+        .unwrap();
+        let conv = r
+            .events
+            .into_iter()
+            .find_map(|e| match e {
+                GroupEvent::Created { conversation_id } => Some(conversation_id),
+                _ => None,
+            })
+            .unwrap();
+        send_lane(from, fc);
+        settle_all(&mut [(from, fc), (to, tc)]);
+        let i = invitation(&pump(to, tc));
+        group_do(
+            to,
+            tc,
+            GroupIntent::Accept {
+                invite_id: i,
+                siblings: vec![],
+            },
+        )
+        .unwrap();
+        send_lane(to, tc);
+        settle_all(&mut [(from, fc), (to, tc)]);
+        pump(from, fc);
+        commits(from, fc);
+        let joined = deliver_frames(from, fc, to, tc, |w| matches!(w, GroupWire::Welcome { .. }));
+        assert!(joined.contains(&GroupEvent::Joined {
+            conversation_id: conv.clone()
+        }));
+        conv
+    }
+
+    fn invitation(events: &[GroupEvent]) -> String {
+        events
+            .iter()
+            .find_map(|e| match e {
+                GroupEvent::InviteReceived { invite_id } => Some(invite_id.clone()),
+                _ => None,
+            })
+            .expect("ordinary invitation")
+    }
+
+    fn reconnect(w: &mut World, f: &mut Fresh) -> String {
+        let candidates: Vec<ReconnectContactView> =
+            f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+        assert_eq!(
+            f.go(
+                "reconnect-for-room",
+                IntentBody::ReconnectContact {
+                    account_id: candidates[0].account_id.clone(),
+                }
+            ),
+            Some(OutcomeClass::Committed)
+        );
+        let invite: Option<InviteView> = f.rt.query(Query::GetInvite {
+            ctx: f.ctx.clone(),
+            operation_id: "reconnect-for-room".into(),
+        });
+        w.bob.dispatch(
+            &w.b,
+            "accept-reconnect-for-room",
+            IntentBody::AcceptInvitation {
+                link: invite.unwrap().link,
+            },
+        );
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        let intros: Vec<IntroductionRequest> =
+            f.rt.query(Query::GetIntroductions { ctx: f.ctx.clone() });
+        f.rt.dispatch(
+            &f.ctx,
+            "bind-for-room",
+            IntentBody::AcceptIntroduction {
+                request_id: intros[0].id.clone(),
+            },
+        );
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        let candidates: Vec<ReconnectContactView> =
+            f.rt.query(Query::GetRelationshipRestore { ctx: f.ctx.clone() });
+        candidates[0]
+            .conversation_id
+            .clone()
+            .expect("live restored contact")
+    }
+
+    fn rejoin(rt: &Runtime, ctx: &ProfileExecutionContext) -> RejoinView {
+        match rt
+            .core
+            .group_query(ctx, GroupQuery::Rejoin)
+            .unwrap()
+            .unwrap()
+        {
+            GroupView::Rejoin(view) => view,
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn recovered_owner_rejoins_only_through_an_ordinary_invitation() {
+        let mut w = world();
+        let conv = room(&mut w.bob, &w.b, &mut w.alice, &w.a, "Book club");
+        let other = room(&mut w.alice, &w.a, &mut w.bob, &w.b, "Weekend plans");
+        let devices: DevicesView = w.alice.query(Query::GetDevices { ctx: w.a.clone() });
+        let old = devices
+            .devices
+            .iter()
+            .find(|d| d.is_current)
+            .unwrap()
+            .id
+            .clone();
+        let (mut w, mut f, _) = recover_with_contact(w, true);
+        let relationship = reconnect(&mut w, &mut f);
+        assert_eq!(rejoin(&f.rt, &f.ctx).contacts, [relationship.clone()]);
+
+        let ask = |hint: &str| GroupIntent::AskToRejoin {
+            relationship_id: relationship.clone(),
+            room_hint: hint.into(),
+        };
+        let wire = group_do(&mut f.rt, &f.ctx, ask("Book club"))
+            .unwrap()
+            .out
+            .pop()
+            .unwrap()
+            .wire;
+        group_do(&mut f.rt, &f.ctx, ask("Weekend plans")).unwrap();
+        assert!(
+            group_do(&mut f.rt, &f.ctx, ask("Book club"))
+                .unwrap()
+                .out
+                .is_empty(),
+            "repeat tap is idempotent"
+        );
+        f.rt.restart();
+        f.ctx = f.rt.open("q");
+        assert_eq!(rejoin(&f.rt, &f.ctx).pending.len(), 2);
+        let log_start = w.net.deposit_log().len();
+        send_lane(&mut f.rt, &f.ctx);
+        f.rt.flush_net(&f.ctx);
+        let delivered = w.net.deposit_log().split_off(log_start);
+        assert!(delivered.len() >= 2);
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        assert_eq!(
+            pump(&mut w.bob, &w.b),
+            [GroupEvent::RejoinChanged, GroupEvent::RejoinChanged]
+        );
+
+        w.bob.restart();
+        w.b = w.bob.open("p-b");
+        for (mailbox, bytes) in delivered {
+            use om_core::host::{NetCall, NetResult};
+            assert!(matches!(
+                w.net.perform(&NetCall::Deposit {
+                    mailbox,
+                    bytes,
+                    relay_uri: None
+                }),
+                NetResult::Ok
+            ));
+        }
+        // Repeat the semantic request under a fresh sealed event after the recipient restarts.
+        let (r, step) =
+            f.rt.core
+                .group_lane_send(&f.ctx, &relationship, &wire)
+                .unwrap();
+        r.unwrap();
+        assert!(f.rt.settle(&step));
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        assert!(pump(&mut w.bob, &w.b).is_empty());
+        let reviews = rejoin(&w.bob, &w.b).reviews;
+        assert_eq!(reviews.len(), 2);
+        let review = reviews
+            .iter()
+            .find(|r| r.conversation_id == hex(&conv))
+            .unwrap();
+        let policy_refused = reviews
+            .iter()
+            .find(|r| r.conversation_id == hex(&other))
+            .unwrap();
+        assert!(!policy_refused.can_invite);
+        let confirm = |id: &str| GroupIntent::ResolveRejoin {
+            request_id: id.into(),
+            agree: true,
+        };
+        assert_eq!(
+            group_do(&mut w.bob, &w.b, confirm(&policy_refused.id)),
+            Err(GroupError("not_authorized"))
+        );
+        assert_eq!(
+            group_do(
+                &mut w.bob,
+                &w.b,
+                GroupIntent::SendText {
+                    conversation_id: conv.clone(),
+                    text: "blocked before removal".into(),
+                }
+            ),
+            Err(GroupError("revoked_leaf_pending"))
+        );
+
+        let parent = w.bob.core.debug_app_state(&w.b).unwrap()["groups"][hex(&conv)]["head"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let parent = om_core::groups::GroupState::decode(&unhex(&parent).unwrap()).unwrap();
+        let removal = group_do(&mut w.bob, &w.b, confirm(&review.id)).unwrap();
+        assert!(
+            removal
+                .out
+                .iter()
+                .all(|o| matches!(o.wire, GroupWire::Commit { .. }))
+        );
+        assert!(
+            removal
+                .events
+                .iter()
+                .all(|e| !matches!(e, GroupEvent::InviteSent { .. }))
+        );
+        w.bob.restart();
+        w.b = w.bob.open("p-b");
+        let events = commits(&mut w.bob, &w.b);
+        assert!(events.contains(&GroupEvent::DeviceRemoved {
+            conversation_id: conv.clone()
+        }));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, GroupEvent::InviteSent { .. }))
+        );
+        let bob = w.bob.core.debug_app_state(&w.b).unwrap();
+        assert!(bob["groupDevices"][hex(&conv)][&old].is_null());
+        let removed = om_core::groups::GroupState::decode(
+            &unhex(bob["groups"][hex(&conv)]["head"].as_str().unwrap()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(removed.membership, parent.membership);
+        assert_eq!(removed.mls_epoch_ref, parent.mls_epoch_ref + 1);
+        drop(bob);
+        finish_routes(&mut w.bob, &w.b, &conv);
+        send_lane(&mut w.bob, &w.b);
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+
+        let GroupView::Group(detail) = w
+            .bob
+            .core
+            .group_query(
+                &w.b,
+                GroupQuery::Group {
+                    conversation_id: conv.clone(),
+                },
+            )
+            .unwrap()
+            .unwrap()
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            detail.people.len(),
+            2,
+            "an invitation for a device adds no person to the member view"
+        );
+        assert_eq!(detail.summary.invited, 0);
+        let invite = invitation(&pump(&mut f.rt, &f.ctx));
+        let unsolicited = GroupWire::Welcome {
+            invite_id: invite.clone(),
+            welcome: String::new(),
+            state: String::new(),
+            directory: vec![],
+        };
+        let (r, step) =
+            f.rt.core
+                .group_receive(
+                    &f.ctx,
+                    Sender::Relationship(relationship.clone()),
+                    unsolicited,
+                )
+                .unwrap();
+        assert!(f.rt.settle(&step));
+        assert_eq!(
+            r.unwrap().events,
+            [GroupEvent::Dropped("unsolicited_welcome")]
+        );
+        assert!(
+            f.rt.core
+                .group_query(
+                    &f.ctx,
+                    GroupQuery::Group {
+                        conversation_id: conv.clone()
+                    }
+                )
+                .unwrap()
+                .is_err()
+        );
+        assert_eq!(rejoin(&f.rt, &f.ctx).pending.len(), 2);
+
+        group_do(
+            &mut f.rt,
+            &f.ctx,
+            GroupIntent::Accept {
+                invite_id: invite,
+                siblings: vec![],
+            },
+        )
+        .unwrap();
+        send_lane(&mut f.rt, &f.ctx);
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        assert!(
+            pump(&mut w.bob, &w.b)
+                .iter()
+                .any(|e| matches!(e, GroupEvent::CommitPrepared { .. }))
+        );
+        commits(&mut w.bob, &w.b);
+        let joined = deliver_frames(&mut w.bob, &w.b, &mut f.rt, &f.ctx, |w| {
+            matches!(w, GroupWire::Welcome { .. })
+        });
+        assert!(joined.contains(&GroupEvent::Joined {
+            conversation_id: conv.clone()
+        }));
+        assert_eq!(rejoin(&f.rt, &f.ctx).pending[0].room_hint, "Weekend plans");
+        let app = w.bob.core.debug_app_state(&w.b).unwrap();
+        let after = om_core::groups::GroupState::decode(
+            &unhex(app["groups"][hex(&conv)]["head"].as_str().unwrap()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            after.membership, parent.membership,
+            "rejoin preserves the membership incarnation and roles"
+        );
+        assert_eq!(after.mls_epoch_ref, removed.mls_epoch_ref + 1);
+        assert!(app["groupDevices"][hex(&conv)][&old].is_null());
+
+        let talk = |from: &mut Runtime,
+                    fc: &ProfileExecutionContext,
+                    to: &mut Runtime,
+                    tc: &ProfileExecutionContext,
+                    sent: &str| {
+            group_do(
+                from,
+                fc,
+                GroupIntent::SendText {
+                    conversation_id: conv.clone(),
+                    text: sent.into(),
+                },
+            )
+            .unwrap();
+            assert!(
+                deliver_frames(from, fc, to, tc, |w| matches!(w, GroupWire::App { .. }))
+                    .iter()
+                    .any(|e| matches!(e, GroupEvent::MessageReceived { .. }))
+            );
+            let GroupView::Messages(log) = to
+                .core
+                .group_query(
+                    tc,
+                    GroupQuery::Messages {
+                        conversation_id: conv.clone(),
+                    },
+                )
+                .unwrap()
+                .unwrap()
+            else {
+                unreachable!()
+            };
+            assert_eq!(log.last().unwrap().text, sent);
+        };
+        talk(&mut f.rt, &f.ctx, &mut w.bob, &w.b, "I'm back");
+        talk(&mut w.bob, &w.b, &mut f.rt, &f.ctx, "Welcome back");
+
+        f.rt.set_recovery_place(Some(place()));
+        assert_eq!(
+            f.go("new-head", IntentBody::ReplaceRecoveryKey),
+            Some(OutcomeClass::Committed)
+        );
+        assert_eq!(
+            f.go(
+                "save-new-head",
+                IntentBody::ConfirmRecoveryKeyStored {
+                    key_operation_id: "new-head".into()
+                }
+            ),
+            Some(OutcomeClass::Committed)
+        );
+        settle_all(&mut [(&mut f.rt, &f.ctx), (&mut w.bob, &w.b)]);
+        assert!(
+            rejoin(&w.bob, &w.b).reviews.is_empty(),
+            "a changed head invalidates the earlier review"
+        );
+        assert_eq!(
+            group_do(&mut w.bob, &w.b, confirm(&policy_refused.id)),
+            Err(GroupError("stale_rejoin"))
+        );
+
+        let person = w
+            .bob
+            .query::<Vec<ConversationSummary>>(Query::GetConversationList { ctx: w.b.clone() })[0]
+            .person_id
+            .clone();
+        let confirmation = common::confirmation(&mut w.bob, &w.b, "BlockPerson", &person);
+        w.bob.dispatch(
+            &w.b,
+            "block-reconnected-contact",
+            IntentBody::BlockPerson {
+                person_id: person,
+                scope: BlockScope::Local,
+                confirmation,
+            },
+        );
+        assert_eq!(
+            w.bob.outcome(&w.b, "block-reconnected-contact"),
+            Some(OutcomeClass::Committed)
+        );
+        assert_eq!(
+            group_do(
+                &mut w.bob,
+                &w.b,
+                GroupIntent::SendText {
+                    conversation_id: other,
+                    text: "the other Room still has the revoked leaf".into(),
+                }
+            ),
+            Err(GroupError("revoked_leaf_pending"))
+        );
+    }
 }

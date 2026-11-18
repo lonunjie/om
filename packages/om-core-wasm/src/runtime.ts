@@ -4,7 +4,7 @@
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
@@ -388,6 +388,13 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     available: () => core.call({ cmd: "groups_available" }) === true,
     do: (ctx, intent) => exclusive(async () => groupStep(await groupCall({ cmd: "group_do", ctx: ctxOf(ctx), intent }), ctx)),
     receive: (ctx, from, wire) => exclusive(async () => groupStep(await groupCall({ cmd: "group_receive", ctx: ctxOf(ctx), from, wire }), ctx)),
+    rejoin: (ctx) => {
+      try {
+        const view = groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "rejoin" } }) as { rejoin?: GroupRejoinView };
+        if (view.rejoin !== undefined) return view.rejoin;
+      } catch { /* A module without the query can still display its other group views. */ }
+      return { contacts: [], pending: [], reviews: [] };
+    },
     list: (ctx) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "groups" } }) as { groups?: GroupSummaryView[] }).groups ?? [],
     get: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "group", conversationId } }) as { group?: GroupDetailView }).group ?? null,
     invites: (ctx) => ((groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "invites" } }) as { invites?: (GroupInviteView & { releases?: unknown; intentId?: unknown })[] }).invites ?? [])
@@ -395,6 +402,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         const rest: Record<string, unknown> = { ...inv };
         delete rest.releases;
         delete rest.intentId;
+        delete rest.rejoin;
         return rest as unknown as GroupInviteView;
       }),
     messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],

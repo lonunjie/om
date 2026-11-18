@@ -25,6 +25,7 @@
 use super::binding::KIND_COORDINATOR_SEQUENCED;
 use super::journal::{CommitPlan, ReceiveOutcome};
 use super::mls::{CryptoEnv, GroupCrypto, MlsError};
+use super::rejoin::RejoinView;
 use super::room::{self, Change, Notice, Setting};
 use super::{GenesisParams, GroupError, GroupState, Intent, Principal, R, apply, err, genesis, op};
 use crate::crypto::cbor::V;
@@ -106,6 +107,8 @@ pub struct GroupInviteRec {
     #[serde(default)]
     pub intent_id: Option<String>,
     pub created_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) rejoin: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -208,6 +211,14 @@ pub enum GroupIntent {
         conversation_id: Vec<u8>,
         relationship_id: String,
     },
+    AskToRejoin {
+        relationship_id: String,
+        room_hint: String,
+    },
+    ResolveRejoin {
+        request_id: String,
+        agree: bool,
+    },
     Accept {
         invite_id: String,
         /// Releases of this person's other devices (own-device sync delivers them).
@@ -264,6 +275,7 @@ pub enum GroupIntent {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GroupQuery {
     Groups,
+    Rejoin,
     /// The announced changes of a Room's settings, oldest first.
     Notices {
         conversation_id: Vec<u8>,
@@ -338,6 +350,7 @@ pub struct ProtectionView {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GroupView {
     Groups(Vec<GroupSummary>),
+    Rejoin(RejoinView),
     Notices(Vec<Notice>),
     Group(Box<GroupDetail>),
     Invites(Vec<GroupInviteRec>),
@@ -346,6 +359,10 @@ pub enum GroupView {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GroupEvent {
+    RejoinChanged,
+    DeviceRemoved {
+        conversation_id: Vec<u8>,
+    },
     Created {
         conversation_id: Vec<u8>,
     },
@@ -427,6 +444,12 @@ pub enum GroupEvent {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "t", rename_all = "snake_case")]
 pub enum GroupWire {
+    RejoinRequest {
+        account: String,
+        room_hint: String,
+        device: String,
+        head: String,
+    },
     /// Over the 1:1: names the Room and the inviter; reveals the invitee to nobody.
     Invite {
         invite_id: String,
@@ -560,7 +583,25 @@ fn intent_body(
     auth_kind: u64,
     args: Value,
 ) -> Vec<u8> {
-    let reducing = matches!(operation, op::MEMBER_REMOVE | op::MEMBER_LEAVE);
+    build_intent_body(parent, id, operation, auth_kind, args, None)
+}
+
+fn build_intent_body(
+    parent: &GroupState,
+    id: &[u8],
+    operation: u64,
+    auth_kind: u64,
+    args: Value,
+    acs_hash: Option<[u8; 32]>,
+) -> Vec<u8> {
+    let reducing = matches!(
+        operation,
+        op::MEMBER_REMOVE | op::MEMBER_LEAVE | op::DEVICE_REMOVE_REVOKED
+    );
+    let mut auth = vec![(0, Value::Uint(auth_kind))];
+    if let Some(hash) = acs_hash {
+        auth.push((1, super::digest_value(&hash)));
+    }
     encode(&m(vec![
         (0, Value::Uint(29)),
         (1, Value::Uint(1)),
@@ -577,8 +618,37 @@ fn intent_body(
         (6, Value::Uint(operation)),
         (7, Value::Bool(reducing)),
         (8, args),
-        (9, m(vec![(0, Value::Uint(auth_kind))])),
+        (9, m(auth)),
     ]))
+}
+
+pub(super) fn device_intent_body(
+    parent: &GroupState,
+    rng: &mut dyn RngCore,
+    operation: u64,
+    who: &Principal,
+    incarnation: &[u8],
+    device: &[u8],
+    head: &crate::crypto::binding::Acs,
+) -> Vec<u8> {
+    let auth = if operation == op::DEVICE_REMOVE_REVOKED {
+        4
+    } else {
+        1
+    };
+    build_intent_body(
+        parent,
+        &rand16(rng),
+        operation,
+        auth,
+        m(vec![
+            (0, p_val(who)),
+            (1, Value::Bytes(incarnation.to_vec())),
+            (2, Value::Bytes(device.to_vec())),
+            (3, Value::Uint(head.generation)),
+        ]),
+        Some(head.hash()),
+    )
 }
 
 fn target_args(who: &Principal, incarnation: &[u8]) -> Value {
@@ -630,11 +700,11 @@ fn rand16(rng: &mut dyn RngCore) -> Vec<u8> {
 // ---- the flow ----------------------------------------------------------------------------------------------------
 
 impl AppState {
-    fn group_state(&self, conv: &[u8]) -> R<GroupState> {
+    pub(super) fn group_state(&self, conv: &[u8]) -> R<GroupState> {
         self.group(conv)?.ok_or(GroupError("unknown_group"))
     }
 
-    fn group_dir(&self, conv: &[u8]) -> BTreeMap<String, GroupDeviceRec> {
+    pub(super) fn group_dir(&self, conv: &[u8]) -> BTreeMap<String, GroupDeviceRec> {
         self.group_devices
             .get(&h(conv))
             .cloned()
@@ -642,7 +712,7 @@ impl AppState {
     }
 
     /// Devices (hex ids) the directory holds for an account in a group.
-    fn group_devices_of(&self, conv: &[u8], account: &[u8]) -> Vec<Vec<u8>> {
+    pub(super) fn group_devices_of(&self, conv: &[u8], account: &[u8]) -> Vec<Vec<u8>> {
         self.group_dir(conv)
             .iter()
             .filter(|(_, r)| r.account == h(account))
@@ -673,7 +743,7 @@ impl AppState {
         un(&r.peer_account_id).map_err(|_| GroupError("relationship_not_active"))
     }
 
-    fn group_commit_wires(
+    pub(super) fn group_commit_wires(
         &self,
         conv: &[u8],
         my_device: &[u8],
@@ -716,7 +786,7 @@ impl AppState {
     }
 
     /// Begin and prepare one intent; returns the journal id.
-    fn group_prepare_intent(
+    pub(super) fn group_prepare_intent(
         &mut self,
         ctx: &mut GroupCtx<'_>,
         body: &[u8],
@@ -785,7 +855,18 @@ impl AppState {
             GroupIntent::Invite {
                 conversation_id,
                 relationship_id,
-            } => self.group_invite(ctx, &conversation_id, &relationship_id, &mut rep)?,
+            } => {
+                self.group_invite(ctx, &conversation_id, &relationship_id, None, &mut rep)?;
+            }
+            GroupIntent::AskToRejoin {
+                relationship_id,
+                room_hint,
+            } => {
+                self.group_ask_to_rejoin(ctx, &relationship_id, room_hint, &mut rep)?;
+            }
+            GroupIntent::ResolveRejoin { request_id, agree } => {
+                self.group_resolve_rejoin(ctx, &request_id, agree, &mut rep)?;
+            }
             GroupIntent::Accept {
                 invite_id,
                 siblings,
@@ -885,18 +966,19 @@ impl AppState {
             conversation_id: conv.clone(),
         });
         for r in rels {
-            self.group_invite(ctx, &conv, r, rep)?;
+            self.group_invite(ctx, &conv, r, None, rep)?;
         }
         Ok(())
     }
 
-    fn group_invite(
+    pub(super) fn group_invite(
         &mut self,
         ctx: &mut GroupCtx<'_>,
         conv: &[u8],
         rel: &str,
+        rejoin: Option<&str>,
         rep: &mut GroupReply,
-    ) -> R<()> {
+    ) -> R<String> {
         let g = self.group_state(conv)?;
         let me = Principal::account(ctx.my_account.clone());
         // D-g6: inviting needs `room.invite` (registry operation control.member.invite).
@@ -904,7 +986,7 @@ impl AppState {
             return err("not_authorized");
         }
         let peer = self.group_active_peer(rel)?;
-        if g.member(&Principal::account(peer.clone())).is_some() {
+        if rejoin.is_none() && g.member(&Principal::account(peer.clone())).is_some() {
             return err("already_member");
         }
         let live: Vec<&GroupInviteRec> = self
@@ -922,7 +1004,8 @@ impl AppState {
         if live.iter().any(|i| i.peer_account == h(&peer)) {
             return err("already_invited");
         }
-        if g.membership.len() + live.len() + 1 > super::PRODUCT_MEMBER_CAP {
+        let new_members = live.iter().filter(|i| i.rejoin.is_none()).count();
+        if rejoin.is_none() && g.membership.len() + new_members + 1 > super::PRODUCT_MEMBER_CAP {
             return err("group_full");
         }
         let id = h(&rand16(ctx.rng));
@@ -939,6 +1022,7 @@ impl AppState {
                 releases: vec![],
                 intent_id: None,
                 created_ms: ctx.now_ms,
+                rejoin: rejoin.map(str::to_string),
             },
         );
         rep.events.push(GroupEvent::InviteSent {
@@ -947,12 +1031,12 @@ impl AppState {
         rep.out.push(Outbound {
             to: Target::Relationship(rel.to_string()),
             wire: GroupWire::Invite {
-                invite_id: id,
+                invite_id: id.clone(),
                 conversation_id: h(conv),
                 name: g.profile.name,
             },
         });
-        Ok(())
+        Ok(id)
     }
 
     fn group_accept(
@@ -1034,12 +1118,6 @@ impl AppState {
             .ok_or(GroupError("unknown_invite"))?;
         let conv = un(&inv.conversation_id)?;
         let g = self.group_state(&conv)?;
-        let member_role = g
-            .role_definitions
-            .iter()
-            .find(|r| r.display_name == "Member")
-            .map(|r| r.id.clone())
-            .ok_or(GroupError("no_member_role"))?;
         // Before any Commit is prepared, every released KeyPackage's own leaf must be proven by
         // the invitee account's validated current head; the release's `device` and `pk` only have to agree with it.
         let invitee = un(&inv.peer_account)?;
@@ -1054,14 +1132,29 @@ impl AppState {
                 return err("release_mismatch");
             }
         }
-        let who = Principal::account(invitee);
-        let args = m(vec![
-            (0, p_val(&who)),
-            (1, Value::Bytes(rand16(ctx.rng))),
-            (2, Value::Array(vec![Value::Bytes(member_role)])),
-            (3, Value::Uint(1)),
-        ]);
-        let body = intent_body(&g, &rand16(ctx.rng), op::MEMBER_ADMIT, 1, args);
+        let body = if inv.rejoin.is_some() {
+            if self.group_carriage.outbox.len() + self.group_dir(&conv).len().saturating_sub(1)
+                > super::carriage::MAX_OUTBOX
+            {
+                return err("outbox_full");
+            }
+            self.group_rejoin_add(ctx, &g, &inv, &inv.releases)?
+        } else {
+            let member_role = g
+                .role_definitions
+                .iter()
+                .find(|r| r.display_name == "Member")
+                .map(|r| r.id.clone())
+                .ok_or(GroupError("no_member_role"))?;
+            let who = Principal::account(invitee);
+            let args = m(vec![
+                (0, p_val(&who)),
+                (1, Value::Bytes(rand16(ctx.rng))),
+                (2, Value::Array(vec![Value::Bytes(member_role)])),
+                (3, Value::Uint(1)),
+            ]);
+            intent_body(&g, &rand16(ctx.rng), op::MEMBER_ADMIT, 1, args)
+        };
         let kps = inv
             .releases
             .iter()
@@ -1207,8 +1300,16 @@ impl AppState {
             .ok_or(GroupError("unknown_intent"))?;
         let conv = un(&e.conversation_id)?;
         let before = self.group_state(&conv)?;
-        let after = self.group_journal_accept(intent_id, &mut *ctx.engine)?;
         let actor = un(&e.actor_account)?;
+        let intent = Intent::decode(&un(&e.intent_body)?)?;
+        if matches!(intent.operation, op::DEVICE_ADD | op::DEVICE_REMOVE_REVOKED) {
+            self.rejoin_coordinator(
+                &before,
+                ctx.engine.device_id(),
+                &Principal::account(actor.clone()),
+            )?;
+        }
+        let after = self.group_journal_accept(intent_id, &mut *ctx.engine)?;
         self.group_after_change(&conv, &before, &after, &actor, ctx.now_ms, rep);
         // An accepted Add releases the Welcome over the 1:1 (the head state and the directory travel with it).
         let inv = self
@@ -1240,6 +1341,12 @@ impl AppState {
                     directory,
                 },
             });
+        }
+        if intent.operation == op::DEVICE_REMOVE_REVOKED {
+            self.group_forget_removed_device(&conv, &super::b(super::req(&intent.args, 2)?)?, rep);
+            if self.group_rejoin_after_removal(ctx, intent_id, rep) {
+                return Ok(());
+            }
         }
         // a queued Room setting goes on with its next Commit now that the journal is free
         if let Err(x) = self.group_room_advance(ctx, &conv, rep) {
@@ -1440,6 +1547,24 @@ impl AppState {
         Ok(())
     }
 
+    fn group_forget_removed_device(&mut self, conv: &[u8], device: &[u8], rep: &mut GroupReply) {
+        let room = h(conv);
+        let device_id = h(device);
+        if let Some(roster) = self.group_devices.get_mut(&room) {
+            roster.remove(&device_id);
+        }
+        // Keep the removed device's route long enough to deliver the removal Commit. No application frame targets
+        // a device outside the current roster.
+        self.group_carriage.outbox.retain(|item| {
+            !matches!((&item.to, &item.wire),
+                (super::carriage::OutTarget::Device { device, .. }, GroupWire::App { conversation_id, .. })
+                    if device == &device_id && conversation_id == &room)
+        });
+        rep.events.push(GroupEvent::DeviceRemoved {
+            conversation_id: conv.to_vec(),
+        });
+    }
+
     /// Events and directory upkeep after a state change the canonical head went through.
     fn group_after_change(
         &mut self,
@@ -1612,6 +1737,9 @@ impl AppState {
         let g = self.group_state(conv)?;
         if self.group_leaving.contains(&h(conv)) {
             return err("leaving");
+        }
+        if self.group_has_revoked_leaf(conv) {
+            return err("revoked_leaf_pending");
         }
         if !self.group_may_send(conv) {
             return err("commit_in_flight");
@@ -1887,6 +2015,16 @@ impl AppState {
         let mut rep = GroupReply::default();
         match (wire, from) {
             (
+                GroupWire::RejoinRequest {
+                    account,
+                    room_hint,
+                    device,
+                    head,
+                },
+                Sender::Relationship(rel),
+            ) => self.group_record_rejoin(ctx, rel, account, device, head, &room_hint, &mut rep)?,
+
+            (
                 GroupWire::Invite {
                     invite_id,
                     conversation_id,
@@ -1918,6 +2056,7 @@ impl AppState {
                         releases: vec![],
                         intent_id: None,
                         created_ms: ctx.now_ms,
+                        rejoin: None,
                     },
                 );
                 rep.events.push(GroupEvent::InviteReceived { invite_id });
@@ -2100,6 +2239,7 @@ impl AppState {
             self.group_register(&st.conversation_id, &b.device, &b.account, &b.pk);
         }
         self.group_crypto_save(&*ctx.engine);
+        self.group_rejoin_joined(&inv, &st.profile.name);
         let done = self.group_invites.get_mut(invite_id).expect("found");
         done.state = InviteState::Done;
         done.conversation_id = h(&st.conversation_id);
@@ -2178,6 +2318,16 @@ impl AppState {
             return Ok(());
         }
         let before = self.group_state(conv)?;
+        let intent_body = Intent::decode(intent)?;
+        if matches!(
+            intent_body.operation,
+            op::DEVICE_ADD | op::DEVICE_REMOVE_REVOKED
+        ) {
+            if committer != actor_device {
+                return err("not_authorized");
+            }
+            self.rejoin_coordinator(&before, committer, &Principal::account(account.clone()))?;
+        }
         let out = self.group_receive_commit(
             signed,
             &pk,
@@ -2208,15 +2358,23 @@ impl AppState {
                 let after = self.group_state(conv)?;
                 for b in &bound {
                     // only an account the Commit's own state change added may gain devices
-                    if before
-                        .member(&Principal::account(b.account.clone()))
-                        .is_none()
-                        && after
+                    if intent_body.operation == op::DEVICE_ADD
+                        || (before
                             .member(&Principal::account(b.account.clone()))
-                            .is_some()
+                            .is_none()
+                            && after
+                                .member(&Principal::account(b.account.clone()))
+                                .is_some())
                     {
                         self.group_register(conv, &b.device, &b.account, &b.pk);
                     }
+                }
+                if intent_body.operation == op::DEVICE_REMOVE_REVOKED {
+                    self.group_forget_removed_device(
+                        conv,
+                        &super::b(super::req(&intent_body.args, 2)?)?,
+                        rep,
+                    );
                 }
                 self.group_after_change(conv, &before, &after, &account, ctx.now_ms, rep);
             }
@@ -2355,6 +2513,7 @@ impl AppState {
                 .values()
                 .filter(|i| {
                     i.dir == InviteDir::Outgoing
+                        && i.rejoin.is_none()
                         && i.conversation_id == conv
                         && matches!(
                             i.state,
@@ -2371,6 +2530,7 @@ impl AppState {
             epoch: g.mls_epoch_ref,
         };
         match q {
+            GroupQuery::Rejoin => Ok(GroupView::Rejoin(self.group_rejoin_view(&un(&me)?, &[]))),
             GroupQuery::Groups => {
                 let mut v = Vec::new();
                 for r in self.groups.values() {
@@ -2454,6 +2614,7 @@ impl AppState {
                     people,
                     former,
                     can_send: self.group_may_send(&conversation_id)
+                        && !self.group_has_revoked_leaf(&conversation_id)
                         && !self.group_leaving.contains(&h(&conversation_id)),
                     protection: ProtectionView {
                         profile: g.policy.security_profile,

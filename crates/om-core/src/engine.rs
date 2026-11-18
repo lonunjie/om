@@ -58,7 +58,8 @@ fn note_removals(app: &mut AppState, r: &GroupReply) {
     for e in &r.events {
         if let crate::groups::flow::GroupEvent::MemberRemoved {
             conversation_id, ..
-        } = e
+        }
+        | crate::groups::flow::GroupEvent::DeviceRemoved { conversation_id } = e
         {
             app.carry_note_removal(conversation_id);
         }
@@ -865,6 +866,12 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .as_ref()
             .map(|d| d.account_id.to_vec())
             .unwrap_or_default();
+        if matches!(q, GroupQuery::Rejoin) {
+            let device = slot.state.device.as_ref().map_or(&[][..], |d| &d.device_id);
+            return Ok(Ok(GroupView::Rejoin(
+                slot.state.app.group_rejoin_view(&me, device),
+            )));
+        }
         Ok(slot.state.app.group_query_as(&me, q))
     }
 

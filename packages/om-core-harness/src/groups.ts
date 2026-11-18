@@ -121,6 +121,7 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       const s = store(ctx);
       const g = "conversationId" in intent ? s.groups.get(intent.conversationId) : undefined;
       switch (intent.kind) {
+        case "ask_to_rejoin": case "resolve_rejoin": return Promise.resolve(refuse("unsupported"));
         case "create": case "create_with_protection": {
           for (const r of intent.relationshipIds) if (!opts.hasRelationship(ctx, r)) return Promise.resolve(refuse("unknown_relationship"));
           if (intent.name.trim() === "") return Promise.resolve(refuse("invalid_name"));

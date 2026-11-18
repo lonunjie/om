@@ -198,16 +198,15 @@ pub struct Event {
 
 /// Parse after the W0 registry check has passed. Returns `None` for anything the 1:1 profile does not accept.
 pub fn parse(bytes: &[u8]) -> Option<Event> {
-    parse_with(bytes, false)
+    parse_with(bytes, None)
 }
 
-/// As [`parse`] for the group relationship lane (kinds 15 to 17): the one required capability it accepts is
-/// `["om.group.v1"]` (key 10), because this client implements groups. Any other capability set is still refused.
-pub fn parse_group_lane(bytes: &[u8]) -> Option<Event> {
-    parse_with(bytes, true)
+/// Parse a relationship-lane event with the exact required capability for its kind.
+pub(crate) fn parse_group_lane(bytes: &[u8], capability: &str) -> Option<Event> {
+    parse_with(bytes, Some(capability))
 }
 
-fn parse_with(bytes: &[u8], group_lane: bool) -> Option<Event> {
+fn parse_with(bytes: &[u8], capability: Option<&str>) -> Option<Event> {
     let v = cbor::decode(bytes).ok()?;
     if v.get(0).ok()?.u().ok()? != OBJECT_TYPE || v.get(2).ok()?.u().ok()? != PROTOCOL_VERSION {
         return None;
@@ -216,11 +215,8 @@ fn parse_with(bytes: &[u8], group_lane: bool) -> Option<Event> {
     // accepted: the W0 registry check has already enforced every registered extension's owner, criticality and size, and
     // `present::parse_extensions` refuses an unknown critical entry (ADR-0155).
     let caps_ok = match v.opt(10) {
-        None => true,
-        Some(c) => {
-            group_lane
-                && matches!(c.a().ok()?, [x] if x.t().ok()? == crate::groups::carriage::CAP_GROUP)
-        }
+        None => capability.is_none(),
+        Some(c) => matches!(c.a().ok()?, [x] if Some(x.t().ok()?) == capability),
     };
     if !caps_ok || v.get(9).ok()?.u().ok()? != KIND_VERSION {
         return None;

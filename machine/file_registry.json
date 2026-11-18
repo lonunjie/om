@@ -1908,6 +1908,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/groups/rejoin.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/groups/room.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -3890,6 +3897,13 @@
     },
     {
       "path": "decisions/ADR-0206-relationship-restore-after-owner-recovery.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0207-room-rejoin-after-owner-recovery.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -10385,6 +10399,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/groups/GroupRejoin.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/groups/GroupStatus.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -12983,6 +13004,13 @@
     },
     {
       "path": "verification/prototypes/group-transport-wire/gen_group_transport_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/group-transport-wire/rejoin_request_vectors.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

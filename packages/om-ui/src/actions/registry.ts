@@ -141,6 +141,16 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["conversationId", "relationshipId"]) || g === null || r === null) return null;
     return { group: { kind: "invite", conversationId: asGroupId(g), relationshipId: asConversationId(r) } };
   } },
+  "group-ask-to-rejoin": { destructive: false, parse: (p) => {
+    const r = id(p["relationshipId"]); const hint = p["roomHint"];
+    if (!exactly(p, ["relationshipId", "roomHint"]) || r === null || typeof hint !== "string" || hint.trim() === "" || hint.length > 256) return null;
+    return { group: { kind: "ask_to_rejoin", relationshipId: asConversationId(r), roomHint: hint } };
+  } },
+  "group-resolve-rejoin": { destructive: false, parse: (p) => {
+    const r = id(p["requestId"]); const agree = p["agree"];
+    if (!exactly(p, ["requestId", "agree"]) || r === null || typeof agree !== "boolean") return null;
+    return { group: { kind: "resolve_rejoin", requestId: r, agree } };
+  } },
   "group-accept": { destructive: false, parse: (p) => {
     const i = id(p["inviteId"]);
     if (!exactly(p, ["inviteId"]) || i === null) return null;

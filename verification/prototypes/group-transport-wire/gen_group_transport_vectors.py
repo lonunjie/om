@@ -191,6 +191,25 @@ POSITIVES += [("ConversationEvent", "group-" + k, v, None, False) for k, v in EV
 MINIMALS = {"GroupRouteRecord": ROUTE_MIN, "GroupTransportFrame": FRAME_MIN}
 
 
+def emit_rejoin_vectors():
+    account = mget(g.ALICE, 1)
+    body = g.M([0, account], [1, "Book club"])
+    request = g.event("rejoin-request", 18, body, k10=["om.group.rejoin.v1"])
+    g.emit_positive("ConversationEvent", "group-rejoin-request", request, None, False)
+
+    cases = (
+        ("missing-account", "missing_field", g.mdel(body, 0)),
+        ("missing-room-hint", "missing_field", g.mdel(body, 1)),
+        ("short-account", "value_range", g.mset(body, 0, g.B(bytes(31)))),
+        ("empty-room-hint", "value_range", g.mset(body, 1, "")),
+        ("long-room-hint", "value_range", g.mset(body, 1, "x" * 257)),
+        ("binary-room-hint", "wrong_type", g.mset(body, 1, g.B(bytes(32)))),
+        ("extra-key-package-field", "unknown_field", g.mset(body, 2, g.B(g.CONV))),
+    )
+    for name, error, invalid in cases:
+        g.emit_negative("ConversationEvent", "group-rejoin-" + name, error, g.raw(g.mset(request, 11, invalid)), "invalid")
+
+
 def gen():
     g.VECTORS.clear()
     for p in POSITIVES:
@@ -311,7 +330,8 @@ def gen():
     negev("decline-invite-id-15-bytes", "value_range", mset(dec, 11, M([0, B(det("i", 15))])))
     negev("invite-kind-with-accept-body", "wrong_type", mset(inv, 11, BODY(acc)))
     negev("accept-kind-with-decline-body", "missing_field", mset(acc, 11, BODY(dec)))
-    negev("kind-18-is-not-assigned", "value_range", mset(dec, 8, 18))
+    negev("kind-19-is-not-assigned", "value_range", mset(dec, 8, 19))
+    emit_rejoin_vectors()
 
     vs = g.VECTORS
     # semantic fixtures: wire-valid, listed so both codecs prove the bytes parse; the rule is not a codec rule

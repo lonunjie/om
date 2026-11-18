@@ -89,6 +89,7 @@ pub mod endpoint;
 pub mod flow;
 pub mod journal;
 pub mod mls;
+pub mod rejoin;
 pub mod room;
 pub mod store;
 
@@ -1193,6 +1194,17 @@ pub fn apply(
     actor: &Principal,
     new_epoch: u64,
 ) -> R<GroupState> {
+    apply_with_device_evidence(parent, intent, actor, new_epoch, false)
+}
+
+/// The state reducer consumes device evidence only after AppState checks it against validated ACS and the roster.
+fn apply_with_device_evidence(
+    parent: &GroupState,
+    intent: &Intent,
+    actor: &Principal,
+    new_epoch: u64,
+    device_evidence: bool,
+) -> R<GroupState> {
     validate_state(parent)?;
     validate_intent(intent)?;
     if intent.conversation_id != parent.conversation_id {
@@ -1256,6 +1268,16 @@ pub fn apply(
                 return err("not_authorized");
             }
             drop_member(&mut next, &who)?;
+        }
+        op::DEVICE_ADD | op::DEVICE_REMOVE_REVOKED => {
+            let (who, incarnation) = target_of(args)?;
+            if !device_evidence
+                || parent.member(actor).is_none()
+                || who.kind != PRINCIPAL_ACCOUNT
+                || parent.member(&who).map(|m| &m.incarnation) != Some(&incarnation)
+            {
+                return err("not_authorized");
+            }
         }
         op::PROFILE_SET => {
             if !authorized_by_capability(parent, actor, name) {

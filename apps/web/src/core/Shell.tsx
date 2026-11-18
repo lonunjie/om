@@ -5,7 +5,7 @@ import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions,
-  GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
+  GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, ReplyTarget, StagedItem } from "@om/ui";
@@ -178,7 +178,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   // Omnibar (find or do) and the new-conversation sheet. Both are local: nothing typed in the Omnibar leaves this device.
   const [omniOpen, setOmniOpen] = useState(false);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
-  const [groupsGateOpen, setGroupsGateOpen] = useState<"new_group" | "invitation" | null>(null);
+  const [groupsGateOpen, setGroupsGateOpen] = useState<"new_group" | "invitation" | "rejoin" | null>(null);
   // Groups are offered when this device has them, or can get them on first use. Without the module the first tap fetches it; with it, it opens the sheet.
   const groupsOffered = groups.available || groupsSetup !== undefined;
   // Once the groups are ready the held invitations become ordinary pending ones: the loader has done its job.
@@ -443,6 +443,10 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               copy={groupsCopy} chats={list.status === "ready" ? list.value : []} groupsReady={groups.available || groupsSetup === undefined}
               held={heldGroups.held} onOpen={() => { setGroupsGateOpen("invitation"); }} onAcknowledge={heldGroups.acknowledge}
             />
+            {groups.available || groupsSetup !== undefined ? (
+              <GroupRejoinRequests services={services} copy={groupsCopy} rejoin={groups.rejoin} invites={groups.invites} chats={list.status === "ready" ? list.value : []}
+                onChanged={groups.refresh} {...(groups.available ? {} : { onEnable: () => { setGroupsGateOpen("rejoin"); } })} />
+            ) : null}
             {groups.available ? <GroupInvites services={services} copy={groupsCopy} invites={groups.invites} chats={list.status === "ready" ? list.value : []} onAnswered={groups.refresh} /> : null}
             {groups.available ? (
               <GroupStatus
@@ -486,6 +490,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             <GroupChat
               key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} chats={list.status === "ready" ? list.value : []}
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
+              rejoinReviews={groups.rejoin.reviews.filter((r) => r.conversationId === asGroupId(selected))}
               onReply={(target) => { setReplies((m) => new Map(m).set(selected, target)); }} replyingTo={replies.get(selected)?.messageId ?? null}
             />
           ) : (

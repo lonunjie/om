@@ -5,12 +5,13 @@ import axe from "axe-core";
 import { useState } from "react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ConversationSummary, GroupInviteView, GroupRejoinView } from "@om/platform-api";
 import { asConversationId, asGroupId, asOperationId, asPersonId, asProfileId } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { useConversationList, type ConversationServices } from "../conversations/index";
-import { GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NO_STATES, NewGroup, groupApiOf, reduceGroupStates, runGroupAction, useGroupEvents, useGroups, useHeldGroupInvites } from "./index";
+import { GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupRejoinReview, GroupStatus, HeldGroupInvites, NO_STATES, NewGroup, groupApiOf, reduceGroupStates, runGroupAction, useGroupEvents, useGroups, useHeldGroupInvites } from "./index";
 import { PROTECTION_LEVELS, bundleOf } from "./protection";
 import { groupsTestCopy as copy } from "./__fixtures__/copy";
 
@@ -436,4 +437,52 @@ describe("held group invitations (the group module is not loaded)", () => {
     h.groups.simulateHeldOverflow(services.ctx, 0, 1);
     await waitFor(() => { expect(screen.queryByText("Some answers couldn't be kept")).toBeTruthy(); }, { timeout: 4000 });
   }, 10000);
+});
+
+describe("Room rejoin", () => {
+  it("asks a selected contact and shows one pending line per group", async () => {
+    const { services } = setup();
+    const api = groupApiOf(services);
+    if (api === null) throw new Error("expected group API");
+    const action = vi.spyOn(api, "do").mockResolvedValue({ ok: true, events: [], out: [] });
+    const changed = vi.fn();
+    const chats = [{ id: ANA, personId: asPersonId("p-ana"), displayName: "Ana", relationship: "active", lastMessageAt: null, notices: [] }] satisfies readonly ConversationSummary[];
+    const empty = { contacts: [ANA], pending: [], reviews: [] };
+    const view = (rejoin: GroupRejoinView, invites: readonly GroupInviteView[] = []) => <GroupRejoinRequests services={services} copy={copy} chats={chats} rejoin={rejoin} invites={invites} onChanged={changed} />;
+    const { container, rerender } = render(view(empty));
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Ask to rejoin"));
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Send request" }).disabled).toBe(true);
+    await user.selectOptions(screen.getByLabelText("Who is in the group?"), ANA);
+    await user.type(screen.getByLabelText("Group name"), "Book club");
+    await user.click(screen.getByRole("button", { name: "Send request" }));
+    expect(action).toHaveBeenCalledWith(services.ctx, { kind: "ask_to_rejoin", relationshipId: ANA, roomHint: "Book club" });
+    expect(changed).toHaveBeenCalledOnce();
+    const pending = { ...empty, pending: [{ relationshipId: ANA, roomHint: "Book club" }, { relationshipId: BEN, roomHint: "Book club" }] };
+    rerender(view(pending));
+    expect(screen.getAllByText("Waiting for an invitation to Book club")).toHaveLength(1);
+    expect(await axeViolations(container)).toEqual([]);
+    rerender(view(pending, [{
+      id: "ordinary-invite", conversationId: asGroupId(""), groupName: "Book club", dir: "incoming", state: "accepted",
+      relationshipId: ANA, peerAccount: "alice", createdMs: 0,
+    }]));
+    expect(screen.queryByText("Waiting for an invitation to Book club")).toBeNull();
+  });
+
+  it("leaves the request pending when policy prevents an invitation", async () => {
+    const { services } = setup();
+    const api = groupApiOf(services);
+    if (api === null) throw new Error("expected group API");
+    const action = vi.spyOn(api, "do").mockResolvedValue({ ok: true, events: [], out: [] });
+    const chats = [{ id: ANA, personId: asPersonId("p-ana"), displayName: "Ana", relationship: "active", lastMessageAt: null, notices: [] }] satisfies readonly ConversationSummary[];
+    const review = { id: "request", relationshipId: ANA, conversationId: asGroupId("group"), canInvite: false, working: false };
+    const { rerender } = render(<GroupRejoinReview services={services} copy={copy} chats={chats} review={review} onChanged={() => undefined} />);
+    expect(screen.getByText("Ana wants to rejoin")).toBeTruthy();
+    expect(screen.getByText("Waiting for someone who can send the invitation.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Invite again" })).toBeNull();
+    expect(action).not.toHaveBeenCalled();
+    rerender(<GroupRejoinReview services={services} copy={copy} chats={chats} review={{ ...review, canInvite: true }} onChanged={() => undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: "Invite again" }));
+    expect(action).toHaveBeenCalledWith(services.ctx, { kind: "resolve_rejoin", requestId: "request", agree: true });
+  });
 });

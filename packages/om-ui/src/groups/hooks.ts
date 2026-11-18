@@ -1,6 +1,6 @@
 import { findSameNames, type Collisions, type SameName } from "./sameName";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
+import type { GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
 import type { ConversationDigest } from "../conversations/hooks";
 import { groupApiOf } from "./services";
 import type { ConversationServices } from "../conversations/services";
@@ -12,30 +12,36 @@ export interface GroupsState {
   readonly available: boolean;
   readonly groups: readonly GroupSummaryView[];
   readonly invites: readonly GroupInviteView[];
+  readonly rejoin: GroupRejoinView;
   readonly refresh: () => void;
 }
 
 const NONE: readonly never[] = [];
+const NO_REJOIN: GroupRejoinView = { contacts: NONE, pending: NONE, reviews: NONE };
 
 export function useGroups(s: ConversationServices): GroupsState {
   const api = groupApiOf(s);
+  const base = s.client.groups;
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => { setTick((n) => n + 1); }, []);
   useEffect(() => {
-    if (api === null) return;
+    if (api === null && base?.rejoin === undefined) return;
     const id = setInterval(refresh, POLL_MS);
     const onVisible = (): void => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
-  }, [api, refresh]);
+  }, [api, base, refresh]);
   const data = useMemo(() => {
     // `tick` is a re-read trigger, not an input.
     // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator
     void tick;
-    if (api === null) return { groups: NONE, invites: NONE };
-    try { return { groups: api.list(s.ctx), invites: api.invites(s.ctx) }; } catch { return { groups: NONE, invites: NONE }; } // a stale context after a profile switch
-  }, [api, s.ctx, tick]);
-  return { available: api !== null, groups: data.groups, invites: data.invites, refresh };
+    try {
+      return { groups: api?.list(s.ctx) ?? NONE, invites: api?.invites(s.ctx) ?? NONE, rejoin: base?.rejoin?.(s.ctx) ?? NO_REJOIN };
+    } catch {
+      return { groups: NONE, invites: NONE, rejoin: NO_REJOIN }; // a stale context after a profile switch
+    }
+  }, [api, base, s.ctx, tick]);
+  return { available: api !== null, ...data, refresh };
 }
 
 export interface HeldGroupState {
@@ -172,7 +178,7 @@ export function reduceGroupStates(prev: GroupStates, events: readonly GroupEvent
         break;
       }
       case "member_removed": case "no_longer_member": case "created": case "invite_sent": case "invite_received": case "invite_accepted": case "invite_declined":
-      case "commit_prepared": case "message_sent": case "message_changed": case "dropped": case "commit_superseded":
+      case "rejoin_changed": case "device_removed": case "commit_prepared": case "message_sent": case "message_changed": case "dropped": case "commit_superseded":
         break;
     }
   }

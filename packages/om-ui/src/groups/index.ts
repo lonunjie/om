@@ -3,6 +3,7 @@ export * from "./services";
 export * from "./hooks";
 export * from "./NewGroup";
 export * from "./GroupInvites";
+export * from "./GroupRejoin";
 export * from "./HeldGroupInvites";
 export * from "./GroupMembers";
 export * from "./GroupChat";

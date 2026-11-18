@@ -432,6 +432,7 @@ impl GroupCrypto for OpenMlsGroupCrypto {
                 resulting_epoch: h.resulting_epoch,
                 committer: self.device.clone(),
                 added: vec![],
+                removed: vec![],
                 committer_leaf: None,
             });
         }
@@ -468,6 +469,16 @@ impl GroupCrypto for OpenMlsGroupCrypto {
                         Self::endpoint(leaf.credential(), leaf.signature_key().as_slice())
                     })
                     .collect(),
+                removed: sc
+                    .remove_proposals()
+                    .map(|r| {
+                        let index = r.remove_proposal().removed();
+                        g.members()
+                            .find(|m| m.index == index)
+                            .map(|m| Self::ident(&m.credential))
+                            .ok_or(E("remove_target_unknown"))
+                    })
+                    .collect::<MlsResult<_>>()?,
                 committer_leaf: sc
                     .update_path_leaf_node()
                     .map(|leaf| Self::endpoint(leaf.credential(), leaf.signature_key().as_slice())),

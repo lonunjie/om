@@ -1,5 +1,5 @@
 //! The group relationship lane (ADR-0189 section 1.1): Invite, Accept and Decline as 1:1 `ConversationEvent`s of kinds
-//! 15 to 17 inside the ordinary sealed 1:1 envelope. They are queued and delivered exactly like a message (same ratchet,
+//! 15 to 18 inside the ordinary sealed 1:1 envelope. They are queued and delivered exactly like a message (same ratchet,
 //! same fan-out, same retry) but are flagged `lane`, so they never appear in the timeline.
 
 use super::*;
@@ -74,7 +74,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Ok(Ok(()))
     }
 
-    /// An authenticated inner payload of kind 15 to 17. Structural failure (not a valid lane event, wrong
+    /// An authenticated inner payload of kind 15 to 18. Structural failure (not a valid lane event, wrong
     /// conversation or author, equivocation) is a rejection like any event. A well-formed event that the group layer
     /// refuses on its merits (an Accept for an unknown invite, a stale or foreign route, a credential the validated head
     /// does not commit to) is dropped with no state change and the payload is accepted, so it is not replayed.
@@ -113,7 +113,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let before = self.st.app.group_carriage.clone();
         let invite = matches!(body, LaneBody::Invite { .. });
-        if let Err(e) = self.st.app.carry_lane_in(conv, &ev.event_id, body, now_s) {
+        if let Err(e) = self
+            .st
+            .app
+            .carry_lane_in(conv, &ev.event_id, &sender, body, now_s)
+        {
             self.st.app.group_carriage = before;
             // A full queue is never a silent drop (report D71): the event is accepted so it is not replayed, and the loss is
             // counted so the person is told. Any other drop is a verification result, not a loss.

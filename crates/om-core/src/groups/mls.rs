@@ -96,6 +96,8 @@ pub struct CommitInfo {
     pub committer: Vec<u8>,
     /// The leaves this Commit adds, read from the KeyPackages inside it.
     pub added: Vec<Endpoint>,
+    /// DeviceIDs of the leaves removed from the parent tree.
+    pub removed: Vec<Vec<u8>>,
     /// The committer's new leaf when the Commit carries an update path (it may change the leaf's credential and key).
     pub committer_leaf: Option<Endpoint>,
 }

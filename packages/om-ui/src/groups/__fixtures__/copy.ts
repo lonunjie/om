@@ -12,6 +12,12 @@ export const groupsTestCopy: GroupsCopy = {
     levels: { 1: { label: "Recommended", line: "Easiest." }, 2: { label: "Hardened", line: "Admins approve." }, 3: { label: "Maximum Privacy", line: "Admins approve devices too." } },
     custom: "Custom", later: "Stricter any time; looser is asked first.",
   },
+  rejoin: {
+    ask: "Ask to rejoin", contact: "Who is in the group?", choose: "Choose a contact", room: "Group name", send: "Send request",
+    pending: (room) => `Waiting for an invitation to ${room}`, review: (name) => `${name} wants to rejoin`,
+    invite: "Invite again", decline: "Not now", working: "Getting the invitation ready…",
+    sendFailed: "The request couldn’t be sent.", inviteFailed: "Try again later.", policyPending: "Waiting for someone who can send the invitation.",
+  },
   invites: {
     heading: "Group invitations", from: (who, group) => `${who} invited you to ${group}`, hint: "You will see only what is said after you join.",
     join: "Join", decline: "No thanks", joining: "Joining", declined: "Declined", joined: "Joined",

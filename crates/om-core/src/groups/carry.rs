@@ -340,6 +340,26 @@ impl AppState {
                 room_name: name.clone(),
                 member_count: None,
             }),
+            GroupWire::RejoinRequest {
+                account,
+                room_hint,
+                device,
+                head,
+            } => {
+                if account != &hex(&env.account_id)
+                    || device != &hex(&env.device_id)
+                    || self
+                        .rejoin_own_head(&env.account_id, &env.device_id)
+                        .as_deref()
+                        != Some(head)
+                {
+                    return err("stale_rejoin");
+                }
+                Ok(LaneBody::RejoinRequest {
+                    account: env.account_id,
+                    room_hint: room_hint.clone(),
+                })
+            }
             GroupWire::Decline { invite_id } => Ok(LaneBody::Decline {
                 invite_id: un16(invite_id)?,
             }),
@@ -382,6 +402,7 @@ impl AppState {
         &mut self,
         rel: &str,
         event_id: &[u8; 16],
+        sender: &[u8; 16],
         body: LaneBody,
         now_s: u64,
     ) -> R<()> {
@@ -405,6 +426,15 @@ impl AppState {
                 conversation_id: String::new(),
                 name: room_name.clone(),
             },
+            LaneBody::RejoinRequest { account, room_hint } => {
+                let head = self.rejoin_peer_head(rel, account, sender)?;
+                GroupWire::RejoinRequest {
+                    account: hex(account),
+                    room_hint: room_hint.clone(),
+                    device: hex(sender),
+                    head: hex(&head.hash()),
+                }
+            }
             LaneBody::Decline { invite_id } => GroupWire::Decline {
                 invite_id: hex(invite_id),
             },
@@ -567,6 +597,16 @@ impl AppState {
                     ciphertext,
                 },
             ) => {
+                if !self
+                    .group_devices
+                    .get(conversation_id)
+                    .is_some_and(|d| d.contains_key(&hex(device)))
+                {
+                    return err("not_a_member");
+                }
+                if self.group_has_revoked_leaf(&un(conversation_id)?) {
+                    return err("revoked_leaf_pending");
+                }
                 let frame = cg::encode_frame(&FrameBody::App(un(ciphertext)?))?;
                 self.carry_seal_to(env, conversation_id, device, &frame)
             }
@@ -752,6 +792,9 @@ impl AppState {
             .ok_or(GroupError("unknown_invite"))?;
         let st = GroupState::decode(&un(state)?)?;
         let conv = hex(&st.conversation_id);
+        if inv.rejoin.is_some() && self.group_carriage.replace_owed.contains(&conv) {
+            return err("room_route_rotation_pending");
+        }
         let iroom = invite_room(invite_id);
         // evidence for every directory device: ours, one the invitee released, or one a member released earlier
         let mut routes = vec![];
@@ -978,7 +1021,10 @@ impl AppState {
             let is_commit = matches!(o.wire, GroupWire::Commit { .. });
             if let (
                 Target::Relationship(rel),
-                GroupWire::Invite { .. } | GroupWire::Accept { .. } | GroupWire::Decline { .. },
+                GroupWire::Invite { .. }
+                | GroupWire::Accept { .. }
+                | GroupWire::Decline { .. }
+                | GroupWire::RejoinRequest { .. },
             ) = (&o.to, &o.wire)
             {
                 // The relationship lane (ADR-0189 1.1): kept here, durably with the step, until the 1:1 queue takes it.
@@ -1207,6 +1253,17 @@ impl AppState {
             .collect();
         let mut all = vec![];
         for id in open {
+            let device_change = self
+                .group_journal
+                .get(&id)
+                .and_then(|e| un(&e.intent_body).ok())
+                .and_then(|b| super::Intent::decode(&b).ok())
+                .is_some_and(|i| {
+                    matches!(
+                        i.operation,
+                        super::op::DEVICE_ADD | super::op::DEVICE_REMOVE_REVOKED
+                    )
+                });
             let rep = match self.group_do(
                 gctx,
                 super::flow::GroupIntent::CommitAccepted {
@@ -1214,8 +1271,26 @@ impl AppState {
                 },
             ) {
                 Ok(r) => r,
-                Err(GroupError("stale_parent")) => {
-                    self.group_journal_supersede(&id, &mut *gctx.engine, "parent_moved")?;
+                Err(GroupError(reason))
+                    if reason == "stale_parent"
+                        || (device_change
+                            && matches!(
+                                reason,
+                                "stale_account_head" | "not_authorized" | "waiting_for_coordinator"
+                            )) =>
+                {
+                    self.group_journal_supersede(&id, &mut *gctx.engine, reason)?;
+                    if device_change {
+                        self.group_carriage
+                            .outbox
+                            .retain(|o| o.intent_id.as_deref() != Some(&id));
+                        for invite in self.group_invites.values_mut() {
+                            if invite.intent_id.as_deref() == Some(&id) {
+                                invite.intent_id = None;
+                                invite.state = InviteState::Accepted;
+                            }
+                        }
+                    }
                     GroupReply {
                         events: vec![GroupEvent::CommitSuperseded { intent_id: id }],
                         out: vec![],

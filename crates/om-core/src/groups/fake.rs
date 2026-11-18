@@ -439,6 +439,11 @@ impl GroupCrypto for FakeGroupCrypto {
                 .iter()
                 .map(|a| parse_leaf(&a.device, &a.sig))
                 .collect::<MlsResult<_>>()?,
+            removed: c
+                .removes
+                .iter()
+                .map(|d| unhex(d).map_err(|_| E("malformed")))
+                .collect::<MlsResult<_>>()?,
             committer_leaf: None,
         })
     }

@@ -287,6 +287,7 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     // Base-module queries: they work whether or not the group engine is present (that is their point).
     held: (ctx) => core.held(ctx),
     ackHeldOverflow: (ctx) => core.ackHeldOverflow(ctx),
+    rejoin: (ctx) => core.rejoin?.(ctx) ?? { contacts: [], pending: [], reviews: [] },
     list: (ctx) => (available() ? core.list(ctx) : []),
     get: (ctx, id: GroupId) => (available() ? core.get(ctx, id) : null),
     invites: (ctx) => (available() ? core.invites(ctx) : []),

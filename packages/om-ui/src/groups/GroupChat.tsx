@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { asMessageId } from "@om/platform-api";
-import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView, MessageId, ReplyView } from "@om/platform-api";
+import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView, GroupRejoinReviewView, MessageId, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -14,6 +14,7 @@ import type { ReplyTarget } from "../conversations/ConversationView";
 import { DeleteConfirm, EditForm, Quote, ReactionChips, ReactionControl, ReplyChip, gistOf } from "../conversations/chatContext";
 import type { GroupsCopy } from "./copy";
 import { GroupMembers } from "./GroupMembers";
+import { GroupRejoinReview } from "./GroupRejoin";
 import { GroupStatus } from "./GroupStatus";
 import { RoomSettings } from "./RoomSettings";
 import { useGroupChat, usePeopleNames, type GroupEventsState } from "./hooks";
@@ -38,6 +39,7 @@ export interface GroupChatProps {
   readonly onChanged?: () => void;
   /** The background states of the group carriage (from `useGroupEvents`); without it no state line is shown. */
   readonly events?: GroupEventsState;
+  readonly rejoinReviews?: readonly GroupRejoinReviewView[];
   /** Starts a reply to a message (the composer owns the quote chip). Without it no Reply control is offered. */
   readonly onReply?: (target: ReplyTarget) => void;
   /** The message a reply is being written to, marked in the timeline. */
@@ -54,7 +56,7 @@ function timeline(messages: readonly GroupMessageView[], notices: readonly Group
 }
 
 /** A group is an ordinary conversation with more people: the same header, bubbles and rhythm as a chat, plus who said it and a people sheet. */
-export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, onReply, replyingTo }: GroupChatProps) {
+export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, rejoinReviews = [], onReply, replyingTo }: GroupChatProps) {
   const c = copy.chat;
   const api = groupApiOf(services);
   const [bump, setBump] = useState(0);
@@ -111,6 +113,9 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
           <Icon name="users" size={20} />{c.people(detail.summary.members)}
         </Button>
       </header>
+      {rejoinReviews.map((review) => (
+        <GroupRejoinReview key={review.id} services={services} copy={copy} chats={chats} review={review} onChanged={() => { onChanged?.(); }} />
+      ))}
       {names.sharedNames.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{(g.kind === "alike" ? copy.sameName.alike : copy.sameName.here)(g.name, g.count)}</bdi></Text>)}
       {failed === null ? null : <p className="om-conv-view__relationship" role="status">{failed}</p>}
       <div role="log" aria-label={c.label} className="om-conv-view__log">

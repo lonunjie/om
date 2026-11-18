@@ -34,7 +34,7 @@ use super::binding::{
     sign_binding, verify_binding,
 };
 use super::mls::{CryptoEnv, GroupCrypto};
-use super::{Binding, GroupError, GroupState, Intent, Principal, R, apply, err, op};
+use super::{Binding, GroupError, GroupState, Intent, Principal, R, b, err, op, req};
 use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
 use serde::{Deserialize, Serialize};
@@ -263,7 +263,7 @@ impl crate::state::AppState {
             .ok_or(GroupError("unknown_group"))?;
         let actor = Principal::account(actor_account.to_vec());
         // Authorization and shape are evaluated at the parent now; a refused intent is never made durable.
-        apply(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
+        self.group_apply_at(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
         let conv = h(&intent.conversation_id);
         if self.open_entry_for(&conv).is_some() {
             return err("journal_busy");
@@ -312,10 +312,13 @@ impl crate::state::AppState {
         let intent = Intent::decode(&un(&e.intent_body)?)?;
         let head = self.group(&conv)?.ok_or(GroupError("unknown_group"))?;
         let actor = Principal::account(un(&e.actor_account)?);
-        let next = apply(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
+        let next = self.group_apply_at(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
         match (intent.operation, plan) {
-            (op::MEMBER_ADMIT, CommitPlan::Add(_))
-            | (op::MEMBER_REMOVE | op::MEMBER_LEAVE, CommitPlan::Remove(_))
+            (op::MEMBER_ADMIT | op::DEVICE_ADD, CommitPlan::Add(_))
+            | (
+                op::MEMBER_REMOVE | op::MEMBER_LEAVE | op::DEVICE_REMOVE_REVOKED,
+                CommitPlan::Remove(_),
+            )
             | (
                 op::ROLE_DEFINE
                 | op::ROLE_ASSIGN
@@ -325,6 +328,22 @@ impl crate::state::AppState {
                 CommitPlan::Update,
             ) => {}
             _ => return err("plan_mismatch"),
+        }
+        if matches!(intent.operation, op::DEVICE_ADD | op::DEVICE_REMOVE_REVOKED) {
+            let device = b(req(&intent.args, 2)?)?;
+            let valid = match plan {
+                CommitPlan::Add(kps) if kps.len() == 1 => {
+                    let endpoint = mls(engine.key_package_endpoint(&kps[0]))?;
+                    let (target, _) = super::target_of(&intent.args)?;
+                    endpoint.device == device
+                        && self.group_bind(&[endpoint], Some(&target.id)).is_ok()
+                }
+                CommitPlan::Remove(devs) => devs.as_slice() == [device],
+                _ => false,
+            };
+            if !valid {
+                return err("plan_mismatch");
+            }
         }
         if mls(engine.epoch(&group_id))? != e.parent_epoch {
             return err("epoch_mismatch");
@@ -500,7 +519,7 @@ impl crate::state::AppState {
         let head = self.group(&conv)?.ok_or(GroupError("unknown_group"))?;
         let intent = Intent::decode(&un(&e.intent_body)?)?;
         let actor = Principal::account(un(&e.actor_account)?);
-        let next = apply(&head, &intent, &actor, e.parent_epoch + 1)?;
+        let next = self.group_apply_at(&head, &intent, &actor, e.parent_epoch + 1)?;
         let vb = verify_own_binding(c)?;
         if vb.resulting_state_hash != next.hash() {
             return err("resulting_state_mismatch");
@@ -600,7 +619,7 @@ impl crate::state::AppState {
             return err("reducing_mismatch");
         }
         let actor = Principal::account(actor_account.to_vec());
-        let next = apply(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
+        let next = self.group_apply_at(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
         if next.hash().as_slice() != bd.resulting_state_hash.as_slice() {
             return err("resulting_state_mismatch");
         }
@@ -611,6 +630,20 @@ impl crate::state::AppState {
             || ci.committer != bd.committer_device
         {
             return err("commit_binding_mismatch");
+        }
+        if matches!(intent.operation, op::DEVICE_ADD | op::DEVICE_REMOVE_REVOKED) {
+            let device = b(req(&intent.args, 2)?)?;
+            let (target, _) = super::target_of(&intent.args)?;
+            let valid = if intent.operation == op::DEVICE_ADD {
+                ci.removed.is_empty()
+                    && matches!(ci.added.as_slice(), [leaf] if leaf.device == device)
+                    && self.group_bind(&ci.added, Some(&target.id)).is_ok()
+            } else {
+                ci.added.is_empty() && ci.removed.as_slice() == [device]
+            };
+            if !valid {
+                return err("commit_binding_mismatch");
+            }
         }
         // Same-parent race against this device's own candidate.
         let mut superseded = None;

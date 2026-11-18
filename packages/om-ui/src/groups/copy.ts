@@ -36,6 +36,21 @@ export interface GroupsCopy {
     /** Said once under the choice: stricter later is easy, looser later is asked first. */
     readonly later: string;
   };
+  readonly rejoin: {
+    readonly ask: string;
+    readonly contact: string;
+    readonly choose: string;
+    readonly room: string;
+    readonly send: string;
+    readonly pending: (room: string) => string;
+    readonly review: (name: string) => string;
+    readonly invite: string;
+    readonly decline: string;
+    readonly working: string;
+    readonly sendFailed: string;
+    readonly inviteFailed: string;
+    readonly policyPending: string;
+  };
   readonly invites: {
     readonly heading: string;
     readonly from: (inviter: string, group: string) => string;

@@ -79,6 +79,7 @@ describe.skipIf(!existsSync(SHIPPED))("the shipped module has no group engine", 
     const r = await alice.rt.groups.do(alice.ctx, { kind: "create", name: "x", relationshipIds: [alice.rel] });
     expect(r).toEqual({ ok: false, refused: "groups_unavailable" });
     expect(alice.rt.groups.list(alice.ctx)).toEqual([]);
+    expect(alice.rt.groups.rejoin?.(alice.ctx)).toEqual({ contacts: [], pending: [], reviews: [] });
   });
 });
 
@@ -87,6 +88,10 @@ describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores wi
     const [alice, bob] = await connect(WITH_GROUPS);
     const p: [Party, Party] = [alice, bob];
     expect(alice.rt.groups.available()).toBe(true);
+    expect(await alice.rt.groups.do(alice.ctx, { kind: "ask_to_rejoin", relationshipId: alice.rel, roomHint: "Book club" }))
+      .toEqual({ ok: false, refused: "recovery_required" });
+    expect(await bob.rt.groups.do(bob.ctx, { kind: "resolve_rejoin", requestId: "unsolicited", agree: true }))
+      .toEqual({ ok: false, refused: "unknown_rejoin" });
     const none: readonly [string, string] = ["", ""];
     const created = must(await alice.rt.groups.do(alice.ctx, { kind: "create", name: "Book club", relationshipIds: [alice.rel] }));
     expect(created.out[0]?.wire.t).toBe("invite");
