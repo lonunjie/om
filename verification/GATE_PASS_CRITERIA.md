@@ -29,7 +29,7 @@
 | V-004 | `group_commit_control_model` | groups | passed | open | evidenced | core_kernel |
 | V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | passed | open | open | — |
-| V-007 | `sframe_interop` | calls | open | open | open | — |
+| V-007 | `sframe_interop` | calls | waived_by_adr | open | open | — |
 | V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
 | V-009 | `baseline_event_materialization_convergence` | groups | passed | open | evidenced | core_kernel |
 | V-010 | `plugin_sandbox_capability_model` | plugins | open | open | open | — |
@@ -241,10 +241,10 @@ Pre-release criteria:
 Prove the selected SFrame/WebRTC key schedule and counter/replay rules across required browsers/native runtimes, SFU forwarding, reconnect, simulcast/SVC where claimed, and membership rekey.
 
 - **Scopes blocked:** calls
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `platform_empirical_feasibility`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 
 Pre-engineering criteria:
 

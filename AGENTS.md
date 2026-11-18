@@ -13,7 +13,7 @@ OM is SeedLife's open-source, operatorless, end-to-end-encrypted messenger. This
 truth** for its design: documents, decisions, machine ledgers, specs and verification evidence. It is private on GitHub
 until the operator makes it public. Write everything as if a stranger will read it, because they will.
 
-**Engineering is authorized for scopes `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172) and `groups` (ADR-0177) only.** Product code for that scope follows
+**Engineering is authorized for scopes `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177) and `calls` (ADR-0217) only.** Product code for that scope follows
 [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). Every other scope is still locked:
 research, specification, formal models and bounded feasibility prototypes (`verification/`) are allowed for them, and
 product code is not. [`machine/repository_contract.json`](machine/repository_contract.json) is the authority.

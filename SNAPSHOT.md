@@ -1,13 +1,17 @@
 # OM Architecture Snapshot
 
+## 2026-11-18 PHT: `calls` authorized (ADR-0217)
+
+- The operator authorized the `calls` engineering scope by explicit instruction (ADR-0217, D-227). V-007 pre-engineering is waived for engineering only; its evidence and the specialist review of the group key-delivery channel remain required before any release that offers calls. One-to-one first; the build plan is [`2026-11-18-calls-build-plan.md`](docs/reports/2026-11-18-calls-build-plan.md), first slice the wire freeze.
+
 Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `groups` unlock (ADR-0177) and set the PWA-canonical distribution direction (ADR-0178).
 
 ## State
 
-- **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172) and `groups` (ADR-0177) only**: `engineering_authorized=true`, 4/12 scopes. Every other scope is not authorized.
+- **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177) and `calls` (ADR-0217) only**: `engineering_authorized=true`, 5/12 scopes. Every other scope is not authorized.
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
-- **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
+- **Verification:** 7 gates still have pre-engineering open (V-007 waived for engineering by ADR-0217, release obligation). V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
 - **Ledgers:** 420 requirements / 420 trace rows, 163 threats, 206 decisions / 186 indexed ADRs, 40 security invariants.
 - **Next:** build the `core_kernel`, `provider_reference`, `reference_client_ui` and `groups` crates/packages (web first, per [`ADR-0178`](decisions/ADR-0178-pwa-canonical-store-independent-distribution.md)) per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
 

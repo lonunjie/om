@@ -206,12 +206,13 @@
     },
     "calls": {
       "wave": "W2",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel",
         "groups"
       ],
-      "description": "1:1 and group calls, SFrame"
+      "description": "1:1 and group calls, SFrame",
+      "authorizing_adr": "ADR-0217"
     },
     "communities_publications": {
       "wave": "W3",
