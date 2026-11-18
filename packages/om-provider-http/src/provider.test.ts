@@ -114,7 +114,7 @@ describe("routes (audit M1)", () => {
   it("mints on the scoped queue and revokes the returned ID at its own Home", async () => {
     const id = rand(16);
     const cap = rand(48);
-    const reply = encodeDepositCapabilityRecord({ id, cap, expiresAt: Math.floor(Date.now() / 1000) + 600 });
+    let wrongQueue = false;
     const deletes: string[] = [];
     let admin = "";
     let mintRequest = "";
@@ -126,10 +126,14 @@ describe("routes (audit M1)", () => {
         if (path === "/v1/relay/queues") {
           const create = decodeQueueCreate(init?.body as Uint8Array);
           admin = toBase64Url(create.adminCap ?? new Uint8Array());
+          cap.set(create.depositCap.subarray(0, 16));
         } else {
           expect(auth).toBe(`Bearer ${admin}`);
           if (init?.method === "POST") {
             mintRequest = toHex(decodeMintRequest(init.body as Uint8Array).requestId);
+            const routed = cap.slice();
+            if (wrongQueue) routed[0] = (routed[0] ?? 0) ^ 1;
+            const reply = encodeDepositCapabilityRecord({ id, cap: routed, expiresAt: Math.floor(Date.now() / 1000) + 600 });
             return Promise.resolve(new Response(reply as BodyInit));
           }
           deletes.push(path);
@@ -146,6 +150,8 @@ describe("routes (audit M1)", () => {
     await expect(p.revokeDeposit({ ...offer, relayUri: "https://other.example/" })).rejects.toThrow();
     await p.revokeDeposit(offer);
     expect(deletes).toEqual([`/v1/relay/deposit-capabilities/${plan.requestId}`, `/v1/relay/deposit-capabilities/${toHex(id)}`]);
+    wrongQueue = true;
+    expect(await p.mintRoomRoute(p.prepareRoomRoute())).toBeUndefined();
   });
 
   it("deposits to a route's capability as given when the route is at this Home; derives for a legacy destination", async () => {

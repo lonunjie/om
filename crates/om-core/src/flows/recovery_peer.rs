@@ -717,6 +717,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     credited_ms: 0,
                     vetoes: vec![],
                     own_veto: false,
+                    veto_homes: vec![],
                     successor: None,
                     state: RecoveryObsState::Waiting,
                 },

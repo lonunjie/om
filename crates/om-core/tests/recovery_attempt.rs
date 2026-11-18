@@ -170,6 +170,31 @@ fn the_sheet_carries_the_owner_checkpoint_and_the_record_is_pinned_by_it() {
 }
 
 #[test]
+fn a_replacement_place_keeps_the_full_sheets_checkpoint() {
+    use om_core::host::NetCall;
+
+    let w = world();
+    let mut f = fresh(&w.net);
+    let updated = Sheet::place_only(SCOPE, None, "moved.example").unwrap();
+    f.rt.dispatch(
+        &f.ctx,
+        "begin",
+        IntentBody::BeginRecovery {
+            recovery_key: w.sheet,
+            home: String::new(),
+            place: Some(updated.to_compact()),
+        },
+    );
+    assert_eq!(f.rt.outcome(&f.ctx, "begin"), Some(OutcomeClass::Committed));
+    let reads = f.rt.core.net_ops(&f.ctx).unwrap();
+    assert!(
+        matches!(reads.as_slice(), [op] if matches!(&op.call, NetCall::RecoveryGet { host, .. } if host == "moved.example"))
+    );
+    f.rt.flush_net(&f.ctx);
+    assert_eq!(f.view().unwrap().evidence, EvidenceStage::Pinned);
+}
+
+#[test]
 fn the_whole_owner_flow_with_a_contact_verifying_independently() {
     let mut w = world();
     let mut f = fresh(&w.net);
@@ -379,6 +404,126 @@ fn hex(b: &[u8]) -> String {
     om_core::crypto::hex(b)
 }
 
+#[test]
+fn competing_record_head_keeps_recovery_restricted_across_restart() {
+    use om_core::{
+        control::sign_acs,
+        crypto::{cbor, rng::insecure_test_rng::InsecureTestRng, store::Device},
+        host::{NetCall, NetError, NetResult},
+    };
+
+    for newer in [false, true] {
+        let w = world();
+        let (_, original) = w.net.recovery_record(&w.keys.locator).unwrap();
+        let saved = w
+            .alice
+            .store
+            .records("p-a")
+            .into_iter()
+            .find(|r| r.key == "state")
+            .unwrap();
+        let device = Device::from_bytes(
+            cbor::decode(&saved.value)
+                .unwrap()
+                .get(0)
+                .unwrap()
+                .b()
+                .unwrap(),
+        )
+        .unwrap();
+        let mut f = fresh(&w.net);
+        f.begin(&w.sheet);
+        f.go("request", IntentBody::RequestRecovery);
+        replace_record(&w, |record| {
+            let mut head = record.verify().unwrap().head;
+            if newer {
+                head.generation += 2;
+                head.previous = Some([3; 32]);
+                record.evidence.tail.clear();
+            } else {
+                head.transparency = Some([4; 32]);
+            }
+            record.generation = head.generation << 20;
+            record.head.generation = head.generation;
+            record.head.state_hash = head.hash();
+            record.evidence.head = sign_acs(
+                &head.body(),
+                &[(&device.device_id, &device.signer)],
+                &mut InsecureTestRng::from_label(b"observed head"),
+            );
+        });
+        f.tick(&mono(1, 0));
+        f.tick(&mono(1, DELAY_MS));
+        assert!(f.view().is_some());
+        f.rt.restart();
+        f.ctx = f.rt.open("q");
+        f.rt.recovery_tick(&f.ctx, &mono(2, 0));
+        for op in f.rt.core.net_ops(&f.ctx).unwrap() {
+            let result = if matches!(op.call, NetCall::RecoveryGet { .. }) {
+                NetResult::Err {
+                    error: NetError::NotFound,
+                }
+            } else {
+                w.net.perform(&op.call)
+            };
+            let step = f.rt.core.net_result(&f.ctx, op.id, result).unwrap();
+            assert!(f.rt.settle(&step));
+        }
+        assert!(
+            f.view().is_some(),
+            "a missing record leaves the prior observation in force"
+        );
+        w.net.recovery_replace(&w.keys.locator, original);
+        f.tick(&mono(2, 1));
+        assert!(
+            f.view().is_some(),
+            "a replay leaves the prior observation in force"
+        );
+    }
+}
+
+#[test]
+fn checking_again_coalesces_with_an_in_flight_reconciliation() {
+    use om_core::host::NetCall;
+
+    for record_first in [true, false] {
+        let w = world();
+        let mut f = fresh(&w.net);
+        f.begin(&w.sheet);
+        f.go("request", IntentBody::RequestRecovery);
+        f.tick(&mono(1, 0));
+        f.rt.recovery_tick(&f.ctx, &mono(1, DELAY_MS));
+        let reads = |f: &Fresh| {
+            f.rt.core
+                .net_ops(&f.ctx)
+                .unwrap()
+                .into_iter()
+                .filter(|op| {
+                    matches!(
+                        op.call,
+                        NetCall::RecoveryGet { .. } | NetCall::RecoveryVetoRead { .. }
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let original = reads(&f);
+        assert_eq!(original.len(), 2);
+        f.rt.dispatch(&f.ctx, "again", IntentBody::CheckRecoveryAgain);
+        f.rt.dispatch(&f.ctx, "again-twice", IntentBody::CheckRecoveryAgain);
+        assert_eq!(reads(&f), original);
+        let mut ordered = original;
+        ordered.sort_by_key(|op| matches!(op.call, NetCall::RecoveryGet { .. }) != record_first);
+        for (i, op) in ordered.into_iter().enumerate() {
+            let step =
+                f.rt.core
+                    .net_result(&f.ctx, op.id, w.net.perform(&op.call))
+                    .unwrap();
+            assert!(f.rt.settle(&step));
+            assert_eq!(f.view().is_some(), i == 0);
+        }
+    }
+}
+
 fn rewrite(f: &mut Fresh, app: serde_json::Value) {
     use om_core::crypto::cbor::{self, V};
     let rec =
@@ -469,6 +614,34 @@ fn a_forged_veto_on_the_board_is_ignored() {
 }
 
 #[test]
+fn a_full_veto_page_keeps_the_attempt_pending_across_restart() {
+    use om_core::host::{NetCall, NetResult};
+
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("request", IntentBody::RequestRecovery);
+    f.tick(&mono(1, 0));
+    f.rt.recovery_tick(&f.ctx, &mono(1, DELAY_MS));
+    for op in f.rt.core.net_ops(&f.ctx).unwrap() {
+        let result = if matches!(op.call, NetCall::RecoveryVetoRead { .. }) {
+            NetResult::Many {
+                items: vec![vec![0]; 16],
+            }
+        } else {
+            w.net.perform(&op.call)
+        };
+        let step = f.rt.core.net_result(&f.ctx, op.id, result).unwrap();
+        assert!(f.rt.settle(&step));
+    }
+    assert!(f.view().is_some());
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    f.tick(&mono(2, 0));
+    assert!(f.view().is_some());
+}
+
+#[test]
 fn adoption_revalidates_and_a_tampered_successor_changes_nothing() {
     let w = world();
     let mut f = fresh(&w.net);
@@ -534,14 +707,42 @@ fn cancel_closes_the_attempt_and_asking_twice_conflicts() {
             reason: RejectReason::Conflict
         })
     );
-    assert_eq!(
-        f.go("c", IntentBody::CancelRecovery),
-        Some(OutcomeClass::Committed)
-    );
+    f.rt.dispatch(&f.ctx, "check", IntentBody::CheckRecoveryAgain);
+    f.rt.dispatch(&f.ctx, "c", IntentBody::CancelRecovery);
+    assert_eq!(f.rt.outcome(&f.ctx, "c"), Some(OutcomeClass::Committed));
+    assert!(f.rt.core.net_ops(&f.ctx).unwrap().is_empty());
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
     assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Cancelled));
+    let terminal = &f.app()["recoveryJoin"];
+    assert_eq!(terminal["root"], "");
+    assert!(terminal["record"].is_null());
+    assert!(terminal["attempt"].is_null());
     f.tick(&mono(1, 0));
     f.tick(&mono(1, DELAY_MS * 2));
     assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Cancelled));
+}
+
+#[test]
+fn cancelling_before_request_clears_the_lookup_and_secret() {
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.rt.dispatch(
+        &f.ctx,
+        "start",
+        IntentBody::BeginRecovery {
+            recovery_key: w.sheet,
+            home: String::new(),
+            place: None,
+        },
+    );
+    f.rt.dispatch(&f.ctx, "stop", IntentBody::CancelRecovery);
+    assert_eq!(f.rt.outcome(&f.ctx, "stop"), Some(OutcomeClass::Committed));
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    assert!(f.rt.core.net_ops(&f.ctx).unwrap().is_empty());
+    assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Cancelled));
+    assert_eq!(f.app()["recoveryJoin"]["root"], "");
 }
 
 #[test]
@@ -655,6 +856,7 @@ fn a_forged_inbox_item_authorizes_and_tracks_nothing_and_is_still_cleared() {
 
 #[test]
 fn a_veto_from_the_surviving_controller_reaches_the_owner_through_the_home_and_ends_the_attempt() {
+    use om_core::host::NetCall;
     let mut w = world();
     alice_tick(&mut w, 1, 0);
     let mut f = fresh(&w.net);
@@ -664,6 +866,12 @@ fn a_veto_from_the_surviving_controller_reaches_the_owner_through_the_home_and_e
         alice_tick(&mut w, 1, t * 1000);
     }
     let id = tracked(&w)[0].request_id.clone();
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    w.alice.set_recovery_place(Some(RecoveryPlace {
+        host: "current.example".into(),
+        ..place()
+    }));
     let c = common::confirmation(&mut w.alice, &w.a, "VetoRecovery", &id);
     w.alice.dispatch(
         &w.a,
@@ -673,6 +881,18 @@ fn a_veto_from_the_surviving_controller_reaches_the_owner_through_the_home_and_e
             confirmation: c,
         },
     );
+    let boards: Vec<_> = w
+        .alice
+        .core
+        .net_ops(&w.a)
+        .unwrap()
+        .into_iter()
+        .filter_map(|op| match op.call {
+            NetCall::RecoveryVetoPost { host, port, .. } => Some((host, port)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(boards, [(place().host, place().port)]);
     w.alice.flush_net(&w.a);
     f.tick(&mono(1, 0));
     f.tick(&mono(1, DELAY_MS));

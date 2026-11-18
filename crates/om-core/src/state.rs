@@ -22,10 +22,8 @@ pub const APP_VERSION: u32 = 5;
 
 pub type Hex = String;
 
-/// Hex text of a private seed. Stored exactly like any other hex string (`#[serde(transparent)]`), but never printed
-/// by `Debug` and wiped when dropped, so clones, staged copies and discarded states do not leave seeds behind in
-/// freed memory (audit M3). The encoded profile record that is handed to the host still contains it: removing that
-/// needs a vault-held record key inside Core and is recorded as remaining work.
+/// Secret text persisted in the encrypted profile record. The wrapper preserves the string representation,
+/// redacts debug output and zeroizes its owned allocation on drop.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SecretHex(String);
@@ -68,6 +66,9 @@ impl Drop for SecretHex {
 #[serde(rename_all = "camelCase")]
 pub struct PendingRecovery {
     pub key_operation_id: OperationId,
+    /// The verified head captured by the sheet.
+    #[serde(default)]
+    pub parent: Hex,
     /// The `RecoveryPolicy` body the new root's method key belongs to (epoch one above the current one).
     pub policy: Hex,
     /// The type-38 bytes of the kit for the new root, when the account has a recovery place.
@@ -78,11 +79,11 @@ pub struct PendingRecovery {
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryKeyRec {
     pub key_operation_id: OperationId,
-    pub groups: Vec<String>,
+    pub groups: Vec<SecretHex>,
     /// The key sheet text (sheet form, ADR-0200) shown with the key when this Home gave a recovery place; absent
     /// otherwise. Shown once, dropped with the key when it is confirmed saved.
     #[serde(default)]
-    pub sheet: Option<String>,
+    pub sheet: Option<SecretHex>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1086,7 +1087,7 @@ pub struct RecoveryJoinRec {
     pub stage: JoinStage,
     /// The padded plaintext of the verified RecoveryRecord (type 36), kept while the recovery is built from it.
     #[serde(default)]
-    pub record: Option<Hex>,
+    pub record: Option<SecretHex>,
     /// The owner checkpoint the sheet carried (version 2, ADR-0203 section 1): a minimum known head the owner kept with
     /// the recovery material. Its custody is its only provenance; nothing a Home or the record says replaces it.
     #[serde(default)]
@@ -1172,6 +1173,66 @@ pub struct ReconnectCandidate {
 }
 
 impl AppState {
+    fn restore_recovery_read_scopes(&mut self) {
+        if !self.outbox.iter().any(
+            |entry| matches!(&entry.call, NetCall::RecoveryGet { scope, .. } if scope.is_empty()),
+        ) {
+            return;
+        }
+        let kit = self.recovery_kit.as_deref().and_then(|hex| {
+            let bytes = zeroize::Zeroizing::new(crate::crypto::unhex(hex).ok()?);
+            crate::recovery_record::RecoveryKit::from_bytes(&bytes).ok()
+        });
+        let places = self.recovery_join.iter().flat_map(|join| {
+            join.place
+                .iter()
+                .chain(join.attempt.iter().flat_map(|attempt| &attempt.homes))
+        });
+        let mut scopes: BTreeMap<_, _> = places
+            .map(|p| ((p.host.clone(), p.port), p.scope.clone()))
+            .collect();
+        if let Some(kit) = kit {
+            scopes.insert((kit.host.clone(), kit.port), crate::crypto::hex(&kit.scope));
+        }
+        for entry in &mut self.outbox {
+            if let NetCall::RecoveryGet {
+                host, port, scope, ..
+            } = &mut entry.call
+                && scope.is_empty()
+                && let Some(expected) = scopes.get(&(host.clone(), *port))
+            {
+                scope.clone_from(expected);
+            }
+        }
+    }
+
+    pub(crate) fn close_owner_attempt(&mut self, state: AttemptState) {
+        let Some(join) = self.recovery_join.as_mut() else {
+            return;
+        };
+        let approval_op = join
+            .attempt
+            .take()
+            .and_then(|a| a.approval)
+            .map(|a| a.operation_id);
+        join.root = SecretHex::from(String::new());
+        join.record = None;
+        join.place = None;
+        join.visited.clear();
+        join.stage = JoinStage::Found;
+        join.terminal = Some(state);
+        self.outbox.retain(|e| match &e.purpose {
+            Purpose::RecoveryFind
+            | Purpose::OwnerRecoveryPost
+            | Purpose::OwnerRecoveryRead { .. } => false,
+            Purpose::DepositCeremony { operation_id, .. } => {
+                Some(operation_id) != approval_op.as_ref()
+            }
+            Purpose::Ack => !matches!(e.call, NetCall::Deposit { .. }),
+            _ => true,
+        });
+    }
+
     pub(crate) fn reconnect_invite(
         &self,
         candidate: &ReconnectCandidate,
@@ -1280,6 +1341,9 @@ pub struct OwnerAttemptRec {
     pub competing_heads: Vec<OwnerHeadObservation>,
     #[serde(default)]
     pub competing_heads_full: bool,
+    /// An observed full veto page stays unresolved for the lifetime of the request.
+    #[serde(default)]
+    pub veto_page_full: bool,
     /// A conflicted snapshot can be replaced only by a newer verified refresh.
     #[serde(default)]
     pub snapshot_conflict_generation: Option<u64>,
@@ -1297,7 +1361,9 @@ impl OwnerAttemptRec {
     }
 
     pub(crate) fn can_retry_from_verified_head(&self) -> bool {
-        self.state == AttemptState::Stale && self.retry_from_verified_head && !self.has_competing_heads()
+        self.state == AttemptState::Stale
+            && self.retry_from_verified_head
+            && !self.has_competing_heads()
     }
 }
 
@@ -1325,7 +1391,7 @@ pub struct ControllerChange {
 
 /// The controller's side of a recovery approval ceremony (ADR-0203): two queues on its own Home, a fresh secret, and
 /// the proposal it was shown. Never an enrollment: it has its own link prefix, keys and message types.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalOffer {
     pub operation_id: OperationId,
@@ -1335,7 +1401,7 @@ pub struct ApprovalOffer {
     pub b_mailbox: Hex,
     pub b_route: RelayEntry,
     pub b_recv: Hex,
-    pub link: Option<String>,
+    pub link: Option<SecretHex>,
     pub created_ms: u64,
     pub expires_at: u64,
     pub state: LinkState,
@@ -1349,6 +1415,15 @@ pub struct ApprovalOffer {
     /// The Home refused the reply for good after the co-signature was made.
     #[serde(default)]
     pub reply_undelivered: bool,
+}
+
+impl core::fmt::Debug for ApprovalOffer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ApprovalOffer")
+            .field("operation_id", &self.operation_id)
+            .field("state", &self.state)
+            .finish_non_exhaustive()
+    }
 }
 
 /// The restricted device's side: what it sent, what the controller announced and the evidence chunks received so far.
@@ -1910,10 +1985,27 @@ impl ProfileState {
                 Some(4) => migrate_v4(&mut app),
                 _ => return Err(CoreError::CorruptState("unsupported app state version")),
             }
+            if let Some(attempt) = app.pointer_mut("/recoveryJoin/attempt")
+                && attempt.get("roundConflict").and_then(|v| v.as_bool()) == Some(true)
+                && attempt.get("competingHeads").is_none()
+            {
+                attempt["competingHeadsFull"] = serde_json::Value::Bool(true);
+            }
             st.app =
                 serde_json::from_value(app).map_err(|_| CoreError::CorruptState("app state"))?;
         }
         scrub_terminal_links(&mut st.app);
+        if let Some(attempt) = st
+            .app
+            .recovery_join
+            .as_ref()
+            .and_then(|j| j.attempt.as_ref())
+            && attempt.state != AttemptState::Waiting
+            && !attempt.can_retry_from_verified_head()
+        {
+            st.app.close_owner_attempt(attempt.state);
+        }
+        st.app.restore_recovery_read_scopes();
         Ok(st)
     }
 }

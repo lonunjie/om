@@ -379,6 +379,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 NetCall::RecoveryGet {
                     host: kit.host.clone(),
                     port: kit.port,
+                    scope: hex(&kit.scope),
                     locator: kit.locator().to_vec(),
                     read_cap: kit.read_cap.to_vec(),
                 },

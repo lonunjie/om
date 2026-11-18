@@ -191,12 +191,12 @@ pub fn sanitize_label(s: &str) -> String {
 }
 
 /// Recovery key display: 32 random bytes plus a 3-byte check, RFC 4648 base32, 14 groups of 4 (transcription aid only).
-fn recovery_groups(root: &[u8; 32]) -> Vec<String> {
+fn recovery_groups(root: &[u8; 32]) -> Vec<SecretHex> {
     let chk = crypto::sha256(&[b"OM-RECOVERY-KEY-DISPLAY-CHECK", root]);
-    let mut raw = root.to_vec();
+    let mut raw = zeroize::Zeroizing::new(root.to_vec());
     raw.extend_from_slice(&chk[..3]);
     const A: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-    let mut s = String::new();
+    let mut s = zeroize::Zeroizing::new(String::with_capacity(56));
     for c in raw.chunks(5) {
         let mut n = 0u64;
         for i in 0..5 {
@@ -209,7 +209,7 @@ fn recovery_groups(root: &[u8; 32]) -> Vec<String> {
     s.truncate(56);
     s.as_bytes()
         .chunks(4)
-        .map(|g| String::from_utf8_lossy(g).into_owned())
+        .map(|g| SecretHex::from(String::from_utf8_lossy(g).into_owned()))
         .collect()
 }
 
@@ -1249,7 +1249,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.st.app.recovery_key = Some(RecoveryKeyRec {
             key_operation_id: op.clone(),
             groups,
-            sheet,
+            sheet: sheet.map(SecretHex::from),
         });
         self.enqueue(call, Purpose::PublishKeys);
         OutcomeClass::Committed

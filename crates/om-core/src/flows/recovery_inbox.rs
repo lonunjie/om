@@ -33,6 +33,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     2 => self.observe_recovery_veto(&bytes, mono),
                     _ => Ok(()),
                 };
+                if it.kind == 1
+                    && let Some(home) = it.home
+                    && let Some((_, digest)) = crate::recovery::request_shape(&bytes)
+                    && let Some(rec) = self.st.app.recovery_requests.get_mut(&hex(&digest))
+                    && rec.request == hex(&bytes)
+                    && !rec.veto_homes.contains(&home)
+                    && rec.veto_homes.len() < 5
+                {
+                    rec.veto_homes.push(home);
+                }
                 // This is a shared, destructive acknowledgement. Leave authenticated requests
                 // for the other devices, even when this device sees a different parent.
                 if it.kind == 1
@@ -126,13 +136,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// An inbox call finished (`None`: refused or unreachable for good; it is tried again on the next due tick).
-    pub(crate) fn inbox_done(&mut self, kind: u8, items: Option<Vec<Vec<u8>>>) {
+    pub(crate) fn inbox_done(&mut self, kind: u8, items: Option<Vec<Vec<u8>>>, call: &NetCall) {
         let inbox = &mut self.st.app.recovery_inbox;
         inbox.in_flight = false;
         let Some(items) = items else { return };
         match kind {
             0 => inbox.registered = true,
             1 => {
+                let NetCall::RecoveryInboxDrain { host, port, .. } = call else {
+                    return;
+                };
                 for raw in items.into_iter().take(ACK_PAGE) {
                     let Ok(v) = cbor::decode(&raw) else { continue };
                     let (Some(id), Some(kind), Some(bytes)) = (
@@ -159,6 +172,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                             id,
                             kind: kind as u8,
                             bytes: hex(bytes),
+                            home: Some((host.clone(), *port)),
                         });
                     }
                 }

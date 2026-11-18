@@ -68,9 +68,11 @@ export interface OnboardingFlowProps {
   readonly allowJoin?: boolean;
   /** The join was declined or timed out, or the person gave up: the host starts first run over with a fresh, empty profile. */
   readonly onJoinRestart?: () => void;
+  /** Discard an abandoned recovery profile before starting over. */
+  readonly onRecoveryRestart?: () => void;
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, scanLinkQr, scanApprovalQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs, addingIdentity, allowJoin = false, onJoinRestart }: OnboardingFlowProps) {
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, scanLinkQr, scanApprovalQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs, addingIdentity, allowJoin = false, onJoinRestart, onRecoveryRestart }: OnboardingFlowProps) {
   const joinCopy = allowJoin && addingIdentity === undefined && incomingInvite === null ? copy.join : undefined;
   const [flow, dispatch] = useReducer(flowReducer, joinCopy !== undefined ? choosingFlow : skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [protectedAs, setProtectedAs] = useState<{ readonly keyOperationId: OperationId; readonly wrapping: VaultWrappingInfo } | null>(null);
@@ -138,7 +140,7 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
           <LostDevices
             services={services} copy={rc.lost} {...(scanApprovalQr ? { scanLink: scanApprovalQr } : {})}
             onRecovered={() => { onDone({ safetyCodePending: null, inviteAccepted: false }); }}
-            onCancel={() => { onJoinRestart?.(); }}
+            onCancel={() => { (onRecoveryRestart ?? onJoinRestart)?.(); }}
           />
         </OnboardingFrame>
       );

@@ -16,6 +16,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(j) = self.st.app.recovery_join.as_mut() else {
             return;
         };
+        if j.terminal.is_some() {
+            return;
+        }
         let Some(place) = j.place.clone() else {
             j.stage = JoinStage::NeedsPlace;
             return;
@@ -44,6 +47,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             NetCall::RecoveryGet {
                 host: place.host,
                 port: place.port,
+                scope: place.scope,
                 locator: rr::locator_of(&keys.read_cap).to_vec(),
                 read_cap: keys.read_cap.to_vec(),
             },
@@ -56,6 +60,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if let Some(j) = self.st.app.recovery_join.as_mut() {
             j.stage = match reason {
                 RejectReason::NotFound => JoinStage::NotFound,
+                RejectReason::StaleState => JoinStage::OutOfDate,
                 _ => JoinStage::CantRead,
             };
         }
@@ -103,7 +108,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         Ok(()) => {
                             let evidence = self.owner_evidence(&j, &r);
                             if let Some(j) = self.st.app.recovery_join.as_mut() {
-                                j.record = Some(hex(&plain));
+                                j.record = Some(hex(&plain).into());
                                 j.evidence = evidence;
                                 j.stage = JoinStage::Found;
                             }

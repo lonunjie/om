@@ -2,7 +2,7 @@
 // unlock, the connected shell and an identity switcher. The provider is injected: production passes none and the
 // shell says so; the e2e build passes a clearly-named loopback. Nothing here knows what the provider is.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { asProfileId, webInviteLink, type DeviceVault, type EncryptedKv, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
+import { asOperationId, asProfileId, webInviteLink, type DeviceVault, type EncryptedKv, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
 import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createEncryptedKv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
@@ -157,7 +157,7 @@ function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, kn
     return stuck;
   }, [rt]);
   const knownCount = useRef(0);
-  knownCount.current = known.length;
+  knownCount.current = known.length + (pending === null ? 0 : 1);
   const boundAlerts = useMemo(() => alerts?.(() => knownCount.current), [alerts]);
   const boundHome = useMemo(() => home?.bindCore?.(retireHome) ?? home, [home, retireHome]);
   const setIdle = useCallback((minutes: IdleMinutes): void => { writeIdleMinutes(minutes); setIdleState(minutes); }, []);
@@ -195,9 +195,17 @@ function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, kn
   useIdleLock({ minutes: idle, enabled: pending === null && firstLocked === undefined && open.size > 0, onIdle: () => { void lockOpen(); } });
   if (error) return <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} />;
   if (pending !== null) {
+    const restartRecovery = async (): Promise<void> => {
+      await rt.dispatch({ kind: "CancelRecovery", ctx: pending.ctx, operationId: asOperationId(crypto.randomUUID()) });
+      const devices = await rt.query({ kind: "GetDevices", ctx: pending.ctx });
+      if (devices.devices.some((device) => device.isCurrent)) return;
+      rt.closeProfile(pending.id);
+      setPending(null);
+      if ((await vault.deleteProfileVault(pending.id)).ok) begin(); else setError(true);
+    };
     return (
       <Onboard
-        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} allowJoin={connected && known.length === 0} onJoinRestart={() => { setPending(null); begin(); }} {...(connected || relaySetup === undefined ? {} : { relaySetup })} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
+        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} allowJoin={connected && known.length === 0} onJoinRestart={() => { setPending(null); begin(); }} onRecoveryRestart={() => { void restartRecovery().catch(() => { setError(true); }); }} {...(connected || relaySetup === undefined ? {} : { relaySetup })} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
         onDone={(result) => {
           if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
           if (result.inviteAccepted) { clearPendingInvite(); expectNewChat([]); }
@@ -296,9 +304,9 @@ function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: 
   );
 }
 
-interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly allowJoin: boolean; readonly onJoinRestart: () => void; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
+interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly allowJoin: boolean; readonly onJoinRestart: () => void; readonly onRecoveryRestart: () => void; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
 
-function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart, relaySetup, onDone, onCancel }: OnboardProps) {
+function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart, onRecoveryRestart, relaySetup, onDone, onCancel }: OnboardProps) {
   const { scanQr, dialog } = useQrScanner(scannerCopy);
   const linkScan = useQrScanner(deviceScannerCopy);
   const approvalScan = useQrScanner(recoveryScannerCopy);
@@ -315,7 +323,7 @@ function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart
       <OnboardingFlow
         key={pending.id} client={rt} registry={registry} ctx={pending.ctx} vault={vault} platform={platform} copy={onboardingCopy}
         renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} scanLinkQr={linkScan.scanQr} scanApprovalQr={approvalScan.scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
-        allowJoin={allowJoin} onJoinRestart={onJoinRestart}
+        allowJoin={allowJoin} onJoinRestart={onJoinRestart} onRecoveryRestart={onRecoveryRestart}
         skipWelcome onDone={onDone} {...(first ? {} : { addingIdentity: { backLabel: t.backToSettings, onBack: onCancel } })}
       />
       {dialog}

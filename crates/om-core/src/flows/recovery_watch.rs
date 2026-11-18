@@ -196,6 +196,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 credited_ms: 0,
                 vetoes: vec![],
                 own_veto: false,
+                veto_homes: vec![],
                 successor: None,
                 state: RecoveryObsState::Waiting,
             },
@@ -476,7 +477,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             };
         if let Some(p) = place.map(str::trim).filter(|p| !p.is_empty()) {
             match sheet::parse(p) {
-                Ok(Parsed::Sheet(s)) if found.is_none() && s.root().is_none() => {
+                Ok(Parsed::Sheet(s)) if s.root().is_none() => {
                     found = Some(JoinPlace {
                         host: s.host.clone(),
                         port: s.port,
@@ -512,6 +513,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             checkpoint,
             evidence: EvidenceStage::Unpinned,
             attempt: None,
+            terminal: None,
         });
         self.recovery_find_start();
         OutcomeClass::Committed
@@ -557,28 +559,32 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return rejected(RejectReason::StaleState);
         };
         let signed = recovery::sign_veto(&veto, &dev.device_id, &dev.signer, self.rng);
+        let mut homes = rec.veto_homes.clone();
+        if homes.is_empty()
+            && let Some(kit) = self.recovery_kit_value()
+        {
+            homes.push((kit.host.clone(), kit.port));
+        }
         if let Some(r) = self.st.app.recovery_requests.get_mut(request_id) {
             r.vetoes.push(hex(&signed));
             r.own_veto = true;
             r.state = RecoveryObsState::Vetoed;
         }
         self.push_veto_to_contacts(&signed);
-        // Per Home (ADR-0201 section 8.2): the Home this account keeps its record at. Without a recovery place the
-        // earlier stub call stays, which no stock adapter performs.
-        match self.recovery_place.clone() {
-            Some(p) => {
+        // Queue the signed veto on the boards associated with this request.
+        if homes.is_empty() {
+            self.enqueue(
+                NetCall::RecoveryVetoFanout { bytes: signed },
+                Purpose::RecoveryFanout,
+            );
+        } else {
+            for (host, port) in homes {
                 self.enqueue(
                     NetCall::RecoveryVetoPost {
-                        host: p.host,
-                        port: p.port,
-                        bytes: signed,
+                        host,
+                        port,
+                        bytes: signed.clone(),
                     },
-                    Purpose::RecoveryFanout,
-                );
-            }
-            None => {
-                self.enqueue(
-                    NetCall::RecoveryVetoFanout { bytes: signed },
                     Purpose::RecoveryFanout,
                 );
             }

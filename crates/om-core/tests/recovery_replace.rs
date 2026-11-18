@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::recovery_world::{Fresh, fresh, place, root_of, world_with, adopt_via_approval, World};
+use common::recovery_world::{Fresh, fresh, place, root_of, world_with, adopt_via_approval, mono, World};
 use om_core::api::*;
 use om_core::runtime::settle_all;
 
@@ -111,4 +111,30 @@ fn after_a_replacement_the_old_key_can_no_longer_recover_the_account() {
     }
     assert!(offer(&w).request_id.is_none(), "the controller shows no request to confirm: it is not signed by the account's recovery method");
     assert!(f.view().is_some(), "the old key did not bring the account back");
+}
+
+#[test]
+fn saving_a_replacement_rechecks_for_an_incoming_recovery() {
+    let mut w = world_with(true);
+    let (op, key) = replace(&mut w, "replacement");
+    assert!(key.is_some());
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    assert_eq!(
+        f.go("recover", IntentBody::RequestRecovery),
+        Some(OutcomeClass::Committed)
+    );
+    let request = w.net.recovery_requests().pop().unwrap();
+    w.alice
+        .recovery_observe_request(&w.a, &request, &mono(1, 0));
+    let before = w.alice.core.debug_app_state(&w.a).unwrap()["acsChain"].clone();
+    assert_eq!(
+        confirm_saved(&mut w, &op),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Conflict
+        })
+    );
+    let after = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert_eq!(after["acsChain"], before);
+    assert!(after["pendingRecovery"].is_null());
 }

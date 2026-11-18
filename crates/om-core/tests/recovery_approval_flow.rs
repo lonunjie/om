@@ -6,7 +6,7 @@
 mod common;
 
 use common::confirmation as nonce;
-use common::recovery_world::{DELAY_MS, Fresh, World, fresh, mono, world};
+use common::recovery_world::{DELAY_MS, Fresh, SCOPE, World, fresh, mono, world};
 use om_core::api::*;
 use om_core::crypto::{hex, unhex};
 use om_core::runtime::{Runtime, settle_all};
@@ -195,7 +195,25 @@ fn an_enrollment_link_is_never_an_approval_link_nor_the_reverse() {
 fn a_stale_parent_is_answered_with_evidence_and_ends_the_request_without_approving() {
     let mut w = world();
     let mut f = asking(&w);
-    // The account moves on after the request: Alice enrolls a phone, so the request's parent is no longer her head.
+    enroll_phone(&mut w);
+    let o = offer(&mut w, "off");
+    join(&mut w, &mut f, &o.link.unwrap());
+    // The controller did not ask the person anything and made no signature.
+    assert_eq!(
+        offer_view(&w, "off").unwrap().state,
+        ApprovalOfferCode::Declined
+    );
+    assert!(
+        w.alice.core.debug_app_state(&w.a).unwrap()["recoveryRequests"]
+            .as_object()
+            .is_none_or(|m| m.is_empty())
+    );
+    let v = f.view().expect("still restricted");
+    assert_eq!(v.attempt, Some(AttemptState::Stale));
+    assert!(f.app()["acsChain"].as_array().unwrap().is_empty());
+}
+
+fn enroll_phone(w: &mut World) {
     let mut phone = Runtime::new("phone", &w.net);
     let n = phone.open("p-n");
     w.alice.dispatch(&w.a, "enr", IntentBody::OfferDeviceLink);
@@ -222,22 +240,100 @@ fn a_stale_parent_is_answered_with_evidence_and_ends_the_request_without_approvi
         },
     );
     settle_all(&mut [(&mut w.alice, &w.a), (&mut phone, &n)]);
-    let o = offer(&mut w, "off");
-    join(&mut w, &mut f, &o.link.unwrap());
-    // The controller did not ask the person anything and made no signature.
+}
+
+#[test]
+fn approval_preserves_the_independent_checkpoint_when_the_record_tail_is_short() {
+    use om_core::recovery_record::{self as rr, Plain};
+    use om_core::recovery_sheet::{Parsed, Sheet, parse};
+
+    let mut w = world();
+    enroll_phone(&mut w);
+    let (_, envelope) = w.net.recovery_record(&w.keys.locator).unwrap();
+    let plain = rr::open_envelope(&w.keys, &SCOPE, &envelope).unwrap();
+    let Plain::Record(mut record) = rr::read_plaintext(&plain).unwrap() else {
+        panic!("record")
+    };
+    let info = record.verify().unwrap();
+    assert!(info.head.generation > 1);
+    record.evidence.tail.clear();
+    record.evidence.credentials.retain(|bytes| {
+        let credential = om_core::crypto::binding::Credential::from_body(bytes).unwrap();
+        info.head
+            .credentials
+            .contains(&(credential.device_id, credential.hash()))
+    });
+    let envelope =
+        rr::seal_envelope(&w.keys, &SCOPE, [6; 12], &record.to_padded_bytes().unwrap()).unwrap();
+    w.net.recovery_replace(&w.keys.locator, envelope);
+    let Parsed::Sheet(sheet) = parse(&w.sheet).unwrap() else {
+        panic!("sheet")
+    };
+    let mut pin = sheet.checkpoint.clone().unwrap();
+    pin.acs_hash = [9; 32];
+    let different_pin =
+        Sheet::full_v2(*sheet.root().unwrap(), SCOPE, sheet.port, &sheet.host, pin).unwrap();
+    let mut f = fresh(&w.net);
+    f.begin(&different_pin.to_compact());
+    assert_eq!(f.view().unwrap().evidence, EvidenceStage::NeedsEvidence);
+    common::recovery_world::adopt_via_approval(&mut w, &mut f);
+    let view = f.view().expect("unresolved checkpoint");
+    assert_eq!(view.evidence, EvidenceStage::NeedsEvidence);
+    assert_eq!(view.approval.unwrap().state, ApprovalCode::Failed);
+}
+
+#[test]
+fn approval_does_not_transfer_elapsed_time_for_an_earlier_recovery() {
+    use om_core::recovery_record::{self as rr, Plain};
+
+    let mut w = world();
+    let mut controller = asking(&w);
+    controller.tick(&mono(1, 0));
+    controller.tick(&mono(1, DELAY_MS));
+    assert!(controller.view().is_none());
+    let (_, envelope) = w.net.recovery_record(&w.keys.locator).unwrap();
+    let plain = rr::open_envelope(&w.keys, &SCOPE, &envelope).unwrap();
+    let Plain::Record(mut record) = rr::read_plaintext(&plain).unwrap() else {
+        panic!("record")
+    };
+    let app = controller.app();
+    let bytes = |key: &str| {
+        app[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| unhex(v.as_str().unwrap()).unwrap())
+            .collect::<Vec<_>>()
+    };
+    record.evidence.tail = bytes("acsChain");
+    record.evidence.head = record.evidence.tail.pop().unwrap();
+    record.evidence.credentials = bytes("acsCredentials");
+    record.evidence.policy = unhex(app["recoveryPolicy"].as_str().unwrap()).unwrap();
+    let signed = om_core::crypto::cbor::decode(&record.evidence.head).unwrap();
+    let head =
+        om_core::crypto::binding::Acs::from_body(signed.get(1).unwrap().b().unwrap()).unwrap();
+    record.head.generation = head.generation;
+    record.head.state_hash = head.hash();
+    record.generation = head.generation << 20;
+    record.recovery_epoch += 1;
+    let envelope =
+        rr::seal_envelope(&w.keys, &SCOPE, [6; 12], &record.to_padded_bytes().unwrap()).unwrap();
+    w.net.recovery_replace(&w.keys.locator, envelope);
+    let mut second = fresh(&w.net);
+    // Use a distinct device and profile for the next recovery target.
+    second.rt = Runtime::new("next recovery device", &w.net);
+    second.ctx = second.rt.open("q");
+    second.begin(&w.sheet);
     assert_eq!(
-        offer_view(&w, "off").unwrap().state,
-        ApprovalOfferCode::Declined
+        second.view().unwrap().evidence,
+        EvidenceStage::NeedsEvidence
     );
-    assert!(
-        w.alice.core.debug_app_state(&w.a).unwrap()["recoveryRequests"]
-            .as_object()
-            .is_none_or(|m| m.is_empty())
-    );
-    // The restricted device learned the account moved on: the request is over, nothing was adopted.
-    let v = f.view().expect("still restricted");
-    assert_eq!(v.attempt, Some(AttemptState::Stale));
-    assert!(f.app()["acsChain"].as_array().unwrap().is_empty());
+    w.alice = controller.rt;
+    w.a = controller.ctx;
+    common::recovery_world::adopt_via_approval(&mut w, &mut second);
+    let view = second.view().expect("verifier-local history required");
+    assert_eq!(view.evidence, EvidenceStage::NeedsEvidence);
+    assert_eq!(view.approval.unwrap().state, ApprovalCode::Failed);
 }
 
 #[test]

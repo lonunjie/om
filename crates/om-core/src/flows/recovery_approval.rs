@@ -192,7 +192,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         match (link, cap) {
             (Some(link), Some(cap)) => {
                 o.b_recv = hex(&cap);
-                o.link = Some(link);
+                o.link = Some(link.into());
                 o.state = LinkState::WaitingForScan;
                 self.set_outcome(&op.to_string(), OutcomeClass::Committed);
             }
@@ -434,6 +434,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 credited_ms: 0,
                 vetoes: vec![],
                 own_veto: false,
+                veto_homes: vec![],
                 successor: None,
                 state: RecoveryObsState::Waiting,
             });
@@ -919,22 +920,46 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return self.approval_end(LinkState::Failed);
         };
-        let dossier: Vec<control::RecoveryDossierEntry> = ev
+        let states: Vec<_> = ev.states.iter().filter_map(|s| child_of_state(s)).collect();
+        if let Some(pin) = &j.checkpoint
+            && !states.iter().any(|s| {
+                s.generation == pin.generation
+                    && hex(&s.account_id) == pin.account_id
+                    && hex(&s.hash()) == pin.acs_hash
+            })
+        {
+            return self.approval_end(LinkState::Failed);
+        }
+        let links: Option<Vec<_>> = ev
             .dossiers
             .iter()
-            .map(|x| control::RecoveryDossierEntry {
-                child_hash: x.child_hash,
-                policy: x.policy.clone(),
-                next_policy: x.next_policy.clone(),
-                request: x.request.clone(),
+            .map(|x| {
+                Some(control::RecoveryLinkEvidence {
+                    child_hash: x.child_hash,
+                    policy: x.policy.clone(),
+                    next_policy: x.next_policy.clone(),
+                    request: x.request.clone(),
+                    elapsed_seconds: self.owner_link_credit(&x.request)?,
+                })
             })
             .collect();
-        let Some(links) = recovery_peer::first_contact_evidence(&dossier) else {
+        let Some(links) = links else {
             return self.approval_end(LinkState::Failed);
         };
         let Ok(head) = control::verify_chain_with(&ev.states, &ev.creds, &links) else {
             return self.approval_end(LinkState::Failed);
         };
+        if a.competing_heads_full
+            || a.competing_heads.iter().any(|observation| {
+                !states.iter().any(|s| {
+                    s.generation == observation.head.generation
+                        && hex(&s.account_id) == observation.head.account_id
+                        && hex(&s.hash()) == observation.head.acs_hash
+                })
+            })
+        {
+            return self.approval_end(LinkState::Failed);
+        }
         let Some(policy) = unhex(&a.policy)
             .ok()
             .and_then(|b| RecoveryPolicy::from_body(&b).ok())
@@ -980,8 +1005,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     at.chain = ev.states.iter().map(|s| hex(s)).collect();
                     at.creds = ev.creds.iter().map(|c| hex(c)).collect();
                     at.links = latest_links;
+                    at.competing_heads.clear();
                     at.retry_from_verified_head = true;
                 }
+            }
+            if extends
+                && !self
+                    .attempt()
+                    .is_some_and(OwnerAttemptRec::can_retry_from_verified_head)
+            {
+                self.st.app.close_owner_attempt(AttemptState::Stale);
             }
             return self.approval_end(LinkState::Failed);
         }
@@ -1164,7 +1197,11 @@ pub fn approval_offer_view(
     };
     Some(crate::api::RecoveryApprovalOfferView {
         operation_id: o.operation_id.clone(),
-        link: o.link.clone().filter(|_| live && !o.state.is_terminal()),
+        link: o
+            .link
+            .as_deref()
+            .filter(|_| live && !o.state.is_terminal())
+            .map(str::to_owned),
         expires_at: o.expires_at,
         verification_code: o.code.clone().filter(|_| state == C::AwaitingConfirmation),
         request_id: o

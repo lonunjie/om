@@ -280,6 +280,9 @@ pub enum NetCall {
         host: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         port: Option<u16>,
+        /// Scope that the named RecoveryStore must advertise before receiving the bearer.
+        #[serde(default)]
+        scope: String,
         #[serde(with = "hexs")]
         locator: Vec<u8>,
         #[serde(with = "hexs")]

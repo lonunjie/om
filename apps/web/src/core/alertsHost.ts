@@ -5,9 +5,22 @@ import type { AlertsServices } from "@om/ui";
 import { alertsNotice } from "../copy/en";
 import { idbKv } from "../sw/idb-kv";
 import { NOTICE_KEY } from "../sw/push";
-import { createAlertsServices, type RegistrationLike } from "./pushAlerts";
+import { createAlertsServices, matchesPushKey, type RegistrationLike } from "./pushAlerts";
 
 type Win = typeof globalThis & { navigator: Navigator & { standalone?: boolean }; Notification?: { readonly permission: string; requestPermission(): Promise<string> } };
+
+/** Withdraw the browser's registration from the previous primary Home after a configuration change. */
+export async function retireBrowserPush(push: PushClient): Promise<void> {
+  push.pause();
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription === null) return;
+    const key = await push.publicKey();
+    if (key !== undefined && matchesPushKey(subscription, key)) await push.unregister(subscription.endpoint);
+  } catch { /* the registration retains its original lease */ }
+}
 
 /** The alerts for this page, or `undefined` where there is no page (tests, workers). `profileCount` is read each time it matters. */
 export function browserAlerts(provider: { readonly push: PushClient } | null, profileCount: () => number): AlertsServices | undefined {

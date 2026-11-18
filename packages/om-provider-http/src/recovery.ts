@@ -9,7 +9,7 @@
 // register), and only to this Home. A mutating request has a 128-bit request id; a caller that retries an unknown outcome passes the
 // same id and the same bytes (Home API v1 section 5), and a network failure after sending is reported as `network`, never as a rejection.
 import {
-  ADMISSION_HEADER, FEATURES, RECOVERY_CAP_BYTES, RECOVERY_PATHS, REQUEST_ID_HEADER, decodeInboxDrainResponse, decodeRecordGetResponse, decodeVetoList, encodeFanout, encodeInboxAck, encodeInboxDrain, encodeInboxRegister, encodeRecordPut, encodeVetoPost,
+  ADMISSION_HEADER, FEATURES, INBOX_DRAIN_PAGE_MAX, RECOVERY_CAP_BYTES, RECOVERY_PATHS, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, decodeInboxDrainResponse, decodeRecordGetResponse, decodeVetoList, encodeFanout, encodeInboxAck, encodeInboxDrain, encodeInboxRegister, encodeRecordPut, encodeVetoPost,
   fromBase64Url, recoveryEtag, recoveryInboxId, recoveryLocator, sha256, toBase64Url, utf8, concat,
   type HomeErrorName, type InboxItem,
 } from "@om/home-wire";
@@ -63,7 +63,7 @@ export interface RecoveryStoreClient {
   /** Create (no `ifMatch`) or compare-and-swap replace. The value is the new ETag. */
   putRecord(w: RecordWrite): Promise<RecoveryResult<Uint8Array>>;
   /** The sealed envelope and its ETag. A wrong capability and an absent record are the same `not_found`. */
-  getRecord(readCap: Uint8Array): Promise<RecoveryResult<{ readonly envelope: Uint8Array; readonly etag: Uint8Array }>>;
+  getRecord(readCap: Uint8Array, expectedScope?: Uint8Array): Promise<RecoveryResult<{ readonly envelope: Uint8Array; readonly etag: Uint8Array }>>;
   /** Idempotent: `not_found` (absent, or not this capability) counts as done. */
   deleteRecord(locator: Uint8Array, writeCap: Uint8Array): Promise<RecoveryResult<undefined>>;
   /** Posts a signed RecoveryRequest to this Home. The Home checks shape only; the answer is the same whether or not an inbox exists. */
@@ -84,6 +84,12 @@ const rand16 = (): Uint8Array => crypto.getRandomValues(new Uint8Array(16));
 const cap32 = (c: Uint8Array): boolean => c.length === RECOVERY_CAP_BYTES;
 const NETWORK: RecoveryFailure = { kind: "network" };
 const bad = (): RecoveryResult<never> => ({ ok: false, failure: { kind: "home", name: "invalid_request", retryable: false } });
+const MAX_CAPABILITIES_REPLY = 64 * 1024;
+const MAX_ERROR_REPLY = 8 * 1024;
+// Include the CBOR framing, inbox item IDs and optional cursor in the transport bounds.
+const MAX_RECORD_REPLY = RECOVERY_RECORD_MAX_BYTES + 16;
+const MAX_INBOX_REPLY = INBOX_DRAIN_PAGE_MAX * (RECOVERY_SIGNED_OBJECT_MAX_BYTES + 32) + 80;
+const MAX_VETO_REPLY = INBOX_DRAIN_PAGE_MAX * (RECOVERY_SIGNED_OBJECT_MAX_BYTES + 8) + 16;
 
 /** Content-derived request id for posts whose retry must be exact (the same bytes always carry the same id). */
 async function idFor(label: string, bytes: Uint8Array): Promise<Uint8Array> {
@@ -102,7 +108,7 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
   const owner: Record<string, string> = opts.admission === undefined ? {} : { [ADMISSION_HEADER]: toBase64Url(opts.admission) };
 
   async function call<T>(path: string, init: Parameters<typeof exchange>[2], ok: (body: Uint8Array, headers: Headers) => T | undefined): Promise<RecoveryResult<T>> {
-    const r = await exchange(http, `${base}${path}`, init);
+    const r = await exchange(http, `${base}${path}`, { maxReplyBytes: MAX_ERROR_REPLY, ...init });
     if (r.kind === "network") return { ok: false, failure: NETWORK };
     if (r.kind === "gateway") return { ok: false, failure: { kind: "gateway", status: r.status } };
     if (r.kind === "home") {
@@ -117,25 +123,30 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
   const empty = (): undefined | null => null;
   const done = (r: RecoveryResult<null>): RecoveryResult<undefined> => (r.ok ? { ok: true, value: undefined } : r);
 
+  function storeInfo(): Promise<RecoveryResult<RecoveryStoreInfo | null>> {
+    return call("/.well-known/om-provider-capabilities", { method: "GET", maxReplyBytes: MAX_CAPABILITIES_REPLY }, (body) => {
+      let doc: unknown;
+      try { doc = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body)); } catch { return null; }
+      if (typeof doc !== "object" || doc === null || Array.isArray(doc)) return null;
+      const d = doc as Record<string, unknown>;
+      const features = d["features"];
+      if (!Array.isArray(features) || !features.includes(FEATURES.recoveryStore)) return null;
+      const scope = d["recovery_scope_id"];
+      if (typeof scope !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(scope)) return null;
+      let scopeId: Uint8Array;
+      try { scopeId = fromBase64Url(scope); } catch { return null; }
+      if (scopeId.length !== 32 || toBase64Url(scopeId) !== scope) return null;
+      const limits = d["limits"];
+      return { scopeId, limits: typeof limits === "object" && limits !== null && !Array.isArray(limits) ? (limits as Record<string, unknown>) : {} };
+    });
+  }
+
   return {
     baseUrl: base,
 
     async info() {
-      const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
-      if (r.kind !== "ok" || r.body.length > 64 * 1024) return undefined;
-      let doc: unknown;
-      try { doc = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(r.body)); } catch { return undefined; }
-      if (typeof doc !== "object" || doc === null || Array.isArray(doc)) return undefined;
-      const d = doc as Record<string, unknown>;
-      const features = d["features"];
-      if (!Array.isArray(features) || !features.includes(FEATURES.recoveryStore)) return undefined;
-      const scope = d["recovery_scope_id"];
-      if (typeof scope !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(scope)) return undefined;
-      let scopeId: Uint8Array;
-      try { scopeId = fromBase64Url(scope); } catch { return undefined; }
-      if (scopeId.length !== 32 || toBase64Url(scopeId) !== scope) return undefined;
-      const limits = d["limits"];
-      return { scopeId, limits: typeof limits === "object" && limits !== null && !Array.isArray(limits) ? (limits as Record<string, unknown>) : {} };
+      const r = await storeInfo();
+      return r.ok ? r.value ?? undefined : undefined;
     },
 
     async putRecord(w) {
@@ -145,10 +156,18 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
       return call(`${RECOVERY_PATHS.records}/${toBase64Url(w.locator)}`, { method: "PUT", body, bearer: w.writeCap, headers }, (_b, h) => etagOf(h));
     },
 
-    async getRecord(readCap) {
+    async getRecord(readCap, expectedScope) {
       if (!cap32(readCap)) return bad();
+      if (expectedScope !== undefined) {
+        if (!cap32(expectedScope)) return bad();
+        const advertised = await storeInfo();
+        if (!advertised.ok) return advertised;
+        if (advertised.value === null || toBase64Url(advertised.value.scopeId) !== toBase64Url(expectedScope)) {
+          return { ok: false, failure: { kind: "home", name: "stale_generation", retryable: false } };
+        }
+      }
       const locator = await recoveryLocator(readCap);
-      return call(`${RECOVERY_PATHS.records}/${toBase64Url(locator)}`, { method: "GET", bearer: readCap, headers: { [REQUEST_ID_HEADER]: toBase64Url(rand16()) } }, (b, h) => {
+      return call(`${RECOVERY_PATHS.records}/${toBase64Url(locator)}`, { method: "GET", bearer: readCap, maxReplyBytes: MAX_RECORD_REPLY, headers: { [REQUEST_ID_HEADER]: toBase64Url(rand16()) } }, (b, h) => {
         const etag = etagOf(h);
         return etag === undefined ? undefined : { envelope: decodeRecordGetResponse(b), etag };
       });
@@ -173,7 +192,7 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
 
     async readVetoes(requestDigest) {
       if (requestDigest.length !== 32) return bad();
-      return call(`${RECOVERY_PATHS.requests}/${toBase64Url(requestDigest)}/vetoes`, { method: "GET" }, (b) => decodeVetoList(b));
+      return call(`${RECOVERY_PATHS.requests}/${toBase64Url(requestDigest)}/vetoes`, { method: "GET", maxReplyBytes: MAX_VETO_REPLY }, (b) => decodeVetoList(b));
     },
 
     async registerInbox(a) {
@@ -185,7 +204,7 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
     async drainInbox(a, pageSize) {
       if (!cap32(a.cap) || a.accountId.length !== 32) return bad();
       const inbox = toBase64Url(await recoveryInboxId(a.accountId));
-      return call(`${RECOVERY_PATHS.inbox}/${inbox}/drain`, { method: "POST", body: encodeInboxDrain({ requestId: rand16(), cap: a.cap, ...(pageSize === undefined ? {} : { pageSize }) }) }, (b) => {
+      return call(`${RECOVERY_PATHS.inbox}/${inbox}/drain`, { method: "POST", maxReplyBytes: MAX_INBOX_REPLY, body: encodeInboxDrain({ requestId: rand16(), cap: a.cap, ...(pageSize === undefined ? {} : { pageSize }) }) }, (b) => {
         const r = decodeInboxDrainResponse(b);
         return { items: r.items, more: r.cursor !== undefined };
       });

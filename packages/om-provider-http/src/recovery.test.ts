@@ -95,6 +95,25 @@ describe("record put", () => {
 });
 
 describe("record get and delete", () => {
+  it("cancels an oversized recovery stream without waiting for the rest of the body", async () => {
+    const cases = [
+      { size: 64 * 1024, run: (c: RecoveryStoreClient) => c.info() },
+      { size: 1_048_576 + 16, run: (c: RecoveryStoreClient) => c.getRecord(rand(32)) },
+      { size: 16 * (16_384 + 32) + 80, run: (c: RecoveryStoreClient) => c.drainInbox({ accountId: rand(32), cap: rand(32) }) },
+      { size: 16 * (16_384 + 8) + 16, run: (c: RecoveryStoreClient) => c.readVetoes(rand(32)) },
+    ];
+    for (const { size, run } of cases) {
+      let cancelled = false;
+      const { client } = mk(() => new Response(new ReadableStream<Uint8Array>({
+        start(stream) { stream.enqueue(new Uint8Array(size)); stream.enqueue(new Uint8Array(1)); },
+        cancel() { cancelled = true; },
+      })));
+      const result = await Promise.race([run(client), new Promise((resolve) => setTimeout(() => { resolve("waiting"); }, 100))]);
+      expect(result).not.toBe("waiting");
+      expect(cancelled).toBe(true);
+    }
+  });
+
   it("get derives the locator from the read capability, sends the capability only as a bearer, an optional OM-Request-Id, and no body", async () => {
     const readCap = rand(32);
     const env = rand(20000);
@@ -227,6 +246,9 @@ describe("the Core transport adapter for the record (recovery_put, recovery_get,
   const provider = (handler: (s: { url: string; method: string; headers: Headers }) => Response, admission?: Uint8Array): HttpProvider =>
     createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), timeoutMs: 1000, ...(admission ? { admission } : {}), fetch: (i, init) => Promise.resolve(handler({ url: urlOf(i), method: init?.method ?? "GET", headers: new Headers(init?.headers) })) });
   const put = (extra: object = {}): NetCall => ({ call: "recovery_put", host: "home.example", locator: toHex(rand(32)), writeCap: toHex(rand(32)), requestId: toHex(rand(16)), bytes: toHex(rand(64)), ...extra });
+  const expectedScope = rand(32);
+  const get = (host = "home.example") => ({ call: "recovery_get" as const, host, locator: toHex(rand(32)), readCap: toHex(rand(32)), scope: toHex(expectedScope) });
+  const capabilities = (scope: Uint8Array, features = [FEATURES.recoveryStore]): Response => Response.json({ features, recovery_scope_id: toBase64Url(scope) });
 
   it("a put answers the new ETag as the hex of its string, and a moved ETag is stale_state (Core reads to settle it)", async () => {
     const etag = rand(32);
@@ -247,15 +269,27 @@ describe("the Core transport adapter for the record (recovery_put, recovery_get,
 
   it("an unreachable Home is unavailable for a read, never a rejection", async () => {
     const p = createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), timeoutMs: 100, fetch: () => Promise.reject(new Error("down")) });
-    expect(await p.perform({ call: "recovery_get", host: "home.example", locator: toHex(rand(32)), readCap: toHex(rand(32)) })).toEqual({ result: "err", error: { kind: "unavailable" } });
+    expect(await p.perform(get())).toEqual({ result: "err", error: { kind: "unavailable" } });
   });
 
   it("a read of an absent record is not_found, a found one answers [etag, envelope]", async () => {
     const env = rand(50);
     const etag = rand(32);
-    const found = await provider(() => new Response(encodeRecordGetResponse(env) as BodyInit, { status: 200, headers: { ETag: `"${toBase64Url(etag)}"` } })).perform({ call: "recovery_get", host: "home.example", locator: toHex(rand(32)), readCap: toHex(rand(32)) });
+    const found = await provider(({ url }) => url.endsWith("capabilities") ? capabilities(expectedScope) : new Response(encodeRecordGetResponse(env) as BodyInit, { status: 200, headers: { ETag: `"${toBase64Url(etag)}"` } })).perform(get());
     expect(found).toEqual({ result: "many", items: [toHex(new TextEncoder().encode(toBase64Url(etag))), toHex(env)] });
-    expect(await provider(() => typedErr("not_found", 404)).perform({ call: "recovery_get", host: "home.example", locator: toHex(rand(32)), readCap: toHex(rand(32)) })).toEqual({ result: "err", error: { kind: "not_found" } });
+    expect(await provider(({ url }) => url.endsWith("capabilities") ? capabilities(expectedScope) : typedErr("not_found", 404)).perform(get())).toEqual({ result: "err", error: { kind: "not_found" } });
+  });
+
+  it("sends the recovery read capability only after the named Home confirms its feature and expected scope", async () => {
+    for (const doc of [() => capabilities(rand(32)), () => capabilities(expectedScope, []), () => Response.json({ features: [FEATURES.recoveryStore] })]) {
+      const seen: [string, string | null][] = [];
+      const p = provider(({ url, headers }) => {
+        seen.push([url, headers.get("authorization")]);
+        return doc();
+      });
+      expect((await p.perform(get("moved.example"))).result).toBe("err");
+      expect(seen).toEqual([["https://moved.example/.well-known/om-provider-capabilities", null]]);
+    }
   });
 
   it("recoveryPlace is the configured Home's address and scope when it advertises the store, and null when it does not", async () => {

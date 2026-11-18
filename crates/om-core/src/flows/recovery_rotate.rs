@@ -12,6 +12,17 @@ use crate::recovery_sheet::{OwnerCheckpoint, Sheet};
 use crate::state::PendingRecovery;
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
+    fn replacement_blocked(&self, head: &Acs) -> bool {
+        head.control.len() != 1
+            || !self.st.app.acs_forks.is_empty()
+            || self
+                .st
+                .app
+                .recovery_requests
+                .values()
+                .any(|r| r.state == RecoveryObsState::Waiting)
+    }
+
     /// Stage a new recovery key: nothing is in force until it is confirmed saved.
     pub(super) fn replace_recovery_key(&mut self, op: &OperationId) -> OutcomeClass {
         let rejected = |reason| OutcomeClass::Rejected { reason };
@@ -26,13 +37,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !head.control.contains(&me) || head.quarantined.contains(&me) {
             return rejected(RejectReason::Unauthorized);
         }
-        if self
-            .st
-            .app
-            .recovery_requests
-            .values()
-            .any(|r| r.state == crate::state::RecoveryObsState::Waiting)
-        {
+        if self.replacement_blocked(&head) {
             return rejected(RejectReason::Conflict);
         }
         let epoch = self
@@ -81,13 +86,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         self.st.app.pending_recovery = Some(PendingRecovery {
             key_operation_id: op.clone(),
+            parent: hex(&head.hash()),
             policy: hex(&policy.body()),
             kit,
         });
         self.st.app.recovery_key = Some(RecoveryKeyRec {
             key_operation_id: op.clone(),
             groups: recovery_groups(root_bytes),
-            sheet,
+            sheet: sheet.map(SecretHex::from),
         });
         OutcomeClass::Committed
     }
@@ -108,6 +114,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         if !head.control.contains(&dev.device_id) || head.quarantined.contains(&dev.device_id) {
             return rejected(RejectReason::Unauthorized);
+        }
+        if pending.parent != hex(&head.hash()) {
+            return rejected(RejectReason::StaleState);
+        }
+        if self.replacement_blocked(&head) {
+            return rejected(RejectReason::Conflict);
         }
         let Some(policy) = unhex(&pending.policy)
             .ok()

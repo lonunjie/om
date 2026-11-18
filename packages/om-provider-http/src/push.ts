@@ -20,8 +20,10 @@ export interface PushClient {
   supported(): Promise<boolean>;
   /** The Home's public signing key (65-byte P-256 point), the `applicationServerKey` of the browser subscription; `undefined` when unavailable or malformed. */
   publicKey(): Promise<Uint8Array | undefined>;
-  /** Registers `endpoint` for every mailbox held here, and for each one opened later until `unregister` is called. */
-  register(endpoint: string): Promise<PushRegistration>;
+  /** Registers `endpoint` for every mailbox held here and for each one opened while enabled. */
+  register(endpoint: string, allowed?: () => boolean): Promise<PushRegistration>;
+  /** Stop scheduling puts. Existing registrations retain their original lease. */
+  pause(): void;
   /** Removes `endpoint` from every mailbox held here. Never throws; a Home that is unreachable forgets it when the registration lapses. */
   unregister(endpoint: string): Promise<void>;
   /** A mailbox was just opened: registers the kept endpoint for it, if any. Never throws. */
@@ -40,7 +42,9 @@ export interface PushClientOptions {
 const JSON_HEADERS = { "content-type": "application/json" } as const;
 
 export function createPushClient(opts: PushClientOptions): PushClient {
-  let kept: string | undefined;
+  let kept: { endpoint: string; allowed: () => boolean } | undefined;
+  let revision = 0;
+  const pause = (): void => { revision++; kept = undefined; };
   const supported = async (): Promise<boolean> => (await opts.features())?.includes(FEATURES.relayPush) === true;
   const bodyOf = (endpoint: string): Uint8Array => new TextEncoder().encode(JSON.stringify({ endpoint }));
 
@@ -64,19 +68,23 @@ export function createPushClient(opts: PushClientOptions): PushClient {
         return raw.length === 65 && raw[0] === 4 ? raw : undefined;
       } catch { return undefined; }
     },
-    async register(endpoint) {
+    async register(endpoint, allowed = () => true) {
+      const current = ++revision;
       if (parsePushRequest(JSON.stringify({ endpoint })) === undefined || !(await supported())) return { registered: 0, failed: 0, reason: "unsupported" };
-      kept = endpoint;
+      if (revision !== current || !allowed()) return { registered: 0, failed: 0, reason: undefined };
+      kept = { endpoint, allowed };
       let registered = 0, failed = 0;
       let reason: PushRefusal | undefined;
       for (const cap of await opts.receiveCaps()) {
+        if (revision !== current || !allowed()) break;
         const r = await put(endpoint, cap);
         if (r === undefined) registered++; else { failed++; reason ??= r; }
       }
       return { registered, failed, reason: registered === 0 ? reason : undefined };
     },
+    pause,
     async unregister(endpoint) {
-      kept = undefined;
+      pause();
       if (!(await supported())) return;
       for (const cap of await opts.receiveCaps()) {
         await exchange(opts.http, `${opts.base}${PUSH_PATHS.subscription}`, { method: "DELETE", body: bodyOf(endpoint), bearer: cap, headers: JSON_HEADERS }).catch(() => undefined);
@@ -84,7 +92,7 @@ export function createPushClient(opts: PushClientOptions): PushClient {
     },
     opened(cap) {
       const e = kept;
-      if (e !== undefined) void put(e, cap).catch(() => undefined);
+      if (e?.allowed()) void put(e.endpoint, cap).catch(() => undefined);
     },
   };
 }

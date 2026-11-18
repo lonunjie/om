@@ -167,7 +167,7 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
         const store = db.transaction("kv", "readonly").objectStore("kv");
         const keys = await new Promise<IDBValidKey[]>((res) => { const r = store.getAllKeys(); r.onsuccess = () => { res(r.result); }; });
         const vals = await new Promise<unknown[]>((res) => { const r = store.getAll(); r.onsuccess = () => { res(r.result); }; });
-        out.searchKeys += keys.filter((k) => typeof k === "string" && k.startsWith("ui/search/v1/m/")).length;
+        out.searchKeys += keys.filter((k) => typeof k === "string" && k.startsWith("ui/search/v2/m/")).length;
         for (const v of vals) {
           const text = v instanceof Uint8Array ? new TextDecoder("latin1").decode(v) : String(v);
           if (text.includes("quarterly budget") || text.includes("note.txt")) out.plain = true;

@@ -2,7 +2,7 @@
 // so the Core is never opened first against "no provider" and then switched. No provider configured: RealApp gets `null`
 // and shows the "Not connected to a provider" state. Settings > Your Home saves a choice; `reconnect` re-resolves it,
 // which restarts the Core against the new Home (the identities are locked again, so the user unlocks once more).
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { browserVaultEnv } from "@om/web-platform";
 import { Text } from "@om/ui";
 import { appStrings as t } from "../copy/en";
@@ -10,12 +10,13 @@ import { createHomeSettings } from "./homeSettings";
 import { createHomesProviderFor, resolveHomeSet, type HomeSet, type HomesProvider, type ProviderChoice, type ProviderEnv } from "./providerConfig";
 import { RealApp } from "./RealApp";
 import { createRelaySetup } from "./relaySetup";
-import { browserAlerts } from "./alertsHost";
+import { browserAlerts, retireBrowserPush } from "./alertsHost";
 
 type Resolved = { readonly k: "pending" } | { readonly k: "ready"; readonly provider: HomesProvider | null; readonly choice: ProviderChoice | null; readonly set: HomeSet | null; readonly env: ProviderEnv | undefined };
 
 export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode | undefined; readonly pollMs?: number | undefined }) {
   const [state, setState] = useState<Resolved>({ k: "pending" });
+  const previousProvider = useRef<HomesProvider | null>(null);
   const [generation, setGeneration] = useState(0);
   const reconnect = useCallback(() => { setState({ k: "pending" }); setGeneration((g) => g + 1); }, []);
   useEffect(() => {
@@ -39,7 +40,12 @@ export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode 
           provider = set === null ? null : await createHomesProviderFor(env, set);
         } catch { provider = null; choice = null; set = null; } // an unreadable config store means "not configured", never a guess
       }
-      if (life.live) setState({ k: "ready", provider, choice, set, env });
+      if (life.live) {
+        const previous = previousProvider.current;
+        if (previous !== null && previous.baseUrl !== provider?.baseUrl) void retireBrowserPush(previous.push);
+        previousProvider.current = provider;
+        setState({ k: "ready", provider, choice, set, env });
+      }
     })();
     return () => { life.live = false; };
   }, [generation]);

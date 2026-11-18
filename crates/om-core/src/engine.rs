@@ -2492,8 +2492,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .filter(|k| &k.key_operation_id == key_operation_id)
                             .map(|k| RecoveryKeyView {
                                 key_operation_id: k.key_operation_id.clone(),
-                                groups: k.groups.clone(),
-                                sheet: k.sheet.clone(),
+                                groups: k.groups.iter().map(|group| group.to_string()).collect(),
+                                sheet: k.sheet.as_deref().map(str::to_owned),
                             });
                         Ok(to(&v))
                     }

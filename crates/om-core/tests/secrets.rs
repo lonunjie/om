@@ -67,3 +67,41 @@ fn the_intro_root_is_redacted_in_the_debug_output_of_the_app_state() {
         "intro root leaked into Debug output"
     );
 }
+
+#[test]
+fn recovery_display_values_are_redacted_and_the_storage_shape_is_unchanged() {
+    use om_core::api::{ApprovalOfferCode, RecoveryApprovalOfferView, RecoveryKeyView};
+    use om_core::state::{ApprovalOffer, RecoveryKeyRec};
+
+    let key = serde_json::json!({
+        "keyOperationId": "recovery", "groups": ["SYNTHETIC-CODE"], "sheet": "SYNTHETIC-SHEET",
+    });
+    let route = serde_json::json!({
+        "relayUri": "https://home.example/", "capability": "00".repeat(16), "priority": 0, "expiresAt": 1,
+    });
+    let offer = serde_json::json!({
+        "operationId": "approval", "secret": "00".repeat(16), "aMailbox": "a", "aRoute": route,
+        "bMailbox": "b", "bRoute": route, "bRecv": "", "link": "SYNTHETIC-LINK",
+        "createdMs": 0, "expiresAt": 1, "state": "opening",
+    });
+    let key_record: RecoveryKeyRec = serde_json::from_value(key.clone()).unwrap();
+    let approval: ApprovalOffer = serde_json::from_value(offer.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&key_record).unwrap(), key);
+    assert_eq!(
+        serde_json::to_value(&approval).unwrap()["link"],
+        offer["link"]
+    );
+    let key_view: RecoveryKeyView = serde_json::from_value(key).unwrap();
+    let approval_view = RecoveryApprovalOfferView {
+        operation_id: "approval".into(),
+        link: Some("SYNTHETIC-LINK".into()),
+        expires_at: 1,
+        verification_code: Some("SYNTHETIC-COMPARISON".into()),
+        request_id: None,
+        state: ApprovalOfferCode::WaitingForDevice,
+    };
+    assert!(
+        !format!("{key_record:?} {approval:?} {key_view:?} {approval_view:?}")
+            .contains("SYNTHETIC-")
+    );
+}

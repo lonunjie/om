@@ -7,7 +7,7 @@ import type { EncryptedKv, KvGetResult, KvListResult, KvResult } from "@om/platf
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import type { ConversationServices } from "../conversations/services";
-import { createSearchStore } from "./store";
+import { createSearchStore, type SearchStore } from "./store";
 import { useLocalSearch } from "./useLocalSearch";
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -43,22 +43,37 @@ async function makeGroup(h: ReturnType<typeof world>["h"], ctx: ConversationServ
   return gid;
 }
 
+function persisted(s: ConversationServices, kv: EncryptedKv) {
+  const store = createSearchStore(kv);
+  return { ...renderHook(() => useLocalSearch(s, store)), store };
+}
+
+async function advance(store: SearchStore, ms: number): Promise<void> {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+    await store.idle();
+    // Reload can enqueue removal of a conversation after its lists reconcile.
+    await store.idle();
+  });
+}
+
 describe("persisted search", () => {
-  it("finds chat and group text after a reload before anything is re-read, and writes only ciphertext-bound keys", async () => {
+  it("finds chat and group text after a reload before anything is re-read", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "setInterval"] });
     const { h, services } = world();
     const kv = memoryKv();
-    const first = (() => { const sv = services(); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
+    const first = persisted(services(), kv);
     await act(async () => { await vi.advanceTimersByTimeAsync(50); });
     await makeGroup(h, services().ctx, "quarterly budget review");
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await advance(first.store, 2000);
     expect(first.result.current.search("budget")[0]).toMatchObject({ displayName: "Book club" });
     first.unmount();
-    expect([...kv.data.keys()].every((k) => k.startsWith("ui/search/v1/"))).toBe(true);
+    await first.store.idle();
+    expect([...kv.data.keys()].every((k) => k.startsWith("ui/search/v2/"))).toBe(true);
     // A new page: Core answers nothing yet, so only the stored copy can answer.
     const never = new Promise<never>(() => undefined);
-    const second = (() => { const sv = services({ query: () => never, subscribe: () => () => undefined }); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
-    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    const second = persisted(services({ query: () => never, subscribe: () => () => undefined }), kv);
+    await advance(second.store, 50);
     expect(second.result.current.search("CAFE").map((x) => x.displayName)).toEqual(["Ana"]);
     expect(second.result.current.search("quarterly")).toHaveLength(1);
     second.unmount();
@@ -68,14 +83,15 @@ describe("persisted search", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "setInterval"] });
     const a = world();
     const kv = memoryKv();
-    const first = (() => { const sv = a.services(); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    const first = persisted(a.services(), kv);
+    await advance(first.store, 2000);
     expect(first.result.current.search("lunch")).toHaveLength(1);
     first.unmount();
+    await first.store.idle();
     expect([...kv.data.keys()].some((k) => k.includes("c-ana"))).toBe(true);
     const b = world(false); // the chat is gone; the group module is loaded and empty
-    const second = (() => { const sv = b.services(); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    const second = persisted(b.services(), kv);
+    await advance(second.store, 2000);
     expect(second.result.current.search("lunch")).toEqual([]);
     expect([...kv.data.keys()].some((k) => k.includes("c-ana"))).toBe(false);
     second.unmount();
@@ -85,13 +101,14 @@ describe("persisted search", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "setInterval"] });
     const a = world();
     const kv = memoryKv();
-    const first = (() => { const sv = a.services(); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
+    const first = persisted(a.services(), kv);
     await makeGroup(a.h, a.services().ctx, "keep me");
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await advance(first.store, 2000);
     first.unmount();
+    await first.store.idle();
     a.h.groups.setModuleLoaded(false);
-    const second = (() => { const sv = a.services(); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    const second = persisted(a.services(), kv);
+    await advance(second.store, 2000);
     expect(second.result.current.search("keep me")).toHaveLength(1);
     second.unmount();
     expect([...kv.data.keys()].some((k) => k.includes("/m/"))).toBe(true);
@@ -114,13 +131,13 @@ describe("persisted search", () => {
     const { services } = world();
     const kv = memoryKv();
     const put = vi.spyOn(kv, "put");
-    const { unmount } = (() => { const sv = services(); const st = createSearchStore(kv); return renderHook(() => useLocalSearch(sv, st)); })();
+    const { unmount, store } = persisted(services(), kv);
     await act(async () => { await vi.advanceTimersByTimeAsync(300); });
     expect(put).not.toHaveBeenCalled();
-    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    await advance(store, 1500);
     const writes = put.mock.calls.length;
     expect(writes).toBeGreaterThan(0);
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await advance(store, 5000);
     expect(put.mock.calls.length).toBe(writes);
     unmount();
   });

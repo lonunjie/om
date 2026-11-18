@@ -4,7 +4,11 @@
 // the browser objects are passed in so every way of declining is testable.
 import type { PushClient, PushRegistration } from "@om/provider-http";
 
-export interface SubscriptionLike { readonly endpoint: string; unsubscribe(): Promise<boolean> }
+export interface SubscriptionLike {
+  readonly endpoint: string;
+  readonly options: { readonly applicationServerKey: ArrayBuffer | null };
+  unsubscribe(): Promise<boolean>;
+}
 export interface RegistrationLike {
   readonly pushManager: {
     getSubscription(): Promise<SubscriptionLike | null>;
@@ -42,6 +46,13 @@ export interface AlertsServices {
 }
 
 const PREF = "om.alerts.v1";
+export function matchesPushKey(subscription: SubscriptionLike, key: Uint8Array): boolean {
+  const bound = subscription.options.applicationServerKey;
+  if (bound === null) return false;
+  const prior = new Uint8Array(bound);
+  return prior.length === key.length && prior.every((b, i) => b === key[i]);
+}
+
 const readPref = (env: AlertsEnv): { on: boolean; maxOk: boolean } => {
   try {
     const v = JSON.parse(env.store.get(PREF) ?? "null") as { on?: unknown; maxOk?: unknown } | null;
@@ -50,6 +61,8 @@ const readPref = (env: AlertsEnv): { on: boolean; maxOk: boolean } => {
 };
 
 export function createAlertsServices(env: AlertsEnv): AlertsServices {
+  let revision = 0;
+  let maximum = false;
   const permission = (): "granted" | "denied" | "default" => { const p = env.notification?.permission; return p === "granted" || p === "denied" ? p : "default"; };
 
   async function availability(): Promise<AlertsAvailability> {
@@ -59,14 +72,35 @@ export function createAlertsServices(env: AlertsEnv): AlertsServices {
     return env.profileCount() > 1 ? "many_profiles" : "ready";
   }
 
-  async function subscription(push: PushClient | undefined, create: boolean): Promise<SubscriptionLike | undefined> {
+  async function subscription(push: PushClient, valid: () => boolean): Promise<{ sub: SubscriptionLike; created: boolean } | undefined> {
     const reg = await env.serviceWorker?.ready;
-    if (reg === undefined || push === undefined) return undefined;
+    if (reg === undefined || !valid()) return undefined;
     const have = await reg.pushManager.getSubscription();
-    if (have !== null || !create) return have ?? undefined;
     const key = await push.publicKey();
-    if (key === undefined) return undefined;
-    return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    if (key === undefined || !valid()) return undefined;
+    if (have !== null) {
+      if (matchesPushKey(have, key)) return { sub: have, created: false };
+      if (!await have.unsubscribe() || !valid()) return undefined;
+    }
+    return { sub: await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }), created: true };
+  }
+
+  function allowed(confirmedMaximum: boolean): boolean {
+    return env.profileCount() === 1 && permission() === "granted" && (!maximum || confirmedMaximum);
+  }
+
+  async function disable(): Promise<void> {
+    revision++;
+    env.provider?.push.pause();
+    env.store.remove(PREF);
+    try {
+      const sub = await (await env.serviceWorker?.ready)?.pushManager.getSubscription();
+      if (sub == null) return;
+      await Promise.all([
+        env.provider?.push.unregister(sub.endpoint).catch(() => undefined),
+        sub.unsubscribe().catch(() => false),
+      ]);
+    } catch { /* the registration lapses by itself */ }
   }
 
   const fail = (reason: PushRegistration["reason"]): EnableResult => (reason === "refused" ? "refused" : reason === "full" ? "full" : reason === "unreachable" ? "unreachable" : "failed");
@@ -75,22 +109,30 @@ export function createAlertsServices(env: AlertsEnv): AlertsServices {
     availability,
     status() { const p = readPref(env); return Promise.resolve({ on: p.on, permission: permission(), maxOk: p.maxOk }); },
     async enable({ confirmedMaximum }) {
+      const current = ++revision;
       // The permission prompt must come from the person's own tap, so it is the first thing awaited.
       if (env.notification === undefined || env.serviceWorker === undefined || env.provider === null || env.profileCount() > 1 || (env.isIos && !env.standalone)) return "unavailable";
       if (permission() === "denied") return "denied";
       if (permission() === "default" && (await env.notification.requestPermission().catch(() => "default")) !== "granted") return "denied";
       if ((await availability()) !== "ready") return "unavailable";
       const push = env.provider.push;
-      let sub: SubscriptionLike | undefined;
-      let created: boolean;
+      const canRegister = (): boolean => allowed(confirmedMaximum);
+      const eligible = (): boolean => revision === current && canRegister();
+      let result: Awaited<ReturnType<typeof subscription>>;
       try {
-        created = (await (await env.serviceWorker.ready).pushManager.getSubscription()) === null;
-        sub = await subscription(push, true);
+        result = await subscription(push, eligible);
       } catch { return "failed"; }
-      if (sub === undefined) return "failed";
-      const r = await push.register(sub.endpoint).catch((): PushRegistration => ({ registered: 0, failed: 1, reason: "unreachable" }));
+      if (result === undefined) return eligible() ? "failed" : "unavailable";
+      const { sub, created } = result;
+      if (!eligible()) {
+        if (created) await sub.unsubscribe().catch(() => false);
+        return "unavailable";
+      }
+      const r = await push.register(sub.endpoint, canRegister).catch((): PushRegistration => ({ registered: 0, failed: 1, reason: "unreachable" }));
+      if (!eligible()) return "unavailable";
       // No mailbox is open yet (just started): the provider keeps the endpoint and registers each mailbox as it opens, and the next start renews it.
       if (r.registered === 0 && (r.failed > 0 || r.reason === "unsupported")) {
+        push.pause();
         if (created) await sub.unsubscribe().catch(() => false);
         return fail(r.reason);
       }
@@ -98,21 +140,23 @@ export function createAlertsServices(env: AlertsEnv): AlertsServices {
       await env.saveNotice(JSON.stringify({ title: env.noticeText.title, body: env.noticeText.body })).catch(() => undefined);
       return "enabled";
     },
-    async disable() {
-      env.store.remove(PREF);
-      try {
-        const sub = await subscription(env.provider?.push, false);
-        if (sub === undefined) return;
-        await env.provider?.push.unregister(sub.endpoint).catch(() => undefined);
-        await sub.unsubscribe().catch(() => false);
-      } catch { /* the registration lapses by itself */ }
-    },
-    async refresh({ maximum }) {
+    disable,
+    async refresh({ maximum: strict }) {
+      const current = ++revision;
+      maximum = strict;
       const p = readPref(env);
-      if (!p.on || env.provider === null || (maximum && !p.maxOk) || permission() !== "granted") return;
+      const push = env.provider?.push;
+      if (p.on && env.profileCount() > 1) { await disable(); return; }
+      if (push === undefined) return;
+      const canRegister = (): boolean => allowed(p.maxOk);
+      if (!p.on || !canRegister()) {
+        push.pause();
+        return;
+      }
       try {
-        const sub = await subscription(env.provider.push, true);
-        if (sub !== undefined) await env.provider.push.register(sub.endpoint);
+        const eligible = (): boolean => revision === current && canRegister();
+        const result = await subscription(push, eligible);
+        if (result !== undefined && eligible()) await push.register(result.sub.endpoint, canRegister);
       } catch { /* retried at the next start */ }
     },
   };

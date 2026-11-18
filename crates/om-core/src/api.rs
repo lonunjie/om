@@ -1123,7 +1123,7 @@ pub struct ProfileSummary {
 }
 
 /// Display-once secret; returned only until ConfirmRecoveryKeyStored.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryKeyView {
     pub key_operation_id: OperationId,
@@ -1131,6 +1131,14 @@ pub struct RecoveryKeyView {
     /// The key sheet text (ADR-0200) when this account has a recovery place; absent when the key is shown alone.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sheet: Option<String>,
+}
+
+impl core::fmt::Debug for RecoveryKeyView {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RecoveryKeyView")
+            .field("key_operation_id", &self.key_operation_id)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1485,7 +1493,7 @@ pub enum ApprovalOfferCode {
 }
 
 /// What the surviving controller shows: the link while it waits, then the code and the request to confirm.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryApprovalOfferView {
     pub operation_id: OperationId,
@@ -1495,6 +1503,15 @@ pub struct RecoveryApprovalOfferView {
     /// The request digest `ConfirmRecovery` names, once a proposal arrived and verified.
     pub request_id: Option<String>,
     pub state: ApprovalOfferCode,
+}
+
+impl core::fmt::Debug for RecoveryApprovalOfferView {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RecoveryApprovalOfferView")
+            .field("operation_id", &self.operation_id)
+            .field("state", &self.state)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

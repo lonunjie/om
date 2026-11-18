@@ -258,8 +258,12 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   async function recoveryGet(c: Extract<NetCall, { call: "recovery_get" }>): Promise<NetResult> {
     const r = recoveryClient(c.host, c.port);
     if (r === undefined) return rejected("invalid");
-    const res = await r.client.getRecord(fromHex(c.readCap));
-    if (!res.ok) return fromFailure(res.failure, r.t, false);
+    if (!/^[0-9a-f]{64}$/.test(c.scope)) return rejected("stale_state");
+    const res = await r.client.getRecord(fromHex(c.readCap), fromHex(c.scope));
+    if (!res.ok) {
+      if (res.failure.kind === "home" && res.failure.name === "moved") return { result: "err", error: { kind: "not_found" } };
+      return fromFailure(res.failure, r.t, false);
+    }
     return { result: "many", items: [toHex(new TextEncoder().encode(toBase64Url(res.value.etag))), toHex(res.value.envelope)] };
   }
   /** A recovery call to one Home with no result bytes: `ok`, or the typed failure (a write of unknown outcome is retried as is). */
@@ -787,6 +791,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       const grant = decodeDepositCapabilityRecord(r.body);
       if (grant.expiresAt === undefined || grant.expiresAt <= Math.floor(Date.now() / 1000)
         || grant.cap.length < 32 || grant.cap.length > 64 || toHex(grant.cap) === toHex(caps.deposit)) return undefined;
+      if (toHex(grant.cap.subarray(0, caps.queueId.length)) !== toHex(caps.queueId)) return undefined;
       return { mailbox: plan.mailbox, relayUri: plan.relayUri, capability: toHex(grant.cap), id: toHex(grant.id), expiresAt: grant.expiresAt };
     },
     revokeDeposit,
@@ -803,7 +808,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     nudge: () => { hub.nudge(); },
     wakeStats: () => hub.stats(),
     push,
-    dispose: () => { hub.dispose(); },
+    dispose: () => { push.pause(); hub.dispose(); },
     blobLimits,
     recoveryPlace,
     async perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {

@@ -47,7 +47,7 @@ export type NetCall =
    */
   | { readonly call: "recovery_put"; readonly host: string; readonly port?: number; readonly locator: string; readonly writeCap: string; readonly requestId: string; readonly ifMatch?: string; readonly bytes: string }
   /** RecoveryStore get: answer `many` = [ETag string (UTF-8 hex), envelope (hex)]; a wrong capability and an absent record are both `not_found`. */
-  | { readonly call: "recovery_get"; readonly host: string; readonly port?: number; readonly locator: string; readonly readCap: string }
+  | { readonly call: "recovery_get"; readonly host: string; readonly port?: number; readonly scope: string; readonly locator: string; readonly readCap: string }
   /** STUB (recovery): deliver a signed RecoveryRequest (`bytes`, hex) to the account's Home(s). No Home serves it yet: answer `rejected` `unsupported`. */
   | { readonly call: "recovery_request_fanout"; readonly bytes: string }
   /** STUB (recovery): deliver a signed RecoveryVeto (`bytes`, hex) the same way. Answer `rejected` `unsupported`. */
