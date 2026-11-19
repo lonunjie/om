@@ -13,6 +13,7 @@ export interface CallCopy {
   readonly withContact: (name: string) => string;
   readonly identity: (name: string) => string;
   readonly state: Readonly<Record<CallState, string>>;
+  readonly stillTrying: (name: string) => string;
   readonly reason: Readonly<Record<CallReason, string>>;
   readonly answerAudio: string;
   readonly answerVideo: string;
@@ -72,7 +73,7 @@ export function CallView({ copy, call, name, identity, pending, canUseCallRoute,
           <bdi>{title}</bdi>
         </Text>
         {identity === undefined ? null : <Text as="p" size="sm"><bdi>{copy.identity(identity)}</bdi></Text>}
-        {incoming || call === null ? null : <Text as="p">{failureStatus ?? (ended && call.reason ? copy.reason[call.reason] : copy.state[call.state])}</Text>}
+        {incoming || call === null ? null : <Text as="p">{failureStatus ?? (ended && call.reason ? copy.reason[call.reason] : (call.state === "connecting" && call.deliveryUnsure ? copy.stillTrying(name) : copy.state[call.state]))}</Text>}
         {pending ? <Text as="p">{copy.preparing}</Text> : null}
         {incoming && !canUseCallRoute && error === null ? <Text as="p">{copy.noDirect}</Text> : null}
       </div>

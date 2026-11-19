@@ -18,6 +18,19 @@ pub(crate) use wire::{Body, Signal, valid_sdp};
 pub(crate) const SIGNAL_CTX: &[u8] = b"OM-CALL-SIGNAL-CTX-v1";
 pub(crate) const OBJECT_TYPE: u64 = 44;
 pub(crate) const RING_MS: u64 = 45_000;
+/// ADR-0228 s3: from accept (callee) or the first accepted answer (caller) to the host's first media fact.
+pub(crate) const CONNECT_MS: u64 = 30_000;
+/// ADR-0228 s2: one ICE restart exchange is allowed this long; Core may start two more, then ends the call.
+pub(crate) const RESTART_MS: u64 = 30_000;
+pub(crate) const RESTARTS_MAX: u8 = 2;
+/// ADR-0228 s3: an unknown deposit result is retried with the same bytes after 2, 4 and 8 seconds, then every 8.
+pub(crate) fn retry_delay_ms(attempts: u32) -> u64 {
+    match attempts {
+        0 | 1 => 2_000,
+        2 => 4_000,
+        _ => 8_000,
+    }
+}
 pub(crate) const SPAM_MS: u64 = 600_000;
 pub(crate) const REPLAY_MS: u64 = SPAM_MS + crate::crypto::delivery::CLOCK_SKEW * 1000;
 pub(crate) const SEEN_LIMIT: usize = 512;
@@ -81,6 +94,13 @@ pub struct CallView {
     pub local_media_flags: u8,
     pub peer_media_flags: u8,
     pub route: Option<CallRoute>,
+    /// The callee's answer deposit has an unknown outcome: "connecting, still trying to reach <name>".
+    /// Never a refusal and never an end by itself (ADR-0228 s3).
+    pub delivery_unsure: bool,
+    /// How many Core-started ICE restarts this call has had; the host starts one when it rises (ADR-0228 s2).
+    pub restart_attempt: u8,
+    /// The next moment Core needs a `call_tick` (ring, connecting or restart deadline, deposit retry).
+    pub wake_at_ms: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -165,6 +185,8 @@ pub struct SeenOffer {
 pub(crate) struct Calls {
     pub current: Option<Call>,
     pub deposits: Vec<Deposit>,
+    /// Signals waiting for their leg (call, device) to have a determined outcome (ADR-0228 s2).
+    pub held: Vec<Held>,
     pub last_clock_ms: Option<u64>,
 }
 
@@ -178,7 +200,20 @@ impl std::fmt::Debug for Calls {
 pub(crate) enum DepositKind {
     Offer,
     Answer,
+    /// `ice_update` and `media_update`: ordered behind any signal in flight on the same leg.
+    Update,
+    /// `end`, `reject` and test payloads: a terminal signal supersedes everything before it.
     Other,
+}
+
+/// A signal not yet sealed because an earlier one is in flight on its leg. Sealing happens at release so
+/// the per-sender `seq` follows the order of release and coalescing leaves no gap that matters.
+#[derive(Clone)]
+pub(crate) struct Held {
+    pub call_id: [u8; 16],
+    pub device: [u8; 16],
+    pub kind: DepositKind,
+    pub body: Body,
 }
 
 #[derive(Clone)]
@@ -190,6 +225,9 @@ pub(crate) struct Deposit {
     pub deadline_ms: u64,
     pub kind: DepositKind,
     pub call: NetCall,
+    /// Unknown results so far; the deposit is retried with the same bytes until `deadline_ms`.
+    pub attempts: u32,
+    pub not_before_ms: u64,
 }
 
 #[derive(Clone)]
@@ -210,6 +248,10 @@ pub(crate) struct Call {
     pub keys: Option<InstallMediaKeys>,
     pub description: Option<CallDescription>,
     pub ice: Option<CallDescription>,
+    /// The host's first media fact is due by this time (ADR-0228 s3).
+    pub connect_deadline_ms: Option<u64>,
+    /// An ICE restart exchange is open until this time (ADR-0228 s2).
+    pub restart_deadline_ms: Option<u64>,
 }
 
 impl Call {
@@ -238,6 +280,9 @@ impl Call {
                 local_media_flags: 0,
                 peer_media_flags: 0,
                 route: None,
+                delivery_unsure: false,
+                restart_attempt: 0,
+                wake_at_ms: None,
             },
             targets: vec![],
             selected: None,
@@ -246,7 +291,30 @@ impl Call {
             keys: None,
             description: None,
             ice: None,
+            connect_deadline_ms: None,
+            restart_deadline_ms: None,
         }
+    }
+
+    /// The view with `wake_at_ms` filled from this call's deadlines and the retries of its deposits.
+    pub fn view_at(&self, deposits: &[Deposit], now_ms: u64) -> CallView {
+        let mut view = self.view.clone();
+        view.wake_at_ms = [
+            view.ring_deadline_ms,
+            self.connect_deadline_ms,
+            self.restart_deadline_ms,
+        ]
+        .into_iter()
+        .flatten()
+        .chain(
+            deposits
+                .iter()
+                .filter(|d| d.call_id == self.id)
+                .flat_map(|d| [d.not_before_ms, d.deadline_ms]),
+        )
+        .filter(|at| *at > now_ms)
+        .min();
+        view
     }
 
     pub fn is_live(&self) -> bool {
@@ -267,6 +335,9 @@ impl Call {
         self.keys = None;
         self.description = None;
         self.ice = None;
+        self.connect_deadline_ms = None;
+        self.restart_deadline_ms = None;
+        self.view.delivery_unsure = false;
         self.view.route = None;
         self.view.ring_deadline_ms = None;
         self.view.reason = Some(reason);

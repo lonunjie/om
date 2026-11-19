@@ -10,7 +10,7 @@ import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, me
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, okEtag, preflight, privateJson, readBody } from "./http";
 import { LIMITS } from "./limits";
-import { UsageMeter, ceilings, classify, usageDocument, usageOn, type UsageSnapshot } from "./usage";
+import { UsageMeter, ceilings, classify, usageDocument, usageOn, type LeaseOutcome, type LeaseRecord, type UsageSnapshot } from "./usage";
 import type { Reply } from "./util";
 import { BlobSpool } from "./blobs";
 import { DescriptorStore } from "./descriptors";
@@ -137,22 +137,45 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     if (!backend || !mediaCapabilities(env)) return fail("not_found");
     if (m !== "POST") return fail("invalid_request");
     if (!(await admitted(request, env))) return fail("unauthorized");
-    if (counted?.state !== "healthy" && counted?.state !== "soft") return fail("quota", { detail: quotaDetail(3, true) });
     const id = hex(parse(decodeTurnRequest, await body(request, 128)));
+    // ADR-0228 s4: an attempt the Home has seen is answered from its own table and never gated by the budget again, so a
+    // reservation made before the meter turned hard stays retrievable by its exact retry and costs nothing further.
+    const meter = usageOn(env) && env.USAGE !== undefined ? env.USAGE.get(env.USAGE.idFromName("meter")) : undefined;
+    let made = 0; // meter calls made here, charged after the fact like any other fan-out (the front door counted the request itself)
+    const record = async (outcome: LeaseOutcome, expiresAt: number): Promise<void> => {
+      if (meter === undefined) return;
+      made++;
+      try { await meter.leaseNote(id, outcome, expiresAt); } catch { /* an unrecorded attempt is only gated again on retry */ }
+    };
     try {
+      let known: LeaseRecord | null = null;
+      if (meter !== undefined) {
+        made++;
+        try { known = await meter.leaseSeen(id); } catch { known = null; }
+      }
+      if (known === null) {
+        if (counted?.state !== "healthy" && counted?.state !== "soft") return fail("quota", { detail: quotaDetail(3, true) });
+        await record("pending", 0); // the reservation may exist from here on, whether or not the reply reaches the client
+      } else if (known.outcome === "quota") {
+        return fail("quota", { detail: quotaDetail(3, true) });
+      } else if (known.outcome === "expired" || (known.outcome === "issued" && known.expires_at <= Math.floor(Date.now() / 1000))) {
+        return fail("expired");
+      }
       // A service binding or Unix socket handles this internal request. No DNS or public fetch. workerd has no redirect:"error", so "manual" is used and any 3xx falls through to the non-ok refusal below.
       const lease = await backend.fetch(new Request(new URL("/lease", url.origin), {
         method: "POST", redirect: "manual", signal: AbortSignal.timeout(5000),
         headers: { "content-type": "application/json" }, body: JSON.stringify({ request_id: id }),
       }));
-      if (lease.status === 429) return fail("quota", { detail: quotaDetail(3, true) });
-      if (lease.status === 410) return fail("expired");
+      if (lease.status === 429) { await record("quota", 0); return fail("quota", { detail: quotaDetail(3, true) }); }
+      if (lease.status === 410) { await record("expired", 0); return fail("expired"); }
       if (!lease.ok) return fail("retryable");
       const bytes = await readBody(lease, MEDIA_MAX_REPLY_BYTES);
       const result = bytes === undefined ? undefined
         : parseTurnLease(JSON.parse(new TextDecoder().decode(bytes)), Math.floor(Date.now() / 1000));
-      return result === undefined ? fail("retryable") : ok(encodeTurnLease(result));
-    } catch { return fail("retryable"); }
+      if (result === undefined) return fail("retryable");
+      await record("issued", result.expires_at);
+      return ok(encodeTurnLease(result));
+    } catch { return fail("retryable"); } finally { await chargeCalls(env, made); }
   }
   if (path === USAGE_PATH) {
     // Owner-only: the admin capability of any queue this Home holds. Never public, never in a URL.

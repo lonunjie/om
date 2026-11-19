@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admissionHash, decodeHomeError, decodeTurnLease, encodeTurnRequest, fromHex, toBase64Url } from "@om/home-wire";
-import { startHome, type Home } from "./harness";
+import { scratch, startHome, type Home } from "./harness";
 import { asBody, rand } from "./kit";
 
 const path = "/v1/media/turn";
@@ -73,4 +73,76 @@ describe("optional media leases", () => {
     expect((await issue(home, "ee".repeat(16))).status).toBe(503);
     expect(issued.size).toBe(2);
   });
+});
+
+// ADR-0228 s4: an exact retry finds its reservation without consulting the budget gate; only a new attempt is gated.
+describe("exact lease retries and the hard meter", () => {
+  const reservations = new Map<string, { username: string; credential: string; expires_at: number }>();
+  const calls: string[] = [];
+  const backend = async (request: Request): Promise<Response> => {
+    const { request_id: id } = await request.json() as { request_id: string };
+    calls.push(id);
+    if (id === "ff".repeat(16)) return new Response(null, { status: 410 });
+    let grant = reservations.get(id);
+    if (!grant) {
+      grant = { username: "u-" + String(reservations.size), credential: toBase64Url(rand(32)), expires_at: Math.floor(Date.now() / 1000) + 60 };
+      reservations.set(id, grant);
+    }
+    return Response.json({ ...grant, urls: ["turn:turn.example:3478"] });
+  };
+  const hex16 = (n: number): string => n.toString(16).padStart(32, "0");
+  const lease = async (reply: Response) => decodeTurnLease(new Uint8Array(await reply.arrayBuffer()), Math.floor(Date.now() / 1000));
+  const errorOf = async (reply: Response) => decodeHomeError(new Uint8Array(await reply.arrayBuffer())).name;
+  /** Counted requests until the Home's own worker budget is hard (ceiling 40, hard from 38). */
+  const exhaust = async (home: Home, n = 45) => { for (let i = 0; i < n; i++) await home.fetch("/healthz"); };
+  const withCeiling = async (ceiling: string) => ({ ...(await vars()), OM_MEDIA_STUN: "stun:turn.example:3478", OM_USAGE_CEILING_WORKER: ceiling });
+
+  it("returns the existing lease to the exact retry after the meter turned hard, and refuses a new attempt", async () => {
+    reservations.clear(); calls.length = 0;
+    const home = await startHome({ vars: await withCeiling("40"), media: backend });
+    try {
+      const first = await lease(await issue(home, hex16(1)));
+      expect(first?.username).toBe("u-0");
+      await exhaust(home);
+      expect(await errorOf(await issue(home, hex16(2)))).toBe("quota");
+      expect(reservations.size).toBe(1); // the refusal never reached the backend
+      const again = await issue(home, hex16(1));
+      expect(again.status).toBe(200);
+      expect(await lease(again)).toEqual(first);
+      expect(reservations.size).toBe(1); // one reservation for the attempt, however often it is retried
+    } finally { await home.dispose(); }
+  }, 120_000);
+
+  it("keeps that lookup across a restart, and an expired id never creates a reservation", async () => {
+    reservations.clear(); calls.length = 0;
+    const state = scratch();
+    try {
+      const config = await withCeiling("40");
+      let home = await startHome({ vars: config, persist: state.dir, media: backend });
+      const first = await lease(await issue(home, hex16(1)));
+      expect((await issue(home, "ff".repeat(16))).status).toBe(410);
+      await exhaust(home);
+      await home.dispose();
+      home = await startHome({ vars: config, persist: state.dir, media: backend });
+      try {
+        expect(await lease(await issue(home, hex16(1)))).toEqual(first);
+        expect(await errorOf(await issue(home, hex16(3)))).toBe("quota");
+        expect(await errorOf(await issue(home, "ff".repeat(16)))).toBe("expired");
+        expect(reservations.size).toBe(1);
+      } finally { await home.dispose(); }
+    } finally { state.remove(); }
+  }, 120_000);
+
+  it("remembers at most 64 recent attempts, oldest first out", async () => {
+    reservations.clear(); calls.length = 0;
+    const home = await startHome({ vars: await withCeiling("400"), media: backend });
+    try {
+      for (let n = 1; n <= 70; n++) expect((await issue(home, hex16(n))).status).toBe(200);
+      await exhaust(home, 400);
+      expect(await errorOf(await issue(home, hex16(1)))).toBe("quota"); // left the table: gated like a new attempt
+      expect((await issue(home, hex16(70))).status).toBe(200); // still in the table
+      expect((await issue(home, hex16(7))).status).toBe(200);
+      expect(reservations.size).toBe(70);
+    } finally { await home.dispose(); }
+  }, 180_000);
 });

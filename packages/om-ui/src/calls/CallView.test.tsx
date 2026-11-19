@@ -13,6 +13,7 @@ const copy: CallCopy = {
   withContact: (name) => `Call with ${name}`, identity: (name) => `For ${name}`,
   state: { incoming: "Incoming", starting: "Starting", ringing: "Ringing", connecting: "Connecting", active: "Connected",
     reconnecting: "Reconnecting", ending: "Ending", ended: "Ended", failed: "Failed" },
+  stillTrying: (name) => `Connecting, still trying to reach ${name}`,
   reason: { busy: "Busy", declined: "Declined", answered_elsewhere: "Answered elsewhere", timeout: "No answer",
     failed: "Failed", hangup: "Ended", canceled: "Canceled" },
   answerAudio: "Answer audio", answerVideo: "Answer video", decline: "Decline", hangUp: "End call",
@@ -23,6 +24,7 @@ const copy: CallCopy = {
 const incoming: CoreCallView = {
   callSessionId: "1", conversationId: asConversationId("1"), media: "video", state: "incoming", outgoing: false,
   ringDeadlineMs: 45_000, reason: null, localMediaFlags: 0, peerMediaFlags: 3, route: null,
+  deliveryUnsure: false, restartAttempt: 0, wakeAtMs: null,
 };
 
 function props() {
@@ -43,6 +45,16 @@ describe("live calls", () => {
     expect(p.onAnswer).toHaveBeenCalledWith("audio");
     fireEvent.click(within(region).getByRole("button", { name: "Decline" }));
     expect(p.onEnd).toHaveBeenCalledWith(true);
+  });
+
+  it("reads still trying, never a refusal, while the answer's delivery is unknown", () => {
+    const connecting: CoreCallView = { ...incoming, state: "connecting", deliveryUnsure: true };
+    const { rerender } = render(<CallView {...props()} call={connecting} />);
+    expect(screen.getByRole("status").textContent).toContain("Connecting, still trying to reach Maria");
+    expect(screen.getByRole("status").textContent).not.toContain("Failed");
+    rerender(<CallView {...props()} call={{ ...connecting, deliveryUnsure: false }} />);
+    expect(screen.getByRole("status").textContent).toContain("Connecting");
+    expect(screen.getByRole("status").textContent).not.toContain("still trying");
   });
 
   it("offers only decline when its privacy policy needs a relay", () => {

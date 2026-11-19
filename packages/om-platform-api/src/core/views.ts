@@ -215,6 +215,12 @@ export interface CallView {
   readonly localMediaFlags: number;
   readonly peerMediaFlags: number;
   readonly route: CallRoute | null;
+  /** The callee's answer is not known to have reached the Home yet: show "still trying", never a refusal (ADR-0228 s3). */
+  readonly deliveryUnsure: boolean;
+  /** Rises when Core starts another ICE restart for this call; the host answers it with a new restart description (ADR-0228 s2). */
+  readonly restartAttempt: number;
+  /** The next moment Core needs a call tick, or null (ring, connecting or restart deadline, deposit retry). */
+  readonly wakeAtMs: number | null;
 }
 
 export interface CallNotice {

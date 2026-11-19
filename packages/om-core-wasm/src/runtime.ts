@@ -395,7 +395,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       await exclusive(async () => {
         const step = core.call({ cmd: "net_result", ctx, netId: op.id, result }) as StepJson;
         await commit(step.commit, ctx);
-        if (opts.calls === true && step.commit === null) emitQueries(ctx.profileId);
+        if (opts.calls === true && step.commit === null) { emitQueries(ctx.profileId); scheduleCallTick(ctx); }
       });
       return progressed;
     } finally {
@@ -554,8 +554,9 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     if (opts.calls !== true || !autoDrain || disposed || !openProfiles.has(ctx.profileId)) return;
     stopCallTimer(ctx.profileId);
     const view = query({ kind: "GetCallView", ctx }) as CallView | null;
-    if (view?.ringDeadlineMs === undefined || view.ringDeadlineMs === null) return;
-    const delay = Math.max(1, Math.min(45_000, view.ringDeadlineMs - (opts.callNowMs?.() ?? Date.now())));
+    // Core says when it next needs a tick: the ring, connecting or restart deadline, or a deposit retry (ADR-0228).
+    if (view?.wakeAtMs === undefined || view.wakeAtMs === null) return;
+    const delay = Math.max(1, Math.min(45_000, view.wakeAtMs - (opts.callNowMs?.() ?? Date.now())));
     const timer = setTimeout(() => {
       callTimers.delete(ctx.profileId);
       void callStep(ctx, { cmd: "call_tick" }).catch(() => undefined);

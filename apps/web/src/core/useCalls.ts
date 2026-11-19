@@ -18,8 +18,9 @@ function directConfig(home: OwnMedia): CallIceConfig {
 
 async function relayConfig(home: OwnMedia, provider: CallMediaProvider | undefined, strict: boolean): Promise<CallIceConfig | undefined> {
   if (home === undefined || provider === undefined) return undefined;
-  const grant = await provider.issueTurn();
-  if (!grant) return undefined;
+  const result = await provider.issueTurn();
+  if (result.kind !== "issued") return undefined;
+  const grant = result.lease;
   return {
     iceTransportPolicy: strict ? "relay" : "all",
     iceServers: [...(strict ? [] : directConfig(home).iceServers ?? []), {
@@ -47,6 +48,7 @@ interface LiveCall {
   keysReady: boolean;
   iceSequence: number;
   restarting: boolean;
+  restartSeen: number;
   readonly strict: boolean;
   usingTurn: boolean;
   triedTurn: boolean;
@@ -157,6 +159,14 @@ export function useCalls(services: ConversationServices, driver?: CallDriver, pr
         })().catch((error: unknown) => { noteFailure(call, error); });
       }
       if (!call.keysReady) return;
+      // Core owns restart progress: when it gives up on an exchange and allows another, it raises restartAttempt and the caller's host
+      // starts a new restart (new description, new seq). Anything the old exchange left behind is abandoned (ADR-0228 s2).
+      const retry = next.outgoing && next.restartAttempt > call.restartSeen;
+      call.restartSeen = next.restartAttempt;
+      if (retry) {
+        call.restarting = false;
+        recover.current(true);
+      }
       const ice = driver.description(ctx, id, true);
       if (!ice || ice.seq <= call.iceSequence || call.outgoing !== call.restarting) return;
       call.iceSequence = ice.seq;
@@ -342,7 +352,7 @@ export function useCalls(services: ConversationServices, driver?: CallDriver, pr
       const config = strict ? await relayConfig(ownMedia.current, provider, true) : directConfig(ownMedia.current);
       if (!canProceed() || (incoming && current.current?.state !== "incoming")) return;
       if (!config) throw new CallPreparationError("privateUnavailable");
-      call = { transport, outgoing: incoming === null, video: kind === "video", id: incoming?.callSessionId ?? null, keys: false, keysReady: false, initialAnswer: false, iceSequence: -1, restarting: false, strict, usingTurn: strict, triedTurn: strict };
+      call = { transport, outgoing: incoming === null, video: kind === "video", id: incoming?.callSessionId ?? null, keys: false, keysReady: false, initialAnswer: false, iceSequence: -1, restarting: false, restartSeen: 0, strict, usingTurn: strict, triedTurn: strict };
       selected.current = call;
       if (incoming) {
         const offer = driver.description(ctx, incoming.callSessionId);

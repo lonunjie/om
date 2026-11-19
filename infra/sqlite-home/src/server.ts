@@ -147,7 +147,7 @@ async function openHome(options: ApplicationOptions): Promise<{
     INTRO: runtime.namespace("intro", IntroGate, ["issueTickets"]),
     ...(options.blobs !== false ? { BLOBS: runtime.namespace("blob", BlobSpool, ["put"]) } : {}),
     ...(options.recovery !== false ? { RECOVERY: runtime.namespace("recovery", RecoveryStore, ["scopeId", "putRecord", "registerInbox", "getRecord", "fanout", "postVeto"]) } : {}),
-    ...(options.usage !== false ? { USAGE: runtime.namespace("usage", UsageMeter, ["note", "charge"]) } : {}),
+    ...(options.usage !== false ? { USAGE: runtime.namespace("usage", UsageMeter, ["note", "charge", "leaseNote"]) } : {}),
   });
 
   try { runtime.start(); } catch (error) { await runtime.close(); throw error; }

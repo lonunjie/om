@@ -13,7 +13,7 @@
 //     closes its routes, but is never offered again, so Core does not add a route there back.
 // With one Home and nothing draining it is exactly that Home.
 import type { Inbound, MailboxKind, NetCall, NetResult, PerformExtra, RouteOffer } from "@om/core-wasm";
-import type { HttpProvider, Reachability } from "./provider";
+import type { HttpProvider, Reachability, TurnResult } from "./provider";
 
 export function createHomesProvider(offered: readonly HttpProvider[], draining: readonly HttpProvider[] = []): HttpProvider {
   const first = offered[0];
@@ -44,12 +44,17 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
       const advertised = await Promise.all(offered.map((home) => home.mediaCapabilities()));
       return advertised.find((media) => media !== undefined);
     },
+    // Each Home runs its own attempt (own request id, own retries). Only after a Home's attempt ends do we move to the next one, with a new
+    // request id; an `unknown` first Home may hold a reservation that expires under its own hard budget (ADR-0228 s4).
     async issueTurn() {
+      let outcome: TurnResult = { kind: "refused" };
+      const rank = { refused: 0, expired: 1, unknown: 2, issued: 3 } as const;
       for (const home of offered) {
-        const lease = await home.issueTurn();
-        if (lease) return lease;
+        const result = await home.issueTurn();
+        if (result.kind === "issued") return result;
+        if (rank[result.kind] > rank[outcome.kind]) outcome = result;
       }
-      return undefined;
+      return outcome;
     },
     // The most conservative state over every Home held (unknown > hard > soft > healthy): one question, one safe answer.
     async usageState(mailbox) {

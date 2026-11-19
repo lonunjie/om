@@ -58,9 +58,18 @@ export interface HttpProviderOptions {
 
 export type Reachability = "unknown" | "reachable" | "unreachable";
 
+/**
+ * The typed result of one lease attempt (ADR-0228 s4). `unknown` (timeout, transport failure, an unreadable reply) is never
+ * collapsed into `refused` (quota, hard meter, disabled); `expired` means the Home says this attempt's lease is gone.
+ */
+export type TurnResult =
+  | { readonly kind: "issued"; readonly lease: TurnLease }
+  | { readonly kind: "refused" | "expired" | "unknown" };
+
 export interface CallMediaProvider {
   mediaCapabilities(): Promise<MediaCapabilities | undefined>;
-  issueTurn(): Promise<TurnLease | undefined>;
+  /** One lease attempt: one request id, reused by every retry of the attempt at the same Home. */
+  issueTurn(): Promise<TurnResult>;
 }
 
 export interface HttpProvider extends Provider, CallMediaProvider {
@@ -797,7 +806,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     revokeDeposit,
     usageState,
     mediaCapabilities: async () => opts.admission ? (await ownMedia()).mediaCapabilities() : undefined,
-    issueTurn: async () => mediaClient === undefined ? undefined : (await mediaClient).issueTurn(),
+    issueTurn: async () => mediaClient === undefined ? { kind: "refused" } : (await mediaClient).issueTurn(),
     async capabilities() {
       const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
       if (r.kind !== "ok") return undefined;

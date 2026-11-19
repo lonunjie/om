@@ -1886,14 +1886,18 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 call: e.call.clone(),
             })
             .collect();
+        // One signal in flight per leg (ADR-0228 s2): only the oldest deposit of a (call, device) is released.
+        let mut busy = std::collections::HashSet::new();
         ops.extend(
             state
                 .calls
                 .deposits
                 .iter()
                 .filter(|e| {
-                    state.calls.last_clock_ms.is_none_or(|last| now >= last)
+                    busy.insert((e.call_id, e.device))
+                        && state.calls.last_clock_ms.is_none_or(|last| now >= last)
                         && e.deadline_ms > now
+                        && e.not_before_ms <= now
                         && crate::flows::eligible_call_device(state, &e.conversation, e.device)
                 })
                 .map(|e| NetOp {
@@ -2434,7 +2438,12 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     }
                     Query::PlanAttachment { size, .. } => Ok(to(&self.plan_attachment(*size))),
                     Query::GetCallView { .. } => {
-                        Ok(to(&st.calls.current.as_ref().map(|c| &c.view)))
+                        let now = self.clock.now_ms();
+                        Ok(to(&st
+                            .calls
+                            .current
+                            .as_ref()
+                            .map(|c| c.view_at(&st.calls.deposits, now))))
                     }
                     Query::GetCallNotices { .. } => Ok(to(&st.app.call_notices)),
                     Query::GetDirectOffers { .. } => Ok(to(&self.direct_offer_views(ctx, st))),

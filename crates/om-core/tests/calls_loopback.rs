@@ -716,3 +716,295 @@ fn peer_call_sequence_rejects_older_messages_and_reserved_kinds() {
     settle(&mut p);
     assert_eq!(view(&p.bob, &p.b).unwrap().reason, Some(CallReason::Hangup));
 }
+
+fn connect(p: &mut Pair) -> String {
+    p.bob.core.enable_calls();
+    let call = start(p, true, "start");
+    settle(p);
+    p.bob.dispatch(
+        &p.b,
+        "answer",
+        IntentBody::AcceptCall {
+            call_session_id: call.call_session_id.clone(),
+            sdp: b"answer".to_vec(),
+            media_flags: 1,
+        },
+    );
+    settle(p);
+    for (rt, ctx) in [(&mut p.alice, &p.a), (&mut p.bob, &p.b)] {
+        rt.core
+            .take_call_keys(ctx, &call.call_session_id)
+            .unwrap()
+            .unwrap();
+        let step = rt
+            .core
+            .call_media_state(ctx, &call.call_session_id, MediaState::Active)
+            .unwrap();
+        assert!(rt.settle(&step));
+        assert_eq!(view(rt, ctx).unwrap().state, CallState::Active);
+    }
+    call.call_session_id
+}
+
+/// Perform the one listed deposit for real and report its result to Core.
+fn perform_one(rt: &mut Runtime, ctx: &ProfileExecutionContext) {
+    let ops = deposits(rt, ctx);
+    assert_eq!(ops.len(), 1, "exactly one signal in flight on the leg");
+    let result = rt.net.perform(&ops[0].call);
+    let step = rt.core.net_result(ctx, ops[0].id, result).unwrap();
+    assert!(rt.settle(&step));
+}
+
+#[test]
+fn adr_0228_one_signal_in_flight_per_leg_and_media_updates_coalesce() {
+    let mut p = active_pair();
+    let id = connect(&mut p);
+    p.alice.dispatch(
+        &p.a,
+        "ice",
+        IntentBody::UpdateCallIce {
+            call_session_id: id.clone(),
+            sdp: b"restart".to_vec(),
+        },
+    );
+    for (n, flags) in [(0, 0u8), (1, 1), (2, 3)] {
+        p.alice.dispatch(
+            &p.a,
+            &format!("media{n}"),
+            IntentBody::SetCallMedia {
+                call_session_id: id.clone(),
+                media_flags: flags,
+            },
+        );
+    }
+    // Only the ice_update is released; the media updates wait behind it.
+    assert_eq!(deposits(&p.alice, &p.a).len(), 1);
+    perform_one(&mut p.alice, &p.a);
+    // The three media updates coalesced into one, carrying the latest value.
+    perform_one(&mut p.alice, &p.a);
+    assert!(deposits(&p.alice, &p.a).is_empty());
+    p.bob.poll(&p.b);
+    let bob = view(&p.bob, &p.b).unwrap();
+    assert_eq!(bob.peer_media_flags, 3);
+    assert_eq!(bob.state, CallState::Active);
+    assert_eq!(
+        p.bob
+            .core
+            .call_description(&p.b, &id, true)
+            .unwrap()
+            .unwrap()
+            .sdp,
+        b"restart"
+    );
+}
+
+#[test]
+fn adr_0228_an_unknown_result_keeps_the_leg_busy_and_retries_the_same_bytes() {
+    let mut p = active_pair();
+    let id = connect(&mut p);
+    p.alice.dispatch(
+        &p.a,
+        "ice",
+        IntentBody::UpdateCallIce {
+            call_session_id: id.clone(),
+            sdp: b"restart".to_vec(),
+        },
+    );
+    p.alice.dispatch(
+        &p.a,
+        "media",
+        IntentBody::SetCallMedia {
+            call_session_id: id.clone(),
+            media_flags: 3,
+        },
+    );
+    let first = deposits(&p.alice, &p.a).remove(0);
+    let step = p
+        .alice
+        .core
+        .net_result(
+            &p.a,
+            first.id,
+            om_core::host::NetResult::Err {
+                error: om_core::host::NetError::Timeout,
+            },
+        )
+        .unwrap();
+    assert!(p.alice.settle(&step));
+    // Backing off: nothing is listed, and the media update is not released past the unknown signal.
+    assert!(deposits(&p.alice, &p.a).is_empty());
+    p.alice.tick(2_000);
+    let again = deposits(&p.alice, &p.a);
+    assert_eq!(again.len(), 1);
+    assert_eq!(again[0].id, first.id);
+    assert_eq!(
+        again[0].call, first.call,
+        "identical bytes and operation id"
+    );
+    perform_one(&mut p.alice, &p.a);
+    perform_one(&mut p.alice, &p.a);
+}
+
+#[test]
+fn adr_0228_a_lost_answer_response_after_durable_deposit_still_connects() {
+    use om_core::runtime::Fault;
+    let mut p = active_pair();
+    p.bob.core.enable_calls();
+    let call = start(&mut p, true, "start");
+    settle(&mut p);
+    p.bob.net.inject(Fault::TimeoutAfterEffect);
+    p.bob.dispatch(
+        &p.b,
+        "answer",
+        IntentBody::AcceptCall {
+            call_session_id: call.call_session_id.clone(),
+            sdp: b"answer".to_vec(),
+            media_flags: 1,
+        },
+    );
+    p.bob.flush_net(&p.b);
+    let b = view(&p.bob, &p.b).unwrap();
+    assert_eq!(b.state, CallState::Connecting);
+    assert!(
+        b.delivery_unsure,
+        "visible as still trying, not as a refusal"
+    );
+    assert_eq!(b.reason, None);
+    settle(&mut p);
+    assert_eq!(view(&p.alice, &p.a).unwrap().state, CallState::Connecting);
+    p.bob.tick(2_000);
+    settle(&mut p);
+    let b = view(&p.bob, &p.b).unwrap();
+    assert!(!b.delivery_unsure);
+    assert_eq!(b.state, CallState::Connecting);
+    assert_eq!(view(&p.alice, &p.a).unwrap().state, CallState::Connecting);
+}
+
+#[test]
+fn adr_0228_a_lost_answer_before_deposit_ends_both_sides_without_sticking() {
+    use om_core::runtime::Fault;
+    let mut p = active_pair();
+    p.bob.core.enable_calls();
+    let call = start(&mut p, true, "start");
+    settle(&mut p);
+    // Every attempt of the answer is lost before it reaches the Home.
+    for _ in 0..3 {
+        p.bob.net.inject(Fault::TimeoutBeforeEffect);
+    }
+    p.bob.dispatch(
+        &p.b,
+        "answer",
+        IntentBody::AcceptCall {
+            call_session_id: call.call_session_id.clone(),
+            sdp: b"answer".to_vec(),
+            media_flags: 1,
+        },
+    );
+    for _ in 0..3 {
+        p.bob.flush_net(&p.b);
+        p.bob.tick(8_000);
+    }
+    let step = p.bob.core.call_tick(&p.b).unwrap();
+    assert!(p.bob.settle(&step));
+    // Callee: bounded by the 30 s connecting watchdog (24 s elapsed above).
+    assert_eq!(view(&p.bob, &p.b).unwrap().state, CallState::Connecting);
+    p.bob.tick(6_000);
+    let step = p.bob.core.call_tick(&p.b).unwrap();
+    assert!(p.bob.settle(&step));
+    assert_eq!(view(&p.bob, &p.b).unwrap().reason, Some(CallReason::Failed));
+    // Caller: still ringing, then rings out.
+    p.alice.tick(45_000);
+    let step = p.alice.core.call_tick(&p.a).unwrap();
+    assert!(p.alice.settle(&step));
+    assert_eq!(
+        view(&p.alice, &p.a).unwrap().reason,
+        Some(CallReason::Timeout)
+    );
+}
+
+#[test]
+fn adr_0228_an_adapter_that_never_reports_media_is_ended_at_thirty_seconds() {
+    let mut p = active_pair();
+    p.bob.core.enable_calls();
+    let call = start(&mut p, true, "start");
+    settle(&mut p);
+    p.bob.dispatch(
+        &p.b,
+        "answer",
+        IntentBody::AcceptCall {
+            call_session_id: call.call_session_id.clone(),
+            sdp: b"answer".to_vec(),
+            media_flags: 1,
+        },
+    );
+    settle(&mut p);
+    for (rt, ctx) in [(&mut p.alice, &p.a), (&mut p.bob, &p.b)] {
+        rt.core
+            .take_call_keys(ctx, &call.call_session_id)
+            .unwrap()
+            .unwrap();
+        rt.tick(29_999);
+        let step = rt.core.call_tick(ctx).unwrap();
+        assert!(rt.settle(&step));
+        let v = view(rt, ctx).unwrap();
+        assert_eq!(v.state, CallState::Connecting);
+        assert!(v.wake_at_ms.is_some());
+        rt.tick(1);
+        let step = rt.core.call_tick(ctx).unwrap();
+        assert!(rt.settle(&step));
+        let v = view(rt, ctx).unwrap();
+        assert_eq!(
+            (v.state, v.reason),
+            (CallState::Failed, Some(CallReason::Failed))
+        );
+        assert!(
+            rt.core
+                .take_call_keys(ctx, &call.call_session_id)
+                .unwrap()
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn adr_0228_core_bounds_an_ice_restart_exchange_and_ends_after_two_more() {
+    let mut p = active_pair();
+    let id = connect(&mut p);
+    let interrupt = |p: &mut Pair| {
+        let step = p
+            .alice
+            .core
+            .call_media_state(&p.a, &id, MediaState::Interrupted)
+            .unwrap();
+        assert!(p.alice.settle(&step));
+    };
+    let expire = |p: &mut Pair| {
+        p.alice.tick(30_000);
+        let step = p.alice.core.call_tick(&p.a).unwrap();
+        assert!(p.alice.settle(&step));
+        view(&p.alice, &p.a).unwrap()
+    };
+    interrupt(&mut p);
+    let v = view(&p.alice, &p.a).unwrap();
+    assert_eq!((v.state, v.restart_attempt), (CallState::Reconnecting, 0));
+    assert!(v.wake_at_ms.is_some());
+    // A restart that completes closes the exchange.
+    let step = p
+        .alice
+        .core
+        .call_media_state(&p.a, &id, MediaState::Active)
+        .unwrap();
+    assert!(p.alice.settle(&step));
+    let v = expire(&mut p);
+    assert_eq!((v.state, v.restart_attempt), (CallState::Active, 0));
+    interrupt(&mut p);
+    let v = expire(&mut p);
+    assert_eq!((v.state, v.restart_attempt), (CallState::Reconnecting, 1));
+    let v = expire(&mut p);
+    assert_eq!((v.state, v.restart_attempt), (CallState::Reconnecting, 2));
+    let v = expire(&mut p);
+    assert_eq!(
+        (v.state, v.reason),
+        (CallState::Failed, Some(CallReason::Failed))
+    );
+}

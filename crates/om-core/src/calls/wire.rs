@@ -7,6 +7,7 @@ use crate::crypto::cbor::{self, V};
 use om_codec::cbor::Value;
 use zeroize::{Zeroize, Zeroizing};
 
+#[derive(Clone)]
 pub(crate) enum Body {
     Offer(CallMedia, Vec<u8>, Zeroizing<[u8; 32]>),
     Answer(Vec<u8>, u8),

@@ -1837,6 +1837,7 @@ export const callCopy = {
     ended: "Call ended",
     failed: "This call couldn’t connect directly.",
   },
+  stillTrying: (name: string) => `Connecting, still trying to reach ${name}…`,
   reason: {
     busy: "They’re on another call.",
     declined: "Call declined",

@@ -2,7 +2,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { HomeError, decodeTurnRequest, encodeTurnLease, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, decodeMintRequest, decodeQueueCreate, encodeDepositCapabilityRecord, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
 import type { NetCall } from "@om/core-wasm";
-import { createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "./index";
+import { createHomesProvider, createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider, type TurnResult } from "./index";
+import { createMediaClient } from "./media";
 
 const cfg = (u = "https://home.example"): { baseUrl: string } => {
   const c = parseProviderUrl(u);
@@ -511,7 +512,7 @@ describe("own Home media leases", () => {
     const fetch = vi.fn(() => Promise.reject(new Error("unexpected request")));
     const p = createHttpProvider({ config: cfg(), secrets: createMemorySecretStore(), fetch });
     expect(await p.mediaCapabilities()).toBeUndefined();
-    expect(await p.issueTurn()).toBeUndefined();
+    expect(await p.issueTurn()).toEqual({ kind: "refused" });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -536,12 +537,92 @@ describe("own Home media leases", () => {
         return new Response(encodeTurnLease({ username: id, credential: "fixture", urls: ["turn:turn.example"], expires_at: now }) as BodyInit);
       },
     });
-    expect(await p.issueTurn()).toBeUndefined();
+    expect(await p.issueTurn()).toEqual({ kind: "refused" });
     expect(await p.mediaCapabilities()).toEqual({ stun_urls: ["stun:stun.example"] });
-    expect(await p.issueTurn()).toBeUndefined();
+    expect(await p.issueTurn()).toEqual({ kind: "expired" });
     now += 60;
-    expect(await p.issueTurn()).toMatchObject({ expires_at: now });
+    expect(await p.issueTurn()).toMatchObject({ kind: "issued", lease: { expires_at: now } });
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
+  });
+});
+
+// ADR-0228 s4: one request id per attempt, typed results, and the unknown-outcome policy across Homes.
+describe("TURN lease attempts", () => {
+  const owner = rand(32);
+  const now = () => Math.floor(Date.now() / 1000);
+  const typed = (name: ConstructorParameters<typeof HomeError>[0], status: number): Response =>
+    new Response(encodeHomeError(new HomeError(name)) as BodyInit, { status, headers: { "content-type": "application/cbor" } });
+  const lease = (id: string): Response => new Response(encodeTurnLease({ username: id, credential: "fixture", urls: ["turn:turn.example"], expires_at: now() + 60 }) as BodyInit);
+  const client = (answers: ((id: string) => Response | "lost")[], waits: number[] = []) => {
+    const ids: string[] = [];
+    const media = createMediaClient("https://home.example", {
+      timeoutMs: 1000, admission: owner,
+      fetch: async (input, init) => {
+        const r = new Request(input, init);
+        if (r.method === "GET") return Response.json({ features: ["om.media.turn.v1"], media: { stun_urls: ["stun:stun.example"] } });
+        const id = toHex(decodeTurnRequest(new Uint8Array(await r.arrayBuffer())));
+        ids.push(id);
+        const next = answers[ids.length - 1] ?? answers[answers.length - 1];
+        if (next === undefined) throw new Error("no scripted answer");
+        const answer = next(id);
+        if (answer === "lost") throw new TypeError("connection lost");
+        return answer;
+      },
+    }, (ms) => { waits.push(ms); return Promise.resolve(); });
+    return { media, ids, waits };
+  };
+
+  it("retries a lost first response with the same request id and gets the same lease", async () => {
+    const { media, ids, waits } = client([() => "lost", lease]);
+    await media.mediaCapabilities();
+    const result = await media.issueTurn();
+    expect(result.kind).toBe("issued");
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(ids[0]);
+    expect(waits).toEqual([1000]);
+  });
+
+  it("retries an unknown result at 1, 2 and 4 seconds with one id, then reports unknown and never refused", async () => {
+    const { media, ids, waits } = client([() => "lost"]);
+    await media.mediaCapabilities();
+    expect(await media.issueTurn()).toEqual({ kind: "unknown" });
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(1);
+    expect(waits).toEqual([1000, 2000, 4000]);
+    // A gateway page and an unreadable reply are unknown too.
+    for (const answer of [() => new Response("<html>", { status: 502 }), () => new Response(new Uint8Array([1, 2, 3]) as BodyInit), () => typed("retryable", 503)]) {
+      expect((await (async () => { const c = client([answer]); await c.media.mediaCapabilities(); return c.media.issueTurn(); })()).kind).toBe("unknown");
+    }
+  });
+
+  it("types quota and expiry, does not retry them, and draws a new id for a new attempt", async () => {
+    const quota = client([() => typed("quota", 429)]);
+    await quota.media.mediaCapabilities();
+    expect(await quota.media.issueTurn()).toEqual({ kind: "refused" });
+    expect(quota.waits).toEqual([]);
+    expect(quota.ids).toHaveLength(1);
+    expect(await quota.media.issueTurn()).toEqual({ kind: "refused" });
+    expect(quota.ids[1]).not.toBe(quota.ids[0]);
+    const expired = client([() => typed("expired", 410)]);
+    await expired.media.mediaCapabilities();
+    expect(await expired.media.issueTurn()).toEqual({ kind: "expired" });
+    expect(expired.ids).toHaveLength(1);
+  });
+
+  it("moves to the next Home only after an attempt ends, with that Home's own attempt", async () => {
+    const order: string[] = [];
+    const home = (name: string, result: TurnResult): HttpProvider => ({
+      baseUrl: `https://${name}.example`, issueTurn: () => { order.push(name); return Promise.resolve(result); },
+    }) as unknown as HttpProvider;
+    const grant: TurnResult = { kind: "issued", lease: { urls: ["turn:turn.example"], username: "u", credential: "c", expires_at: now() + 60 } };
+    expect(await createHomesProvider([home("a", { kind: "unknown" }), home("b", grant)]).issueTurn()).toEqual(grant);
+    expect(order).toEqual(["a", "b"]);
+    order.length = 0;
+    expect((await createHomesProvider([home("a", { kind: "refused" }), home("b", { kind: "unknown" })]).issueTurn()).kind).toBe("unknown");
+    expect((await createHomesProvider([home("a", { kind: "refused" }), home("b", { kind: "refused" })]).issueTurn()).kind).toBe("refused");
+    order.length = 0;
+    await createHomesProvider([home("a", grant), home("b", grant)]).issueTurn();
+    expect(order).toEqual(["a"]);
   });
 });

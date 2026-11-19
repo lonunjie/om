@@ -3,9 +3,10 @@
 
 use super::*;
 use crate::calls::{
-    Body, Call, CallDescription, CallNotice, CallReason, CallRoute, CallState, ContactDevice,
-    DEPOSIT_LIMIT, Deposit, DepositKind, DescriptionKind, MediaState, NOTICE_LIMIT, REPLAY_MS,
-    RING_MS, SEEN_LIMIT, SEEN_PER_ACCOUNT, SPAM_MS, SeenOffer, Signal, valid_sdp,
+    Body, CONNECT_MS, Call, CallDescription, CallNotice, CallReason, CallRoute, CallState,
+    ContactDevice, DEPOSIT_LIMIT, Deposit, DepositKind, DescriptionKind, Held, MediaState,
+    NOTICE_LIMIT, REPLAY_MS, RESTART_MS, RESTARTS_MAX, RING_MS, SEEN_LIMIT, SEEN_PER_ACCOUNT,
+    SPAM_MS, SeenOffer, Signal, retry_delay_ms, valid_sdp,
 };
 use zeroize::Zeroizing;
 
@@ -114,7 +115,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         deadline_ms: u64,
         kind: DepositKind,
     ) -> bool {
-        if self.st.calls.deposits.len() >= DEPOSIT_LIMIT || deadline_ms / 1000 <= self.now_s() {
+        if self.st.calls.deposits.len() + self.st.calls.held.len() >= DEPOSIT_LIMIT
+            || deadline_ms / 1000 <= self.now_s()
+        {
             return false;
         }
         let target = hex(&device);
@@ -159,6 +162,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 deadline_ms: deadline_s * 1000,
                 kind,
                 call: deposit_call(&route, wrapper),
+                attempts: 0,
+                not_before_ms: 0,
             });
             true
         })
@@ -192,7 +197,97 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
     }
 
+    /// A leg is one (call, recipient device). It is busy while a signal is deposited but undetermined,
+    /// or while a later one waits for it (ADR-0228 s2).
+    fn leg_busy(&self, id: &[u8; 16], device: [u8; 16]) -> bool {
+        self.deposit_busy(id, device)
+            || self
+                .st
+                .calls
+                .held
+                .iter()
+                .any(|h| h.call_id == *id && h.device == device)
+    }
+
+    fn deposit_busy(&self, id: &[u8; 16], device: [u8; 16]) -> bool {
+        self.st
+            .calls
+            .deposits
+            .iter()
+            .any(|d| d.call_id == *id && d.device == device)
+    }
+
+    /// Send a signal. Answers and updates leave a leg one at a time; a terminal signal never waits.
     fn send_call(
+        &mut self,
+        call: &mut Call,
+        body: Body,
+        devices: &[[u8; 16]],
+        kind: DepositKind,
+    ) -> bool {
+        if !matches!(kind, DepositKind::Answer | DepositKind::Update) {
+            return self.seal_call(call, body, devices, kind);
+        }
+        let (busy, free): (Vec<_>, Vec<_>) = devices
+            .iter()
+            .copied()
+            .partition(|device| self.leg_busy(&call.id, *device));
+        let mut sent = false;
+        for device in busy {
+            sent |= self.hold_call(call.id, device, kind, &body);
+        }
+        if !free.is_empty() {
+            sent |= self.seal_call(call, body, &free, kind);
+        }
+        sent
+    }
+
+    /// Hold a signal behind the one in flight. A `media_update` replaces an older held one for the same
+    /// leg (latest value wins); an `ice_update` is never coalesced away.
+    fn hold_call(
+        &mut self,
+        id: [u8; 16],
+        device: [u8; 16],
+        kind: DepositKind,
+        body: &Body,
+    ) -> bool {
+        let held = &mut self.st.calls.held;
+        if matches!(body, Body::Media(_))
+            && let Some(old) = held
+                .iter_mut()
+                .find(|h| h.call_id == id && h.device == device && matches!(h.body, Body::Media(_)))
+        {
+            old.body = body.clone();
+            return true;
+        }
+        if self.st.calls.deposits.len() + held.len() >= DEPOSIT_LIMIT {
+            return false;
+        }
+        held.push(Held {
+            call_id: id,
+            device,
+            kind,
+            body: body.clone(),
+        });
+        true
+    }
+
+    /// Release held signals whose leg has a determined outcome, sealing each with the next `seq`.
+    fn release_held(&mut self, call: &mut Call) {
+        let held = std::mem::take(&mut self.st.calls.held);
+        let mut rest = Vec::with_capacity(held.len());
+        for h in held {
+            if h.call_id != call.id || self.deposit_busy(&call.id, h.device) {
+                rest.push(h);
+                continue;
+            }
+            // A signal that cannot be sealed any more (route or key expired) is superseded.
+            let _ = self.seal_call(call, h.body, &[h.device], h.kind);
+        }
+        self.st.calls.held = rest;
+    }
+
+    fn seal_call(
         &mut self,
         call: &mut Call,
         body: Body,
@@ -274,6 +369,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
                 call.view.local_media_flags = flags;
                 call.connect(&me, caller);
+                call.connect_deadline_ms = Some(self.now_ms.saturating_add(CONNECT_MS));
                 OutcomeClass::Committed
             } else {
                 call.finish(CallReason::Failed);
@@ -316,7 +412,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     &mut call,
                     Body::Ice(sdp.to_vec()),
                     &[peer],
-                    DepositKind::Other,
+                    DepositKind::Update,
                 );
                 if sent {
                     OutcomeClass::Committed
@@ -325,7 +421,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
             (LocalUpdate::Media(flags), Some(peer)) if *flags <= 3 => {
-                if self.send_call(&mut call, Body::Media(*flags), &[peer], DepositKind::Other) {
+                if self.send_call(&mut call, Body::Media(*flags), &[peer], DepositKind::Update) {
                     call.view.local_media_flags = *flags;
                     OutcomeClass::Committed
                 } else {
@@ -340,6 +436,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     fn terminate_call(&mut self, call: &mut Call, reason: CallReason, tell_peer: bool) {
         self.st.calls.deposits.retain(|d| d.call_id != call.id);
+        self.st.calls.held.retain(|h| h.call_id != call.id);
         if tell_peer {
             let devices: Vec<_> = match call.selected {
                 Some(device) => vec![device],
@@ -525,6 +622,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     .expect("call has a local device")
                     .device_id;
                 call.connect(&me, sender);
+                call.connect_deadline_ms = Some(self.now_ms.saturating_add(CONNECT_MS));
                 call.view.peer_media_flags = flags;
                 call.description = Some(CallDescription {
                     kind: DescriptionKind::Answer,
@@ -633,6 +731,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .is_some_and(|last| last > self.now_ms);
         if clock_rolled_back {
             self.st.calls.deposits.clear();
+            self.st.calls.held.clear();
         }
         self.st
             .app
@@ -665,6 +764,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     self.call_notice(&call, CallReason::Timeout, false);
                 }
                 self.terminate_call(&mut call, CallReason::Timeout, !clock_rolled_back);
+            } else if call.view.state == CallState::Connecting
+                && call
+                    .connect_deadline_ms
+                    .is_some_and(|d| clock_rolled_back || d <= self.now_ms)
+            {
+                // The host took the keys, or never got that far, and reported no media (ADR-0228 s3).
+                self.terminate_call(&mut call, CallReason::Failed, !clock_rolled_back);
+            } else if call.restart_deadline_ms.is_some_and(|d| d <= self.now_ms) {
+                if call.view.restart_attempt >= RESTARTS_MAX {
+                    self.terminate_call(&mut call, CallReason::Failed, true);
+                } else {
+                    // The host starts the new restart (new description, new seq) when this value rises.
+                    call.view.restart_attempt += 1;
+                    call.restart_deadline_ms = Some(self.now_ms.saturating_add(RESTART_MS));
+                }
             }
             self.st.calls.current = Some(call);
         }
@@ -672,6 +786,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .calls
             .deposits
             .retain(|d| d.deadline_ms > self.now_ms);
+        // An expired signal leaves its leg free (superseded), so the next held one is released.
+        let live = self
+            .st
+            .calls
+            .current
+            .as_ref()
+            .filter(|c| c.is_live())
+            .map(|c| c.id);
+        self.st.calls.held.retain(|h| Some(h.call_id) == live);
+        if let Some(mut call) = self.st.calls.current.take_if(|c| c.is_live()) {
+            self.release_held(&mut call);
+            self.st.calls.current = Some(call);
+        }
     }
 
     pub(crate) fn apply_media_state(&mut self, id: &str, state: MediaState) {
@@ -687,9 +814,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     ) =>
             {
                 call.view.state = CallState::Active;
+                call.connect_deadline_ms = None;
+                call.restart_deadline_ms = None;
+                call.view.restart_attempt = 0;
             }
             MediaState::Interrupted if call.view.state == CallState::Active => {
+                // An ICE restart exchange opens; Core bounds it (ADR-0228 s2).
                 call.view.state = CallState::Reconnecting;
+                call.view.restart_attempt = 0;
+                call.restart_deadline_ms = Some(self.now_ms.saturating_add(RESTART_MS));
             }
             MediaState::Failed if call.selected.is_some() => {
                 self.terminate_call(&mut call, CallReason::Failed, true)
@@ -711,14 +844,38 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
     }
 
+    /// A deposit result. An unknown outcome (`Timeout`) keeps the deposit, its bytes and its operation ID
+    /// and retries it until its own lifetime ends; the leg stays busy meanwhile (ADR-0228 s2, s3). Any
+    /// other result determines the outcome and frees the leg.
     pub(super) fn call_net_result(&mut self, id: u64, result: &NetResult) {
         let Some(pos) = self.st.calls.deposits.iter().position(|d| d.id == id) else {
             return;
         };
-        let sent = self.st.calls.deposits.remove(pos);
-        if !matches!(result, NetResult::Err { error } if *error != NetError::Timeout) {
+        if matches!(
+            result,
+            NetResult::Err {
+                error: NetError::Timeout
+            }
+        ) {
+            let now = self.now_ms;
+            let deposit = &mut self.st.calls.deposits[pos];
+            deposit.attempts = deposit.attempts.saturating_add(1);
+            deposit.not_before_ms = now.saturating_add(retry_delay_ms(deposit.attempts));
+            let (call_id, kind) = (deposit.call_id, deposit.kind);
+            if kind == DepositKind::Answer
+                && let Some(call) = self
+                    .st
+                    .calls
+                    .current
+                    .as_mut()
+                    .filter(|c| c.is_live() && c.id == call_id)
+            {
+                call.view.delivery_unsure = true;
+            }
             return;
         }
+        let sent = self.st.calls.deposits.remove(pos);
+        let failed = matches!(result, NetResult::Err { .. });
         let Some(mut call) = self
             .st
             .calls
@@ -727,15 +884,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return;
         };
-        match sent.kind {
-            DepositKind::Offer if call.selected.is_none() => {
-                if let Some(target) = call.targets.iter_mut().find(|t| t.id == sent.device) {
-                    target.rejected = Some(CallReason::Failed);
-                }
-                self.finish_if_no_targets(&mut call);
+        if !failed {
+            if sent.kind == DepositKind::Answer {
+                call.view.delivery_unsure = false;
             }
-            DepositKind::Answer => self.terminate_call(&mut call, CallReason::Failed, false),
-            _ => {}
+        } else {
+            match sent.kind {
+                DepositKind::Offer if call.selected.is_none() => {
+                    if let Some(target) = call.targets.iter_mut().find(|t| t.id == sent.device) {
+                        target.rejected = Some(CallReason::Failed);
+                    }
+                    self.finish_if_no_targets(&mut call);
+                }
+                DepositKind::Answer => self.terminate_call(&mut call, CallReason::Failed, false),
+                _ => {}
+            }
+        }
+        if call.is_live() {
+            self.release_held(&mut call);
         }
         self.st.calls.current = Some(call);
     }

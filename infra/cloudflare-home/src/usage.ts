@@ -13,8 +13,8 @@
 import { DurableObject } from "cloudflare:workers";
 import type { UsageMetric, UsageStateName } from "@om/home-wire";
 import type { Env } from "./env";
-import { DAY, USAGE_CONFIG, profileOf } from "./limits";
-import { all, run } from "./sql";
+import { DAY, LIMITS, USAGE_CONFIG, profileOf } from "./limits";
+import { all, one, run } from "./sql";
 import { nowSeconds } from "./util";
 
 /** What one day's counter holds, as the Worker sees it. */
@@ -50,7 +50,16 @@ export function usageDocument(env: Env, s: UsageSnapshot | undefined): Record<st
   return { state: classify(s, c), billable_overage: "never", budget_remaining: 0, window_starts_at: s.day * DAY, resets_at: (s.day + 1) * DAY, metrics, profile };
 }
 
-/** The one object that counts. Named "meter" by the Worker; it holds nothing but counts and learns nothing about who asked. */
+/** Recent media lease attempts the Home keeps, so an exact retry finds its reservation without the budget gate (ADR-0228 s4). */
+export const LEASE_TABLE_MAX = 64;
+export const LEASE_TABLE_SECONDS = 600;
+export type LeaseOutcome = "pending" | "issued" | "quota" | "expired";
+export interface LeaseRecord { readonly outcome: LeaseOutcome; readonly expires_at: number }
+
+/**
+ * The one object that counts. Named "meter" by the Worker; it holds counts and, for exact media-lease retries, a bounded table of random
+ * attempt identifiers with their determined outcome (never a credential, never a call or account identifier). It learns nothing about who asked.
+ */
 export class UsageMeter extends DurableObject<Env> {
   private readonly sql: SqlStorage;
 
@@ -58,6 +67,21 @@ export class UsageMeter extends DurableObject<Env> {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec("CREATE TABLE IF NOT EXISTS usage_day (day INTEGER PRIMARY KEY, worker INTEGER NOT NULL, durable INTEGER NOT NULL)");
+    this.sql.exec("CREATE TABLE IF NOT EXISTS media_lease (id TEXT PRIMARY KEY, outcome TEXT NOT NULL, expires_at INTEGER NOT NULL, at INTEGER NOT NULL)");
+  }
+
+  /** The recorded outcome of an attempt seen within the last 600 seconds plus the envelope skew, or null. Reads no budget. */
+  leaseSeen(id: string): LeaseRecord | null {
+    const row = one<{ outcome: LeaseOutcome; expires_at: number }>(this.sql, "SELECT outcome, expires_at FROM media_lease WHERE id = ? AND at + ? >= ?", id, LEASE_TABLE_SECONDS + LIMITS.skewSeconds, nowSeconds());
+    return row === undefined ? null : { outcome: row.outcome, expires_at: row.expires_at };
+  }
+
+  /** Records or updates an attempt's outcome. The table holds at most 64 entries; the oldest leaves first. */
+  leaseNote(id: string, outcome: LeaseOutcome, expiresAt: number): void {
+    const now = nowSeconds();
+    run(this.sql, "DELETE FROM media_lease WHERE at + ? < ?", LEASE_TABLE_SECONDS + LIMITS.skewSeconds, now);
+    run(this.sql, "INSERT INTO media_lease (id, outcome, expires_at, at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET outcome = excluded.outcome, expires_at = excluded.expires_at", id, outcome, expiresAt, now);
+    run(this.sql, "DELETE FROM media_lease WHERE id IN (SELECT id FROM media_lease ORDER BY at DESC, rowid DESC LIMIT -1 OFFSET ?)", LEASE_TABLE_MAX);
   }
 
   private today(): number {
