@@ -1,7 +1,7 @@
 # Constitution digest and `constitution.py`: what was built and the proposed reading-duty change
 
 - **Date:** 2026-11-19
-- **Status:** built and checked; the AGENTS.md / ENGINEER_START_HERE wording change below **needs operator acceptance**. No AGENTS.md or constitution text was edited.
+- **Status:** built and checked. The wording change in section 4 was accepted by the operator on 2026-11-19 and applied to AGENTS.md (design gate, rule 1). No constitution text was edited.
 - **Why:** reading the constitution in full for almost every task costs about 20k tokens, because `python3 tools/design_gate.py needs` lists all nine constitution documents (plus about 19 ADRs) for `constitution_governance`, and [`decisions/INDEX.md`](../../decisions/INDEX.md) adds another 35 KB.
 - **Design sources read for this report:** all nine documents in `docs/constitution/`, in full. Not read: the 19 ADRs in the `constitution_governance` domain beyond the ids the constitution itself cites.
 

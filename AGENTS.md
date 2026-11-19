@@ -3,6 +3,7 @@
 > **STOP. Read the design before you plan, write or change anything here (operator rule, 2026-11-03).** The design and the
 > constitution are complete and were audited several times; your job is to implement them, not to improve or extend them.
 > 1. Run `python3 tools/design_gate.py needs <the paths you will touch>` and read every document and ADR it lists, in full.
+>    Exception for the constitution only (operator acceptance, 2026-11-19): run it with `--brief`, read [`CONSTITUTION_DIGEST.md`](docs/constitution/CONSTITUTION_DIGEST.md) first and use `python3 tools/constitution.py find <topic>` for detail; read an original constitution document in full only when a digest rule is cited as ambiguous, when the digest and an original seem to disagree (the original wins; report the digest error), or when the task edits constitutional text. Every other domain's documents and ADRs are still read in full.
 > 2. Do not invent product, architecture, naming, UI patterns, tiers, defaults or spending. If the design is silent or looks
 >    wrong, write the question in a report and stop. Invent only when it is critical or clearly improves the system, say so
 >    plainly, and get the operator's yes first. An ADR "by delegation" never amends audited text.
@@ -57,7 +58,7 @@ invite carry the inviter's introduction service. That cost a day of rework. The 
 
 1. **Code in `crates/`, `infra/`, `packages/`, `apps/`, `spec/cddl/`, `deploy/` is design-bound.** Before you plan or change it, run
    `python3 tools/design_gate.py needs <paths>` and read the docs and ADRs it prints for those paths' domains (the map is
-   [`machine/architecture_map.json`](machine/architecture_map.json), `code_paths` over `domains`). Read them; a grep is not reading. Then also read any ADR
+   [`machine/architecture_map.json`](machine/architecture_map.json), `code_paths` over `domains`). Read them; a grep is not reading. (For the constitution, the digest-first rule in the box above applies.) Then also read any ADR
    that amends them ([`decisions/INDEX.md`](decisions/INDEX.md), newest first).
 2. **Every code commit carries two trailers**, enforced by the `commit-msg` hook (`make hooks` installs it once per clone;
    `--no-verify` is a violation of this rule):
