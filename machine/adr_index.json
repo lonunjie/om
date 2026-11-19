@@ -2496,7 +2496,7 @@
     {
       "id": "ADR-0216",
       "title": "Approving a linked device as a controller",
-      "status": "Accepted by delegation. The controller exclusion ruling amends no audited text and weakens no security floor.",
+      "status": "Accepted by delegation. The controller exclusion ruling amends no audited text and weakens no security floor. Additive pointer: ADR-0241 (ga",
       "date": "2026-11-18",
       "path": "decisions/ADR-0216-controller-approval-ceremony.md",
       "amends": [],
@@ -2827,6 +2827,46 @@
       "path": "decisions/ADR-0239-home-veto-hourly-per-class-audited-text-amendment.md",
       "amends": [],
       "index_title": "Recovery-veto hourly class quotas: audited Home API amendment (accepted, operator-delegated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0240",
+      "title": "Operation 3: predecessor-key evidence when the signed parent rotated a signer",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0240-operation-3-rotated-parent-signer-evidence.md",
+      "amends": [],
+      "index_title": "Operation 3: predecessor-key evidence when the signed parent rotated a signer (accepted by delegation 2026-11-19, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0241",
+      "title": "Certified RecoveryKit size, 253-character Homes and a non-ceremony delivery path",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0241-certified-recoverykit-size-and-delivery.md",
+      "amends": [],
+      "index_title": "Certified RecoveryKit size, 253-character Homes and a non-ceremony delivery path (accepted by delegation 2026-11-19, enablement gated; 8,192-byte private bound, size and traffic metadata review owed)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0242",
+      "title": "Non-genesis sheet pins and complete ordinary recovery-policy history",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0242-sheet-checkpoint-semantics-and-policy-walk.md",
+      "amends": [],
+      "index_title": "Non-genesis sheet pins and complete ordinary recovery-policy history (accepted by delegation 2026-11-19, enablement gated; recovery-link part waits for ADR-0243)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0243",
+      "title": "Exact recovery-request identity bound by the recovery-signed successor",
+      "status": "Proposed, needs specialist metadata judgement and operator acceptance (2026-11-19). Not accepted by delegation: it adds a new critical W0 ex",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0243-bind-recovery-request-digest-to-successor.md",
+      "amends": [],
+      "index_title": "Exact recovery-request identity bound by the recovery-signed successor (proposed, needs specialist metadata judgement and operator acceptance)",
       "amended_by": []
     }
   ]

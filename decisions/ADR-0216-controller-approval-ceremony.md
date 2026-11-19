@@ -1,6 +1,6 @@
 # ADR-0216 — Approving a linked device as a controller
 
-- **Status:** Accepted by delegation. The controller exclusion ruling amends no audited text and weakens no security floor.
+- **Status:** Accepted by delegation. The controller exclusion ruling amends no audited text and weakens no security floor. Additive pointer: ADR-0241 (gated) keeps the `kit-transfer` slot at its 4,112-byte limit, sends `null` and carries delivery debt when a certified RecoveryKit does not fit, and delivers it by the in-session kind-19 version-2 send of ADR-0237.
 - **Date:** 2026-11-18
 - **Class:** A new optional ceremony carrier is an `additive_noncritical_extension` under ADR-0165. The carrier has a private versioned namespace inside the existing ceremony envelope.
 
