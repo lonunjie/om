@@ -87,15 +87,40 @@ fn abandoning_the_new_key_changes_nothing_and_a_second_ask_replaces_the_first() 
 
 #[test]
 fn after_a_replacement_the_old_key_can_no_longer_recover_the_account() {
+    use common::recovery_world::DELAY_MS;
+    use om_core::host::{NetCall, NetResult};
+
     let mut w = world_with(true);
     let old_sheet = w.sheet.clone();
+    let (etag, old_record) = w.net.recovery_record(&w.keys.locator).unwrap();
     let (op, key) = replace(&mut w, "replace-c");
     assert!(key.is_some());
     assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
     settle(&mut w);
-    // The old sheet still finds the old record, but its request is signed by a method the account no longer commits to.
+    // A fresh profile starts with previously retained bytes. Its live reconciliation uses the actual Home.
     let mut f: Fresh = fresh(&w.net);
-    f.begin(&old_sheet);
+    f.rt.dispatch(
+        &f.ctx,
+        "old-sheet",
+        IntentBody::BeginRecovery {
+            recovery_key: old_sheet,
+            home: String::new(),
+            place: None,
+        },
+    );
+    let read = f.rt.core.net_ops(&f.ctx).unwrap().into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryGet { .. })).unwrap();
+    let seen = f.rt.core.net_result(&f.ctx, read.id, NetResult::Many {
+        items: vec![etag.into_bytes(), old_record],
+    }).unwrap();
+    assert!(f.rt.settle(&seen));
+    let owner = w.alice.core.debug_app_state(&w.a).unwrap();
+    let replacement = owner["acsChain"].as_array().unwrap().last().unwrap().as_str().unwrap();
+    let signed = om_core::crypto::unhex(replacement).unwrap();
+    let body = om_core::crypto::cbor::decode(&signed).unwrap();
+    let replacement_body = om_core::crypto::hex(body.get(1).unwrap().b().unwrap());
+    let peer_before = w.bob.core.debug_app_state(&w.b).unwrap()["relationships"].clone();
+    assert!(peer_before.as_object().unwrap().values().any(|r| r["peerAcsBody"] == replacement_body));
     assert_eq!(f.go("req", IntentBody::RequestRecovery), Some(OutcomeClass::Committed));
     w.alice.dispatch(&w.a, "off", IntentBody::OfferRecoveryApproval);
     w.alice.flush_net(&w.a);
@@ -110,7 +135,14 @@ fn after_a_replacement_the_old_key_can_no_longer_recover_the_account() {
         settle_all(&mut [(&mut w.alice, &w.a), (&mut w.bob, &w.b), (&mut f.rt, &f.ctx)]);
     }
     assert!(offer(&w).request_id.is_none(), "the controller shows no request to confirm: it is not signed by the account's recovery method");
-    assert!(f.view().is_some(), "the old key did not bring the account back");
+    f.tick(&mono(1, 0));
+    f.tick(&mono(1, DELAY_MS + 1));
+    assert!(f.view().is_some(), "the old attempt remains restricted after reconciliation");
+    let peer_after = w.bob.core.debug_app_state(&w.b).unwrap()["relationships"].clone();
+    for (id, before) in peer_before.as_object().unwrap() {
+        assert_eq!(peer_after[id]["peerAcsBody"], before["peerAcsBody"]);
+        assert!(peer_after[id]["peerRecovery"].as_array().unwrap().is_empty());
+    }
 }
 
 #[test]
@@ -137,4 +169,149 @@ fn saving_a_replacement_rechecks_for_an_incoming_recovery() {
     let after = w.alice.core.debug_app_state(&w.a).unwrap();
     assert_eq!(after["acsChain"], before);
     assert!(after["pendingRecovery"].is_null());
+}
+
+#[test]
+fn replacement_persists_its_exact_candidate_and_authorization() {
+    let mut w = world_with(true);
+    let (op, key) = replace(&mut w, "bound");
+    assert!(key.is_some());
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    let pending = &app["pendingRecovery"];
+    assert_eq!(pending["parentEpoch"], 0);
+    assert_eq!(pending["controllers"].as_array().unwrap().len(), 1);
+    assert_eq!(pending["requiredVotes"], 1);
+    let child_hash = pending["childHash"].as_str().unwrap().to_owned();
+
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    let child = app["acsChain"].as_array().unwrap().last().unwrap().as_str().unwrap();
+    let signed = om_core::crypto::unhex(child).unwrap();
+    let body = om_core::crypto::cbor::decode(&signed).unwrap();
+    let child = om_core::crypto::binding::Acs::from_body(body.get(1).unwrap().b().unwrap()).unwrap();
+    assert_eq!(om_core::crypto::hex(&child.hash()), child_hash);
+}
+
+#[test]
+fn replacement_retires_the_old_record_only_after_the_new_write_is_acknowledged() {
+    use om_core::host::{NetCall, NetResult};
+
+    let mut w = world_with(true);
+    let (op, key) = replace(&mut w, "retire");
+    let key = key.unwrap();
+    w.alice.dispatch(
+        &w.a,
+        "confirm",
+        IntentBody::ConfirmRecoveryKeyStored { key_operation_id: op },
+    );
+    let old_locator = w.keys.locator;
+    assert!(w.net.recovery_record(&old_locator).is_some());
+    let outgoing = w.alice.core.net_ops(&w.a).unwrap();
+    assert!(outgoing.iter().all(|op| !matches!(op.call, NetCall::RecoveryDelete { .. })));
+
+    let ctx = w.alice.restart().remove(0);
+    w.a = ctx;
+    w.alice.flush_net(&w.a);
+    let keys = om_core::recovery_record::RecordKeys::derive(&root_of(&key.groups), &place().scope);
+    assert!(w.net.recovery_record(&keys.locator).is_some());
+    let delete = w.alice.core.net_ops(&w.a).unwrap().into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryDelete { .. })).unwrap();
+    assert_eq!(w.net.perform(&delete.call), NetResult::Ok);
+    assert!(w.net.recovery_record(&old_locator).is_none());
+
+    // The Home applied the deletion but its response never reached the controller.
+    w.a = w.alice.restart().remove(0);
+    let retry = w.alice.core.net_ops(&w.a).unwrap().into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryDelete { .. })).unwrap();
+    assert_eq!(retry.id, delete.id);
+    assert_eq!(retry.call, delete.call);
+    settle(&mut w);
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert!(app.get("retiredRecoveryRecords").is_none());
+}
+
+#[test]
+fn the_saved_checkpoint_can_start_a_non_genesis_record_chain() {
+    use common::recovery_world::{DELAY_MS, SCOPE};
+    use om_core::recovery_record::{self as rr, Plain, RecordKeys};
+    use om_core::state::EvidenceStage;
+
+    let mut w = world_with(true);
+    let (op, _) = replace(&mut w, "first");
+    assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
+    let (op, key) = replace(&mut w, "second");
+    let key = key.unwrap();
+    assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
+
+    let keys = RecordKeys::derive(&root_of(&key.groups), &SCOPE);
+    let (_, envelope) = w.net.recovery_record(&keys.locator).unwrap();
+    let plain = rr::open_envelope(&keys, &SCOPE, &envelope).unwrap();
+    let Plain::Record(mut record) = rr::read_plaintext(&plain).unwrap() else {
+        panic!("recovery record");
+    };
+    record.evidence.tail.remove(0);
+    let plain = record.to_padded_bytes().unwrap();
+    let envelope = rr::seal_envelope(&keys, &SCOPE, [55; 12], &plain).unwrap();
+    w.net.recovery_replace(&keys.locator, envelope);
+
+    let mut f = fresh(&w.net);
+    f.begin(&key.sheet.unwrap());
+    assert_eq!(f.view().unwrap().evidence, EvidenceStage::Pinned);
+    assert_eq!(f.go("request", IntentBody::RequestRecovery), Some(OutcomeClass::Committed));
+    f.tick(&mono(2, 0));
+    f.tick(&mono(2, DELAY_MS + 1));
+    assert!(f.view().is_none());
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    let status: RecoveryStatusView = f.rt.query(Query::GetRecoveryStatus { ctx: f.ctx.clone() });
+    assert_eq!(status.record, Some(RecoveryRecordCode::NeedsNewKey));
+    assert!(status.recovering.is_none());
+}
+
+#[test]
+fn a_signature_before_the_saved_checkpoint_does_not_decide_recovery() {
+    use common::recovery_world::SCOPE;
+    use om_core::crypto::cbor::{self, V};
+    use om_core::recovery_record::{self as rr, Plain, RecordKeys};
+    use om_core::state::EvidenceStage;
+
+    let mut w = world_with(true);
+    for _ in 0..2 {
+        let op = format!("first-{}", w.net.recovery_puts().len());
+        replace(&mut w, &op);
+        assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
+    }
+    let (op, key) = replace(&mut w, "last");
+    let key = key.unwrap();
+    assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
+
+    let keys = RecordKeys::derive(&root_of(&key.groups), &SCOPE);
+    let (_, envelope) = w.net.recovery_record(&keys.locator).unwrap();
+    let plain = rr::open_envelope(&keys, &SCOPE, &envelope).unwrap();
+    let Plain::Record(mut record) = rr::read_plaintext(&plain).unwrap() else {
+        panic!("recovery record");
+    };
+    let V::M(mut signed) = cbor::decode(&record.evidence.tail[1]).unwrap() else {
+        panic!("signed state");
+    };
+    let (_, V::A(signatures)) = signed.iter_mut().find(|(key, _)| *key == 2).unwrap() else {
+        panic!("signature list");
+    };
+    let V::M(signature) = &mut signatures[0] else {
+        panic!("signature entry");
+    };
+    let (_, V::B(bytes)) = signature.iter_mut().find(|(key, _)| *key == 3).unwrap() else {
+        panic!("signature bytes");
+    };
+    bytes[0] ^= 1;
+    record.evidence.tail[1] = cbor::encode(&V::M(signed));
+    let plain = record.to_padded_bytes().unwrap();
+    let envelope = rr::seal_envelope(&keys, &SCOPE, [55; 12], &plain).unwrap();
+    w.net.recovery_replace(&keys.locator, envelope);
+
+    let mut f = fresh(&w.net);
+    f.begin(&key.sheet.unwrap());
+    assert_eq!(f.view().unwrap().evidence, EvidenceStage::Pinned);
 }

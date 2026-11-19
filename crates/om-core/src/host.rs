@@ -288,17 +288,28 @@ pub enum NetCall {
         #[serde(with = "hexs")]
         read_cap: Vec<u8>,
     },
+    /// Retire the previous record after acknowledgement of a replacement (ADR-0227 §1).
+    RecoveryDelete {
+        host: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        port: Option<u16>,
+        scope: String,
+        locator: String,
+        write_cap: crate::state::SecretHex,
+    },
     /// Owner recovery, per Home (ADR-0201 section 8.2, `POST /v1/recovery/requests`): deliver the exact signed request to
     /// the Home at `host[:port]`. The answer carries no information (a Home answers alike whether or not an inbox exists).
     RecoveryRequestPost {
         host: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         port: Option<u16>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        request_id: Option<String>,
         #[serde(with = "hexs")]
         bytes: Vec<u8>,
     },
     /// Register the recovery inbox of this account at the Home (ADR-0201 section 8.2, `PUT /v1/recovery/inbox/{inbox_id}`).
-    /// The host derives `inbox_id` from `account_id`; `cap` is the `recovery_inbox_cap` of the RecoveryKit. A Home that
+    /// The host derives `inbox_id` from `account_id` and `recovery_epoch`. The capability comes from the kit. A Home that
     /// already holds the inbox answers success.
     RecoveryInboxRegister {
         host: String,
@@ -306,6 +317,10 @@ pub enum NetCall {
         port: Option<u16>,
         #[serde(with = "hexs")]
         account_id: Vec<u8>,
+        #[serde(default)]
+        recovery_epoch: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        request_id: Option<String>,
         #[serde(with = "hexs")]
         cap: Vec<u8>,
     },
@@ -317,6 +332,8 @@ pub enum NetCall {
         port: Option<u16>,
         #[serde(with = "hexs")]
         account_id: Vec<u8>,
+        #[serde(default)]
+        recovery_epoch: u64,
         #[serde(with = "hexs")]
         cap: Vec<u8>,
     },
@@ -327,6 +344,8 @@ pub enum NetCall {
         port: Option<u16>,
         #[serde(with = "hexs")]
         account_id: Vec<u8>,
+        #[serde(default)]
+        recovery_epoch: u64,
         #[serde(with = "hexs")]
         cap: Vec<u8>,
         item_ids: Vec<String>,
@@ -336,11 +355,13 @@ pub enum NetCall {
         host: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         port: Option<u16>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cap: Option<crate::state::SecretHex>,
         #[serde(with = "hexs")]
         bytes: Vec<u8>,
     },
     /// Read the veto board of one request digest (`GET /v1/recovery/requests/{digest}/vetoes`, public). Result:
-    /// `Many` of at most 16 signed vetoes. Nothing the board returns is trusted: Core verifies every one.
+    /// `Many` of at most 24 signed vetoes. Core verifies each one.
     RecoveryVetoRead {
         host: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]

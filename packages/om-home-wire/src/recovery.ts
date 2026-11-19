@@ -21,7 +21,7 @@ export const REQUEST_ID_HEADER = "om-request-id";
 
 const ID = 16;
 const LABEL_LOCATOR = "OM-RECOVERY-RECORD-LOCATOR-v1";
-const LABEL_INBOX = "OM-RECOVERY-INBOX-ID-v1";
+const LABEL_INBOX = "OM-RECOVERY-INBOX-ID-v2";
 const LABEL_REQUEST = "OM-RECOVERY-REQUEST-HASH-v1";
 
 function open(bytes: Uint8Array): Obj {
@@ -37,8 +37,9 @@ export const dsHashValue = async (label: string, body: Uint8Array): Promise<Uint
 
 /** `opaque_locator = DS-HASH(OM-RECOVERY-RECORD-LOCATOR-v1, read_cap)` (32 bytes). */
 export const recoveryLocator = (readCap: Uint8Array): Promise<Uint8Array> => dsHashValue(LABEL_LOCATOR, readCap);
-/** `inbox_id = DS-HASH(OM-RECOVERY-INBOX-ID-v1, account_id)` (32 bytes). */
-export const recoveryInboxId = (accountId: Uint8Array): Promise<Uint8Array> => dsHashValue(LABEL_INBOX, accountId);
+/** ADR-0226 §1. The Home API still carries a 32-byte opaque inbox identifier. */
+export const recoveryInboxId = (accountId: Uint8Array, recoveryEpoch: number): Promise<Uint8Array> =>
+  dsHashValue(LABEL_INBOX, encode([accountId, recoveryEpoch]));
 /** `OM-RECOVERY-REQUEST-HASH-v1` of the RecoveryRequest body: what a RecoveryVeto names. */
 export const recoveryRequestDigest = (requestBody: Uint8Array): Promise<Uint8Array> => dsHashValue(LABEL_REQUEST, requestBody);
 /** The ETag of a stored envelope: SHA-256 of its bytes (the value `If-Match` takes, base64url, quoted on the wire). */
@@ -93,34 +94,34 @@ function signedParts(bytes: Uint8Array): Uint8Array {
   return body;
 }
 
-export interface RecoveryRequestShape { readonly accountId: Uint8Array; readonly body: Uint8Array }
+export interface RecoveryRequestShape { readonly accountId: Uint8Array; readonly recoveryEpoch: number; readonly body: Uint8Array }
 /** `signed-RecoveryRequest` outer envelope and the type, version, sizes and account_id of its body (account.cddl). Never a signature. */
 export function checkSignedRequest(bytes: Uint8Array): RecoveryRequestShape {
   const body = signedParts(bytes);
   const o = new Obj(decode(body));
   if (o.uint(0) !== 4 || o.uint(1) !== 1) throw new CborError("not a RecoveryRequest");
   const accountId = o.bytes(2, 32, 32);
-  o.uint(3);
+  const recoveryEpoch = o.uint(3);
   o.bytes(4, 16, 16);
   o.digest(5);
   o.digest(6);
   o.bytes(7, 16, 16);
   o.optExtensions();
   o.done();
-  return { accountId, body };
+  return { accountId, recoveryEpoch, body };
 }
 
-export interface RecoveryVetoShape { readonly accountId: Uint8Array; readonly requestDigest: Uint8Array; readonly body: Uint8Array }
+export interface RecoveryVetoShape { readonly accountId: Uint8Array; readonly recoveryEpoch: number; readonly requestDigest: Uint8Array; readonly body: Uint8Array }
 export function checkSignedVeto(bytes: Uint8Array): RecoveryVetoShape {
   const body = signedParts(bytes);
   const o = new Obj(decode(body));
   if (o.uint(0) !== 5 || o.uint(1) !== 1) throw new CborError("not a RecoveryVeto");
   const accountId = o.bytes(2, 32, 32);
-  o.uint(3);
+  const recoveryEpoch = o.uint(3);
   const requestDigest = o.digest(4);
   o.optExtensions();
   o.done();
-  return { accountId, requestDigest, body };
+  return { accountId, recoveryEpoch, requestDigest, body };
 }
 
 export interface RecoveryRequestFanout { readonly requestId: Uint8Array; readonly signed: Uint8Array }
@@ -195,9 +196,10 @@ export function decodeInboxAck(b: Uint8Array): InboxAckRequest {
 }
 
 export const encodeVetoList = (vetoes: readonly Uint8Array[]) => encode(map([[0, API_MAJOR], [1, [...vetoes]]]));
+export const RECOVERY_VETO_LIST_MAX = 24;
 export function decodeVetoList(b: Uint8Array): Uint8Array[] {
   const o = open(b);
-  const vetoes = o.byteList(1, 0, INBOX_DRAIN_PAGE_MAX, 1, RECOVERY_SIGNED_OBJECT_MAX_BYTES);
+  const vetoes = o.byteList(1, 0, RECOVERY_VETO_LIST_MAX, 1, RECOVERY_SIGNED_OBJECT_MAX_BYTES);
   o.done();
   return vetoes;
 }

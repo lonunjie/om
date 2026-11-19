@@ -10,6 +10,12 @@ use crate::recovery::RecoveryRoot;
 use crate::recovery_record::{self as rr, Plain, RecordKeys, RecoveryRecord};
 use crate::recovery_sheet as sheet;
 
+impl AppState {
+    pub(crate) fn verify_own_chain(&self, chain: &[Vec<u8>], creds: &[Vec<u8>]) -> Option<Acs> {
+        verify_owner_chain(chain, creds, &self.link_evidence(), self.acs_checkpoint.as_ref())
+    }
+}
+
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Ask the Home at the entered place for the record. With no scope yet the entry waits for a place string.
     pub(super) fn recovery_find_start(&mut self) {
@@ -98,15 +104,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let opened = rr::open_envelope(&keys, &scope, &envelope)
             .and_then(|plain| rr::read_plaintext(&plain).map(|p| (plain, p)));
         match opened {
-            Ok((plain, Plain::Record(r))) => match self.accept_record(&root, &r) {
-                Some(_) => {
-                    let lineage = r
-                        .verify()
-                        .map(|v| hex(&v.head.account_id))
-                        .unwrap_or_default();
-                    match self.apply_floor(&place.scope, &lineage, r.generation, &plain) {
+            Ok((plain, Plain::Record(r))) => match self.accept_record(&root, &r, j.checkpoint.as_ref()) {
+                Some(verified) => {
+                    let evidence = self.owner_evidence(&j, &r, &verified);
+                    if evidence == EvidenceStage::Conflict {
+                        if let Some(j) = self.st.app.recovery_join.as_mut() {
+                            j.record = None;
+                            j.evidence = evidence;
+                            j.stage = JoinStage::Conflict;
+                        }
+                        return;
+                    }
+                    let account = hex(&verified.head.account_id);
+                    match self.apply_floor(&place.scope, &keys.locator, &account, r.generation, &plain) {
                         Ok(()) => {
-                            let evidence = self.owner_evidence(&j, &r);
                             if let Some(j) = self.st.app.recovery_join.as_mut() {
                                 j.record = Some(hex(&plain).into());
                                 j.evidence = evidence;
@@ -146,55 +157,59 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
     }
 
-    /// The durable record floor (ADR-0141, ADR-0202 section 1): per RecoveryStore scope the lineage (the account the
-    /// record chain belongs to), the highest generation accepted and the digest of its exact authenticated plaintext. An
-    /// older generation is `OutOfDate`; other bytes at the same generation, or another lineage under the same scope, is a
-    /// `Conflict`. It never lowers, and it is kept apart from the account pin and from the join.
+    /// The durable record floor is scoped to the store and opaque locator (ADR-0225 §3).
+    pub(super) fn floor_key(scope: &str, locator: &[u8; 32]) -> String {
+        format!("{scope}:{}", hex(locator))
+    }
+
     pub(super) fn apply_floor(
         &mut self,
         scope: &str,
-        lineage: &str,
+        locator: &[u8; 32],
+        account: &str,
         generation: u64,
         plaintext: &[u8],
     ) -> Result<(), JoinStage> {
-        let digest = hex(&rr::plaintext_digest(plaintext));
-        let new = RecordFloorRec {
-            lineage: lineage.to_string(),
-            generation,
-            digest: digest.clone(),
-        };
-        let Some(f) = self.st.app.recovery_floors.get(scope).cloned() else {
-            self.st.app.recovery_floors.insert(scope.to_string(), new);
-            return Ok(());
-        };
-        if f.lineage != lineage {
+        let key = Self::floor_key(scope, locator);
+        let floors = &mut self.st.app.recovery_floors;
+        let existing = floors.get(&key);
+        if existing.is_some_and(|f| f.lineage != account) {
             return Err(JoinStage::Conflict);
         }
-        let mark = unhex(&f.digest)
-            .ok()
-            .and_then(|d| <[u8; 32]>::try_from(d).ok())
-            .map(|d| (f.generation, d));
-        match rr::freshness(mark, generation, plaintext) {
-            rr::Freshness::Newer => {
-                self.st.app.recovery_floors.insert(scope.to_string(), new);
-                Ok(())
-            }
-            rr::Freshness::Same => Ok(()),
-            rr::Freshness::Stale => Err(JoinStage::OutOfDate),
-            rr::Freshness::Equivocation => Err(JoinStage::Conflict),
+        let legacy = floors.get(scope).filter(|f| f.lineage == account);
+        if existing.is_none() && legacy.is_none() && floors.len() >= 16 {
+            return Err(JoinStage::Conflict);
         }
+        if let (Some(current), Some(old)) = (existing, legacy)
+            && current.generation == old.generation
+            && current.digest != old.digest
+        {
+            return Err(JoinStage::Conflict);
+        }
+        let new = RecordFloorRec {
+            lineage: account.to_string(),
+            generation,
+            digest: hex(&rr::plaintext_digest(plaintext)),
+        };
+        let held = existing.into_iter().chain(legacy).max_by_key(|f| f.generation);
+        let (keep, result) = match held {
+            Some(f) if f.generation > generation => (f.clone(), Err(JoinStage::OutOfDate)),
+            Some(f) if f.generation == generation && f.digest != new.digest => {
+                return Err(JoinStage::Conflict);
+            }
+            _ => (new, Ok(())),
+        };
+        if legacy.is_some() {
+            floors.remove(scope);
+        }
+        floors.insert(key, keep);
+        result
     }
 
-    /// What the record's evidence amounts to against what the owner independently holds (ADR-0202 section 1, ADR-0203
-    /// section 1). Only a pin from the owner's own custody (the sheet's checkpoint) can make it `Pinned`; the record's own
-    /// head, tail or genesis are advisory. The chain must start at genesis (Core replays from genesis), contain exactly
-    /// the pinned state, and verify with no recovery link this device cannot check.
-    pub(super) fn owner_evidence(&self, j: &RecoveryJoinRec, r: &RecoveryRecord) -> EvidenceStage {
+    /// The saved checkpoint supplies the trusted starting state (ADR-0225 §1).
+    fn owner_evidence(&self, j: &RecoveryJoinRec, r: &RecoveryRecord, v: &rr::Verified) -> EvidenceStage {
         let Some(cp) = j.checkpoint.as_ref() else {
             return EvidenceStage::Unpinned;
-        };
-        let Ok(v) = r.verify() else {
-            return EvidenceStage::Conflict;
         };
         let pin_hash = unhex(&cp.acs_hash).ok();
         if hex(&v.head.account_id) != cp.account_id || v.head.generation < cp.generation {
@@ -205,10 +220,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Some(_) => {}
             None => return EvidenceStage::NeedsEvidence,
         }
-        // From genesis, or the evidence is not here.
-        if v.states.first().is_none_or(|s| s.previous.is_some()) {
-            return EvidenceStage::NeedsEvidence;
-        }
         let chain: Vec<Vec<u8>> = r
             .evidence
             .tail
@@ -216,8 +227,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .chain(std::iter::once(&r.evidence.head))
             .cloned()
             .collect();
-        match control::verify_chain_with(&chain, &r.evidence.credentials, &[]) {
-            Ok(h) if h.hash() == v.head.hash() => EvidenceStage::Pinned,
+        match verify_owner_chain(&chain, &r.evidence.credentials, &[], Some(cp)) {
+            Some(h) if h.hash() == v.head.hash() => EvidenceStage::Pinned,
             _ => EvidenceStage::NeedsEvidence,
         }
     }
@@ -225,28 +236,72 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// The checks of a record read on a fresh device: the cross-field rules (ADR-0199 section 4), the policy is the one
     /// this key derives (a different key cannot have produced it), and the carried states verify as a chain wherever
     /// they can (a recovery link inside the window has no evidence here and is held as the record's own claim, which every
-    /// verifier re-checks against its own state). Returns the padded plaintext to keep.
-    fn accept_record(&mut self, root: &[u8; 32], r: &RecoveryRecord) -> Option<Vec<u8>> {
+    /// verifier re-checks against its own state).
+    pub(super) fn accept_record(
+        &self,
+        root: &[u8; 32],
+        r: &RecoveryRecord,
+        checkpoint: Option<&CheckpointRec>,
+    ) -> Option<rr::Verified> {
         let v = r.verify().ok()?;
         let epoch = v.policy.epoch();
         if v.policy.recovery_key()? != RecoveryRoot::from_bytes(*root).auth_public_key(epoch) {
             return None;
         }
-        let creds: Vec<Vec<u8>> = r.evidence.credentials.clone();
         let states: Vec<&Vec<u8>> = r
             .evidence
             .tail
             .iter()
             .chain(std::iter::once(&r.evidence.head))
             .collect();
-        if let Some((first, rest)) = states.split_first()
-            && !rest.is_empty()
-        {
-            let first_acs = Acs::from_body(&rr::signed_body(first).ok()?).ok()?;
-            let rest: Vec<Vec<u8>> = rest.iter().map(|s| (*s).clone()).collect();
+        let start = checkpoint
+            .and_then(|pin| v.states.iter().position(|state| matches_checkpoint(state, pin)))
+            .unwrap_or(0);
+        let rest: Vec<Vec<u8>> = states.into_iter().skip(start + 1).cloned().collect();
+        if !rest.is_empty() {
             // Ok(_, pending) either way: a pending recovery link is not an error here.
-            control::verify_extension_partial(first_acs, &rest, 1, &creds, &[]).ok()?;
+            control::verify_extension_partial(
+                v.states[start].clone(),
+                &rest,
+                start + 1,
+                &r.evidence.credentials,
+                &[],
+            ).ok()?;
         }
-        r.to_padded_bytes().ok()
+        Some(v)
     }
+}
+
+pub(super) fn checkpoint_index(chain: &[Vec<u8>], pin: &CheckpointRec) -> Option<usize> {
+    chain.iter().position(|signed| {
+        super::ceremony::chain_head(signed).is_some_and(|state| matches_checkpoint(&state, pin))
+    })
+}
+
+fn matches_checkpoint(state: &Acs, pin: &CheckpointRec) -> bool {
+    state.generation == pin.generation
+        && hex(&state.account_id) == pin.account_id
+        && hex(&state.hash()) == pin.acs_hash
+}
+
+/// The checkpoint is independent local evidence, whether or not the carrier starts at genesis.
+pub(super) fn verify_owner_chain(
+    chain: &[Vec<u8>],
+    credentials: &[Vec<u8>],
+    links: &[control::RecoveryLinkEvidence],
+    pin: Option<&CheckpointRec>,
+) -> Option<Acs> {
+    let Some(pin) = pin else {
+        return control::verify_chain_with(chain, credentials, links).ok();
+    };
+    let index = checkpoint_index(chain, pin)?;
+    let anchor = super::ceremony::chain_head(&chain[index])?;
+    let (head, pending) = control::verify_extension_partial(
+        anchor,
+        &chain[index + 1..],
+        index + 1,
+        credentials,
+        links,
+    ).ok()?;
+    pending.is_none().then_some(head)
 }

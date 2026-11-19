@@ -146,7 +146,7 @@ fn rule_of(class: &str) -> Rule {
     }
 }
 
-fn majority(n: usize) -> usize {
+pub(crate) fn majority(n: usize) -> usize {
     n / 2 + 1
 }
 

@@ -760,6 +760,14 @@
       "status": "documented"
     },
     {
+      "label": "OM-RECOVERY-INBOX-ID-v2",
+      "use": "hash",
+      "construction": "DS-HASH (body = deterministic OM-CBOR [account_id bstr, recovery_epoch uint]); inbox_id = the 32-byte digest value",
+      "object": "Home recovery inbox index for one account and recovery epoch (ADR-0226)",
+      "wave": "W1",
+      "status": "documented"
+    },
+    {
       "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-AEAD-AD-v1",
       "use": "aead_ad",
       "construction": "canonical OM-CBOR [label, recovery_scope_id, record_generation, record_version=1]",

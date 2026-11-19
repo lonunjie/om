@@ -306,7 +306,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   async function recoveryInboxDrain(c: Extract<NetCall, { call: "recovery_inbox_drain" }>): Promise<NetResult> {
     const r = recoveryClient(c.host, c.port);
     if (r === undefined) return rejected("invalid");
-    const res = await r.client.drainInbox({ accountId: fromHex(c.accountId), cap: fromHex(c.cap) });
+    const res = await r.client.drainInbox({ accountId: fromHex(c.accountId), cap: fromHex(c.cap), recoveryEpoch: c.recoveryEpoch ?? 0 });
     if (!res.ok) return fromFailure(res.failure, r.t, false);
     return { result: "many", items: res.value.items.map((i) => toHex(encode(map([[0, i.id], [1, i.kind], [2, i.bytes]])))) };
   }
@@ -865,12 +865,19 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
           case "delete_blob": return await deleteBlob(call);
           case "recovery_put": return await recoveryPut(call);
           case "recovery_get": return await recoveryGet(call);
-          case "recovery_request_post": return await recoveryOk(call.host, call.port, true, (c) => c.fanOut(fromHex(call.bytes)));
-          case "recovery_veto_post": return await recoveryOk(call.host, call.port, true, (c) => c.postVeto(fromHex(call.bytes)));
+          case "recovery_delete": return await recoveryOk(call.host, call.port, true, async (c) => {
+            const info = await c.info();
+            if (info === undefined || toHex(info.scopeId) !== call.scope) {
+              return { ok: false, failure: { kind: "home", name: "stale_generation", retryable: true } };
+            }
+            return await c.deleteRecord(fromHex(call.locator), fromHex(call.writeCap));
+          });
+          case "recovery_request_post": return await recoveryOk(call.host, call.port, true, (c) => c.fanOut(fromHex(call.bytes), call.requestId === undefined ? undefined : fromHex(call.requestId)));
+          case "recovery_veto_post": return await recoveryOk(call.host, call.port, true, (c) => c.postVeto(fromHex(call.bytes), call.cap === undefined ? undefined : fromHex(call.cap)));
           case "recovery_veto_read": return await recoveryVetoRead(call);
-          case "recovery_inbox_register": return await recoveryOk(call.host, call.port, true, (c) => c.registerInbox({ accountId: fromHex(call.accountId), cap: fromHex(call.cap) }));
+          case "recovery_inbox_register": return await recoveryOk(call.host, call.port, true, (c) => c.registerInbox({ accountId: fromHex(call.accountId), cap: fromHex(call.cap), recoveryEpoch: call.recoveryEpoch ?? 0, ...(call.requestId === undefined ? {} : { requestId: fromHex(call.requestId) }) }));
           case "recovery_inbox_drain": return await recoveryInboxDrain(call);
-          case "recovery_inbox_ack": return await recoveryOk(call.host, call.port, true, (c) => c.ackInbox({ accountId: fromHex(call.accountId), cap: fromHex(call.cap) }, call.itemIds.map(fromHex)));
+          case "recovery_inbox_ack": return await recoveryOk(call.host, call.port, true, (c) => c.ackInbox({ accountId: fromHex(call.accountId), cap: fromHex(call.cap), recoveryEpoch: call.recoveryEpoch ?? 0 }, call.itemIds.map(fromHex)));
           // No Home endpoint exists for recovery fan-out yet (stub): refused, Core drops it.
           case "recovery_request_fanout":
           case "recovery_veto_fanout": return rejected("unsupported");

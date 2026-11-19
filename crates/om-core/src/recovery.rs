@@ -530,6 +530,26 @@ pub fn request_shape(signed: &[u8]) -> Option<([u8; 32], [u8; 32])> {
     Some((r.account_id, r.digest()))
 }
 
+/// Opaque provider inbox identifier for this account and recovery epoch (ADR-0226 §1).
+pub fn inbox_id(account_id: &[u8; 32], epoch: u64) -> [u8; 32] {
+    ds_hash(
+        "OM-RECOVERY-INBOX-ID-v2",
+        &cbor::encode(&V::A(vec![V::B(account_id.to_vec()), V::U(epoch)])),
+    )
+}
+
+#[cfg(feature = "test-loopback")]
+pub(crate) fn request_inbox_id(signed: &[u8]) -> Option<[u8; 32]> {
+    let r = RecoveryRequest::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?).ok()?;
+    Some(inbox_id(&r.account_id, r.recovery_epoch))
+}
+
+#[cfg(feature = "test-loopback")]
+pub(crate) fn veto_inbox_id(signed: &[u8]) -> Option<[u8; 32]> {
+    let v = RecoveryVeto::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?).ok()?;
+    Some(inbox_id(&v.account_id, v.recovery_epoch))
+}
+
 /// The AccountID a `signed-RecoveryVeto` names, read without verifying a signature.
 pub fn veto_account(signed: &[u8]) -> Option<[u8; 32]> {
     RecoveryVeto::from_body(&body_of(signed, MAX_SIGNED_BYTES).ok()?)
@@ -595,6 +615,19 @@ mod tests {
             parent_state_hash: [4; 32],
             request_nonce: [5; 16],
         }
+    }
+
+    #[test]
+    fn inbox_id_matches_the_home_wire_epoch_vectors() {
+        let account = core::array::from_fn(|i| i as u8);
+        assert_eq!(
+            crate::crypto::hex(&inbox_id(&account, 1)),
+            "12004b8bdc59682c217aed24ee9cafc1ce9f63220b5a293fe7d7bc4abf914cc4"
+        );
+        assert_eq!(
+            crate::crypto::hex(&inbox_id(&account, 2)),
+            "79410a1cf410c2d726b0e0d9902c02c0e759df9911287048c8d861e8c4d5a859"
+        );
     }
 
     #[test]

@@ -15,6 +15,7 @@
 use super::*;
 use crate::crypto::binding::Credential;
 use crate::crypto::delivery::{self as dlv, KeyMaterial};
+use crate::flows::recovery_owner::{checkpoint_index, verify_owner_chain};
 use crate::flows::recovery_watch as watch;
 use crate::host::MonotonicSample;
 use crate::recovery::{self, RecoveryPolicy, RecoveryRequest, RecoveryRoot, SuccessorBundle};
@@ -26,7 +27,11 @@ pub(crate) type ReadAnswer = (Option<Vec<u8>>, Vec<Vec<u8>>);
 
 /// Credit between two veto-board reads while waiting.
 const POLL_CREDIT_MS: u64 = 10 * 60 * 1000;
-const VETO_BOARD_PAGE_LIMIT: usize = 16;
+const REQUEST_REFRESH_MS: u64 = 4 * 24 * 60 * 60 * 1000;
+// The list framing does not identify entries by class. At eight items it can contain a full
+// controller class, even if the Home has advertised a larger public capacity (ADR-0226 §3).
+const UNCLASSIFIED_VETO_LIMIT: usize = 8;
+const OWNER_PRIMARY_RECORD_READ: u8 = 2;
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     pub(super) fn attempt(&self) -> Option<&OwnerAttemptRec> {
@@ -82,7 +87,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 })
             })
             .collect::<Option<_>>()?;
-        let head = control::verify_chain_with(&chain, &creds, &links).ok()?;
+        let pin = self.st.app.recovery_join.as_ref()?.checkpoint.as_ref();
+        let head = verify_owner_chain(&chain, &creds, &links, pin)?;
         let policy = RecoveryPolicy::from_body(&unhex(&a.policy).ok()?).ok()?;
         (head.recovery_commitment == Some(policy.hash())).then_some((head, creds, policy))
     }
@@ -339,6 +345,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             homes,
             notice: notice.as_deref().map(hex),
             resends: 0,
+            last_request_post_ms: None,
             polled_ms: 0,
             round: 0,
             pending_reads: 0,
@@ -347,6 +354,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             competing_heads: vec![],
             competing_heads_full: false,
             veto_page_full: false,
+            round_veto_unanswered: false,
+            round_record_missing: false,
+            controller_approved: false,
             snapshot_conflict_generation: None,
             links,
             approval: None,
@@ -416,11 +426,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(req) = unhex(&a.obs.request) else {
             return;
         };
+        let now = self.now_ms;
+        if let Some(a) = self.attempt_mut() {
+            a.last_request_post_ms = Some(now);
+        }
         for h in &a.homes {
+            if self.st.app.outbox.iter().any(|e| matches!(&e.call,
+                NetCall::RecoveryRequestPost { host, port, bytes, .. }
+                    if host == &h.host && port == &h.port && bytes == &req
+            )) {
+                continue; // The existing operation remains an exact retry until its outcome is known.
+            }
+            let request_id = Some(hex(&self.rand16()));
             self.enqueue(
                 NetCall::RecoveryRequestPost {
                     host: h.host.clone(),
                     port: h.port,
+                    request_id,
                     bytes: req.clone(),
                 },
                 Purpose::OwnerRecoveryPost,
@@ -536,6 +558,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     .and_then(|b| <[u8; 32]>::try_from(b).ok())
             {
                 let keys = RecordKeys::derive(&root, &scope);
+                let kind = if j.place.as_ref() == Some(h) { OWNER_PRIMARY_RECORD_READ } else { 0 };
                 self.enqueue(
                     NetCall::RecoveryGet {
                         host: h.host.clone(),
@@ -544,7 +567,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         locator: rr::locator_of(&keys.read_cap).to_vec(),
                         read_cap: keys.read_cap.to_vec(),
                     },
-                    Purpose::OwnerRecoveryRead { kind: 0, round },
+                    Purpose::OwnerRecoveryRead { kind, round },
                 );
                 pending += 1;
                 rereads_record = true;
@@ -555,6 +578,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             a.pending_reads = pending;
             a.reconcile_round = rereads_record.then_some(round);
             a.round_conflict = false;
+            a.round_veto_unanswered = false;
+            a.round_record_missing = false;
         }
     }
 
@@ -566,18 +591,27 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if a.round != round || a.pending_reads == 0 {
             return; // an answer to an earlier round counts for nothing
         }
-        if let Some((_, items)) = got {
-            if kind == 1 {
-                if items.len() >= VETO_BOARD_PAGE_LIMIT
-                    && let Some(a) = self.attempt_mut()
-                {
-                    a.veto_page_full = true;
-                }
+        if kind == 1 {
+            if let Some(a) = self.attempt_mut() {
+                a.round_veto_unanswered |= got.is_none();
+                a.veto_page_full |= got.as_ref().is_some_and(|(_, items)| items.len() >= UNCLASSIFIED_VETO_LIMIT);
+            }
+            if let Some((_, items)) = got {
                 for v in items {
                     self.owner_observe_veto(&v);
                 }
-            } else if let [_etag, envelope] = items.as_slice() {
-                self.owner_observe_record(envelope);
+            }
+        } else {
+            match got {
+                Some((_, items)) if matches!(items.as_slice(), [_, _]) => {
+                    self.owner_observe_record(&items[1]);
+                }
+                _ if kind == OWNER_PRIMARY_RECORD_READ => {
+                    if let Some(a) = self.attempt_mut() {
+                        a.round_record_missing = true;
+                    }
+                }
+                _ => {}
             }
         }
         if let Some(a) = self.attempt_mut() {
@@ -648,7 +682,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             let Ok(Plain::Record(r)) = rr::read_plaintext(&plain) else {
                 continue;
             };
-            let Ok(v) = r.verify() else { continue };
+            let Some(v) = self.accept_record(&root, &r, j.checkpoint.as_ref()) else { continue };
             let lineage = hex(&v.head.account_id);
             let scope_id = hex(&scope);
             let Some(a) = self.attempt().cloned() else {
@@ -664,7 +698,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 scope: scope_id.clone(),
                 record_generation: r.generation,
             };
-            match self.apply_floor(&scope_id, &lineage, r.generation, &plain) {
+            if j.checkpoint.as_ref().is_some_and(|cp| cp.account_id != lineage || v.states.iter().any(|s| {
+                s.generation == cp.generation && hex(&s.hash()) != cp.acs_hash
+            })) {
+                if let Some(a) = self.attempt_mut() {
+                    a.round_conflict = true;
+                    if j.checkpoint.as_ref().is_some_and(|cp| cp.account_id == lineage) {
+                        Self::remember_owner_head(a, observation);
+                    }
+                }
+                return;
+            }
+            match self.apply_floor(&scope_id, &keys.locator, &lineage, r.generation, &plain) {
                 Ok(()) => {}
                 Err(JoinStage::OutOfDate) => {
                     if observed_hash != a.parent
@@ -680,7 +725,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         .st
                         .app
                         .recovery_floors
-                        .get(&scope_id)
+                        .get(&Self::floor_key(&scope_id, &keys.locator))
                         .map(|f| f.generation);
                     if let Some(a) = self.attempt_mut() {
                         a.round_conflict = true;
@@ -779,21 +824,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let Some(a) = self.attempt_mut() else { return };
         watch::credit(&mut a.obs, mono);
-        let (credited, resends, polled, pending, reconciling) = (
+        let (credited, resends, polled, pending, reconciling, last_post) = (
             a.obs.credited_ms,
             a.resends,
             a.polled_ms,
             a.pending_reads,
             a.reconcile_round.is_some(),
+            a.last_request_post_ms,
         );
         let delay_ms = self
             .attempt_ctx()
             .map_or(recovery::DEFAULT_DELAY_SECONDS, |(_, _, p)| p.delay_seconds)
             * 1000;
         let due = |n: u64| credited >= delay_ms / 3 * n && delay_ms > 0;
-        if (resends == 0 && due(1)) || (resends == 1 && due(2)) {
+        let resend_mark = if due(2) { 2 } else { u8::from(due(1)) };
+        let refresh_due = last_post.is_none_or(|last| self.now_ms.saturating_sub(last) >= REQUEST_REFRESH_MS);
+        if resend_mark > resends || refresh_due {
             if let Some(a) = self.attempt_mut() {
-                a.resends = resends + 1;
+                a.resends = resend_mark.max(resends);
             }
             self.owner_post_all();
         }
@@ -843,7 +891,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             if a.round_conflict
                 || a.has_competing_heads()
-                || a.veto_page_full
+                || ((a.veto_page_full || a.round_veto_unanswered || a.round_record_missing)
+                    && !a.controller_approved)
                 || !self.owner_complete_ready()
             {
                 return;
@@ -911,8 +960,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             all_creds.push(held.credential.clone());
         }
         let verify = |chain: &[Hex], creds: &[Hex], links: &[RecoveryLinkRec]| {
-            let c: Option<Vec<Vec<u8>>> = chain.iter().map(|x| unhex(x).ok()).collect();
-            let d: Option<Vec<Vec<u8>>> = creds.iter().map(|x| unhex(x).ok()).collect();
+            let c: Vec<Vec<u8>> = chain.iter().map(|x| unhex(x).ok()).collect::<Option<_>>()?;
+            let d: Vec<Vec<u8>> = creds.iter().map(|x| unhex(x).ok()).collect::<Option<_>>()?;
             let ev: Vec<control::RecoveryLinkEvidence> = links
                 .iter()
                 .filter_map(|l| {
@@ -925,11 +974,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     })
                 })
                 .collect();
-            control::verify_chain_with(&c?, &d?, &ev).ok()
+            let head = verify_owner_chain(&c, &d, &ev, j.checkpoint.as_ref())?;
+            let local_anchor = if let Some(pin) = &j.checkpoint {
+                if control::verify_chain_with(&c, &d, &ev).is_ok() {
+                    None
+                } else {
+                    Some((checkpoint_index(&c, pin)?, pin.clone()))
+                }
+            } else {
+                None
+            };
+            Some((head, local_anchor))
         };
         let mut links = a.links.clone();
         links.push(link);
-        let Some(new_head) = verify(&chain, &all_creds, &links).filter(|h| h.hash() == child_hash)
+        let Some((new_head, local_anchor)) =
+            verify(&chain, &all_creds, &links).filter(|(h, _)| h.hash() == child_hash)
         else {
             return false;
         };
@@ -967,11 +1027,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 enrolled_at: self.now_ms,
             },
         );
+        self.st.app.acs_checkpoint = local_anchor.map(|(index, pin)| {
+            chain.drain(..index);
+            pin
+        });
         self.st.app.acs_chain = chain;
         self.st.app.acs_credentials = all_creds;
         self.st.app.recovery_links = links;
         self.st.app.recovery_policy = Some(held.next_policy.clone());
         self.st.app.recovery_key_saved = true;
+        self.st.app.recovery_writer.recovered_with_sheet = true;
         self.st.app.created_at = self.now_ms;
         // The key sheet is the person's own: this device holds the root, so it can keep the record current again.
         if let (Some(place), Some(root)) = (

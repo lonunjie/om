@@ -23,11 +23,12 @@ describe("derived identifiers (DS-HASH digest values)", () => {
   // Computed outside this code base: SHA-256 over the canonical CBOR array [label, body] (om-domain-separation.json).
   it("locator, inbox id and request digest match independent values", async () => {
     expect(toHex(await recoveryLocator(cap))).toBe("8487f8f84bb4c248a4dbf2e95c2311d2ea89b5c0f3c608f254dff242c73e24c9");
-    expect(toHex(await recoveryInboxId(cap))).toBe("98a6fe6bc096ac140b961e1a7fee2f6246d0b610819bb3f303fcc8587c8f508f");
+    expect(toHex(await recoveryInboxId(cap, 1))).toBe("12004b8bdc59682c217aed24ee9cafc1ce9f63220b5a293fe7d7bc4abf914cc4");
+    expect(toHex(await recoveryInboxId(cap, 2))).toBe("79410a1cf410c2d726b0e0d9902c02c0e759df9911287048c8d861e8c4d5a859");
     expect(toHex(await recoveryRequestDigest(cap))).toBe("03968c6bb00085627755c9918016373c77d7dae193d3d96213ffe09c735d27e9");
   });
   it("the three labels never collide on one input, and the ETag is a plain SHA-256 of the envelope", async () => {
-    const all = [await recoveryLocator(cap), await recoveryInboxId(cap), await recoveryRequestDigest(cap)].map(toHex);
+    const all = [await recoveryLocator(cap), await recoveryInboxId(cap, 1), await recoveryRequestDigest(cap)].map(toHex);
     expect(new Set(all).size).toBe(3);
     expect(toHex(await recoveryEtag(new Uint8Array(0)))).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   });
@@ -121,8 +122,8 @@ describe("inbox bodies", () => {
     expect(() => decodeInboxDrainResponse(encode(map([[0, 1], [1, [map([[0, rand(16)], [1, 3], [2, rand(5)]])]]])))).toThrow(CborError);
   });
   it("the veto list holds at most 16 signed vetoes", () => {
-    const list = Array.from({ length: 16 }, () => rand(20));
-    expect(decodeVetoList(encodeVetoList(list))).toHaveLength(16);
+    const list = Array.from({ length: 24 }, () => rand(20));
+    expect(decodeVetoList(encodeVetoList(list))).toHaveLength(24);
     expect(decodeVetoList(encodeVetoList([]))).toHaveLength(0);
     expect(() => decodeVetoList(encodeVetoList([...list, rand(20)]))).toThrow(CborError);
   });

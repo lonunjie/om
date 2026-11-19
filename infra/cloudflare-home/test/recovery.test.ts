@@ -52,14 +52,14 @@ const etagOf = (a: Answer): Uint8Array => {
 const inboxPath = (id: Uint8Array, sub = ""): string => `/v1/recovery/inbox/${toBase64Url(id)}${sub}`;
 async function newInbox(h: Home) {
   const accountId = rand(32);
-  const inboxId = await recoveryInboxId(accountId);
+  const inboxId = await recoveryInboxId(accountId, 1);
   const cap = rand(32);
   const r = await send(h, inboxPath(inboxId), { method: "PUT", headers: { ...cbor, ...owner }, body: asBody(encodeInboxRegister({ requestId: rand(16), cap })) });
   expect(name(r)).toBe("ok");
   return { accountId, inboxId, cap };
 }
 const fanout = (h: Home, signed: Uint8Array, requestId = rand(16)) => send(h, "/v1/recovery/requests", { method: "POST", headers: cbor, body: asBody(encodeFanout({ requestId, signed })) });
-const postVeto = (h: Home, signed: Uint8Array) => send(h, "/v1/recovery/vetoes", { method: "POST", headers: cbor, body: asBody(encodeVetoPost({ requestId: rand(16), signed })) });
+const postVeto = (h: Home, signed: Uint8Array, cap?: Uint8Array) => send(h, "/v1/recovery/vetoes", { method: "POST", headers: { ...cbor, ...(cap === undefined ? {} : bearer(cap)) }, body: asBody(encodeVetoPost({ requestId: rand(16), signed })) });
 const drain = (h: Home, i: { inboxId: Uint8Array; cap: Uint8Array }, pageSize?: number) =>
   send(h, inboxPath(i.inboxId, "/drain"), { method: "POST", headers: cbor, body: asBody(encodeInboxDrain({ requestId: rand(16), cap: i.cap, ...(pageSize === undefined ? {} : { pageSize }) })) });
 const ack = (h: Home, i: { inboxId: Uint8Array; cap: Uint8Array }, ids: Uint8Array[]) =>
@@ -77,7 +77,7 @@ describe("PC-R recovery store (om.recovery.store.v1)", () => {
     expect(on.limits).toMatchObject({
       max_recovery_record_bytes: 1_048_576, max_recovery_records: 16, max_recovery_inboxes: 16, recovery_put_rate: { burst: 6, refill_seconds: 600 }, recovery_get_rate: { burst: 10, refill_seconds: 30 },
       recovery_failed_get_rate: { burst: 30, refill_seconds: 10 }, recovery_requests_per_day: 3, recovery_pending_requests: 8, recovery_pending_vetoes: 32, recovery_pending_vetoes_per_request: 16,
-      recovery_vetoes_per_hour: 8, recovery_post_rate: { burst: 10, refill_seconds: 60 }, recovery_drain_rate: { burst: 20, refill_seconds: 5 }, recovery_veto_read_rate: { burst: 10, refill_seconds: 10 },
+      recovery_vetoes_per_hour: 8, recovery_post_rate: { burst: 10, refill_seconds: 60 }, recovery_drain_rate: { burst: 20, refill_seconds: 5 }, recovery_veto_read_rate: { burst: 10, refill_seconds: 30 },
       max_recovery_object_bytes: 16_384, recovery_item_retention_seconds: 14 * 86400, recovery_record_retention_seconds: 400 * 86400, recovery_inbox_retention_seconds: 400 * 86400,
     });
     expect((await caps(home)).recovery_scope_id).toBe(on.recovery_scope_id); // stable
@@ -112,7 +112,7 @@ describe("PC-R recovery store (om.recovery.store.v1)", () => {
       expect(name(r)).toBe("admission_denied");
       expect(r.status).toBe(403);
       expect(name(await get(home, c.locator, c.readCap))).toBe("not_found");
-      const id = await recoveryInboxId(rand(32));
+      const id = await recoveryInboxId(rand(32), 1);
       const reg = await send(home, inboxPath(id), { method: "PUT", headers: { ...cbor, ...admission }, body: asBody(encodeInboxRegister({ requestId: rand(16), cap: rand(32) })) });
       expect(name(reg)).toBe("admission_denied");
     }
@@ -253,7 +253,7 @@ describe("PC-R recovery store (om.recovery.store.v1)", () => {
       expect([fifth.status, name(fifth)]).toEqual([429, "quota"]);
       for (const c of rs) expect(name(await get(p, c.locator, c.readCap))).toBe("ok");
       for (let i = 0; i < 4; i++) await newInbox(p);
-      const reg = await send(p, inboxPath(await recoveryInboxId(rand(32))), { method: "PUT", headers: { ...cbor, ...owner }, body: asBody(encodeInboxRegister({ requestId: rand(16), cap: rand(32) })) });
+      const reg = await send(p, inboxPath(await recoveryInboxId(rand(32), 1)), { method: "PUT", headers: { ...cbor, ...owner }, body: asBody(encodeInboxRegister({ requestId: rand(16), cap: rand(32) })) });
       expect(name(reg)).toBe("quota");
     } finally { await p.dispose(); }
   });
@@ -262,6 +262,51 @@ describe("PC-R recovery store (om.recovery.store.v1)", () => {
     let home: Home;
     beforeEach(async () => { home = await fresh(); }, 60_000);
     afterEach(async () => { await home.dispose(); });
+
+    it("PC-R20 the inbox routes by account and recovery epoch", async () => {
+      const old = await newInbox(home);
+      const current = { inboxId: await recoveryInboxId(old.accountId, 2), cap: rand(32) };
+      const made = await send(home, inboxPath(current.inboxId), {
+        method: "PUT",
+        headers: { ...cbor, ...owner },
+        body: asBody(encodeInboxRegister({ requestId: rand(16), cap: current.cap })),
+      });
+      expect(name(made)).toBe("ok");
+      expect(name(await fanout(home, signedRequest(old.accountId, 2).signed))).toBe("ok");
+      expect(decodeInboxDrainResponse((await drain(home, old)).bytes).items).toHaveLength(0);
+      expect(decodeInboxDrainResponse((await drain(home, current)).bytes).items).toHaveLength(1);
+      expect(name(await drain(home, { ...current, cap: old.cap }))).toBe("unauthorized");
+    });
+
+    it("PC-R21 controller vetoes precede public vetoes and post replies are identical", async () => {
+      const i = await newInbox(home);
+      const req = signedRequest(i.accountId);
+      expect(name(await fanout(home, req.signed))).toBe("ok");
+      const digest = await requestDigestOf(req);
+      const publicVeto = signedVeto(i.accountId, digest, 1);
+      const controllerVeto = signedVeto(i.accountId, digest, 2);
+      const publicAnswer = await postVeto(home, publicVeto, rand(32));
+      const controllerAnswer = await postVeto(home, controllerVeto, i.cap);
+      expect([publicAnswer.status, toHex(publicAnswer.bytes)]).toEqual([204, ""]);
+      expect([controllerAnswer.status, toHex(controllerAnswer.bytes)]).toEqual([204, ""]);
+      expect(decodeVetoList((await board(home, digest)).bytes)).toEqual([controllerVeto, publicVeto]);
+    });
+
+    for (const present of [true, false]) {
+      it(`PC-R22 board pacing at the burst boundary for a ${present ? "present" : "missing"} digest`, async () => {
+        const i = await newInbox(home);
+        const req = signedRequest(i.accountId);
+        if (present) expect(name(await fanout(home, req.signed))).toBe("ok");
+        const digest = await requestDigestOf(req);
+        for (let n = 0; n < 10; n++) {
+          const read = await board(home, digest);
+          expect(read.status).toBe(200);
+          expect(decodeVetoList(read.bytes)).toEqual([]);
+        }
+        const denied = await board(home, digest);
+        expect([denied.status, name(denied)]).toEqual([429, "rate_limited"]);
+      });
+    }
 
     it("PC-R12 fan-out reaches a registered inbox; the controller drains {id, kind, bytes} without any time and acknowledges; a duplicate changes nothing", async () => {
       const i = await newInbox(home);
@@ -295,7 +340,7 @@ describe("PC-R recovery store (om.recovery.store.v1)", () => {
 
     it("PC-R14 drain and ack: a wrong capability and an absent inbox are one unauthorized", async () => {
       const i = await newInbox(home);
-      const ghost = { inboxId: await recoveryInboxId(rand(32)), cap: rand(32) };
+      const ghost = { inboxId: await recoveryInboxId(rand(32), 1), cap: rand(32) };
       const a = await drain(home, { inboxId: i.inboxId, cap: rand(32) });
       const b = await drain(home, ghost);
       expect([a.status, toHex(a.bytes)]).toEqual([b.status, toHex(b.bytes)]);

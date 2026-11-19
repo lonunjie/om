@@ -22,8 +22,8 @@ interface Store {
   registerInbox(inboxId: Uint8Array, cap: Uint8Array, requestId: Uint8Array): Promise<Reply>;
   drain(inboxId: Uint8Array, cap: Uint8Array, pageSize: number | undefined): Promise<Reply>;
   ack(inboxId: Uint8Array, cap: Uint8Array, ids: readonly Uint8Array[]): Promise<Reply>;
-  fanout(a: { requestId: Uint8Array; signed: Uint8Array; accountId: Uint8Array; body: Uint8Array }): Promise<Reply>;
-  postVeto(a: { requestId: Uint8Array; signed: Uint8Array; accountId: Uint8Array; requestDigest: Uint8Array; body: Uint8Array }): Promise<Reply>;
+  fanout(a: { requestId: Uint8Array; signed: Uint8Array; accountId: Uint8Array; recoveryEpoch: number; body: Uint8Array }): Promise<Reply>;
+  postVeto(a: { requestId: Uint8Array; signed: Uint8Array; accountId: Uint8Array; recoveryEpoch: number; requestDigest: Uint8Array; body: Uint8Array; cap?: Uint8Array }): Promise<Reply>;
   vetoes(digest: Uint8Array): Promise<Reply>;
   alarm(): Promise<void>;
 }
@@ -34,14 +34,17 @@ const advance = (seconds: number): void => { vi.setSystemTime(new Date((Math.flo
 
 interface Harness { readonly db: DatabaseSync; readonly store: Store; restart(): Promise<Store> }
 
-async function mk(vars: Record<string, string> = {}, db = new DatabaseSync(":memory:")): Promise<Harness> {
+async function mk(vars: Record<string, string> = {}, db = new DatabaseSync(":memory:"), blobReadsAsBuffer = false): Promise<Harness> {
   const state = {
     storage: {
       sql: {
         exec(q: string, ...b: unknown[]) {
           if (b.length === 0 && q.split(";").filter((x) => x.trim() !== "").length > 1) { db.exec(q); return { toArray: () => [] as unknown[] }; }
           const st = db.prepare(q);
-          const rows: unknown[] = /^\s*(select|with)/i.test(q) ? st.all(...(b as never[])) : (st.run(...(b as never[])), []);
+          const rows = /^\s*(select|with)/i.test(q) ? st.all(...(b as never[])) : (st.run(...(b as never[])), []);
+          if (blobReadsAsBuffer) return { toArray: () => rows.map((row) => Object.fromEntries(
+            Object.entries(row).map(([key, value]) => [key, value instanceof Uint8Array ? Uint8Array.from(value).buffer : value]),
+          )) };
           return { toArray: () => rows };
         },
       },
@@ -76,17 +79,17 @@ const replace = (s: Store, r: { locator: Uint8Array; writeCap: Uint8Array }, ifM
 /** An inbox for a fresh account; returns what posting and draining need. */
 async function inbox(s: Store): Promise<{ accountId: Uint8Array; inboxId: Uint8Array; cap: Uint8Array }> {
   const accountId = rand(32);
-  const inboxId = await recoveryInboxId(accountId);
+  const inboxId = await recoveryInboxId(accountId, 1);
   const cap = rand(32);
   expectOk(await s.registerInbox(inboxId, cap, rand(16)));
   return { accountId, inboxId, cap };
 }
-const post = (s: Store, r: Req, requestId = rand(16)) => s.fanout({ requestId, signed: r.signed, accountId: r.accountId, body: r.body });
-const veto = async (s: Store, accountId: Uint8Array, digest: Uint8Array, n?: number, requestId = rand(16)) => {
+const post = (s: Store, r: Req, requestId = rand(16)) => s.fanout({ requestId, ...r });
+const veto = async (s: Store, accountId: Uint8Array, digest: Uint8Array, n?: number, requestId = rand(16), cap?: Uint8Array) => {
   const signed = signedVeto(accountId, digest, n);
   const { checkSignedVeto } = await import("@om/home-wire");
   const shape = checkSignedVeto(signed);
-  return s.postVeto({ requestId, signed, accountId, requestDigest: shape.requestDigest, body: shape.body });
+  return s.postVeto({ requestId, signed, ...shape, ...(cap === undefined ? {} : { cap }) });
 };
 const drained = async (s: Store, i: { inboxId: Uint8Array; cap: Uint8Array }, page?: number) => decodeInboxDrainResponse(expectOk(await s.drain(i.inboxId, i.cap, page)));
 
@@ -275,7 +278,7 @@ describe("the recovery inbox", () => {
       expectOk(await store.registerInbox(first.inboxId, first.cap, rand(16)));
       expect(errName(await store.registerInbox(first.inboxId, rand(32), rand(16)))).toBe("unauthorized");
       for (let i = 1; i < max; i++) await inbox(store);
-      expect(errName(await store.registerInbox(await recoveryInboxId(rand(32)), rand(32), rand(16)))).toBe("quota");
+      expect(errName(await store.registerInbox(await recoveryInboxId(rand(32), 1), rand(32), rand(16)))).toBe("quota");
       expectOk(await store.registerInbox(first.inboxId, first.cap, rand(16))); // a refresh needs no room
     }
   });
@@ -347,7 +350,7 @@ describe("the recovery inbox", () => {
   it("a wrong capability and an absent inbox are one `unauthorized` for drain and ack; drain burst is 20, refill 1 per 5 s", async () => {
     const { store } = await mk();
     const i = await inbox(store);
-    const ghost = await recoveryInboxId(rand(32));
+    const ghost = await recoveryInboxId(rand(32), 1);
     expect(await store.drain(i.inboxId, rand(32), undefined)).toEqual(await store.drain(ghost, rand(32), undefined));
     expect(errName(await store.drain(i.inboxId, rand(32), undefined))).toBe("unauthorized");
     expect(await store.ack(i.inboxId, rand(32), [rand(16)])).toEqual(await store.ack(ghost, rand(32), [rand(16)]));
@@ -379,6 +382,45 @@ describe("the recovery inbox", () => {
   });
 });
 
+describe("recovery inbox epochs and retention", () => {
+  it("delivers a request only to the matching recovery epoch", async () => {
+    const { store } = await mk();
+    const old = await inbox(store);
+    const current = { inboxId: await recoveryInboxId(old.accountId, 2), cap: rand(32) };
+    expectOk(await store.registerInbox(current.inboxId, current.cap, rand(16)));
+    expectOk(await post(store, signedRequest(old.accountId, 2)));
+    expect((await drained(store, old)).items).toHaveLength(0);
+    expect((await drained(store, current)).items).toHaveLength(1);
+    expect(errName(await store.drain(current.inboxId, old.cap, undefined))).toBe("unauthorized");
+  });
+
+  it("refreshes the same item and recreates an acknowledged item at most once per day", async () => {
+    const { store } = await mk();
+    const i = await inbox(store);
+    const request = signedRequest(i.accountId);
+    const firstId = rand(16);
+    expectOk(await post(store, request, firstId));
+    const [first] = (await drained(store, i)).items;
+    if (first === undefined) throw new Error("missing first request");
+
+    advance(LIMITS.maxRetentionSeconds - 60);
+    const refreshId = rand(16);
+    expectOk(await post(store, request, refreshId));
+    expect((await drained(store, i)).items.map((item) => toHex(item.id))).toEqual([toHex(first.id)]);
+    advance(LIMITS.skewSeconds + 61);
+    expect((await drained(store, i)).items).toHaveLength(1);
+    expectOk(await store.ack(i.inboxId, i.cap, [first.id]));
+    expectOk(await post(store, request));
+    expect((await drained(store, i)).items).toHaveLength(0);
+    advance(DAY);
+    expectOk(await post(store, request));
+    const [reopened] = (await drained(store, i)).items;
+    if (reopened === undefined) throw new Error("missing refreshed request");
+    expect(toHex(reopened.id)).not.toBe(toHex(first.id));
+    expect(toHex(reopened.bytes)).toBe(toHex(first.bytes));
+  });
+});
+
 describe("the veto board", () => {
   async function withRequest() {
     const h = await mk();
@@ -389,6 +431,30 @@ describe("the veto board", () => {
     return { ...h, i, r, digest };
   }
   const board = async (s: Store, digest: Uint8Array) => decodeVetoList(expectOk(await s.vetoes(digest)));
+
+  it("uses SQLite ArrayBuffer results for request refresh, controller capabilities and pacing", async () => {
+    const { db, store } = await mk({}, new DatabaseSync(":memory:"), true);
+    const i = await inbox(store);
+    const r = signedRequest(i.accountId);
+    expectOk(await post(store, r));
+    const id = (await drained(store, i)).items[0]?.id;
+    expect(id).toHaveLength(16);
+    // A row written by the previous schema has no item_id stored on its digest row.
+    db.exec("UPDATE reqs SET item_id = NULL");
+    const expiry = () => db.prepare("SELECT expires_at FROM items WHERE kind = 1").get()?.expires_at;
+    const before = expiry();
+    advance(DAY + 1);
+    expectOk(await post(store, r));
+    expect((await drained(store, i)).items.map((item) => item.id)).toEqual([id]);
+    expect(expiry()).toBeGreaterThan(Number(before));
+    const digest = await requestDigestOf(r);
+    const { checkSignedVeto } = await import("@om/home-wire");
+    const publicVeto = signedVeto(i.accountId, digest, 1);
+    const controllerVeto = signedVeto(i.accountId, digest, 2);
+    expectOk(await store.postVeto({ requestId: rand(16), signed: publicVeto, ...checkSignedVeto(publicVeto) }));
+    expectOk(await store.postVeto({ requestId: rand(16), signed: controllerVeto, ...checkSignedVeto(controllerVeto), cap: i.cap }));
+    expect((await board(store, digest)).map(toHex)).toEqual([controllerVeto, publicVeto].map(toHex));
+  });
 
   it("a veto is accepted only when the inbox holds a request with that digest; otherwise dropped and answered like a success", async () => {
     const { store, i, digest } = await withRequest();
@@ -415,7 +481,7 @@ describe("the veto board", () => {
     const first = signedVeto(i.accountId, digest, 7);
     const { checkSignedVeto } = await import("@om/home-wire");
     const shape = checkSignedVeto(first);
-    for (let n = 0; n < 4; n++) await store.postVeto({ requestId: rand(16), signed: first, accountId: i.accountId, requestDigest: shape.requestDigest, body: shape.body });
+    for (let n = 0; n < 4; n++) await store.postVeto({ requestId: rand(16), signed: first, ...shape });
     expect(await board(store, digest)).toHaveLength(1);
     advance(600); // each post, even a repeat, spends from the Home-wide post bucket: let it refill
     for (let n = 0; n < 7; n++) await veto(store, i.accountId, digest, 100 + n);
@@ -438,7 +504,7 @@ describe("the veto board", () => {
       const signed = signedVeto(i.accountId, digest, 1000 + n);
       const { checkSignedVeto } = await import("@om/home-wire");
       const shape = checkSignedVeto(signed);
-      await store.postVeto({ requestId: rand(16), signed, accountId: i.accountId, requestDigest: shape.requestDigest, body: shape.body });
+      await store.postVeto({ requestId: rand(16), signed, ...shape });
       if (kept.length < 16) kept.push(toHex(signed));
     }
     expect((await board(store, digest)).map(toHex)).toEqual(kept);
@@ -457,15 +523,37 @@ describe("the veto board", () => {
     expect(r.signed.length).toBeGreaterThan(0);
   });
 
-  it("the board read is bounded per digest (burst 10, refill 1 per 10 s) and an unknown digest creates no state", async () => {
+  it("paces absent and present digests alike using at most 256 buckets", async () => {
     const { store, db, digest } = await withRequest();
     for (let n = 0; n < 10; n++) expectOk(await store.vetoes(digest));
     expect(errName(await store.vetoes(digest))).toBe("rate_limited");
     advance(10);
+    expect(errName(await store.vetoes(digest))).toBe("rate_limited");
+    advance(20);
     expectOk(await store.vetoes(digest));
+    advance(300);
+    const absent = rand(32);
+    for (let n = 0; n < 10; n++) expect(decodeVetoList(expectOk(await store.vetoes(absent)))).toEqual([]);
+    expect(errName(await store.vetoes(absent))).toBe("rate_limited");
     const before = [count(db, "reqs"), count(db, "vetoes"), count(db, "ops")];
-    for (let n = 0; n < 50; n++) expect(decodeVetoList(expectOk(await store.vetoes(rand(32))))).toEqual([]);
+    for (let n = 0; n < 512; n++) await store.vetoes(rand(32));
+    expect(count(db, "veto_read_buckets")).toBeLessThanOrEqual(256);
     expect([count(db, "reqs"), count(db, "vetoes"), count(db, "ops")]).toEqual(before);
+  });
+
+  it("keeps a reserved controller class and places the controller veto first", async () => {
+    const { store, i, digest } = await withRequest();
+    for (let n = 0; n < 16; n++) {
+      if (n % 8 === 0) advance(HOUR + 1);
+      expectOk(await veto(store, i.accountId, digest, n, rand(16), rand(32)));
+    }
+    advance(HOUR + 1);
+    const signed = signedVeto(i.accountId, digest, 100);
+    const { checkSignedVeto } = await import("@om/home-wire");
+    expectOk(await store.postVeto({ requestId: rand(16), signed, ...checkSignedVeto(signed), cap: i.cap }));
+    const items = await board(store, digest);
+    expect(items).toHaveLength(17);
+    expect(items[0]).toEqual(signed);
   });
 
   it("items and board rows are kept 14 days and then dropped; a request digest is forgotten with them", async () => {

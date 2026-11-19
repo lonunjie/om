@@ -931,16 +931,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return self.approval_end(LinkState::Failed);
         };
-        let states: Vec<_> = ev.states.iter().filter_map(|s| child_of_state(s)).collect();
-        if let Some(pin) = &j.checkpoint
-            && !states.iter().any(|s| {
-                s.generation == pin.generation
-                    && hex(&s.account_id) == pin.account_id
-                    && hex(&s.hash()) == pin.acs_hash
-            })
-        {
-            return self.approval_end(LinkState::Failed);
-        }
+        let start = match &j.checkpoint {
+            Some(pin) => match super::recovery_owner::checkpoint_index(&ev.states, pin) {
+                Some(i) => i,
+                None => return self.approval_end(LinkState::Failed),
+            },
+            None => 0,
+        };
+        let states: Vec<_> = ev.states[start..].iter().filter_map(|s| child_of_state(s)).collect();
         let links: Option<Vec<_>> = ev
             .dossiers
             .iter()
@@ -957,7 +955,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(links) = links else {
             return self.approval_end(LinkState::Failed);
         };
-        let Ok(head) = control::verify_chain_with(&ev.states, &ev.creds, &links) else {
+        let Some(head) = super::recovery_owner::verify_owner_chain(
+            &ev.states,
+            &ev.creds,
+            &links,
+            j.checkpoint.as_ref(),
+        ) else {
             return self.approval_end(LinkState::Failed);
         };
         if a.competing_heads_full
@@ -993,7 +996,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // authorize another request: the person must ask again against the new parent.
             let extends = ev.successor.is_none()
                 && ev
-                    .states
+                    .states[start..]
                     .iter()
                     .any(|s| child_of_state(s).is_some_and(|x| Some(x.hash()) == parent))
                 && head.generation > a.parent_generation;
@@ -1065,6 +1068,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 return self.approval_end(LinkState::Failed);
             }
             next.obs.successor = Some(held);
+            next.controller_approved = true;
         }
         let mut j = j;
         j.evidence = EvidenceStage::Pinned;

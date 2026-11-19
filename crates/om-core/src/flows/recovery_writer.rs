@@ -34,8 +34,16 @@ impl AppState {
         if self.recovery_kit.is_none() {
             return RecoveryRecordStatus::Off;
         }
-        if w.paused_for_exclusion {
+        if w.paused_for_exclusion || w.recovered_with_sheet {
             return RecoveryRecordStatus::NeedsNewKey;
+        }
+        if let Some(head) = self.acs_chain.last().and_then(|signed| unhex(signed).ok())
+            .and_then(|signed| ceremony::chain_head(&signed))
+        {
+            let anchor_generation = w.sheet_anchor.as_ref().map_or(1, |cp| cp.generation);
+            if head.generation.saturating_sub(anchor_generation) >= rr::MAX_STATES as u64 {
+                return RecoveryRecordStatus::NeedsNewKey;
+            }
         }
         let current_ack = self.acs_forks.is_empty()
             && w.acked_head_hash.as_ref().is_some_and(|hash| {
@@ -69,6 +77,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// The snapshot of the live relationships (what ADR-0190 section 3.1 needs to notify each contact).
     pub(crate) fn recovery_snapshot(&self) -> RelationshipSnapshot {
+        if self.st.app.privacy_level == Some(crate::api::PrivacyPolicyLevel::Maximum) {
+            return RelationshipSnapshot::default();
+        }
         let mut entries = vec![];
         for r in self.st.app.relationships.values() {
             if r.state != RelState::Active || r.blocked {
@@ -247,6 +258,39 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         });
     }
 
+    fn maintain_retired_recovery_records(&mut self) {
+        let debts = &mut self.st.app.retired_recovery_records;
+        debts.retain(|debt| self.now_ms < debt.expires_ms);
+        self.st.app.outbox.retain(|entry| match &entry.purpose {
+            Purpose::RecoveryDelete { locator } => debts.iter().any(|debt| &debt.locator == locator),
+            _ => true,
+        });
+        let writer = &self.st.app.recovery_writer;
+        if writer.acked_etag.is_none() || writer.record_conflict {
+            return;
+        }
+        let acked_generation = rr::generation_acs(writer.acked_generation);
+        let due: Vec<_> = debts
+            .iter()
+            .filter(|debt| debt.replacement_generation <= acked_generation)
+            .filter(|debt| !self.st.app.outbox.iter().any(|entry| matches!(&entry.purpose,
+                Purpose::RecoveryDelete { locator } if *locator == debt.locator)))
+            .cloned()
+            .collect();
+        for debt in due {
+            self.enqueue(
+                NetCall::RecoveryDelete {
+                    host: debt.place.host,
+                    port: debt.place.port,
+                    scope: debt.place.scope,
+                    locator: debt.locator.clone(),
+                    write_cap: debt.write_cap,
+                },
+                Purpose::RecoveryDelete { locator: debt.locator },
+            );
+        }
+    }
+
     /// Called at the end of every transaction: stage a write when the schedule calls for one.
     pub(crate) fn maintain_recovery_record(&mut self) {
         if !self.st.app.recovery_writer.enabled {
@@ -306,10 +350,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.discard_recovery_puts();
             return;
         }
+        self.maintain_retired_recovery_records();
         let now = self.now_ms;
         let head_hash = hex(&head.hash());
         let snapshot = self.recovery_snapshot();
         let content = hex(&crypto::sha256(&[&snapshot.to_bytes()]));
+        let w = &self.st.app.recovery_writer;
+        let replace_staged_snapshot = self.st.app.privacy_level == Some(crate::api::PrivacyPolicyLevel::Maximum)
+            && w.staged.is_some()
+            && w.last_content.as_ref() != Some(&content);
+        if replace_staged_snapshot {
+            self.discard_recovery_puts();
+        }
         let steward = self.is_steward(&head);
         let w = &mut self.st.app.recovery_writer;
         if let Some(acked) = &w.acked_head_hash {
@@ -331,6 +383,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             if authored {
                 slot = Some(0);
             }
+        } else if replace_staged_snapshot {
+            // The old write may already have reached the Home. Seal a new slot and let CAS
+            // reconcile if the old slot was applied before the callback arrived.
+            slot = Some(w.refresh + 1);
         } else {
             let staged_acs = w.staged.as_ref().map(|s| rr::generation_acs(s.generation));
             let covered = w.acked_head_hash.as_deref() == Some(head_hash.as_str())
@@ -539,7 +595,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 credentials.push(credential.clone());
             }
         }
-        control::verify_chain_with(&chain, &credentials, &self.st.app.link_evidence())
-            .is_ok_and(|head| head.hash() == remote.head.state_hash)
+        self.st.app.verify_own_chain(&chain, &credentials)
+            .is_some_and(|head| head.hash() == remote.head.state_hash)
     }
 }

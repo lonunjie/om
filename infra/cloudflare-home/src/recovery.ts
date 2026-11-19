@@ -29,6 +29,7 @@ CREATE INDEX IF NOT EXISTS reqs_digest ON reqs (digest);
 CREATE TABLE IF NOT EXISTS vetoes (seq INTEGER PRIMARY KEY AUTOINCREMENT, inbox_id BLOB NOT NULL, digest BLOB NOT NULL, hash BLOB NOT NULL, bytes BLOB NOT NULL, expires_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS vetoes_digest ON vetoes (digest, seq);
 CREATE TABLE IF NOT EXISTS veto_log (inbox_id BLOB NOT NULL, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS veto_read_buckets (bucket INTEGER PRIMARY KEY CHECK (bucket BETWEEN 0 AND 255), tokens REAL NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS ops (request_id TEXT PRIMARY KEY, fp TEXT NOT NULL, result BLOB NOT NULL, expires_at INTEGER NOT NULL);
 `;
 
@@ -38,8 +39,8 @@ const EMPTY = new Uint8Array(0);
 
 /** The record operations carry the proof (a capability) and the request; the Worker has already checked the shapes and, for a create, the owner's admission. */
 export interface RecordPut { readonly locator: Uint8Array; readonly writeCap: Uint8Array; readonly requestId: Uint8Array; readonly envelope: Uint8Array; readonly create: boolean; readonly ifMatch?: Uint8Array }
-export interface Fanout { readonly requestId: Uint8Array; readonly signed: Uint8Array; readonly accountId: Uint8Array; readonly body: Uint8Array }
-export interface VetoPost { readonly requestId: Uint8Array; readonly signed: Uint8Array; readonly accountId: Uint8Array; readonly requestDigest: Uint8Array; readonly body: Uint8Array }
+export interface Fanout { readonly requestId: Uint8Array; readonly signed: Uint8Array; readonly accountId: Uint8Array; readonly recoveryEpoch: number; readonly body: Uint8Array }
+export interface VetoPost { readonly requestId: Uint8Array; readonly signed: Uint8Array; readonly accountId: Uint8Array; readonly recoveryEpoch: number; readonly requestDigest: Uint8Array; readonly body: Uint8Array; readonly cap?: Uint8Array }
 
 interface RecordRow { locator: Uint8Array; write_hash: Uint8Array; env: Uint8Array; etag: Uint8Array; len: number; put_tokens: number; put_at: number; get_tokens: number; get_at: number; expires_at: number }
 interface InboxRow { inbox_id: Uint8Array; cap_hash: Uint8Array; expires_at: number; drain_tokens: number; drain_at: number }
@@ -52,6 +53,15 @@ export class RecoveryStore extends DurableObject<Env> {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(SCHEMA);
+    if (!one(this.sql, "SELECT 1 FROM pragma_table_info('reqs') WHERE name = 'item_id'")) {
+      run(this.sql, "ALTER TABLE reqs ADD COLUMN item_id BLOB");
+    }
+    if (!one(this.sql, "SELECT 1 FROM pragma_table_info('vetoes') WHERE name = 'controller'")) {
+      run(this.sql, "ALTER TABLE vetoes ADD COLUMN controller INTEGER NOT NULL DEFAULT 0");
+    }
+    if (getMeta(this.sql, "veto_read_key") === undefined) {
+      setMeta(this.sql, "veto_read_key", randomBytes(32));
+    }
   }
 
   private get hard(): boolean {
@@ -296,26 +306,45 @@ export class RecoveryStore extends DurableObject<Env> {
    */
   fanout(a: Fanout): Promise<Reply> {
     return reply(async () => {
-      const bodyHash = await sha256(a.body);
+      const signedHash = await sha256(a.signed);
       const digest = await recoveryRequestDigest(a.body);
-      const inboxId = await recoveryInboxId(a.accountId);
+      const inboxId = await recoveryInboxId(a.accountId, a.recoveryEpoch);
       const rid = toHex(await sha256(a.requestId));
-      const fp = toHex(await sha256(utf8("recovery-fanout"), bodyHash));
+      const fp = toHex(await sha256(utf8("recovery-fanout"), signedHash));
       const now = nowSeconds();
       this.purge(now);
       if (this.prior(rid, fp)) return EMPTY;
       this.homeBucket("post", now, LIMITS.recoveryPostBurst, LIMITS.recoveryPostRefillSeconds);
-      this.remember(rid, fp, EMPTY, now);
-      if (!one(this.sql, "SELECT 1 AS x FROM inboxes WHERE inbox_id = ?", inboxId)) return EMPTY;
-      if (one(this.sql, "SELECT 1 AS x FROM reqs WHERE inbox_id = ? AND body_hash = ?", inboxId, bodyHash)) return EMPTY; // an identical request changes nothing
-      if ((one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM reqs WHERE inbox_id = ? AND at > ?", inboxId, now - DAY_SECONDS)?.n ?? 0) >= LIMITS.recoveryRequestsPerDay) return EMPTY;
-      if ((one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM items WHERE inbox_id = ? AND kind = 1", inboxId)?.n ?? 0) >= LIMITS.recoveryPendingRequests) return EMPTY; // full: keep what is held
       const expires = now + LIMITS.maxRetentionSeconds;
-      this.ctx.storage.transactionSync(() => {
-        run(this.sql, "INSERT INTO reqs (inbox_id, digest, body_hash, at, expires_at, read_tokens, read_at) VALUES (?, ?, ?, ?, ?, ?, ?)", inboxId, digest, bodyHash, now, expires, LIMITS.recoveryVetoReadBurst, now);
-        run(this.sql, "INSERT INTO items (id, inbox_id, kind, bytes, expires_at) VALUES (?, ?, 1, ?, ?)", randomBytes(16), inboxId, a.signed, expires);
+      const changed = this.ctx.storage.transactionSync(() => {
+        this.remember(rid, fp, EMPTY, now);
+        if (!one(this.sql, "SELECT 1 FROM inboxes WHERE inbox_id = ?", inboxId)) return false;
+        const held = one<{ body_hash: Uint8Array; expires_at: number; item_id: Uint8Array | null }>(
+          this.sql, "SELECT body_hash, expires_at, item_id FROM reqs WHERE inbox_id = ? AND digest = ?", inboxId, digest,
+        );
+        if (held && (!equalBytes(bytesOf(held.body_hash), signedHash) || expires - held.expires_at < DAY_SECONDS)) return false;
+        const existing = held?.item_id
+          ? one<{ id: Uint8Array }>(this.sql, "SELECT id FROM items WHERE id = ? AND inbox_id = ?", bytesOf(held.item_id), inboxId)
+          : held && one<{ id: Uint8Array }>(this.sql, "SELECT id FROM items WHERE inbox_id = ? AND kind = 1 AND bytes = ?", inboxId, a.signed);
+        if (existing) {
+          const id = bytesOf(existing.id);
+          run(this.sql, "UPDATE items SET expires_at = ? WHERE id = ? AND inbox_id = ?", expires, id, inboxId);
+          run(this.sql, "UPDATE reqs SET expires_at = ?, item_id = ? WHERE inbox_id = ? AND digest = ?", expires, id, inboxId, digest);
+          return true;
+        }
+        const pending = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM items WHERE inbox_id = ? AND kind = 1", inboxId)?.n ?? 0;
+        if (pending >= LIMITS.recoveryPendingRequests) return false;
+        if (!held) {
+          const counts = one<{ total: number; recent: number }>(this.sql, "SELECT COUNT(*) AS total, COUNT(CASE WHEN at > ? THEN 1 END) AS recent FROM reqs WHERE inbox_id = ?", now - DAY_SECONDS, inboxId);
+          const maxHeld = LIMITS.recoveryRequestsPerDay * Math.ceil((LIMITS.maxRetentionSeconds + LIMITS.skewSeconds) / DAY_SECONDS);
+          if (counts && (counts.recent >= LIMITS.recoveryRequestsPerDay || counts.total >= maxHeld)) return false;
+        }
+        const itemId = randomBytes(16);
+        run(this.sql, "INSERT INTO reqs (inbox_id, digest, body_hash, at, expires_at, read_tokens, read_at, item_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(inbox_id, digest) DO UPDATE SET expires_at = excluded.expires_at, item_id = excluded.item_id", inboxId, digest, signedHash, now, expires, LIMITS.recoveryVetoReadBurst, now, itemId);
+        run(this.sql, "INSERT INTO items (id, inbox_id, kind, bytes, expires_at) VALUES (?, ?, 1, ?, ?)", itemId, inboxId, a.signed, expires);
+        return true;
       });
-      await this.schedule();
+      if (changed) await this.schedule();
       return EMPTY;
     });
   }
@@ -328,50 +357,55 @@ export class RecoveryStore extends DurableObject<Env> {
   postVeto(a: VetoPost): Promise<Reply> {
     return reply(async () => {
       const hash = await sha256(a.body);
-      const inboxId = await recoveryInboxId(a.accountId);
+      const inboxId = await recoveryInboxId(a.accountId, a.recoveryEpoch);
+      const capHash = a.cap === undefined ? undefined : await sha256(a.cap);
       const rid = toHex(await sha256(a.requestId));
       const fp = toHex(await sha256(utf8("recovery-veto"), hash));
       const now = nowSeconds();
       this.purge(now);
       if (this.prior(rid, fp)) return EMPTY;
       this.homeBucket("post", now, LIMITS.recoveryPostBurst, LIMITS.recoveryPostRefillSeconds);
-      this.remember(rid, fp, EMPTY, now);
-      if (!one(this.sql, "SELECT 1 AS x FROM inboxes WHERE inbox_id = ?", inboxId)) return EMPTY;
-      if (!one(this.sql, "SELECT 1 AS x FROM reqs WHERE inbox_id = ? AND digest = ?", inboxId, a.requestDigest)) return EMPTY;
-      if (one(this.sql, "SELECT 1 AS x FROM vetoes WHERE digest = ? AND hash = ?", a.requestDigest, hash)) return EMPTY; // an identical veto changes nothing
-      const n = (q: string, ...b: (Uint8Array | number)[]): number => one<{ n: number }>(this.sql, q, ...b)?.n ?? 0;
-      if (n("SELECT COUNT(*) AS n FROM veto_log WHERE inbox_id = ? AND at > ?", inboxId, now - HOUR_SECONDS) >= LIMITS.recoveryVetoesPerHour) return EMPTY;
-      if (n("SELECT COUNT(*) AS n FROM vetoes WHERE digest = ?", a.requestDigest) >= LIMITS.recoveryPendingVetoesPerDigest) return EMPTY;
-      if (n("SELECT COUNT(*) AS n FROM vetoes WHERE inbox_id = ?", inboxId) >= LIMITS.recoveryPendingVetoes) return EMPTY;
-      if (n("SELECT COUNT(*) AS n FROM items WHERE inbox_id = ? AND kind = 2", inboxId) >= LIMITS.recoveryPendingVetoes) return EMPTY;
-      const expires = now + LIMITS.maxRetentionSeconds;
-      this.ctx.storage.transactionSync(() => {
+      const changed = this.ctx.storage.transactionSync(() => {
+        this.remember(rid, fp, EMPTY, now);
+        const inbox = one<{ cap_hash: Uint8Array }>(this.sql, "SELECT cap_hash FROM inboxes WHERE inbox_id = ?", inboxId);
+        if (!inbox) return false;
+        const controller = Number(capHash !== undefined && equalBytes(bytesOf(inbox.cap_hash), capHash));
+        if (!one(this.sql, "SELECT 1 FROM reqs WHERE inbox_id = ? AND digest = ?", inboxId, a.requestDigest)) return false;
+        if (one(this.sql, "SELECT 1 FROM vetoes WHERE digest = ? AND hash = ? AND controller = ?", a.requestDigest, hash, controller)) return false;
+        const n = (q: string, ...b: (Uint8Array | number)[]): number => one<{ n: number }>(this.sql, q, ...b)?.n ?? 0;
+        if (n("SELECT COUNT(*) AS n FROM veto_log WHERE inbox_id = ? AND at > ?", inboxId, now - HOUR_SECONDS) >= LIMITS.recoveryVetoesPerHour) return false;
+        const capacity = controller ? LIMITS.recoveryControllerVetoesPerDigest : LIMITS.recoveryPendingVetoesPerDigest;
+        if (n("SELECT COUNT(*) AS n FROM vetoes WHERE digest = ? AND controller = ?", a.requestDigest, controller) >= capacity) return false;
+        const inboxFull = n("SELECT COUNT(*) AS n FROM items WHERE inbox_id = ? AND kind = 2", inboxId) >= LIMITS.recoveryPendingVetoes;
+        if (!controller && (inboxFull || n("SELECT COUNT(*) AS n FROM vetoes WHERE inbox_id = ? AND controller = 0", inboxId) >= LIMITS.recoveryPendingVetoes)) return false;
+        const expires = now + LIMITS.maxRetentionSeconds;
         run(this.sql, "INSERT INTO veto_log (inbox_id, at) VALUES (?, ?)", inboxId, now);
-        run(this.sql, "INSERT INTO vetoes (inbox_id, digest, hash, bytes, expires_at) VALUES (?, ?, ?, ?, ?)", inboxId, a.requestDigest, hash, a.signed, expires);
-        run(this.sql, "INSERT INTO items (id, inbox_id, kind, bytes, expires_at) VALUES (?, ?, 2, ?, ?)", randomBytes(16), inboxId, a.signed, expires);
+        run(this.sql, "INSERT INTO vetoes (inbox_id, digest, hash, bytes, expires_at, controller) VALUES (?, ?, ?, ?, ?, ?)", inboxId, a.requestDigest, hash, a.signed, expires, controller);
+        if (!inboxFull) run(this.sql, "INSERT INTO items (id, inbox_id, kind, bytes, expires_at) VALUES (?, ?, 2, ?, ?)", randomBytes(16), inboxId, a.signed, expires);
+        return true;
       });
-      await this.schedule();
+      if (changed) await this.schedule();
       return EMPTY;
     });
   }
 
-  /**
-   * The veto board: the vetoes stored for one request digest, at most 16, to anyone who knows the digest (public_read). The bucket is
-   * kept per digest only for a digest an inbox has taken, so an arbitrary digest creates no state; an unknown digest and a known one
-   * without vetoes both answer an empty list.
-   */
+  /** Pace all board reads by the same keyed 256-bucket rule, then return controller entries first (ADR-0226 §§3–4). */
   vetoes(digest: Uint8Array): Promise<Reply> {
-    return reply(() => {
+    return reply(async () => {
+      const secret = getMeta(this.sql, "veto_read_key");
+      if (secret === undefined || secret === null || typeof secret === "string" || typeof secret === "number") throw new HomeError("retryable");
+      const key = await crypto.subtle.importKey("raw", bytesOf(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, bytesOf(digest)));
+      const bucket = mac[0] ?? 0;
       const now = nowSeconds();
       this.purge(now);
-      const row = one<{ inbox_id: Uint8Array; read_tokens: number; read_at: number }>(this.sql, "SELECT inbox_id, read_tokens, read_at FROM reqs WHERE digest = ? LIMIT 1", digest);
-      if (row) {
-        const t = takeToken(row.read_tokens, row.read_at, now, LIMITS.recoveryVetoReadBurst, 1 / LIMITS.recoveryVetoReadRefillSeconds);
-        run(this.sql, "UPDATE reqs SET read_tokens = ?, read_at = ? WHERE inbox_id = ? AND digest = ?", t.tokens, now, row.inbox_id, digest);
-        if (!t.allowed) throw new HomeError("rate_limited", { retryAfterSeconds: t.waitSeconds });
-      }
-      const list = all<{ bytes: Uint8Array }>(this.sql, "SELECT bytes FROM vetoes WHERE digest = ? ORDER BY seq LIMIT ?", digest, LIMITS.recoveryPendingVetoesPerDigest).map((r) => bytesOf(r.bytes));
-      return Promise.resolve(encodeVetoList(list));
+      const burst = LIMITS.recoveryVetoReadBurst;
+      const row = one<{ tokens: number; at: number }>(this.sql, "SELECT tokens, at FROM veto_read_buckets WHERE bucket = ?", bucket);
+      const t = takeToken(row?.tokens ?? burst, row?.at ?? now, now, burst, 1 / LIMITS.recoveryVetoReadRefillSeconds);
+      run(this.sql, "INSERT INTO veto_read_buckets (bucket, tokens, at) VALUES (?, ?, ?) ON CONFLICT(bucket) DO UPDATE SET tokens = excluded.tokens, at = excluded.at", bucket, t.tokens, now);
+      if (!t.allowed) throw new HomeError("rate_limited", { retryAfterSeconds: t.waitSeconds });
+      const list = all<{ bytes: Uint8Array }>(this.sql, "SELECT bytes FROM vetoes WHERE digest = ? ORDER BY controller DESC, seq LIMIT ?", digest, LIMITS.recoveryPendingVetoesPerDigest + LIMITS.recoveryControllerVetoesPerDigest).map((r) => bytesOf(r.bytes));
+      return encodeVetoList(list);
     });
   }
 }

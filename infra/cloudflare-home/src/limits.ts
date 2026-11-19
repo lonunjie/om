@@ -78,6 +78,7 @@ export const LIMITS = {
   recoveryPendingRequests: 8,
   recoveryPendingVetoes: 32,
   recoveryPendingVetoesPerDigest: 16,
+  recoveryControllerVetoesPerDigest: 8,
   recoveryVetoesPerHour: 8,
   /** Fan-out and veto posts, whole Home (the only recovery limits that answer `rate_limited` to a poster). */
   recoveryPostBurst: 10,
@@ -85,7 +86,7 @@ export const LIMITS = {
   recoveryDrainBurst: 20,
   recoveryDrainRefillSeconds: 5,
   recoveryVetoReadBurst: 10,
-  recoveryVetoReadRefillSeconds: 10,
+  recoveryVetoReadRefillSeconds: 30,
   /** A signed RecoveryRequest or RecoveryVeto (the registry maximum of object types 4 and 5). */
   maxRecoveryObjectBytes: 16_384,
   recoveryRecordRetentionSeconds: 400 * DAY,

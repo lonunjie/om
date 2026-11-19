@@ -69,6 +69,14 @@ pub struct PendingRecovery {
     /// The verified head captured by the sheet.
     #[serde(default)]
     pub parent: Hex,
+    #[serde(default)]
+    pub parent_epoch: Option<u64>,
+    #[serde(default)]
+    pub controllers: Vec<Hex>,
+    #[serde(default)]
+    pub required_votes: usize,
+    #[serde(default)]
+    pub child_hash: Hex,
     /// The `RecoveryPolicy` body the new root's method key belongs to (epoch one above the current one).
     pub policy: Hex,
     /// The type-38 bytes of the kit for the new root, when the account has a recovery place.
@@ -661,6 +669,9 @@ pub enum Purpose {
     RecoveryPut {
         generation: u64,
     },
+    RecoveryDelete {
+        locator: Hex,
+    },
     /// The read that settles a refused compare-and-swap.
     RecoveryReconcile {
         generation: u64,
@@ -870,6 +881,11 @@ pub struct RecoveryWriter {
     /// The current recovery key may still be held by an excluded controller.
     #[serde(default)]
     pub paused_for_exclusion: bool,
+    /// The checkpoint put in the saved sheet. Legacy kits use the account's first state.
+    #[serde(default)]
+    pub sheet_anchor: Option<CheckpointRec>,
+    #[serde(default)]
+    pub recovered_with_sheet: bool,
     /// Hash (hex) of the ACS head the writer last saw.
     pub head_hash: Option<Hex>,
     pub head_seen_ms: u64,
@@ -890,6 +906,17 @@ pub struct RecoveryWriter {
     pub last_write_ms: u64,
     /// SHA-256 (hex) of the relationship snapshot last written.
     pub last_content: Option<Hex>,
+}
+
+/// A retired record's provider-scoped deletion, held until the replacement is acknowledged.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetiredRecoveryRecord {
+    pub place: JoinPlace,
+    pub locator: Hex,
+    pub write_cap: SecretHex,
+    pub replacement_generation: u64,
+    pub expires_ms: u64,
 }
 
 /// What Settings shows about the recovery record (ADR-0199 section 6).
@@ -952,9 +979,12 @@ pub struct AppState {
     /// Mailbox (hex) -> highest relay sequence already processed and committed.
     pub cursors: BTreeMap<Hex, u64>,
     pub keys_published: bool,
-    /// The signed AccountControlState chain `[genesis, ..., head]` (each a W0 SignedAccountControlState, hex).
+    /// The signed AccountControlState chain ending at the live head (hex).
     #[serde(default)]
     pub acs_chain: Vec<Hex>,
+    /// Independent local anchor when owner recovery began with a non-genesis chain.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acs_checkpoint: Option<CheckpointRec>,
     /// Every DeviceCredential body this account has committed to, current and historical (hex).
     #[serde(default)]
     pub acs_credentials: Vec<Hex>,
@@ -1020,9 +1050,11 @@ pub struct AppState {
     /// The controller side of the recovery inbox (ADR-0201 section 8.2). Convenience only: nothing in it is trusted.
     #[serde(default)]
     pub recovery_inbox: RecoveryInboxRec,
-    /// Record floors by RecoveryStore scope (hex), kept apart from the join and from the account pin (ADR-0202 section 1).
+    /// Record floors by scope and locator. A scope-only key is an unreconciled legacy floor (ADR-0225 §3).
     #[serde(default)]
     pub recovery_floors: BTreeMap<Hex, RecordFloorRec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired_recovery_records: Vec<RetiredRecoveryRecord>,
     /// Advisory reconnect work staged with adoption, scoped to this encrypted profile.
     #[serde(default)]
     pub relationship_restore: Option<RelationshipRestore>,
@@ -1121,7 +1153,12 @@ pub struct RecoveryJoinRec {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryInboxRec {
-    pub registered: bool,
+    #[serde(default)]
+    pub epoch: Option<u64>,
+    #[serde(default)]
+    pub registered_at_ms: Option<u64>,
+    #[serde(default)]
+    pub registration_refused: bool,
     /// Core's clock at the last register or drain attempt: pacing only, never authority.
     pub last_ms: u64,
     pub in_flight: bool,
@@ -1148,10 +1185,8 @@ pub struct CheckpointRec {
     pub acs_hash: Hex,
 }
 
-/// The durable record floor per RecoveryStore scope (ADR-0141, ADR-0202 section 1), separate from the account pin: the
-/// `lineage` (the AccountID the record chain belongs to), the highest `record_generation` accepted and the digest of its
-/// exact authenticated plaintext. A lower generation is stale; the same generation with other bytes, or another lineage
-/// under the same scope, is equivocation and fails closed. It survives a restart and a cancelled attempt.
+/// An opaque locator's AccountID binding, highest accepted generation and authenticated plaintext digest.
+/// The persisted field `lineage` retains its original encoding for migration of scope-only entries.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordFloorRec {
@@ -1288,7 +1323,7 @@ pub enum EvidenceStage {
     /// A pin exists but the signed states between it and the record's head, or the credentials or a recovery link they
     /// need, are not here. The device stays restricted until a revalidated carrier supplies them.
     NeedsEvidence,
-    /// The record's chain starts at genesis, contains the pinned state and verifies with no unverified recovery link.
+    /// The chain verifies forward from the independently pinned state.
     Pinned,
     /// The record contradicts the pin (another account, a lower head, a different state at the pinned generation).
     Conflict,
@@ -1337,6 +1372,9 @@ pub struct OwnerAttemptRec {
     /// Resend marks already used (1/3 and 2/3 of the interval, ADR-0190 3.1).
     #[serde(default)]
     pub resends: u8,
+    /// Wall-clock scheduling hint only. The verifier interval is measured separately.
+    #[serde(default)]
+    pub last_request_post_ms: Option<u64>,
     /// Credit at the last veto read, and the round of reads in flight (a round answers only itself).
     #[serde(default)]
     pub polled_ms: u64,
@@ -1353,9 +1391,18 @@ pub struct OwnerAttemptRec {
     pub competing_heads: Vec<OwnerHeadObservation>,
     #[serde(default)]
     pub competing_heads_full: bool,
-    /// An observed full veto page stays unresolved for the lifetime of the request.
+    /// A saturated board may have omitted vetoes. A later, pruned board cannot resolve that observation.
     #[serde(default)]
     pub veto_page_full: bool,
+    /// The current board round did not receive a response from every known Home.
+    #[serde(default)]
+    pub round_veto_unanswered: bool,
+    /// The record used to prepare this request was absent during reconciliation.
+    #[serde(default)]
+    pub round_record_missing: bool,
+    /// A verified, co-signed successor arrived in the owner-mediated approval exchange.
+    #[serde(default)]
+    pub controller_approved: bool,
     /// A conflicted snapshot can be replaced only by a newer verified refresh.
     #[serde(default)]
     pub snapshot_conflict_generation: Option<u64>,

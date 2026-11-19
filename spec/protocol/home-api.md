@@ -221,3 +221,19 @@ The Home learns what it learns for an ordinary mailbox, plus: the locator and ca
 | inbox retention without a register | 400 days | same |
 
 A full inbox, or one that already took its distinct requests of the day or its vetoes of the hour, **keeps what it holds and drops the new item, answered like a success**, so that a poster learns nothing about whether an inbox exists; it never evicts an item it already holds. Only the Home-wide limits answer `rate_limited` (with `retry_after_seconds`), because they do not depend on an inbox.
+
+### 8.5 Epoch inboxes, refresh and veto board pacing (ADR-0226)
+
+The epoch inbox identifier is the 32-byte value of `DS-HASH(OM-RECOVERY-INBOX-ID-v2, OM-CBOR [account_id, recovery_epoch])`.
+The Home uses the epoch in the signed object to find its inbox. Registration, drain and acknowledgement use the same opaque path.
+An exact fan-out retry retains its request ID. A refresh sends the same signed bytes with a new request ID. A Home renews a
+retained inbox item at most once per 24 hours, keeping its ID and position. A refresh of an acknowledged request can recreate
+the item once per 24 hours without consuming another distinct-request slot.
+
+A veto post can supply the inbox capability as an authorization bearer. A matching capability uses the reserved controller
+class. Other posts use the public class. Both receive the same response. Reads return the controller class before the public
+class in the same list format, bounded by 8 controller entries and 16 public entries. The respective advertised limits are
+`recovery_pending_controller_vetoes_per_request` and `recovery_pending_vetoes_per_request`.
+
+For board reads, a Home uses a secret-keyed mapping of the request digest to one of 256 token buckets. Each bucket admits a
+burst of 10 reads and refills one token every 30 seconds. The same pacing applies to all digests.

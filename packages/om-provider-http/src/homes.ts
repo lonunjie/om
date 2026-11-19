@@ -102,6 +102,7 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
         // be the active one, and the active Home's client would reach it as a stranger and be refused.
         case "recovery_put":
         case "recovery_get":
+        case "recovery_delete":
         case "recovery_veto_read":
         case "recovery_veto_post":
         case "recovery_request_post":

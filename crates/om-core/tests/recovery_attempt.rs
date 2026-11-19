@@ -296,6 +296,46 @@ fn replace_record(w: &World, f: impl FnOnce(&mut rr::RecoveryRecord)) {
 }
 
 #[test]
+fn maximum_privacy_writes_an_empty_relationship_snapshot() {
+    use om_core::host::NetCall;
+
+    let mut w = world();
+    let snapshot_size = |w: &World| {
+        let (_, envelope) = w.net.recovery_record(&w.keys.locator).unwrap();
+        let plain = rr::open_envelope(&w.keys, &SCOPE, &envelope).unwrap();
+        let Plain::Record(record) = rr::read_plaintext(&plain).unwrap() else {
+            panic!("recovery record");
+        };
+        let rr::Relationships::Plain(snapshot) = record.relationships else {
+            panic!("relationship snapshot");
+        };
+        snapshot.entries.len()
+    };
+    assert_eq!(snapshot_size(&w), 1);
+    // Leave a normal-profile refresh staged when the person switches profiles.
+    w.alice.tick(90 * 24 * H);
+    w.alice.recovery_tick(&w.a, &mono(1, 0));
+    let pending = w.alice.core.net_ops(&w.a).unwrap();
+    assert!(pending.iter().any(|op| matches!(op.call, NetCall::RecoveryPut { .. })));
+    let confirmation =
+        common::confirmation(&mut w.alice, &w.a, "ChangePrivacyPolicy", "maximum");
+    w.alice.dispatch(
+        &w.a,
+        "maximum",
+        IntentBody::ChangePrivacyPolicy {
+            policy: PrivacyPolicyLevel::Maximum,
+            confirmation,
+        },
+    );
+    w.alice.flush_net(&w.a);
+    assert_eq!(snapshot_size(&w), 0, "the next write uses the stricter profile");
+    w.alice.tick(25 * H);
+    w.alice.recovery_tick(&w.a, &mono(1, 25 * H));
+    w.alice.flush_net(&w.a);
+    assert_eq!(snapshot_size(&w), 0);
+}
+
+#[test]
 fn an_advisory_only_record_never_finishes_even_after_the_timer_and_a_restart() {
     let w = world();
     // A sheet without the owner's checkpoint: version 1, as an older client or a legacy text gives.
@@ -391,7 +431,8 @@ fn a_record_of_another_account_under_the_same_place_is_never_used_after_the_firs
     f.begin(&w.sheet);
     // The floor's lineage is the first record's account: poison the stored lineage and the same record conflicts.
     let mut app = f.app();
-    app["recoveryFloors"][hex(&SCOPE)]["lineage"] = serde_json::json!(hex(&[1; 32]));
+    let key = format!("{}:{}", hex(&SCOPE), hex(&w.keys.locator));
+    app["recoveryFloors"][key]["lineage"] = serde_json::json!(hex(&[1; 32]));
     rewrite(&mut f, app);
     assert_eq!(
         f.go("again", IntentBody::CheckRecoveryAgain),
@@ -540,6 +581,66 @@ fn rewrite(f: &mut Fresh, app: serde_json::Value) {
     f.rt.store.replace_record("q", "state", new);
     f.rt.restart();
     f.ctx = f.rt.open("q");
+}
+
+#[test]
+fn a_record_for_another_account_cannot_reserve_a_checkpoint_lineage() {
+    let w = world();
+    let om_core::recovery_sheet::Parsed::Sheet(sheet) =
+        om_core::recovery_sheet::parse(&w.sheet).unwrap()
+    else {
+        panic!("owner sheet");
+    };
+    let mut checkpoint = sheet.checkpoint.unwrap();
+    checkpoint.account_id[0] ^= 1;
+    let entry = Sheet::full_v2(*sheet.root().unwrap(), SCOPE, None, &sheet.host, checkpoint)
+        .unwrap()
+        .to_compact();
+    let mut f = fresh(&w.net);
+    f.begin(&entry);
+    assert_eq!(f.view().unwrap().stage, JoinStage::Conflict);
+    assert_eq!(f.app()["recoveryFloors"], serde_json::json!({}));
+}
+
+#[test]
+fn recovery_floor_migration_preserves_the_matching_account_and_other_locators() {
+    use om_core::crypto::hex;
+
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    let scope = hex(&SCOPE);
+    let key = format!("{scope}:{}", hex(&w.keys.locator));
+    let other = format!("{scope}:{}", hex(&[8; 32]));
+    let mut app = f.app();
+    let floors = app["recoveryFloors"].as_object_mut().unwrap();
+    let old_key = floors.keys().next().unwrap().clone();
+    let mut mark = floors.remove(&old_key).unwrap();
+    let other_mark = serde_json::json!({
+        "lineage": hex(&[3; 32]),
+        "generation": 999_999_999,
+        "digest": hex(&[4; 32])
+    });
+    floors.insert(other.clone(), other_mark.clone());
+    floors.insert(scope.clone(), other_mark.clone());
+    rewrite(&mut f, app);
+    f.go("recheck", IntentBody::CheckRecoveryAgain);
+    assert_eq!(f.view().unwrap().stage, JoinStage::Found);
+    assert_eq!(f.app()["recoveryFloors"][&other], other_mark);
+    assert_eq!(f.app()["recoveryFloors"][&scope], other_mark);
+    assert_eq!(f.app()["recoveryFloors"][&key], mark);
+
+    let mut app = f.app();
+    let floors = app["recoveryFloors"].as_object_mut().unwrap();
+    floors.remove(&key);
+    mark["generation"] = serde_json::json!(999_999_998);
+    floors.insert(scope.clone(), mark.clone());
+    rewrite(&mut f, app);
+    f.go("migrate", IntentBody::CheckRecoveryAgain);
+    assert_eq!(f.view().unwrap().stage, JoinStage::OutOfDate);
+    assert_eq!(f.app()["recoveryFloors"][&key], mark);
+    assert!(f.app()["recoveryFloors"].get(&scope).is_none());
+    assert_eq!(f.app()["recoveryFloors"][&other], other_mark);
 }
 
 #[test]
@@ -761,6 +862,52 @@ fn the_request_is_resent_at_a_third_and_two_thirds_with_the_same_bytes() {
     assert_eq!(f.app()["recoveryJoin"]["attempt"]["resends"], 2);
 }
 
+#[test]
+fn an_open_request_refreshes_after_four_offline_days_without_new_verifier_credit() {
+    use om_core::host::NetCall;
+
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("req", IntentBody::RequestRecovery);
+    let first = w.net.recovery_requests().pop().unwrap();
+    f.tick(&mono(1, 0));
+    let credited = f.app()["recoveryJoin"]["attempt"]["obs"]["creditedMs"].clone();
+
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    f.rt.tick(4 * 24 * H + 1);
+    f.rt.recovery_tick(&f.ctx, &mono(2, 0));
+    let posts = f.rt.core.net_ops(&f.ctx).unwrap();
+    assert!(posts.iter().any(|post| {
+        matches!(&post.call, NetCall::RecoveryRequestPost { bytes, .. } if bytes == &first)
+    }));
+    assert_eq!(f.app()["recoveryJoin"]["attempt"]["obs"]["creditedMs"], credited);
+}
+
+#[test]
+fn eight_unclassified_vetoes_keep_the_strict_attempt_waiting() {
+    use om_core::host::{NetCall, NetResult};
+
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.go("req", IntentBody::RequestRecovery);
+    f.tick(&mono(1, 0));
+    f.rt.recovery_tick(&f.ctx, &mono(1, DELAY_MS));
+    for op in f.rt.core.net_ops(&f.ctx).unwrap() {
+        let result = match op.call {
+            NetCall::RecoveryVetoRead { .. } => NetResult::Many { items: vec![vec![0]; 8] },
+            _ => w.net.perform(&op.call),
+        };
+        let step = f.rt.core.net_result(&f.ctx, op.id, result).unwrap();
+        assert!(f.rt.settle(&step));
+    }
+    assert!(f.view().is_some(), "the board did not establish a complete round");
+    f.tick(&mono(1, DELAY_MS + 1));
+    assert!(f.view().is_some(), "a later empty board does not resolve saturation");
+}
+
 // ----------------------------------------------------------------------------------------------- controller inbox
 
 fn alice_tick(w: &mut World, session: u8, at: u64) {
@@ -769,6 +916,61 @@ fn alice_tick(w: &mut World, session: u8, at: u64) {
     for _ in 0..3 {
         w.alice.flush_net(&w.a);
     }
+}
+
+#[test]
+fn the_controller_renews_its_inbox_after_thirty_days_across_restart() {
+    use om_core::host::NetCall;
+
+    let mut w = world();
+    alice_tick(&mut w, 1, 0);
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    w.alice.tick(30 * 24 * H);
+    w.alice.recovery_tick(&w.a, &mono(2, 0));
+    let calls = w.alice.core.net_ops(&w.a).unwrap();
+    assert!(calls.iter().any(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. })));
+}
+
+#[test]
+fn an_inbox_registration_refusal_after_a_missing_drain_is_retried_daily_across_restart() {
+    use om_core::host::{NetCall, NetError, NetResult};
+
+    let mut w = world();
+    alice_tick(&mut w, 1, 0);
+    w.alice.tick(61_000);
+    w.alice.recovery_tick(&w.a, &mono(1, 1000));
+    let drain = w.alice.core.net_ops(&w.a).unwrap().into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryInboxDrain { .. })).unwrap();
+    let missing = w.alice.core.net_result(&w.a, drain.id, NetResult::Err {
+        error: NetError::NotFound,
+    }).unwrap();
+    assert!(w.alice.settle(&missing));
+    w.alice.recovery_tick(&w.a, &mono(1, 2000));
+    let register = w.alice.core.net_ops(&w.a).unwrap().into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. })).unwrap();
+    let refused = w.alice.core.net_result(&w.a, register.id, NetResult::Err {
+        error: NetError::Rejected { reason: RejectReason::Unauthorized },
+    }).unwrap();
+    assert!(w.alice.settle(&refused));
+
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert_eq!(app["recoveryInbox"]["registrationRefused"], true);
+    assert!(app["recoveryInbox"]["registeredAtMs"].is_null());
+    w.alice.tick(H);
+    w.alice.recovery_tick(&w.a, &mono(2, 0));
+    let calls = w.alice.core.net_ops(&w.a).unwrap();
+    assert!(calls.iter().all(|op| !matches!(op.call, NetCall::RecoveryInboxRegister { .. })));
+    w.alice.tick(23 * H);
+    w.alice.recovery_tick(&w.a, &mono(2, 1000));
+    let calls = w.alice.core.net_ops(&w.a).unwrap();
+    assert!(calls.iter().any(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. })));
+    w.alice.flush_net(&w.a);
+    let app = w.alice.core.debug_app_state(&w.a).unwrap();
+    assert_eq!(app["recoveryInbox"]["registrationRefused"], false);
+    assert!(app["recoveryInbox"]["registeredAtMs"].is_u64());
 }
 
 fn tracked(w: &World) -> Vec<RecoveryRequestView> {
@@ -782,10 +984,7 @@ fn a_surviving_controller_registers_drains_and_acknowledges_and_is_told_of_the_r
     let mut w = world();
     // The inbox is registered on the first tick, before any request exists.
     alice_tick(&mut w, 1, 0);
-    assert_eq!(
-        w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"]["registered"],
-        true
-    );
+    assert!(w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"]["registeredAtMs"].is_u64());
     let mut f = fresh(&w.net);
     f.begin(&w.sheet);
     f.go("req", IntentBody::RequestRecovery);

@@ -45,7 +45,7 @@ RecoveryInboxItem = {0: opaque-id16, 1: 1..2, 2: bstr .size (1..16384)}         
 RecoveryInboxDrainResponse = {0: api-major, 1: [0*16 RecoveryInboxItem], ?2: bstr .size (1..64)} ; ?2: cursor
 RecoveryInboxAckRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: [1*16 opaque-id16]}
 RecoveryVetoPostRequest = {0: api-major, 1: request-id, 2: bstr .size (1..16384)}             ; signed-RecoveryVeto bytes
-RecoveryVetoListResponse = {0: api-major, 1: [0*16 bstr .size (1..16384)]}                    ; signed-RecoveryVeto bytes
+RecoveryVetoListResponse = {0: api-major, 1: [0*24 bstr .size (1..16384)]}                    ; ADR-0226: controller class first
 
 BlobPutRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: bstr, ?4: uint}
 BlobPutResponse = {0: api-major, 1: opaque-cap, 2: bstr, ?3: uint}

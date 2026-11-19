@@ -327,7 +327,7 @@ describe(`${target} home load`, () => {
       const inboxes: { accountId: Uint8Array; inboxId: Uint8Array; cap: Uint8Array }[] = [];
       let regStop: string | undefined;
       for (let i = 0; i < 20 && regStop === undefined; i++) {
-        const accountId = rand(32); const inboxId = await recoveryInboxId(accountId); const cap = rand(32);
+        const accountId = rand(32); const inboxId = await recoveryInboxId(accountId, 1); const cap = rand(32);
         const r = await send("inboxRegister", inboxPath(inboxId), { method: "PUT", headers: cbor, body: asBody(encodeInboxRegister({ requestId: rand(16), cap })) });
         if (r.name === "ok") inboxes.push({ accountId, inboxId, cap }); else regStop = r.name;
       }
@@ -512,7 +512,7 @@ describe(`${target} home load`, () => {
         shed["drain"] = dr.ok ? "ok" : dr.error.name;
         const hz = await home.fetch("/healthz");
         shed["healthz"] = String(hz.status);
-        const inboxId = await recoveryInboxId(rand(32));
+        const inboxId = await recoveryInboxId(rand(32), 1);
         const rg = await home.fetch(`/v1/recovery/inbox/${toBase64Url(inboxId)}`, { method: "PUT", headers: { "content-type": "application/cbor" }, body: asBody(encodeInboxRegister({ requestId: rand(16), cap: rand(32) })) });
         shed["recoveryRegister"] = String(rg.status);
         out["atHard"] = shed;

@@ -9,7 +9,7 @@
 // register), and only to this Home. A mutating request has a 128-bit request id; a caller that retries an unknown outcome passes the
 // same id and the same bytes (Home API v1 section 5), and a network failure after sending is reported as `network`, never as a rejection.
 import {
-  ADMISSION_HEADER, FEATURES, INBOX_DRAIN_PAGE_MAX, RECOVERY_CAP_BYTES, RECOVERY_PATHS, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, decodeInboxDrainResponse, decodeRecordGetResponse, decodeVetoList, encodeFanout, encodeInboxAck, encodeInboxDrain, encodeInboxRegister, encodeRecordPut, encodeVetoPost,
+  ADMISSION_HEADER, FEATURES, INBOX_DRAIN_PAGE_MAX, RECOVERY_CAP_BYTES, RECOVERY_PATHS, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, RECOVERY_VETO_LIST_MAX, REQUEST_ID_HEADER, decodeInboxDrainResponse, decodeRecordGetResponse, decodeVetoList, encodeFanout, encodeInboxAck, encodeInboxDrain, encodeInboxRegister, encodeRecordPut, encodeVetoPost,
   fromBase64Url, recoveryEtag, recoveryInboxId, recoveryLocator, sha256, toBase64Url, utf8, concat,
   type HomeErrorName, type InboxItem,
 } from "@om/home-wire";
@@ -53,7 +53,7 @@ export interface RecordWrite {
   readonly requestId?: Uint8Array;
 }
 
-export interface InboxAuth { readonly accountId: Uint8Array; readonly cap: Uint8Array }
+export interface InboxAuth { readonly accountId: Uint8Array; readonly cap: Uint8Array; readonly recoveryEpoch?: number; readonly requestId?: Uint8Array }
 export interface DrainPage { readonly items: readonly InboxItem[]; /** Present only when more items wait; ack what was handled and drain again. */ readonly more: boolean }
 
 export interface RecoveryStoreClient {
@@ -67,8 +67,8 @@ export interface RecoveryStoreClient {
   /** Idempotent: `not_found` (absent, or not this capability) counts as done. */
   deleteRecord(locator: Uint8Array, writeCap: Uint8Array): Promise<RecoveryResult<undefined>>;
   /** Posts a signed RecoveryRequest to this Home. The Home checks shape only; the answer is the same whether or not an inbox exists. */
-  fanOut(signedRequest: Uint8Array): Promise<RecoveryResult<undefined>>;
-  postVeto(signedVeto: Uint8Array): Promise<RecoveryResult<undefined>>;
+  fanOut(signedRequest: Uint8Array, requestId?: Uint8Array): Promise<RecoveryResult<undefined>>;
+  postVeto(signedVeto: Uint8Array, inboxCap?: Uint8Array): Promise<RecoveryResult<undefined>>;
   /** The vetoes stored for one request digest (the 32-byte `OM-RECOVERY-REQUEST-HASH-v1` digest value); no capability. */
   readVetoes(requestDigest: Uint8Array): Promise<RecoveryResult<readonly Uint8Array[]>>;
   registerInbox(a: InboxAuth): Promise<RecoveryResult<undefined>>;
@@ -89,7 +89,7 @@ const MAX_ERROR_REPLY = 8 * 1024;
 // Include the CBOR framing, inbox item IDs and optional cursor in the transport bounds.
 const MAX_RECORD_REPLY = RECOVERY_RECORD_MAX_BYTES + 16;
 const MAX_INBOX_REPLY = INBOX_DRAIN_PAGE_MAX * (RECOVERY_SIGNED_OBJECT_MAX_BYTES + 32) + 80;
-const MAX_VETO_REPLY = INBOX_DRAIN_PAGE_MAX * (RECOVERY_SIGNED_OBJECT_MAX_BYTES + 8) + 16;
+const MAX_VETO_REPLY = RECOVERY_VETO_LIST_MAX * (RECOVERY_SIGNED_OBJECT_MAX_BYTES + 8) + 16;
 
 /** Content-derived request id for posts whose retry must be exact (the same bytes always carry the same id). */
 async function idFor(label: string, bytes: Uint8Array): Promise<Uint8Array> {
@@ -180,14 +180,16 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
       return done(r);
     },
 
-    async fanOut(signed) {
-      const requestId = await idFor("recovery-fanout", signed);
+    async fanOut(signed, id) {
+      if (id !== undefined && id.length !== 16) return bad();
+      const requestId = id ?? await idFor("recovery-fanout", signed);
       return done(await call(RECOVERY_PATHS.requests, { method: "POST", body: encodeFanout({ requestId, signed }) }, empty));
     },
 
-    async postVeto(signed) {
+    async postVeto(signed, inboxCap) {
+      if (inboxCap !== undefined && !cap32(inboxCap)) return bad();
       const requestId = await idFor("recovery-veto", signed);
-      return done(await call(RECOVERY_PATHS.vetoes, { method: "POST", body: encodeVetoPost({ requestId, signed }) }, empty));
+      return done(await call(RECOVERY_PATHS.vetoes, { method: "POST", body: encodeVetoPost({ requestId, signed }), ...(inboxCap === undefined ? {} : { bearer: inboxCap }) }, empty));
     },
 
     async readVetoes(requestDigest) {
@@ -197,13 +199,14 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
 
     async registerInbox(a) {
       if (!cap32(a.cap) || a.accountId.length !== 32) return bad();
-      const inbox = toBase64Url(await recoveryInboxId(a.accountId));
-      return done(await call(`${RECOVERY_PATHS.inbox}/${inbox}`, { method: "PUT", body: encodeInboxRegister({ requestId: rand16(), cap: a.cap }), headers: owner }, empty));
+      if (a.requestId !== undefined && a.requestId.length !== 16) return bad();
+      const inbox = toBase64Url(await recoveryInboxId(a.accountId, a.recoveryEpoch ?? 0));
+      return done(await call(`${RECOVERY_PATHS.inbox}/${inbox}`, { method: "PUT", body: encodeInboxRegister({ requestId: a.requestId ?? rand16(), cap: a.cap }), headers: owner }, empty));
     },
 
     async drainInbox(a, pageSize) {
       if (!cap32(a.cap) || a.accountId.length !== 32) return bad();
-      const inbox = toBase64Url(await recoveryInboxId(a.accountId));
+      const inbox = toBase64Url(await recoveryInboxId(a.accountId, a.recoveryEpoch ?? 0));
       return call(`${RECOVERY_PATHS.inbox}/${inbox}/drain`, { method: "POST", maxReplyBytes: MAX_INBOX_REPLY, body: encodeInboxDrain({ requestId: rand16(), cap: a.cap, ...(pageSize === undefined ? {} : { pageSize }) }) }, (b) => {
         const r = decodeInboxDrainResponse(b);
         return { items: r.items, more: r.cursor !== undefined };
@@ -212,7 +215,7 @@ export function createRecoveryStoreClient(opts: RecoveryStoreOptions): RecoveryS
 
     async ackInbox(a, itemIds) {
       if (!cap32(a.cap) || a.accountId.length !== 32 || itemIds.length < 1 || itemIds.length > 16) return bad();
-      const inbox = toBase64Url(await recoveryInboxId(a.accountId));
+      const inbox = toBase64Url(await recoveryInboxId(a.accountId, a.recoveryEpoch ?? 0));
       return done(await call(`${RECOVERY_PATHS.inbox}/${inbox}/ack`, { method: "POST", body: encodeInboxAck({ requestId: rand16(), cap: a.cap, itemIds }) }, empty));
     },
   };

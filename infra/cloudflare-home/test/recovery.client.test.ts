@@ -5,7 +5,7 @@
 import { ADMISSION_HEADER, admissionHash, checkSignedVeto, recoveryRequestDigest, toBase64Url, toHex } from "@om/home-wire";
 import { createRecoveryStoreClient, fanOutToAll, parseProviderUrl, recordLocator, type RecoveryStoreClient } from "@om/provider-http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { startHome, type Home } from "./harness";
+import { providerFetch, startHome, type Home } from "./harness";
 import { envelope, maxEnvelope, rand, recordCaps, signedRequest, signedVeto } from "./recovery-kit";
 
 const secret = rand(32);
@@ -20,7 +20,7 @@ afterAll(async () => { await home.dispose(); await open.dispose(); });
 const clientFor = (h: Home, admission: Uint8Array | null = secret): RecoveryStoreClient => {
   const config = parseProviderUrl(h.url, { allowLoopbackHttp: true });
   if (!config) throw new Error("bad url");
-  return createRecoveryStoreClient({ config, timeoutMs: 10_000, ...(admission ? { admission } : {}) });
+  return createRecoveryStoreClient({ config, fetch: providerFetch(h), timeoutMs: 10_000, ...(admission ? { admission } : {}) });
 };
 const val = <T>(r: { ok: true; value: T } | { ok: false; failure: unknown }): T => { if (!r.ok) throw new Error(`failed: ${JSON.stringify(r.failure)}`); return r.value; };
 const failName = (r: { ok: boolean; failure?: { kind: string; name?: string } }): string => (r.ok ? "ok" : (r.failure?.name ?? r.failure?.kind ?? "?"));
@@ -73,14 +73,14 @@ describe("provider-http RecoveryStore client against the reference Home", () => 
     const c = clientFor(home);
     const accountId = rand(32);
     const cap = rand(32);
-    val(await c.registerInbox({ accountId, cap }));
-    val(await c.registerInbox({ accountId, cap })); // a monthly refresh is idempotent
-    expect(failName(await c.registerInbox({ accountId, cap: rand(32) }))).toBe("unauthorized");
+    val(await c.registerInbox({ accountId, recoveryEpoch: 1, cap }));
+    val(await c.registerInbox({ accountId, recoveryEpoch: 1, cap })); // a monthly refresh is idempotent
+    expect(failName(await c.registerInbox({ accountId, recoveryEpoch: 1, cap: rand(32) }))).toBe("unauthorized");
     const req = signedRequest(accountId);
     const all = await fanOutToAll([c, clientFor(open)], req.signed); // the second Home has no store: it does not stop the first
     expect(all.ok).toBe(true);
     expect(all.results.map(failName)).toEqual(["ok", "not_found"]);
-    const page = val(await c.drainInbox({ accountId, cap }));
+    const page = val(await c.drainInbox({ accountId, recoveryEpoch: 1, cap }));
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.kind).toBe(1);
     expect(toHex(page.items[0]?.bytes ?? new Uint8Array(0))).toBe(toHex(req.signed));
@@ -89,10 +89,10 @@ describe("provider-http RecoveryStore client against the reference Home", () => 
     const veto = signedVeto(accountId, digest);
     expect(checkSignedVeto(veto).requestDigest).toEqual(digest);
     val(await c.postVeto(veto));
-    val(await c.ackInbox({ accountId, cap }, [page.items[0]?.id ?? rand(16)]));
+    val(await c.ackInbox({ accountId, recoveryEpoch: 1, cap }, [page.items[0]?.id ?? rand(16)]));
     const board = val(await clientFor(home, null).readVetoes(digest)); // a recovering device: no admission, no capability
     expect(board.map(toHex)).toEqual([toHex(veto)]);
-    expect(failName(await c.drainInbox({ accountId, cap: rand(32) }))).toBe("unauthorized");
+    expect(failName(await c.drainInbox({ accountId, recoveryEpoch: 1, cap: rand(32) }))).toBe("unauthorized");
   });
 
   it("a Home-wide limit is a typed rate_limited with its wait; nothing a client does leaks a capability into a URL", async () => {

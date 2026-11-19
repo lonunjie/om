@@ -339,7 +339,7 @@ impl LoopbackNetwork {
     /// Post a signed request as any client could (a Home checks shape only, so a forgery is stored like any request).
     pub fn recovery_post_request(&self, signed: &[u8]) {
         let mut s = self.0.borrow_mut();
-        if let Some((account, _)) = crate::recovery::request_shape(signed)
+        if let Some(account) = crate::recovery::request_inbox_id(signed)
             && let Some(inbox) = s.recovery_inboxes.get_mut(account.as_slice())
         {
             inbox.next += 1;
@@ -749,10 +749,21 @@ impl LoopbackNetwork {
                     error: NetError::NotFound,
                 },
             },
+            NetCall::RecoveryDelete { locator, write_cap, .. } => {
+                let key = crate::crypto::unhex(locator).unwrap_or_default();
+                let hash = crate::crypto::unhex(write_cap)
+                    .map(|cap| crate::crypto::sha256(&[&cap])).ok();
+                if s.recovery.get(&key).is_some_and(|r| Some(r.write_hash) == hash) {
+                    s.recovery.remove(&key);
+                    NetResult::Ok
+                } else {
+                    NetResult::Err { error: NetError::NotFound }
+                }
+            }
             NetCall::RecoveryRequestPost { bytes, .. } => {
                 if !s.recovery_requests.contains(bytes) {
                     s.recovery_requests.push(bytes.clone());
-                    if let Some((account, _)) = crate::recovery::request_shape(bytes)
+                    if let Some(account) = crate::recovery::request_inbox_id(bytes)
                         && let Some(inbox) = s.recovery_inboxes.get_mut(account.as_slice())
                     {
                         inbox.next += 1;
@@ -764,10 +775,11 @@ impl LoopbackNetwork {
                 NetResult::Ok
             }
             NetCall::RecoveryInboxRegister {
-                account_id, cap, ..
+                account_id, recovery_epoch, cap, ..
             } => {
+                let inbox_id = crate::recovery::inbox_id(&account_id.as_slice().try_into().unwrap_or_default(), *recovery_epoch);
                 let h = crate::crypto::sha256(&[cap]);
-                match s.recovery_inboxes.get(account_id) {
+                match s.recovery_inboxes.get(inbox_id.as_slice()) {
                     Some(i) if i.cap_hash != h => NetResult::Err {
                         error: NetError::Rejected {
                             reason: RejectReason::Unauthorized,
@@ -776,7 +788,7 @@ impl LoopbackNetwork {
                     Some(_) => NetResult::Ok,
                     None => {
                         s.recovery_inboxes.insert(
-                            account_id.clone(),
+                            inbox_id.to_vec(),
                             LoopInbox {
                                 cap_hash: h,
                                 ..LoopInbox::default()
@@ -787,10 +799,11 @@ impl LoopbackNetwork {
                 }
             }
             NetCall::RecoveryInboxDrain {
-                account_id, cap, ..
+                account_id, recovery_epoch, cap, ..
             } => {
+                let inbox_id = crate::recovery::inbox_id(&account_id.as_slice().try_into().unwrap_or_default(), *recovery_epoch);
                 let h = crate::crypto::sha256(&[cap]);
-                match s.recovery_inboxes.get(account_id) {
+                match s.recovery_inboxes.get(inbox_id.as_slice()) {
                     Some(i) if i.cap_hash == h => NetResult::Many {
                         items: i
                             .items
@@ -815,12 +828,14 @@ impl LoopbackNetwork {
             }
             NetCall::RecoveryInboxAck {
                 account_id,
+                recovery_epoch,
                 cap,
                 item_ids,
                 ..
             } => {
+                let inbox_id = crate::recovery::inbox_id(&account_id.as_slice().try_into().unwrap_or_default(), *recovery_epoch);
                 let h = crate::crypto::sha256(&[cap]);
-                match s.recovery_inboxes.get_mut(account_id) {
+                match s.recovery_inboxes.get_mut(inbox_id.as_slice()) {
                     Some(i) if i.cap_hash == h => {
                         i.items
                             .retain(|(id, _, _)| !item_ids.contains(&crate::crypto::hex(id)));
@@ -834,7 +849,7 @@ impl LoopbackNetwork {
                 }
             }
             NetCall::RecoveryVetoPost { bytes, .. } => {
-                if let Some(account) = crate::recovery::veto_account(bytes)
+                if let Some(account) = crate::recovery::veto_inbox_id(bytes)
                     && let Some(inbox) = s.recovery_inboxes.get_mut(account.as_slice())
                     && inbox.items.len() < 40
                 {

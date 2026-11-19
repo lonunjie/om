@@ -76,6 +76,7 @@ export function capabilitiesDocument(env: Env, recoveryScopeId?: string): Record
         recovery_failed_get_rate: { burst: L.recoveryFailedGetBurst, refill_seconds: L.recoveryFailedGetRefillSeconds },
         recovery_requests_per_day: L.recoveryRequestsPerDay, recovery_pending_requests: L.recoveryPendingRequests,
         recovery_pending_vetoes: L.recoveryPendingVetoes, recovery_pending_vetoes_per_request: L.recoveryPendingVetoesPerDigest, recovery_vetoes_per_hour: L.recoveryVetoesPerHour,
+        recovery_pending_controller_vetoes_per_request: L.recoveryControllerVetoesPerDigest,
         recovery_post_rate: { burst: L.recoveryPostBurst, refill_seconds: L.recoveryPostRefillSeconds },
         recovery_drain_rate: { burst: L.recoveryDrainBurst, refill_seconds: L.recoveryDrainRefillSeconds },
         recovery_veto_read_rate: { burst: L.recoveryVetoReadBurst, refill_seconds: L.recoveryVetoReadRefillSeconds },

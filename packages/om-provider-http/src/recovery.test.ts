@@ -100,7 +100,7 @@ describe("record get and delete", () => {
       { size: 64 * 1024, run: (c: RecoveryStoreClient) => c.info() },
       { size: 1_048_576 + 16, run: (c: RecoveryStoreClient) => c.getRecord(rand(32)) },
       { size: 16 * (16_384 + 32) + 80, run: (c: RecoveryStoreClient) => c.drainInbox({ accountId: rand(32), cap: rand(32) }) },
-      { size: 16 * (16_384 + 8) + 16, run: (c: RecoveryStoreClient) => c.readVetoes(rand(32)) },
+      { size: 24 * (16_384 + 8) + 16, run: (c: RecoveryStoreClient) => c.readVetoes(rand(32)) },
     ];
     for (const { size, run } of cases) {
       let cancelled = false;
@@ -183,7 +183,7 @@ describe("fan-out, veto, board and inbox", () => {
     await client.registerInbox({ accountId, cap });
     const d = await client.drainInbox({ accountId, cap }, 4);
     await client.ackInbox({ accountId, cap }, [item.id]);
-    const inbox = toBase64Url(await recoveryInboxId(accountId));
+    const inbox = toBase64Url(await recoveryInboxId(accountId, 0));
     expect(seen.map((s) => [s.method, new URL(s.url).pathname])).toEqual([["PUT", `/v1/recovery/inbox/${inbox}`], ["POST", `/v1/recovery/inbox/${inbox}/drain`], ["POST", `/v1/recovery/inbox/${inbox}/ack`]]);
     for (const s of seen) { expect(s.url).not.toContain(toBase64Url(accountId)); expect(s.headers.get("authorization")).toBeNull(); }
     expect(seen.map((s) => s.headers.get(ADMISSION_HEADER))).toEqual([toBase64Url(secret), null, null]);

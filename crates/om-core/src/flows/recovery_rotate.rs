@@ -13,7 +13,7 @@ use crate::state::PendingRecovery;
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     fn replacement_blocked(&self, head: &Acs) -> bool {
-        head.control.len() != 1
+        control::safety_frozen(head)
             || !self.st.app.acs_forks.is_empty()
             || self
                 .st
@@ -21,6 +21,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .recovery_requests
                 .values()
                 .any(|r| r.state == RecoveryObsState::Waiting)
+    }
+
+    fn committed_recovery_epoch(&self, head: &Acs) -> Option<Option<u64>> {
+        let Some(commitment) = head.recovery_commitment else {
+            return Some(None);
+        };
+        let raw = unhex(self.st.app.recovery_policy.as_deref()?).ok()?;
+        let policy = RecoveryPolicy::from_body(&raw).ok()?;
+        (policy.hash() == commitment).then_some(Some(policy.epoch()))
+    }
+
+    fn replacement_candidate(head: &Acs, policy: &RecoveryPolicy) -> Option<Acs> {
+        let mut child = head.clone();
+        child.generation = head.generation.checked_add(1)?;
+        child.previous = Some(head.hash());
+        child.recovery_commitment = Some(policy.hash());
+        Some(child)
     }
 
     /// Stage a new recovery key: nothing is in force until it is confirmed saved.
@@ -40,16 +57,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if self.replacement_blocked(&head) {
             return rejected(RejectReason::Conflict);
         }
-        let epoch = self
-            .st
-            .app
-            .recovery_policy
-            .as_deref()
-            .and_then(|h| unhex(h).ok())
-            .and_then(|b| RecoveryPolicy::from_body(&b).ok())
-            .map_or(0, |p| p.epoch() + 1);
+        let required_votes = control::majority(head.control.len());
+        if required_votes > 1 {
+            return OutcomeClass::NeedsUserAction { action: UserActionCode::AuthorizeWithDevice };
+        }
+        let Some(parent_epoch) = self.committed_recovery_epoch(&head) else {
+            return rejected(RejectReason::StaleState);
+        };
+        let Some(epoch) = parent_epoch.map_or(Some(0), |epoch| epoch.checked_add(1)) else {
+            return rejected(RejectReason::Conflict);
+        };
         let root = RecoveryRoot::generate(self.rng);
         let policy = RecoveryPolicy::default_for(root.auth_public_key(epoch), epoch);
+        let Some(child) = Self::replacement_candidate(&head, &policy) else {
+            return rejected(RejectReason::Conflict);
+        };
         let root_arr = zeroize::Zeroizing::new(*root.expose());
         let root_bytes: &[u8; 32] = &root_arr;
         drop(root);
@@ -87,6 +109,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.st.app.pending_recovery = Some(PendingRecovery {
             key_operation_id: op.clone(),
             parent: hex(&head.hash()),
+            parent_epoch,
+            controllers: head.control.iter().map(|id| hex(id)).collect(),
+            required_votes,
+            child_hash: hex(&child.hash()),
             policy: hex(&policy.body()),
             kit,
         });
@@ -115,7 +141,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !head.control.contains(&dev.device_id) || head.quarantined.contains(&dev.device_id) {
             return rejected(RejectReason::Unauthorized);
         }
-        if pending.parent != hex(&head.hash()) {
+        if pending.parent != hex(&head.hash())
+            || self.committed_recovery_epoch(&head) != Some(pending.parent_epoch)
+            || pending.controllers != head.control.iter().map(|id| hex(id)).collect::<Vec<_>>()
+            || pending.required_votes != control::majority(head.control.len())
+        {
             return rejected(RejectReason::StaleState);
         }
         if self.replacement_blocked(&head) {
@@ -127,23 +157,40 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return rejected(RejectReason::Invalid);
         };
-        let mut child = head.clone();
-        child.generation = head.generation + 1;
-        child.previous = Some(head.hash());
-        child.recovery_commitment = Some(policy.hash());
+        let Some(child) = Self::replacement_candidate(&head, &policy)
+            .filter(|child| hex(&child.hash()) == pending.child_hash)
+        else {
+            return rejected(RejectReason::StaleState);
+        };
         let signed = control::sign_acs(&child.body(), &[(&dev.device_id, &dev.signer)], self.rng);
         // The signed child must verify as a successor of the head we hold (a policy change by the controllers).
         if control::verify_successor(&head, &signed, &creds).is_err() {
             return rejected(RejectReason::Conflict);
         }
+        if pending.kit.is_some()
+            && let Some(old) = self.recovery_kit_value()
+        {
+            self.st.app.retired_recovery_records.push(RetiredRecoveryRecord {
+                place: JoinPlace { host: old.host.clone(), port: old.port, scope: hex(&old.scope) },
+                locator: hex(&old.locator()),
+                write_cap: hex(&old.write_cap).into(),
+                replacement_generation: child.generation,
+                expires_ms: self.now_ms.saturating_add(400 * 86_400_000),
+            });
+        }
         self.st.app.acs_chain.push(hex(&signed));
         self.st.app.recovery_policy = Some(pending.policy);
         self.st.app.recovery_key_saved = true;
         self.st.app.recovery_kit = pending.kit;
-        // A new lineage at the Home: the writer starts over under the new kit (the old record is left to its retention).
+        // The writer starts over under the new kit. The acknowledged replacement unlocks retirement.
         self.discard_recovery_puts();
         let w = &mut self.st.app.recovery_writer;
         *w = crate::state::RecoveryWriter::default();
+        w.sheet_anchor = Some(CheckpointRec {
+            account_id: hex(&head.account_id),
+            generation: head.generation,
+            acs_hash: hex(&head.hash()),
+        });
         if self.st.app.recovery_kit.is_some() {
             w.enabled = true;
             w.authored = true;

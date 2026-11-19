@@ -249,6 +249,11 @@ export function createMemoryProvider(): MemoryProvider {
           r = held === undefined ? { result: "err", error: { kind: "not_found" } } : { result: "many", items: [held.etag, held.envelope] };
           break;
         }
+        case "recovery_delete": {
+          if (records.get(call.locator)?.writeCap === call.writeCap) records.delete(call.locator);
+          r = { result: "ok" };
+          break;
+        }
         case "recovery_request_post":
         case "recovery_veto_post": {
           const kind = call.call === "recovery_request_post" ? 1 : 2;

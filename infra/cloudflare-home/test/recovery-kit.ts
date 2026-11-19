@@ -21,17 +21,17 @@ export const maxEnvelope = (): Uint8Array => envelope(1_048_016);
 
 const digestOf = (b: Uint8Array) => map([[0, 1], [1, b]]);
 
-export interface Req { readonly signed: Uint8Array; readonly body: Uint8Array; readonly accountId: Uint8Array }
+export interface Req { readonly signed: Uint8Array; readonly body: Uint8Array; readonly accountId: Uint8Array; readonly recoveryEpoch: number }
 /** A signed-RecoveryRequest (type 4) for `accountId`; every call is a different request (fresh nonce). */
-export function signedRequest(accountId: Uint8Array = rand(32)): Req {
-  const body = encode(map([[0, 4], [1, 1], [2, accountId], [3, 1], [4, rand(16)], [5, digestOf(rand(32))], [6, digestOf(rand(32))], [7, rand(16)]]));
+export function signedRequest(accountId: Uint8Array = rand(32), recoveryEpoch = 1): Req {
+  const body = encode(map([[0, 4], [1, 1], [2, accountId], [3, recoveryEpoch], [4, rand(16)], [5, digestOf(rand(32))], [6, digestOf(rand(32))], [7, rand(16)]]));
   const signed = encode(map([[1, body], [2, [map([[0, 1], [1, rand(64)]])]]]));
-  return { signed, body, accountId };
+  return { signed, body, accountId, recoveryEpoch };
 }
 
-/** A signed-RecoveryVeto (type 5) naming `requestDigest`; every call is a different veto (the epoch field differs by `n`). */
-export function signedVeto(accountId: Uint8Array, requestDigest: Uint8Array, n = Math.floor(Math.random() * 1e9)): Uint8Array {
-  const body = encode(map([[0, 5], [1, 1], [2, accountId], [3, n], [4, digestOf(requestDigest)]]));
+/** A signed-RecoveryVeto (type 5) naming `requestDigest`; the test extension makes distinct bodies within one epoch. */
+export function signedVeto(accountId: Uint8Array, requestDigest: Uint8Array, n = Math.floor(Math.random() * 1e9), recoveryEpoch = 1): Uint8Array {
+  const body = encode(map([[0, 5], [1, 1], [2, accountId], [3, recoveryEpoch], [4, digestOf(requestDigest)], [23, new Map([["test.veto", map([[0, false], [1, n]])]])]]));
   return encode(map([[1, body], [2, [map([[0, 1], [1, rand(64)]])]]]));
 }
 

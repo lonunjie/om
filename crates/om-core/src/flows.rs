@@ -696,7 +696,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .iter()
             .map(|c| unhex(c).ok())
             .collect::<Option<_>>()?;
-        let head = control::verify_chain_with(&chain, &creds, &self.st.app.link_evidence()).ok()?;
+        let head = self.st.app.verify_own_chain(&chain, &creds)?;
         Some((head, chain, creds))
     }
 
@@ -2688,7 +2688,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 error: NetError::NotFound,
             } => match entry.call {
                 NetCall::GetInvite { .. } => K::Terminal(RejectReason::NotFound),
-                NetCall::DeleteBlob { .. } | NetCall::RevokeKeyGeneration { .. } => {
+                NetCall::DeleteBlob { .. } | NetCall::RevokeKeyGeneration { .. } | NetCall::RecoveryDelete { .. } => {
                     K::Done(None, vec![]) // already gone is success
                 }
                 NetCall::FetchKeyMaterial { .. } => K::Retry, // the peer may not have published yet
@@ -2696,7 +2696,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
             NetResult::Err {
                 error: NetError::Rejected { reason },
-            } => K::Terminal(reason),
+            } => match &entry.call {
+                NetCall::RecoveryDelete { .. } if reason == RejectReason::NotFound => K::Done(None, vec![]),
+                NetCall::RecoveryDelete { .. } => K::Retry,
+                _ => K::Terminal(reason),
+            },
         };
         let op_of = |p: &Purpose| -> Option<(OperationId, Option<String>, Option<String>)> {
             match p {
@@ -2756,6 +2760,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
                 Purpose::PublishKeys
                 | Purpose::RecoveryPut { .. }
+                | Purpose::RecoveryDelete { .. }
                 | Purpose::RecoveryReconcile { .. }
                 | Purpose::RecoveryFind
                 | Purpose::OwnerRecoveryPost
@@ -2827,7 +2832,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     }
                     Purpose::OwnerRecoveryPost => return Ok(()),
                     Purpose::RecoveryInbox { kind } => {
-                        self.inbox_done(*kind, None, &entry.call);
+                        self.inbox_done(*kind, Err(reason), &entry.call);
                         return Ok(());
                     }
                     _ => {}
@@ -2910,6 +2915,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
             Purpose::RecoveryPut { generation } => self.recovery_put_done(generation, bytes),
+            Purpose::RecoveryDelete { locator } => self.st.app.retired_recovery_records.retain(|debt| debt.locator != locator),
             Purpose::RecoveryReconcile { generation } => {
                 let got = match <[Vec<u8>; 2]>::try_from(items) {
                     Ok([etag, envelope]) => Some((etag, envelope)),
@@ -2928,7 +2934,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 self.owner_read_done(kind, round, Some((bytes, items)));
             }
             Purpose::OwnerRecoveryPost => {}
-            Purpose::RecoveryInbox { kind } => self.inbox_done(kind, Some(items), &entry.call),
+            Purpose::RecoveryInbox { kind } => self.inbox_done(kind, Ok(items), &entry.call),
             Purpose::Ack
             | Purpose::DeleteBlob { .. }
             | Purpose::RevokeKeyGeneration

@@ -459,13 +459,14 @@ async function recovery(request: Request, path: string, store: DurableObjectStub
     if (m !== "POST") return fail("invalid_request");
     const req = parse(decodeFanout, await boundedBody(request, RECOVERY_SIGNED_OBJECT_MAX_BYTES));
     const shape = parse(checkSignedRequest, req.signed);
-    return fromReply(await store.fanout({ requestId: req.requestId, signed: req.signed, accountId: shape.accountId, body: shape.body }));
+    return fromReply(await store.fanout({ ...req, ...shape }));
   }
   if (path === "/v1/recovery/vetoes") {
     if (m !== "POST") return fail("invalid_request");
     const req = parse(decodeFanout, await boundedBody(request, RECOVERY_SIGNED_OBJECT_MAX_BYTES));
     const shape = parse(checkSignedVeto, req.signed);
-    return fromReply(await store.postVeto({ requestId: req.requestId, signed: req.signed, accountId: shape.accountId, requestDigest: shape.requestDigest, body: shape.body }));
+    const cap = storeCap(request);
+    return fromReply(await store.postVeto({ ...req, ...shape, ...(cap === undefined ? {} : { cap }) }));
   }
   const board = /^\/v1\/recovery\/requests\/([^/]+)\/vetoes$/.exec(path);
   if (board) {

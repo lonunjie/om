@@ -2940,7 +2940,7 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
             .iter()
             .map(|c| crate::crypto::unhex(c).ok())
             .collect::<Option<_>>()?;
-        crate::control::verify_chain_with(&chain, &creds, &st.app.link_evidence()).ok()
+        st.app.verify_own_chain(&chain, &creds)
     })();
     let (Some(head), Some(me)) = (head, st.device.as_ref().map(|d| d.device_id)) else {
         return DevicesView {
@@ -3098,12 +3098,10 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
         let unhex_all = |v: &[String]| -> Option<Vec<Vec<u8>>> {
             v.iter().map(|c| crate::crypto::unhex(c).ok()).collect()
         };
-        crate::control::verify_chain_with(
+        st.app.verify_own_chain(
             &unhex_all(&st.app.acs_chain)?,
             &unhex_all(&st.app.acs_credentials)?,
-            &st.app.link_evidence(),
         )
-        .ok()
     })();
     let committed = match (&policy, &head) {
         (Some(p), Some(h)) => {

@@ -559,9 +559,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return rejected(RejectReason::StaleState);
         };
         let signed = recovery::sign_veto(&veto, &dev.device_id, &dev.signer, self.rng);
+        let kit = self.recovery_kit_value().filter(|kit| kit.epoch == policy.epoch());
         let mut homes = rec.veto_homes.clone();
         if homes.is_empty()
-            && let Some(kit) = self.recovery_kit_value()
+            && let Some(kit) = &kit
         {
             homes.push((kit.host.clone(), kit.port));
         }
@@ -579,10 +580,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             );
         } else {
             for (host, port) in homes {
+                let cap = kit.as_ref()
+                    .filter(|kit| kit.host == host && kit.port == port)
+                    .map(|kit| SecretHex::from(hex(&kit.inbox_cap)));
                 self.enqueue(
                     NetCall::RecoveryVetoPost {
                         host,
                         port,
+                        cap,
                         bytes: signed.clone(),
                     },
                     Purpose::RecoveryFanout,
