@@ -439,3 +439,59 @@ fn b64url(b: &[u8]) -> String {
     }
     out
 }
+
+/// OM4-39 / ADR-0226 section 5: when the approval reply (the manifest) is lost and its chunks arrive, the restricted device
+/// buffers nothing and adopts nothing; the surviving controller repeats the whole sequence, manifest first, and it completes.
+#[test]
+fn a_reply_whose_manifest_was_lost_is_repeated_by_the_sender_and_completes() {
+    let mut w = world();
+    let mut f = asking(&w);
+    let o = offer(&mut w, "off");
+    join(&mut w, &mut f, &o.link.unwrap());
+    let request_id = offer_view(&w, "off").unwrap().request_id.unwrap();
+    let before = w.net.deposit_log().len();
+    assert_eq!(
+        confirm(&mut w, &request_id, "c1"),
+        Some(OutcomeClass::Committed)
+    );
+    w.alice.flush_net(&w.a);
+    // the reply and its chunks go to one queue of the restricted device: the last deposit names it
+    let mailbox = w.net.deposit_log().last().expect("a deposit").0.clone();
+    let net = w.net.clone();
+    let to_device = |from: usize| -> Vec<Vec<u8>> {
+        net.deposit_log()[from..]
+            .iter()
+            .filter(|(m, _)| *m == mailbox)
+            .map(|(_, b)| b.clone())
+            .collect()
+    };
+    let sent = to_device(before);
+    assert!(sent.len() >= 2, "a manifest and at least one chunk");
+    let manifest = sent[0].clone();
+    // the Home loses the manifest; the restricted device sees only the chunks
+    assert!(w.net.lose_queued(&mailbox, &manifest));
+    for _ in 0..3 {
+        settle(&mut w, &mut f);
+        f.rt.flush_net(&f.ctx);
+    }
+    assert!(f.app()["acsChain"].as_array().unwrap().is_empty(), "nothing adopted");
+    assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Waiting));
+    let join = f.app()["recoveryJoin"]["attempt"]["approval"].clone();
+    assert!(join.is_object(), "the exchange is still open");
+    assert!(join["descriptor"].is_null(), "no manifest yet");
+    assert!(
+        join["chunks"].as_array().is_none_or(|c| c.iter().all(|x| x.is_null())),
+        "nothing is buffered before the manifest"
+    );
+    // the controller's device repeats the whole sequence after one fifth of the exchange's life
+    w.alice.tick(2 * 60 * 1000);
+    w.alice.flush_net(&w.a);
+    for _ in 0..4 {
+        settle(&mut w, &mut f);
+        f.rt.flush_net(&f.ctx);
+    }
+    let repeats: Vec<Vec<u8>> = to_device(before).into_iter().skip(sent.len()).collect();
+    assert_eq!(repeats, sent, "bit-identical, manifest first");
+    assert!(f.view().is_none(), "adopted from the repeat");
+    assert_eq!(f.app()["acsChain"].as_array().unwrap().len(), 2);
+}

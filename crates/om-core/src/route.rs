@@ -181,6 +181,15 @@ pub struct DepositRevocation {
     pub id: String,
 }
 
+/// One dedicated queue to retire at the Home that holds it (ADR-0229 section 3): the retire goes only to `relay_uri`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueRetirement {
+    pub relay_uri: String,
+    pub mailbox: String,
+    pub request_id: String,
+}
+
 impl RoomRouteOffer {
     pub(crate) fn grant(&self) -> DepositRevocation {
         DepositRevocation {

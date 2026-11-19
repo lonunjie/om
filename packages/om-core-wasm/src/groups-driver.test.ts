@@ -14,7 +14,7 @@ import { createGroupFaults } from "./groups-loopback";
 import type { GroupFaults } from "./groups-loopback";
 import { createMemoryKv, createMemoryProvider, TEST_RELAY_URI } from "./test-support";
 import type { MemoryKv, MemoryProvider } from "./test-support";
-import type { DepositRevocation, Inbound, RoomRouteMint, NetCall, NetResult, Provider } from "./types";
+import type { DepositRevocation, QueueRetirement, Inbound, RoomRouteMint, NetCall, NetResult, Provider } from "./types";
 
 const P = asProfileId("p1");
 const ctx: ProfileExecutionContext = captureProfileContext(P, "g1" as never);
@@ -62,6 +62,8 @@ function scripted(over: { steps?: GroupStep[]; lane?: (rel: string, wire: GroupW
     ackHeldOverflow: () => Promise.resolve(),
     routeRevoked: (_ctx: ProfileExecutionContext, grant: DepositRevocation) => { c.calls.push(`revoked:${grant.id}`); return Promise.resolve(); },
     routesExpire: () => { c.calls.push("expire"); return Promise.resolve([] as { relayUri: string; mailbox: string; id: string }[]); },
+    queueRetires: () => { c.calls.push("retires"); return Promise.resolve([] as QueueRetirement[]); },
+    queueRetired: (_c: ProfileExecutionContext, q: QueueRetirement) => { c.calls.push(`retired:${q.requestId}`); return Promise.resolve(); },
   };
   return c;
 }
@@ -249,6 +251,27 @@ describe("group driver (scripted Core)", () => {
     await mk(third, r, createMemoryKv()).flush(ctx);
     expect(r.revoked).toEqual(["cap1"]);
     expect(third.calls).toContain("revoked:cap1");
+  });
+
+  it("retires a due queue only at the Home named, clears the debt only on an acknowledgement and retries otherwise", async () => {
+    const q: QueueRetirement = { relayUri: TEST_RELAY_URI, mailbox: "aa".repeat(16), requestId: "bb".repeat(16) };
+    const sent: QueueRetirement[] = [];
+    let answer: () => Promise<"retired" | "unsupported"> = () => Promise.reject(new Error("reply lost"));
+    const core = scripted();
+    core.queueRetires = () => { core.calls.push("retires"); return Promise.resolve([q]); };
+    const provider: Provider = { ...relay(), retireQueue: (r) => { sent.push(r); return answer(); } };
+    const d = mk(core, provider, createMemoryKv());
+    await d.flush(ctx);
+    expect(sent).toEqual([q]);
+    expect(core.calls.some((c) => c.startsWith("retired:"))).toBe(false); // a lost reply leaves the debt in Core
+    answer = () => Promise.resolve("unsupported");
+    await d.flush(ctx);
+    expect(core.calls.some((c) => c.startsWith("retired:"))).toBe(false); // a Home without the operation is not an acknowledgement
+    answer = () => Promise.resolve("retired");
+    await d.flush(ctx);
+    expect(core.calls).toContain(`retired:${q.requestId}`);
+    expect(sent.every((r) => r.relayUri === q.relayUri && r.requestId === q.requestId)).toBe(true);
+    d.dispose();
   });
 
   it("reports background events to a listener", async () => {
@@ -476,20 +499,42 @@ describe.skipIf(!existsSync(WITH_GROUPS))("the driver over two real wasm Cores w
       expect((await relay.perform(old)).result).toBe("ok"); // overlap
 
       vi.setSystemTime(Date.now() + 3_601_000);
-      const provider = faults.provider("alice");
+      const retires: QueueRetirement[] = [];
+      let replyLost = true;
+      const provider: Provider = {
+        ...faults.provider("alice"),
+        retireQueue: (r) => { retires.push(r); if (replyLost) { replyLost = false; return Promise.reject(new Error("reply lost")); } return Promise.resolve("retired"); },
+      };
       const unavailable = { ...provider, revokeDeposit: () => Promise.reject(new Error("DELETE response missing")) };
       alice.rt.dispose();
       const during = await boot(unavailable, alice.id, alice.kv);
       await during.rt.flush(alice.id);
       expect((await relay.perform(old)).result).toBe("ok");
+      expect(retires).toEqual([]); // the queue is not retired while a grant revocation on it is outstanding
       during.rt.dispose();
 
       const after = await boot(provider, alice.id, alice.kv);
       await after.rt.flush(alice.id);
-      expect(await relay.perform(old)).toEqual({ result: "err", error: { kind: "rejected", reason: "revoked" } });
-      expect(await relay.perform(old)).toEqual({ result: "err", error: { kind: "rejected", reason: "revoked" } });
-      expect(after.rt.groups.get(after.ctx, room)?.canSend).toBe(true);
+      expect(retires).toHaveLength(1); // the first retire had its reply lost
+      const first = retires[0];
+      expect(first?.mailbox).toBe(old.mailbox.slice(-32));
+      expect(first?.relayUri).toBe(TEST_RELAY_URI);
       after.rt.dispose();
+      vi.setSystemTime(Date.now() + 61_000);
+      const again = await boot(provider, alice.id, alice.kv); // restart: the debt and its request id survive
+      await again.rt.flush(alice.id);
+      expect(retires).toHaveLength(2);
+      expect(retires[1]).toEqual(first);
+      vi.setSystemTime(Date.now() + 3 * 3_600_000);
+      await again.rt.flush(alice.id);
+      expect(retires).toHaveLength(2); // acknowledged: nothing more is sent
+      again.rt.dispose();
+      const after2 = await boot(provider, alice.id, alice.kv);
+      await after2.rt.flush(alice.id);
+      expect(await relay.perform(old)).toEqual({ result: "err", error: { kind: "rejected", reason: "revoked" } });
+      expect(await relay.perform(old)).toEqual({ result: "err", error: { kind: "rejected", reason: "revoked" } });
+      expect(after2.rt.groups.get(after2.ctx, room)?.canSend).toBe(true);
+      after2.rt.dispose();
       bob.rt.dispose();
     } finally {
       vi.useRealTimers();

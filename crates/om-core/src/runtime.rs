@@ -293,6 +293,17 @@ impl LoopbackNetwork {
     pub fn all_deposited_bytes(&self) -> Vec<Vec<u8>> {
         self.0.borrow().log.iter().map(|(_, b)| b.clone()).collect()
     }
+    /// Test only: the Home loses one queued item (a deposit that was accepted and never reached the reader). Returns whether
+    /// the exact bytes were still queued in `mailbox`.
+    pub fn lose_queued(&self, mailbox: &[u8], bytes: &[u8]) -> bool {
+        let mut s = self.0.borrow_mut();
+        let Some(m) = s.mailboxes.get_mut(mailbox) else {
+            return false;
+        };
+        let n = m.items.len();
+        m.items.retain(|(_, b)| b != bytes);
+        m.items.len() != n
+    }
     /// The deposit log with its destination mailbox.
     pub fn deposit_log(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
         self.0.borrow().log.clone()

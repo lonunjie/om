@@ -380,7 +380,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Send the due repeat of each plan once (an offline stretch skips to the latest due one), and end the plan after the
     /// last repeat or at the exchange's expiry. A plan waits while its earlier repeat is still queued. The repeats go out
     /// under their own operation id, so a refusal of a repeat never ends the ceremony the first pass belongs to.
-    pub(super) fn run_evidence_repeats(&mut self) {
+    pub(crate) fn run_evidence_repeats(&mut self) {
         use zeroize::Zeroize;
         let now = self.now_ms;
         let ops: Vec<String> = self.st.app.ceremony_repeats.keys().cloned().collect();

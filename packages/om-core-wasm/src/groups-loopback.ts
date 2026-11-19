@@ -2,7 +2,7 @@
 // acknowledge), so nothing here carries a group wire: `createGroupFaults` wraps a Provider, per profile, and adds what a real
 // network does (down, duplicate delivery) plus a log of every deposit for ciphertext-only assertions. Never import it from
 // product code (the production guards cover `test-support`, which re-exports it).
-import type { Inbound, MailboxKind, DepositRevocation, NetCall, NetResult, PerformExtra, Provider, RoomRouteMint } from "./types";
+import type { Inbound, MailboxKind, DepositRevocation, QueueRetirement, NetCall, NetResult, PerformExtra, Provider, RoomRouteMint } from "./types";
 
 export interface GroupFaults {
   /** The provider one profile's runtime uses: the shared one, with this profile's faults applied. */
@@ -35,6 +35,7 @@ export function createGroupFaults(inner: Provider): GroupFaults {
         ...(inner.prepareRoomRoute === undefined ? {} : { prepareRoomRoute: () => inner.prepareRoomRoute?.() as RoomRouteMint }),
         ...(inner.mintRoomRoute === undefined ? {} : { mintRoomRoute: (plan: RoomRouteMint) => inner.mintRoomRoute?.(plan) ?? Promise.resolve(undefined) }),
         ...(inner.revokeDeposit === undefined ? {} : { revokeDeposit: (grant: DepositRevocation) => inner.revokeDeposit?.(grant) ?? Promise.resolve() }),
+        ...(inner.retireQueue === undefined ? {} : { retireQueue: (r: QueueRetirement) => inner.retireQueue?.(r) ?? Promise.resolve("unsupported" as const) }),
         async perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
           if (down.has(profile)) return unavailable;
           if (call.call !== "deposit") return inner.perform(call, extra);

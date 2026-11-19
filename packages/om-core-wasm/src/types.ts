@@ -129,6 +129,12 @@ export interface Provider {
   mintRoomRoute?(plan: RoomRouteMint): Promise<RoomRouteOffer | undefined>;
   /** Resolve only on success or success-equivalent not-found at the owning Home. */
   revokeDeposit?(grant: DepositRevocation): Promise<void>;
+  /**
+   * Retire a dedicated queue at the Home that holds it (ADR-0229 section 3). `retired` when the Home acknowledged it or says
+   * the queue is already gone or tombstoned; `unsupported` when that Home does not offer the operation (nothing was sent).
+   * Anything else rejects, and the same request id is retried after a backoff.
+   */
+  retireQueue?(retirement: QueueRetirement): Promise<"retired" | "unsupported">;
 }
 
 export interface PerformExtra { readonly ciphertext?: Uint8Array }
@@ -176,6 +182,13 @@ export interface DepositRevocation {
   readonly relayUri: string;
   readonly mailbox: string;
   readonly id: string;
+}
+
+/** A dedicated queue to retire: its Home, its mailbox and the durable 128-bit request id every retry reuses. */
+export interface QueueRetirement {
+  readonly relayUri: string;
+  readonly mailbox: string;
+  readonly requestId: string;
 }
 
 export interface RoomRouteOffer extends RouteOffer, DepositRevocation {

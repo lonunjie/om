@@ -1696,3 +1696,113 @@ fn route_distribution_survives_offline_expiry_and_restart_with_two_survivors() {
     let sealed = ps[0].seal(&update.to_outbound().unwrap()).unwrap();
     ps[1].open(&sealed[0].wrapper).unwrap();
 }
+
+// ADR-0229 section 3 item 2: a dedicated queue is retired at its Home after the ADR-0214 overlap and every grant revocation on
+// it are over; the debt is durable, retried with a backoff and the same request id, and cleared only on an acknowledgement.
+
+fn replaced_route_after_overlap() -> Vec<P> {
+    let (mut ps, conv) = remove_carol();
+    ps[1].rt.supply_routes(8);
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(r, Ok(1));
+    ps
+}
+
+#[test]
+fn a_replaced_queue_is_retired_only_after_the_overlap_and_its_grant_debt() {
+    let mut ps = replaced_route_after_overlap();
+    let (due, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(due.is_empty(), "the overlap has not ended");
+    ps[1].rt.tick((ROUTE_OVERLAP_S + 1) * 1000);
+    let (revoke, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(!revoke.is_empty());
+    let (due, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(due.is_empty(), "a grant revocation on the queue is outstanding");
+    for grant in &revoke {
+        let step = core!(ps[1], group_route_revoked, grant).unwrap();
+        assert!(ps[1].rt.settle(&step));
+    }
+    let (due, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(due.len(), revoke.len());
+    for (q, g) in due.iter().zip(&revoke) {
+        assert_eq!(q.relay_uri, g.relay_uri, "only the Home that holds the queue");
+        assert_eq!(q.mailbox, g.mailbox);
+        assert_eq!(q.request_id.len(), 32);
+        assert!(q.request_id.bytes().all(|b| b.is_ascii_hexdigit()));
+    }
+}
+
+#[test]
+fn the_retire_debt_survives_restart_retries_with_backoff_and_the_same_request_id() {
+    let mut ps = replaced_route_after_overlap();
+    ps[1].rt.tick((ROUTE_OVERLAP_S + 1) * 1000);
+    let (revoke, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    for grant in &revoke {
+        let step = core!(ps[1], group_route_revoked, grant).unwrap();
+        assert!(ps[1].rt.settle(&step));
+    }
+    let (first, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(!first.is_empty());
+    // the reply is lost and the device restarts: nothing is repeated before the backoff, and nothing is forgotten
+    ps[1].restart();
+    let (early, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(early.is_empty());
+    assert_eq!(
+        ps[1].carriage()["queueRetire"].as_array().unwrap().len(),
+        first.len()
+    );
+    ps[1].rt.tick((cg::QUEUE_RETIRE_BACKOFF_S + 1) * 1000);
+    let (again, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(again, first, "an exact retry: the same request id");
+    // the backoff doubles
+    ps[1].rt.tick((cg::QUEUE_RETIRE_BACKOFF_S + 1) * 1000);
+    let (early, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(early.is_empty());
+    ps[1].rt.tick((cg::QUEUE_RETIRE_BACKOFF_S + 1) * 1000);
+    let (third, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(third, first);
+    // only an acknowledgement clears it
+    for q in &third {
+        let step = core!(ps[1], group_queue_retired, q).unwrap();
+        assert!(ps[1].rt.settle(&step));
+    }
+    assert!(ps[1].carriage()["queueRetire"].as_array().is_none_or(|a| a.is_empty()));
+    ps[1].restart();
+    ps[1].rt.tick(cg::QUEUE_RETIRE_BACKOFF_MAX_S * 2 * 1000);
+    let (none, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(none.is_empty());
+}
+
+#[test]
+fn an_acknowledgement_for_another_request_id_does_not_clear_the_debt() {
+    let mut ps = replaced_route_after_overlap();
+    ps[1].rt.tick((ROUTE_OVERLAP_S + 1) * 1000);
+    let (revoke, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    for grant in &revoke {
+        let step = core!(ps[1], group_route_revoked, grant).unwrap();
+        assert!(ps[1].rt.settle(&step));
+    }
+    let (due, step) = core!(ps[1], group_queue_retires).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    let mut wrong = due[0].clone();
+    wrong.request_id = "00".repeat(16);
+    let step = core!(ps[1], group_queue_retired, &wrong).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(
+        ps[1].carriage()["queueRetire"].as_array().unwrap().len(),
+        due.len()
+    );
+}

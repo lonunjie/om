@@ -17,7 +17,7 @@
 import type {
   EncryptedKv, GroupApi, GroupEvent, GroupId, GroupIntent, GroupSender, GroupStep, GroupTarget, GroupWire, HeldGroupInvitations, ProfileExecutionContext, ProfileId,
 } from "@om/platform-api";
-import type { DepositRevocation, Provider } from "./types";
+import type { DepositRevocation, Provider, QueueRetirement } from "./types";
 
 /** One sealed frame for one destination device: deposit `wrapper` (hex) at `entry`. */
 export interface SealedFrame {
@@ -62,6 +62,9 @@ export interface GroupCore extends GroupApi {
   /** Due revocations remain durable until the owning Home confirms DELETE. */
   routesExpire(ctx: ProfileExecutionContext): Promise<readonly DepositRevocation[]>;
   routeRevoked(ctx: ProfileExecutionContext, grant: DepositRevocation): Promise<void>;
+  /** Dedicated queues due for retirement (overlap and grant debts over); durable, with the request id every retry reuses. */
+  queueRetires(ctx: ProfileExecutionContext): Promise<readonly QueueRetirement[]>;
+  queueRetired(ctx: ProfileExecutionContext, retired: QueueRetirement): Promise<void>;
 }
 
 export interface GroupDriverOptions {
@@ -222,6 +225,14 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
       try {
         await provider.revokeDeposit(grant);
         await core.routeRevoked(ctx, grant);
+      } catch { retry = true; }
+    }
+    // A retired Room queue is released at the Home that holds it, and only there; a failure or a lost reply is retried by Core's
+    // durable debt after its backoff, with the same request id (ADR-0229 section 3).
+    for (const q of await core.queueRetires(ctx)) {
+      if (!provider.retireQueue) continue;
+      try {
+        if ((await provider.retireQueue(q)) === "retired") await core.queueRetired(ctx, q);
       } catch { retry = true; }
     }
     if (await pollRooms(ctx)) moved = true;

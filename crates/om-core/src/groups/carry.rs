@@ -22,7 +22,7 @@ use crate::crypto::delivery;
 use crate::crypto::rng::{CryptoRng, RngCore};
 use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
-use crate::route::{DepositRevocation, RelayEntry, RoomRouteOffer};
+use crate::route::{DepositRevocation, QueueRetirement, RelayEntry, RoomRouteOffer};
 use crate::state::{AppState, RelState};
 use std::collections::BTreeSet;
 
@@ -155,6 +155,15 @@ impl AppState {
     /// Return durable revocation debt for routes whose overlap has ended.
     pub fn carry_routes_expire(&mut self, now_s: u64) -> Vec<DepositRevocation> {
         self.group_carriage.expire_retired(now_s)
+    }
+
+    /// Dedicated queues now due for retirement at their Home (ADR-0229 section 3), each with its durable request id.
+    pub fn carry_queue_retires<Rg: RngCore>(
+        &mut self,
+        now_s: u64,
+        rng: &mut Rg,
+    ) -> Vec<QueueRetirement> {
+        self.group_carriage.due_queue_retires(now_s, rng)
     }
 
     /// Mark that a removal happened in `conv`: this device owes a fresh route (set by the Core group steps).

@@ -17,7 +17,7 @@ use crate::groups::flow::{
 };
 use crate::groups::mls::GroupCrypto;
 use crate::host::*;
-use crate::route::{DepositRevocation, MAX_OFFERS, RoomRouteOffer, RouteOffer};
+use crate::route::{DepositRevocation, MAX_OFFERS, QueueRetirement, RoomRouteOffer, RouteOffer};
 use crate::state::*;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
@@ -868,6 +868,44 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 handle: None,
             },
         ))
+    }
+
+    /// Dedicated queues whose retire is due at their Home (ADR-0229 section 3): the overlap and every grant revocation on
+    /// them are over. Each is returned with its durable request id; the host sends it only to `relay_uri` and reports the
+    /// outcome with [`Core::group_queue_retired`]. An unacknowledged one comes back after a backoff, with the same id.
+    pub fn group_queue_retires(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(Vec<QueueRetirement>, Step), CoreError> {
+        self.slot(ctx)?;
+        let (due, commit) = self.txn(&ctx.profile_id, |tx| {
+            let now_s = tx.now_ms / 1000;
+            Ok(tx.st.app.carry_queue_retires(now_s, &mut *tx.rng))
+        })?;
+        Ok((
+            due,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
+    /// The Home acknowledged this retire (or answered not found or revoked): the debt is complete.
+    pub fn group_queue_retired(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        done: &QueueRetirement,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.st.app.group_carriage.queue_retired(done);
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
     }
 
     /// What the host must watch for the device lane (Package 3): the per-Room mailboxes this device polls (every route
@@ -2089,6 +2127,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
         let (_, commit) = self.txn(&ctx.profile_id, |tx| {
             tx.owed_tick();
             tx.maintain_preferences();
+            // The sender's repeats of ceremony evidence are due by the clock, not by an inbound batch (ADR-0226 section 5).
+            tx.run_evidence_repeats();
             Ok(())
         })?;
         Ok(Step {

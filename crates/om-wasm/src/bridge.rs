@@ -14,7 +14,7 @@ use om_core::groups::flow::{
 };
 use om_core::groups::room::Setting;
 use om_core::host::{BlobLimits, Clock, CoreError, Inbound, NetResult, Record};
-use om_core::route::{DepositRevocation, RoomRouteOffer, RouteOffer};
+use om_core::route::{DepositRevocation, QueueRetirement, RoomRouteOffer, RouteOffer};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -338,6 +338,14 @@ enum Command {
     GroupRouteRevoked {
         ctx: ProfileExecutionContext,
         revoke: DepositRevocation,
+    },
+    /// Dedicated queues due for retirement at their Home (ADR-0229 section 3): `{retire: [{relayUri, mailbox, requestId}], commit}`.
+    GroupQueueRetires {
+        ctx: ProfileExecutionContext,
+    },
+    GroupQueueRetired {
+        ctx: ProfileExecutionContext,
+        retired: QueueRetirement,
     },
     /// `{mailboxes: [{mailbox, relayUri}], routeOwed: [room], outbox, pending}`: what the host watches for the device lane.
     GroupCarriageStatus {
@@ -1393,6 +1401,17 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             }
             Command::GroupRouteRevoked { ctx, revoke } => {
                 let step = self.core()?.group_route_revoked(&ctx, &revoke)?;
+                Ok(json!({ "commit": step.commit }))
+            }
+            Command::GroupQueueRetires { ctx } => {
+                let (retire, step) = self.core()?.group_queue_retires(&ctx)?;
+                Ok(json!({
+                    "retire": serde_json::to_value(&retire).unwrap_or(Value::Null),
+                    "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null),
+                }))
+            }
+            Command::GroupQueueRetired { ctx, retired } => {
+                let step = self.core()?.group_queue_retired(&ctx, &retired)?;
                 Ok(json!({ "commit": step.commit }))
             }
             Command::GroupCarriageStatus { ctx } => {

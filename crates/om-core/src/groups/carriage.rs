@@ -27,7 +27,7 @@ use crate::crypto::sig::{
 };
 use crate::crypto::{PROFILE_V1, hex};
 use crate::events::{self, Hlc};
-use crate::route::{DepositRevocation, RelayEntry};
+use crate::route::{DepositRevocation, QueueRetirement, RelayEntry};
 use crate::state::SecretHex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -910,6 +910,34 @@ pub struct RouteDebt {
     pub to: OutTarget,
 }
 
+/// How many dedicated queues may wait to be retired at once (ADR-0229 section 3 item 2 gives no number; the oldest is dropped
+/// when the table is full, and the Home's own idle expiry, item 4, is the backstop for a queue Core stopped tracking).
+pub const MAX_QUEUE_RETIRE_DEBT: usize = 128;
+/// A retire that was handed to the host is not handed out again before this backoff, doubling per attempt (policy, not wire).
+pub const QUEUE_RETIRE_BACKOFF_S: u64 = 60;
+pub const QUEUE_RETIRE_BACKOFF_MAX_S: u64 = 6 * 3600;
+/// Debt older than this is dropped: the Home retires an unused queue itself after 400 days or the longest grant lifetime plus
+/// 14 days (ADR-0229 section 3 item 4), so a Home that never advertised the operation needs no endless retry.
+pub const QUEUE_RETIRE_HORIZON_S: u64 = 415 * 86_400;
+/// Most retirements handed to the host in one call.
+pub const QUEUE_RETIRE_BATCH: usize = 8;
+
+/// A dedicated queue whose routes are gone and whose Home should drop it (ADR-0229 section 3). Durable: survives restart.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueRetireDebt {
+    pub relay_uri: String,
+    pub mailbox: String,
+    /// Random 128-bit request id (hex), assigned the first time the retire is handed out and then reused by every retry.
+    #[serde(default)]
+    pub request_id: String,
+    pub created_s: u64,
+    #[serde(default)]
+    pub attempts: u32,
+    #[serde(default)]
+    pub next_try_s: u64,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RetiredGrant {
@@ -927,6 +955,9 @@ pub struct GroupCarriageRec {
     pub mine: BTreeMap<String, Vec<MyRoute>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     retired_grants: Vec<RetiredGrant>,
+    /// Dedicated queues to retire at their Home once the overlap and every grant debt on them are over (ADR-0229 section 3).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queue_retire: Vec<QueueRetireDebt>,
     /// The host stages one mint at a time and keeps its journal until this claim is durable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     last_grant_claim: Option<DepositRevocation>,
@@ -1075,11 +1106,13 @@ impl GroupCarriageRec {
     pub(super) fn prune_retired(&mut self, now_s: u64) {
         let debt = &mut self.retired_grants;
         debt.retain(|grant| now_s <= grant.expires_at.saturating_add(300));
+        let mut gone: Vec<MyRoute> = vec![];
         for routes in self.mine.values_mut() {
             routes.retain(|r| {
                 if r.receiving(now_s) {
                     return true;
                 }
+                gone.push(r.clone());
                 if now_s <= r.grant_expires_at.saturating_add(300)
                     && let Some(revoke) = r.revocation()
                     && !debt.iter().any(|grant| grant.revoke == revoke)
@@ -1093,14 +1126,106 @@ impl GroupCarriageRec {
             });
         }
         self.mine.retain(|_, routes| !routes.is_empty());
+        for r in &gone {
+            self.note_queue_retire(r, now_s);
+        }
+    }
+
+    /// A minted route left the table: its dedicated queue is owed a retire. Legacy routes (no grant) were never minted
+    /// per Room and are left to the Home's idle expiry.
+    fn note_queue_retire(&mut self, r: &MyRoute, now_s: u64) {
+        let (Some(entry), Some(_)) = (r.entries.first(), r.grant_id.as_ref()) else {
+            return;
+        };
+        if self
+            .queue_retire
+            .iter()
+            .any(|d| d.relay_uri == entry.relay_uri && d.mailbox == r.mailbox)
+        {
+            return;
+        }
+        if self.queue_retire.len() >= MAX_QUEUE_RETIRE_DEBT {
+            self.queue_retire.remove(0);
+        }
+        self.queue_retire.push(QueueRetireDebt {
+            relay_uri: entry.relay_uri.clone(),
+            mailbox: r.mailbox.clone(),
+            request_id: String::new(),
+            created_s: now_s,
+            attempts: 0,
+            next_try_s: 0,
+        });
+    }
+
+    /// Retirements due now: the overlap is over, no grant revocation on that queue is outstanding (completed or expired),
+    /// and the backoff has passed. The request id is assigned here (random, durable with this commit) and reused by every
+    /// retry. Each call counts an attempt, so a lost reply is retried after the backoff, after a restart too.
+    pub fn due_queue_retires<Rg: RngCore>(&mut self, now_s: u64, rng: &mut Rg) -> Vec<QueueRetirement> {
+        self.prune_retired(now_s);
+        self.queue_retire
+            .retain(|d| now_s <= d.created_s.saturating_add(QUEUE_RETIRE_HORIZON_S));
+        let busy = |relay: &str, mailbox: &str, rec: &GroupCarriageRec| {
+            rec.retired_grants
+                .iter()
+                .any(|g| g.revoke.relay_uri == relay && g.revoke.mailbox == mailbox)
+                || rec.mine.values().flatten().any(|r| {
+                    r.mailbox == mailbox
+                        && r.receiving(now_s)
+                        && r.entries.first().is_some_and(|e| e.relay_uri == relay)
+                })
+        };
+        let ready: Vec<usize> = (0..self.queue_retire.len())
+            .filter(|&i| {
+                let d = &self.queue_retire[i];
+                d.next_try_s <= now_s && !busy(&d.relay_uri, &d.mailbox, self)
+            })
+            .take(QUEUE_RETIRE_BATCH)
+            .collect();
+        let mut out = vec![];
+        for i in ready {
+            let d = &mut self.queue_retire[i];
+            if d.request_id.is_empty() {
+                let mut id = [0u8; 16];
+                rng.fill_bytes(&mut id);
+                d.request_id = hex(&id);
+            }
+            d.attempts = d.attempts.saturating_add(1);
+            let wait = QUEUE_RETIRE_BACKOFF_S
+                .saturating_mul(1u64 << d.attempts.saturating_sub(1).min(16))
+                .min(QUEUE_RETIRE_BACKOFF_MAX_S);
+            d.next_try_s = now_s.saturating_add(wait);
+            out.push(QueueRetirement {
+                relay_uri: d.relay_uri.clone(),
+                mailbox: d.mailbox.clone(),
+                request_id: d.request_id.clone(),
+            });
+        }
+        out
+    }
+
+    /// The Home acknowledged the retire (or says the queue is already gone or tombstoned): the debt is complete.
+    pub fn queue_retired(&mut self, done: &QueueRetirement) {
+        self.queue_retire.retain(|d| {
+            !(d.relay_uri == done.relay_uri && d.mailbox == done.mailbox && d.request_id == done.request_id)
+        });
     }
 
     pub fn revoked(&mut self, done: &DepositRevocation, now_s: u64) {
         self.retired_grants.retain(|grant| &grant.revoke != done);
+        let mut gone: Vec<MyRoute> = vec![];
         for routes in self.mine.values_mut() {
-            routes.retain(|r| r.receiving(now_s) || r.revocation().as_ref() != Some(done));
+            routes.retain(|r| {
+                let keep = r.receiving(now_s) || r.revocation().as_ref() != Some(done);
+                if !keep {
+                    gone.push(r.clone());
+                }
+                keep
+            });
         }
         self.mine.retain(|_, routes| !routes.is_empty());
+        for r in &gone {
+            self.note_queue_retire(r, now_s);
+        }
     }
 
     /// The usable Room-only pin for `account` (hex) in `room`.
@@ -1378,5 +1503,72 @@ mod lane_bound_tests {
         assert_eq!(l.received_s, 0);
         let rec: GroupCarriageRec = serde_json::from_str("{}").unwrap();
         assert!(rec.lane_overflow.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod queue_retire_tests {
+    use super::*;
+    use crate::crypto::rng::insecure_test_rng::InsecureTestRng;
+
+    fn route(n: usize, retired_at: Option<u64>, grant: bool) -> MyRoute {
+        MyRoute {
+            key_id: format!("k{n}"),
+            seed: SecretHex::from(String::new()),
+            mailbox: format!("{n:032x}"),
+            entries: vec![RelayEntry {
+                relay_uri: "https://home.example/".into(),
+                capability: vec![1; 32],
+                priority: 0,
+                expires_at: 1_000_000,
+            }],
+            record: String::new(),
+            expires_at: 1_000_000,
+            minted_at: 0,
+            retired_at,
+            grant_id: grant.then(|| format!("{n:032x}")),
+            grant_expires_at: 1_000_000,
+        }
+    }
+
+    #[test]
+    fn the_debt_table_is_bounded_and_drops_the_oldest() {
+        let mut rec = GroupCarriageRec::default();
+        for n in 0..MAX_QUEUE_RETIRE_DEBT + 5 {
+            rec.note_queue_retire(&route(n, Some(0), true), 10);
+        }
+        assert_eq!(rec.queue_retire.len(), MAX_QUEUE_RETIRE_DEBT);
+        assert_eq!(rec.queue_retire[0].mailbox, format!("{:032x}", 5));
+    }
+
+    #[test]
+    fn a_legacy_route_without_a_grant_owes_no_retire_and_a_repeat_adds_nothing() {
+        let mut rec = GroupCarriageRec::default();
+        rec.note_queue_retire(&route(1, Some(0), false), 10);
+        assert!(rec.queue_retire.is_empty());
+        rec.note_queue_retire(&route(2, Some(0), true), 10);
+        rec.note_queue_retire(&route(2, Some(0), true), 11);
+        assert_eq!(rec.queue_retire.len(), 1);
+    }
+
+    #[test]
+    fn expired_grants_release_the_retire_and_old_debt_is_dropped_at_the_horizon() {
+        let mut rec = GroupCarriageRec::default();
+        let mut rng = InsecureTestRng::from_label(b"queue-retire");
+        rec.add_mine("room", route(3, Some(0), true));
+        // overlap over, grant not expired: the grant debt holds the retire back
+        let now = ROUTE_OVERLAP_S + 1;
+        assert!(rec.due_queue_retires(now, &mut rng).is_empty());
+        assert_eq!(rec.expire_retired(now).len(), 1);
+        // the grant (and the route) expire at 1_000_000 (+300 skew): the debt is dropped and the retire is released
+        let later = 1_000_400;
+        let due = rec.due_queue_retires(later, &mut rng);
+        assert_eq!(due.len(), 1);
+        // a Home that never acknowledges: the debt ends at the horizon
+        assert!(
+            rec.due_queue_retires(later + QUEUE_RETIRE_HORIZON_S + 1, &mut rng)
+                .is_empty()
+        );
+        assert!(rec.queue_retire.is_empty());
     }
 }

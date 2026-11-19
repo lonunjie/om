@@ -9,7 +9,7 @@ import type {
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
-import type { BackupHeader, BackupPlan, BlobLimits, RecoveryPlace, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, DepositRevocation, RoomRouteMint, RoomRouteOffer, Record as CoreRecord } from "./types";
+import type { BackupHeader, BackupPlan, BlobLimits, RecoveryPlace, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, DepositRevocation, QueueRetirement, RoomRouteMint, RoomRouteOffer, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
@@ -532,6 +532,14 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     }),
     routeRevoked: (ctx, revoke) => exclusive(async () => {
       await kvCommit(core.call({ cmd: "group_route_revoked", ctx: ctxOf(ctx), revoke }) as { commit?: Commit | null }, ctx);
+    }),
+    queueRetires: (ctx) => exclusive(async () => {
+      const r = core.call({ cmd: "group_queue_retires", ctx: ctxOf(ctx) }) as { retire: QueueRetirement[]; commit?: Commit | null };
+      await kvCommit(r, ctx); // the request id and the attempt are durable before anything is sent
+      return r.retire;
+    }),
+    queueRetired: (ctx, retired) => exclusive(async () => {
+      await kvCommit(core.call({ cmd: "group_queue_retired", ctx: ctxOf(ctx), retired }) as { commit?: Commit | null }, ctx);
     }),
   };
   const groupDriver: GroupDriver | undefined = opts.groupDriver === undefined ? undefined : createGroupDriver({
