@@ -94,6 +94,9 @@ export const testRecoveryCopy: RecoveryCopy = {
   scope: { identity: { title: "Account", body: "control" }, history: { title: "History", body: "messages" }, provider: { title: "Home", body: "connection" } },
   delay: (ms) => `Delay ${String(ms)}`, recoveryKeySaved: "Key saved", recoveryKeyNone: "No key", recoveryKeyOnce: "The key cannot be shown again",
   incomingAlert: "Someone is recovering your account", review: "Review", requestsHeading: "Recoveries",
+  earlierCodeAlert: "Someone tried an earlier safety code",
+  alertsNeedAttention: "Recovery alerts need attention",
+  recordNeedsNewKey: "Recovery needs a new safety code",
   direction: { incoming: "On another device", outgoing: "Started here" },
   requestState: { waiting: "Waiting", completed: "Completed", vetoed: "Stopped", cancelled: "Cancelled", stale: "No longer valid" },
   started: (ms) => `Started ${String(ms)}`, activatesAt: (ms) => `Completes ${String(ms)}`, activatesUnknown: "Completion time not known yet",
@@ -131,6 +134,7 @@ export const testLostCopy: LostDevicesCopy = {
     cant_read: "Something is saved, but this key cannot open it. Check the key and try again.",
     out_of_date: "What was found is older than what this device already saw, so it was not used. Try again later.",
     conflict: "What was found does not match your saved sheet. It was not used, and nothing was sent.",
+    floor_table_full: "This device has saved as many recovery attempts as it can.",
   },
   foundHeading: "Your saved account was found",
   foundBody: "You can ask for your account back on this device. Your other devices will be asked to stop it if it was not you, and you will have to wait before it finishes unless one of them approves it.",
@@ -150,6 +154,8 @@ export const testLostCopy: LostDevicesCopy = {
   },
   waitDone: "Your account is back on this device.",
   checkAgain: "Check again now",
+  sendAgain: "Send again",
+  vetoCheckIncomplete: "OM can't confirm that your other devices didn't object.",
   stop: "Stop asking",
   approval: {
     heading: "Do you still have another device?",
@@ -174,6 +180,8 @@ export const testLostCopy: LostDevicesCopy = {
     cancelled: "You stopped asking. Nothing changed on this device.",
   },
   startOver: "Start over",
+  forgetAttempt: "Forget this attempt",
+  forgetEffect: "Forget the saved recovery check for this attempt.",
   outcome: testOutcome,
 };
 

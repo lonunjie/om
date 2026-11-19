@@ -18,6 +18,32 @@ fn status(w: &World) -> RecoveryStatusView {
     w.alice.query(Query::GetRecoveryStatus { ctx: w.a.clone() })
 }
 
+#[test]
+fn a_replaced_inbox_still_alerts_after_restart() {
+    let mut w = world_with(true);
+    w.alice.recovery_tick(&w.a, &mono(1, 0));
+    w.alice.flush_net(&w.a);
+
+    let mut fresh = fresh(&w.net);
+    fresh.begin(&w.sheet);
+    let (op, _) = replace(&mut w, "replace-for-alerts");
+    assert_eq!(confirm_saved(&mut w, &op), Some(OutcomeClass::Committed));
+    assert_eq!(fresh.go("req", IntentBody::RequestRecovery), Some(OutcomeClass::Committed));
+
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    w.alice.tick(61_000);
+    w.alice.recovery_tick(&w.a, &mono(2, 0));
+    w.alice.flush_net(&w.a);
+    let view = serde_json::to_value(status(&w)).unwrap();
+    assert_eq!(view["earlierCodeUsed"], true);
+    assert!(status(&w).requests.is_empty());
+
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    assert_eq!(serde_json::to_value(status(&w)).unwrap()["earlierCodeUsed"], true);
+}
+
 /// Ask for a new key; returns its operation id and what Core shows once.
 fn replace(w: &mut World, op: &str) -> (String, Option<RecoveryKeyView>) {
     w.alice.dispatch(&w.a, op, IntentBody::ReplaceRecoveryKey);

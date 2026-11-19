@@ -129,8 +129,12 @@ export interface BeginRecovery extends IntentBase { readonly kind: "BeginRecover
 export interface RequestRecovery extends IntentBase { readonly kind: "RequestRecovery" }
 /** Close this device's own recovery attempt. */
 export interface CancelRecovery extends IntentBase { readonly kind: "CancelRecovery" }
+/** Forget the local record floors of the named cancelled attempt. */
+export interface ForgetRecoveryAttempt extends IntentBase { readonly kind: "ForgetRecoveryAttempt"; readonly recoveryOperationId: OperationId; readonly confirmation: ConfirmationToken }
 /** Ask again now: re-read the record (before an attempt) or the Homes' boards and record (during one). */
 export interface CheckRecoveryAgain extends IntentBase { readonly kind: "CheckRecoveryAgain" }
+/** Deliver the same waiting request again. */
+export interface ResendRecoveryRequest extends IntentBase { readonly kind: "ResendRecoveryRequest" }
 
 /** On a surviving controller (a live control device): open a short, single-use recovery approval exchange (ADR-0203). It shows a private `om:recover-approve/` link or QR for the restricted device; the person then confirms the exact request with `ConfirmRecovery`. */
 export interface OfferRecoveryApproval extends IntentBase { readonly kind: "OfferRecoveryApproval" }
@@ -150,7 +154,7 @@ export type CoreIntent =
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | AcceptCall | DeclineCall | EndCall | UpdateCallIce | SetCallMedia | SetContactAllowCalls | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | ReconnectContact | AcceptInvitation
-  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | SetContactNickname | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery | RequestRecovery | CancelRecovery | CheckRecoveryAgain | OfferRecoveryApproval | JoinRecoveryApproval | ReplaceRecoveryKey;
+  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | SetContactNickname | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery | RequestRecovery | CancelRecovery | ForgetRecoveryAttempt | CheckRecoveryAgain | ResendRecoveryRequest | OfferRecoveryApproval | JoinRecoveryApproval | ReplaceRecoveryKey;
 
 export type CoreIntentKind = CoreIntent["kind"];
 
@@ -160,12 +164,12 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "AcceptCall", "DeclineCall", "EndCall", "UpdateCallIce", "SetCallMedia", "SetContactAllowCalls", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "ReconnectContact", "AcceptInvitation",
-  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "SetContactNickname", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery", "RequestRecovery", "CancelRecovery", "CheckRecoveryAgain", "OfferRecoveryApproval", "JoinRecoveryApproval", "ReplaceRecoveryKey",
+  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "SetContactNickname", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery", "RequestRecovery", "CancelRecovery", "ForgetRecoveryAttempt", "CheckRecoveryAgain", "ResendRecoveryRequest", "OfferRecoveryApproval", "JoinRecoveryApproval", "ReplaceRecoveryKey",
 ];
 
 /** Intents that require an explicit confirmation token; learned/ranked suggestions can never supply one (UI-11). */
 export const DESTRUCTIVE_INTENT_KINDS = [
-  "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "ConfirmControllerChange",
+  "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "ConfirmControllerChange", "ForgetRecoveryAttempt",
 ] as const;
 export type DestructiveIntentKind = (typeof DESTRUCTIVE_INTENT_KINDS)[number];
 
@@ -178,6 +182,7 @@ export function confirmationTarget(intent: Extract<CoreIntent, { readonly confir
     case "BlockPerson": return intent.personId;
     case "SuspendDevice": case "RevokeDevice": return intent.deviceId;
     case "ConfirmControllerChange": case "ApproveDeviceLink": case "VetoRecovery": case "ConfirmRecovery": case "DeclinePeerRecovery": case "ConfirmPeerRecovery": return intent.requestId;
+    case "ForgetRecoveryAttempt": return intent.recoveryOperationId;
     case "ChangePrivacyPolicy": return intent.policy;
     case "StartRecovery": return `${intent.scope}:${intent.custodian}`;
   }

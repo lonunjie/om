@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asConversationId, asOperationId, asProfileId, type ReconnectContactView } from "@om/platform-api";
+import { asConversationId, asOperationId, asProfileId, type CoreQuery, type QueryResult, type RecoveryStatusView, type ReconnectContactView } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testApproveCopy, testLostCopy } from "../devices/__fixtures__/copy";
@@ -27,6 +27,41 @@ function setup() {
 }
 
 describe("I lost my devices", () => {
+  it("shows a full floor table and cancels the lookup within its profile", async () => {
+    const { h, services } = setup();
+    const query = h.query.bind(h);
+    vi.spyOn(h, "query").mockImplementation(async <Q extends CoreQuery>(q: Q): Promise<QueryResult<Q>> => {
+      const result = await query(q);
+      return q.kind === "GetRecoveryStatus"
+        ? { ...(result as RecoveryStatusView), recovering: { stage: "floor_table_full" } } as QueryResult<Q>
+        : result;
+    });
+    const dispatch = vi.spyOn(h, "dispatch");
+    const onCancel = vi.fn();
+    render(<LostDevices services={services} copy={testLostCopy} onRecovered={() => undefined} onCancel={onCancel} />);
+    expect(await screen.findByText(testLostCopy.stage.floor_table_full)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: testLostCopy.cancel }));
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ kind: "CancelRecovery" }));
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("offers to resend the same waiting request and explains an incomplete objection check", async () => {
+    const { h, services } = setup();
+    const query = h.query.bind(h);
+    vi.spyOn(h, "query").mockImplementation(async <Q extends CoreQuery>(q: Q): Promise<QueryResult<Q>> => {
+      const result = await query(q);
+      return q.kind === "GetRecoveryStatus"
+        ? { ...(result as RecoveryStatusView), recovering: { stage: "found", attempt: "waiting", vetoCheckIncomplete: true } } as QueryResult<Q>
+        : result;
+    });
+    const dispatch = vi.spyOn(h, "dispatch");
+    const { container } = render(<LostDevices services={services} copy={testLostCopy} onRecovered={() => undefined} onCancel={() => undefined} />);
+    expect(await screen.findByText("OM can't confirm that your other devices didn't object.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Send again" }));
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ kind: "ResendRecoveryRequest" }));
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it("shows the key entry with labelled fields, no technical words, and passes axe", async () => {
     const { services } = setup();
     const { container } = render(<LostDevices services={services} copy={testLostCopy} onRecovered={() => undefined} onCancel={() => undefined} />);

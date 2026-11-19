@@ -2,9 +2,9 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { asOperationId, asProfileId } from "@om/platform-api";
-import type { ConfirmationToken } from "@om/platform-api";
+import type { ConfirmationToken, CoreQuery, QueryResult, RecoveryStatusView } from "@om/platform-api";
 import { createHarness, type SeedDevices } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testRecoveryCopy } from "../devices/__fixtures__/copy";
@@ -34,6 +34,27 @@ function setup(account: SeedDevices = ACCOUNT, opIds: string[] = []) {
 const kinds = async (h: ReturnType<typeof setup>["h"], s: SettingsServices) => (await h.pendingOperations(s.ctx)).map((o) => o.intentKind);
 
 describe("Recovery screen", () => {
+  it("shows earlier-code use and alerts needing attention without an approval action on the alert", async () => {
+    const { h, services } = setup();
+    const query = h.query.bind(h);
+    vi.spyOn(h, "query").mockImplementation(async <Q extends CoreQuery>(q: Q): Promise<QueryResult<Q>> => {
+      const result = await query(q);
+      return q.kind === "GetRecoveryStatus"
+        ? { ...(result as RecoveryStatusView), requests: [], earlierCodeUsed: true, alerts: "needs_attention" } as unknown as QueryResult<Q>
+        : result;
+    });
+    const { container } = render(<RecoveryScreen services={services} copy={testRecoveryCopy} replace={{
+      copy: { action: "Make a new safety code", body: "Make a new code", pausedBody: "Updates paused" },
+      onStarted: () => undefined,
+    }} />);
+    const notice = (await screen.findByText("Someone tried an earlier safety code")).closest(".om-security-notice");
+    expect(notice).not.toBeNull();
+    expect(within(notice as HTMLElement).queryByRole("button")).toBeNull();
+    expect(screen.getByText("Recovery alerts need attention")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Make a new safety code" })).toHaveLength(1);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it("shows Core's status, custodians, scopes and timers; the recovery key is never shown again", async () => {
     const { services } = setup();
     const { container } = render(<RecoveryScreen services={services} copy={testRecoveryCopy} />);

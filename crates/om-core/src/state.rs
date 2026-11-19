@@ -1050,6 +1050,11 @@ pub struct AppState {
     /// The controller side of the recovery inbox (ADR-0201 section 8.2). Convenience only: nothing in it is trusted.
     #[serde(default)]
     pub recovery_inbox: RecoveryInboxRec,
+    /// Drain-only capabilities of superseded epochs (ADR-0226 §1). Kept in the DeviceVault.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub earlier_recovery_inboxes: BTreeMap<u64, EarlierRecoveryInbox>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub earlier_recovery_code_used: bool,
     /// Record floors by scope and locator. A scope-only key is an unreconciled legacy floor (ADR-0225 §3).
     #[serde(default)]
     pub recovery_floors: BTreeMap<Hex, RecordFloorRec>,
@@ -1146,6 +1151,17 @@ pub struct RecoveryJoinRec {
     pub attempt: Option<OwnerAttemptRec>,
     #[serde(default)]
     pub terminal: Option<AttemptState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cancelled_floors: Option<CancelledRecoveryFloors>,
+}
+
+/// Floor keys survive cancellation without preserving the recovery secret (ADR-0225 §3).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CancelledRecoveryFloors {
+    pub keys: BTreeSet<Hex>,
+    pub last_sample: Option<crate::host::MonotonicSample>,
+    pub credited_ms: u64,
 }
 
 /// A controller's recovery inbox bookkeeping. Items wait here for the next tick (which carries the monotonic reading the
@@ -1158,12 +1174,25 @@ pub struct RecoveryInboxRec {
     #[serde(default)]
     pub registered_at_ms: Option<u64>,
     #[serde(default)]
+    pub drained_at_ms: Option<u64>,
+    #[serde(default)]
     pub registration_refused: bool,
     /// Core's clock at the last register or drain attempt: pacing only, never authority.
     pub last_ms: u64,
     pub in_flight: bool,
     pub pending: Vec<InboxItemRec>,
     pub to_ack: Vec<Hex>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EarlierRecoveryInbox {
+    pub host: String,
+    pub port: Option<u16>,
+    pub cap: SecretHex,
+    pub verification_key: Hex,
+    pub ended_ms: u64,
+    pub last_drain_ms: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1534,6 +1563,8 @@ pub enum JoinStage {
     OutOfDate,
     /// Another record at the same generation, or another account under the same place: never used.
     Conflict,
+    /// An unrelated lineage cannot displace any of the saved floors.
+    FloorTableFull,
 }
 
 /// Stored evidence of one completed recovery link (see `control::RecoveryLinkEvidence`). All hex.

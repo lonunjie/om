@@ -45,6 +45,8 @@ export function RecoveryScreen({ services, copy, approve, replace }: RecoveryScr
   return (
     <section className="om-settings om-recovery" aria-labelledby="om-recovery-h">
       <Text as="h1" size="xl" weight="bold" id="om-recovery-h">{copy.heading}</Text>
+      {status.earlierCodeUsed ? <SecurityNoticeBanner reasonCode="earlier_recovery_code_used" label={copy.earlierCodeAlert} /> : null}
+      {status.alerts === "needs_attention" ? <SecurityNoticeBanner reasonCode="recovery_alerts_need_attention" label={copy.alertsNeedAttention} /> : null}
       {incoming.map((r) => (
         <SecurityNoticeBanner key={r.requestId} reasonCode="recovery_in_progress" tone="danger" label={copy.incomingAlert}>
           {view.kind === "stop" ? null : <Button onClick={() => { setView({ kind: "stop", requestId: r.requestId }); }}>{copy.review}</Button>}
@@ -72,7 +74,7 @@ interface StatusProps {
 function Status({ copy, status, pending, approveLabel, onView }: StatusProps) {
   return (
     <>
-      <Text as="p" data-policy={status.policy}>{copy.policy[status.policy]}</Text>
+      <Text as="p" data-policy={status.policy}>{status.record === "needs_new_key" ? copy.recordNeedsNewKey : copy.policy[status.policy]}</Text>
       <section className="om-settings__group" aria-labelledby="om-recovery-cust-h">
         <Text as="h2" size="lg" weight="bold" id="om-recovery-cust-h">{copy.custodiansHeading}</Text>
         <ul className="om-settings__list">

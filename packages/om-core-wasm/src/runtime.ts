@@ -5,7 +5,7 @@ import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   CallRoute, CallView, AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
   CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
-  ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
+  ProfileExecutionContext, ProfileId, QueryResult, RecoveryStatusView, Unsubscribe,
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
@@ -817,11 +817,11 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         pending: (p) => {
           if (!openProfiles.has(p as ProfileId)) return false;
           const ctx = client.contextFor(asProfileId(p));
-          const st = query({ kind: "GetRecoveryStatus", ctx }) as { requests: readonly { state: string }[]; recovering?: { attempt?: string | null }; record?: string };
+          const st = query({ kind: "GetRecoveryStatus", ctx }) as RecoveryStatusView;
           if (st.requests.some((r) => r.state === "waiting")) return true;
           // A restricted device with its own attempt waiting runs its own interval and reads the boards; a controller that keeps the
           // account's recovery record drains its recovery inbox on the same tick (ADR-0201 section 8, ADR-0202).
-          if (st.recovering?.attempt === "waiting" || st.record !== undefined) return true;
+          if (st.recovering?.attempt === "waiting" || st.recovering?.floorCleanupPending === true || st.record !== undefined || st.alerts !== undefined) return true;
           return (query({ kind: "GetConversationList", ctx }) as readonly { peerRecovery?: { state: string } }[]).some((c) => c.peerRecovery?.state === "waiting");
         },
         tick: (p, sample) => client.recoveryTick(client.contextFor(asProfileId(p)), sample),

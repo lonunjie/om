@@ -644,6 +644,92 @@ fn recovery_floor_migration_preserves_the_matching_account_and_other_locators() 
 }
 
 #[test]
+fn a_full_floor_table_keeps_all_existing_lineages() {
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.rt.dispatch(
+        &f.ctx,
+        "begin-with-full-table",
+        IntentBody::BeginRecovery {
+            recovery_key: w.sheet,
+            home: String::new(),
+            place: None,
+        },
+    );
+    let mut app = f.app();
+    let floors = (0..16)
+        .map(|i| {
+            let key = format!("{}:{}", om_core::crypto::hex(&SCOPE), om_core::crypto::hex(&[i; 32]));
+            (key, serde_json::json!({
+                "lineage": om_core::crypto::hex(&[16; 32]),
+                "generation": 7,
+                "digest": om_core::crypto::hex(&[23; 32]),
+            }))
+        })
+        .collect::<serde_json::Map<_, _>>();
+    app["recoveryFloors"] = serde_json::Value::Object(floors);
+    let before = app["recoveryFloors"].clone();
+    rewrite(&mut f, app);
+    f.rt.flush_net(&f.ctx);
+    assert_eq!(serde_json::to_value(f.view()).unwrap()["stage"], "floor_table_full");
+    assert_eq!(f.app()["recoveryFloors"], before);
+}
+
+#[test]
+fn cancelled_floors_expire_only_after_measured_inactivity() {
+    const RETENTION: u64 = 400 * 24 * H;
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    let before = f.app()["recoveryFloors"].clone();
+    assert_eq!(before.as_object().unwrap().len(), 1);
+    f.go("cancel", IntentBody::CancelRecovery);
+    f.tick(&mono(1, 0));
+    f.rt.tick(RETENTION * 2);
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    f.tick(&mono(2, RETENTION * 2));
+    f.tick(&mono(2, RETENTION * 3 - 1));
+    assert_eq!(f.app()["recoveryFloors"], before);
+    f.tick(&mono(2, RETENTION * 3));
+    assert_eq!(f.app()["recoveryFloors"], serde_json::json!({}));
+    assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Cancelled));
+}
+
+#[test]
+fn forget_targets_only_the_named_cancelled_attempt() {
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    let mut app = f.app();
+    let begin = app["recoveryJoin"]["operationId"].as_str().unwrap().to_owned();
+    let unrelated = format!("{}:{}", om_core::crypto::hex(&SCOPE), om_core::crypto::hex(&[21; 32]));
+    let unrelated_floor = serde_json::json!({
+        "lineage": om_core::crypto::hex(&[22; 32]),
+        "generation": 8,
+        "digest": om_core::crypto::hex(&[24; 32]),
+    });
+    app["recoveryFloors"][&unrelated] = unrelated_floor.clone();
+    rewrite(&mut f, app);
+    let forget = |f: &mut Fresh, op, id: &str| {
+        let confirmation = common::confirmation(&mut f.rt, &f.ctx, "ForgetRecoveryAttempt", id);
+        f.go(op, IntentBody::ForgetRecoveryAttempt {
+            recovery_operation_id: id.to_owned(),
+            confirmation,
+        })
+    };
+    assert!(matches!(forget(&mut f, "active-forget", &begin), Some(OutcomeClass::Rejected { .. })));
+    f.go("cancel", IntentBody::CancelRecovery);
+    f.rt.restart();
+    f.ctx = f.rt.open("q");
+    assert!(matches!(forget(&mut f, "wrong-forget", "other"), Some(OutcomeClass::Rejected { .. })));
+    assert_eq!(forget(&mut f, "forget", &begin), Some(OutcomeClass::Committed));
+    assert!(f.view().is_none());
+    assert_eq!(f.app()["recoveryFloors"].as_object().unwrap().len(), 1);
+    assert_eq!(f.app()["recoveryFloors"][unrelated], unrelated_floor);
+}
+
+#[test]
 fn a_veto_ends_it_for_good_even_after_the_home_forgets_it_and_a_restart() {
     let mut w = world();
     let mut f = fresh(&w.net);
@@ -863,6 +949,34 @@ fn the_request_is_resent_at_a_third_and_two_thirds_with_the_same_bytes() {
 }
 
 #[test]
+fn sending_again_preserves_the_request_and_its_verifier_credit() {
+    use om_core::host::NetCall;
+
+    let w = world();
+    let mut f = fresh(&w.net);
+    f.begin(&w.sheet);
+    f.rt.dispatch(&f.ctx, "req", IntentBody::RequestRecovery);
+    let post = |f: &Fresh| {
+        f.rt.core.net_ops(&f.ctx).unwrap().into_iter().find_map(|op| match op.call {
+            NetCall::RecoveryRequestPost { request_id, bytes, .. } => Some((request_id, bytes)),
+            _ => None,
+        }).expect("pending recovery request")
+    };
+    let first = post(&f);
+    f.rt.dispatch(&f.ctx, "coalesce-resend", IntentBody::ResendRecoveryRequest);
+    assert_eq!(post(&f), first);
+    f.rt.flush_net(&f.ctx);
+    f.tick(&mono(1, 0));
+    f.tick(&mono(1, H));
+    let remaining = f.view().unwrap().remaining_ms;
+    f.rt.dispatch(&f.ctx, "resend", IntentBody::ResendRecoveryRequest);
+    let second = post(&f);
+    assert_ne!(first.0, second.0);
+    assert_eq!(first.1, second.1);
+    assert_eq!(f.view().unwrap().remaining_ms, remaining);
+}
+
+#[test]
 fn an_open_request_refreshes_after_four_offline_days_without_new_verifier_credit() {
     use om_core::host::NetCall;
 
@@ -905,7 +1019,7 @@ fn eight_unclassified_vetoes_keep_the_strict_attempt_waiting() {
     }
     assert!(f.view().is_some(), "the board did not establish a complete round");
     f.tick(&mono(1, DELAY_MS + 1));
-    assert!(f.view().is_some(), "a later empty board does not resolve saturation");
+    assert!(f.view().unwrap().veto_check_incomplete, "a later empty board does not resolve saturation");
 }
 
 // ----------------------------------------------------------------------------------------------- controller inbox
@@ -916,6 +1030,26 @@ fn alice_tick(w: &mut World, session: u8, at: u64) {
     for _ in 0..3 {
         w.alice.flush_net(&w.a);
     }
+}
+
+#[test]
+fn inbox_readiness_requires_a_recent_successful_drain() {
+    let mut w = world();
+    let alerts = |w: &World| {
+        let view: serde_json::Value =
+            w.alice.query(Query::GetRecoveryStatus { ctx: w.a.clone() });
+        view["alerts"].clone()
+    };
+    alice_tick(&mut w, 1, 0);
+    assert_eq!(alerts(&w), "checking");
+    alice_tick(&mut w, 1, 1000);
+    assert_eq!(alerts(&w), "ready");
+
+    w.alice.restart();
+    w.a = w.alice.open("p-a");
+    assert_eq!(alerts(&w), "ready");
+    w.alice.tick(H);
+    assert_eq!(alerts(&w), "checking");
 }
 
 #[test]

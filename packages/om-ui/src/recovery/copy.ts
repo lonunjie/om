@@ -54,6 +54,9 @@ export interface RecoveryCopy {
   readonly recoveryKeyOnce: string;
   /** Shown on the reserved surface while someone else is recovering this account. */
   readonly incomingAlert: string;
+  readonly earlierCodeAlert: string;
+  readonly alertsNeedAttention: string;
+  readonly recordNeedsNewKey: string;
   readonly review: string;
   readonly requestsHeading: string;
   readonly direction: Readonly<Record<"incoming" | "outgoing", string>>;

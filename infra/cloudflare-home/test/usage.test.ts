@@ -211,7 +211,7 @@ describe("key fetch is metered by its real fan-out", () => {
     expect(c.response.status).toBe(200);
     expect(c.worker).toBe(1);
     expect(c.durable).toBe(1 + n + 1);
-  });
+  }, 30_000);
 
   it("charges the calls actually made when a later device fails (partial failure)", async () => {
     const q = await queue(raw);

@@ -178,7 +178,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let legacy = floors.get(scope).filter(|f| f.lineage == account);
         if existing.is_none() && legacy.is_none() && floors.len() >= 16 {
-            return Err(JoinStage::Conflict);
+            return Err(JoinStage::FloorTableFull);
         }
         if let (Some(current), Some(old)) = (existing, legacy)
             && current.generation == old.generation

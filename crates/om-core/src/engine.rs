@@ -3203,6 +3203,10 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
             restricted: true,
             evidence: j.evidence,
             attempt: j.terminal.or_else(|| j.attempt.as_ref().map(|a| a.state)),
+            cancelled_attempt_id: (j.terminal == Some(crate::state::AttemptState::Cancelled))
+                .then(|| j.operation_id.clone()),
+            floor_cleanup_pending: j.cancelled_floors.is_some(),
+            veto_check_incomplete: j.attempt.as_ref().is_some_and(|a| a.veto_page_full),
             retry_from_verified_head: j
                 .attempt
                 .as_ref()
@@ -3224,6 +3228,14 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
                     delay.saturating_sub(a.obs.credited_ms)
                 }),
         }),
+        alerts: policy.as_ref().filter(|_| {
+            committed
+                && st.app.recovery_kit.is_some()
+                && head.as_ref().zip(st.device.as_ref()).is_some_and(|(head, device)| {
+                    head.control.contains(&device.device_id) && !head.quarantined.contains(&device.device_id)
+                })
+        }).map(|policy| st.app.recovery_inbox.status(policy.epoch(), now_ms)),
+        earlier_code_used: st.app.earlier_recovery_code_used,
         record: match st.app.recovery_record_status(now_ms) {
             crate::state::RecoveryRecordStatus::Off => None,
             crate::state::RecoveryRecordStatus::FinishingSetup => {

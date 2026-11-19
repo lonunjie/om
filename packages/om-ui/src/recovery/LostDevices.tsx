@@ -30,15 +30,17 @@ export function LostDevices({ services, copy, scanKey, scanLink, onRecovered, on
   const live = useLiveQuery(services, { kind: "GetRecoveryStatus", ctx: services.ctx }, "lost-devices");
   const seen = useRef(false);
   const told = useRef(false);
-  const recovering = live.status === "ready" ? live.value.value.recovering : undefined;
+  const status = live.status === "ready" ? live.value.value : undefined;
+  const recovering = status?.recovering;
+  const recovered = recovering === undefined && status?.policy === "on" && seen.current;
   useEffect(() => {
     if (recovering !== undefined) seen.current = true;
-    else if (live.status === "ready" && seen.current && !told.current) { told.current = true; onRecovered(); }
-  }, [recovering, live.status, onRecovered]);
+    else if (recovered && !told.current) { told.current = true; onRecovered(); }
+  }, [recovering, recovered, onRecovered]);
 
   if (live.status === "loading") return <Text role="status">{copy.outcome.working}</Text>;
   if (live.status === "failed") return <Text role="alert">{copy.outcome.failed}</Text>;
-  if (recovering === undefined) return seen.current ? <Text role="status">{copy.waitDone}</Text> : <Entry services={services} copy={copy} {...(scanKey ? { scanKey } : {})} onCancel={onCancel} />;
+  if (recovering === undefined) return recovered ? <Text role="status">{copy.waitDone}</Text> : <Entry services={services} copy={copy} {...(scanKey ? { scanKey } : {})} onCancel={onCancel} />;
   return <Restricted services={services} copy={copy} view={recovering} {...(scanLink ? { scanLink } : {})} onCancel={onCancel} />;
 }
 
@@ -102,7 +104,9 @@ function Restricted({ services, copy, view, scanLink, onCancel }: { readonly ser
         <Text as="p" role="alert" data-stage={key}>{copy.stage[key]}</Text>
         <div className="om-settings__actions">
           <Button variant="secondary" disabled={op.locked} onClick={() => { void op.run("check-recovery-again", {}); }}>{copy.checkAgain}</Button>
-          <Button variant="quiet" onClick={onCancel}>{copy.startOver}</Button>
+          {key === "floor_table_full"
+            ? <Button variant="quiet" disabled={op.locked} onClick={() => { void op.run("cancel-recovery", {}); }}>{copy.cancel}</Button>
+            : <Button variant="quiet" onClick={onCancel}>{copy.startOver}</Button>}
         </div>
         <OperationStatus state={op.state} copy={copy.outcome} done="" />
       </section>
@@ -116,18 +120,29 @@ function Restricted({ services, copy, view, scanLink, onCancel }: { readonly ser
         <Text as="p" size="sm" tone="secondary" data-evidence={view.evidence ?? "unpinned"}>{copy.evidence[view.evidence === "pinned" ? "pinned" : "other"]}</Text>
         <div className="om-settings__actions">
           <Button variant="primary" disabled={op.locked} onClick={() => { void op.run("request-recovery", {}); }}>{copy.ask}</Button>
-          <Button variant="quiet" onClick={onCancel}>{copy.cancel}</Button>
+          <Button variant="quiet" disabled={op.locked} onClick={() => { void op.run("cancel-recovery", {}); }}>{copy.cancel}</Button>
         </div>
         <OperationStatus state={op.state} copy={copy.outcome} done="" />
       </section>
     );
   }
   if (ended) {
+    const cancelledAttemptId = view.cancelledAttemptId;
     return (
       <section className="om-settings__step" aria-labelledby="om-lost-h">
         <FocusHeading id="om-lost-h">{copy.heading}</FocusHeading>
         <Text as="p" role="alert" data-attempt={attempt}>{copy.ended[attempt]}</Text>
-        <div className="om-settings__actions"><Button variant="primary" onClick={onCancel}>{copy.startOver}</Button></div>
+        {cancelledAttemptId === undefined ? (
+          <div className="om-settings__actions"><Button variant="primary" onClick={onCancel}>{copy.startOver}</Button></div>
+        ) : (
+          <>
+            <Text as="p">{copy.forgetEffect}</Text>
+            <div className="om-settings__actions">
+              <Button disabled={op.locked} onClick={() => { void op.run("forget-recovery-attempt", { recoveryOperationId: cancelledAttemptId }); }}>{copy.forgetAttempt}</Button>
+            </div>
+            <OperationStatus state={op.state} copy={copy.outcome} done="" />
+          </>
+        )}
       </section>
     );
   }
@@ -136,8 +151,10 @@ function Restricted({ services, copy, view, scanLink, onCancel }: { readonly ser
       <FocusHeading id="om-lost-h">{copy.waitingHeading}</FocusHeading>
       <Text as="p">{copy.waitingBody}</Text>
       <Text as="p" role="status" data-remaining={String(view.remainingMs ?? "")}>{copy.remaining(view.remainingMs ?? 0)}</Text>
+      {view.vetoCheckIncomplete ? <Text as="p" role="status">{copy.vetoCheckIncomplete}</Text> : null}
       <div className="om-settings__actions">
         <Button variant="secondary" disabled={op.locked} onClick={() => { void op.run("check-recovery-again", {}); }}>{copy.checkAgain}</Button>
+        <Button variant="quiet" disabled={op.locked} onClick={() => { void op.run("resend-recovery-request", {}); }}>{copy.sendAgain}</Button>
         <Button variant="quiet" disabled={op.locked} onClick={() => { void op.run("cancel-recovery", {}); }}>{copy.stop}</Button>
       </div>
       <OperationStatus state={op.state} copy={copy.outcome} done="" />

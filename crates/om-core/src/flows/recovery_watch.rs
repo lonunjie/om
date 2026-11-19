@@ -514,6 +514,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             evidence: EvidenceStage::Unpinned,
             attempt: None,
             terminal: None,
+            cancelled_floors: None,
         });
         self.recovery_find_start();
         OutcomeClass::Committed

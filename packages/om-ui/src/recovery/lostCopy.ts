@@ -1,3 +1,4 @@
+import type { RecoveringView } from "@om/platform-api";
 import type { OutcomeCopy } from "../devices/copy";
 
 /**
@@ -17,7 +18,7 @@ export interface LostDevicesCopy {
   readonly cancel: string;
   readonly looking: string;
   /** Core's lookup of the saved account. The same words for a wrong key and an unknown account. */
-  readonly stage: Readonly<Record<"needs_place" | "not_found" | "cant_read" | "out_of_date" | "conflict", string>>;
+  readonly stage: Readonly<Record<Exclude<RecoveringView["stage"], "checking" | "found">, string>>;
   readonly foundHeading: string;
   readonly foundBody: string;
   /** What this device can finish by itself: only with the sheet kept from one of the person's own devices. */
@@ -29,6 +30,8 @@ export interface LostDevicesCopy {
   readonly remaining: (ms: number) => string;
   readonly waitDone: string;
   readonly checkAgain: string;
+  readonly sendAgain: string;
+  readonly vetoCheckIncomplete: string;
   readonly stop: string;
   readonly approval: {
     readonly heading: string;
@@ -42,6 +45,8 @@ export interface LostDevicesCopy {
     readonly parseError: string;
   };
   readonly ended: Readonly<Record<"vetoed" | "stale" | "cancelled", string>>;
+  readonly forgetAttempt: string;
+  readonly forgetEffect: string;
   readonly startOver: string;
   readonly outcome: OutcomeCopy;
 }

@@ -143,6 +143,10 @@ export interface RecoveryStatusView {
   readonly recovering?: RecoveringView;
   /** How far the recovery record kept at the Home is; absent when the account keeps none (no recovery place). */
   readonly record?: "finishing_setup" | "ready" | "needs_attention" | "needs_new_key";
+  /** Current recovery inbox health on a main device. */
+  readonly alerts?: "checking" | "ready" | "needs_attention";
+  /** A verified request arrived for an earlier safety code. */
+  readonly earlierCodeUsed?: boolean;
 }
 
 /** A device that entered a recovery key but has no account yet: it cannot send as the identity. */
@@ -154,7 +158,7 @@ export interface RecoveringView {
    * `checking` (also while the Home cannot be reached: the request is retried), `found` (the record was read and checked),
    * `not_found` (the same answer for a wrong key and an unknown record), `cant_read` (there, but not usable with this key).
    */
-  readonly stage: "needs_place" | "checking" | "found" | "not_found" | "cant_read" | "out_of_date" | "conflict";
+  readonly stage: "needs_place" | "checking" | "found" | "not_found" | "cant_read" | "out_of_date" | "conflict" | "floor_table_full";
   /** Always true while this view exists: the device cannot send as the identity until the account is adopted. */
   readonly restricted: boolean;
   /**
@@ -164,6 +168,9 @@ export interface RecoveringView {
   readonly evidence?: "unpinned" | "needs_evidence" | "pinned" | "conflict";
   /** Where this device's own attempt stands once one was asked for. */
   readonly attempt?: "waiting" | "vetoed" | "stale" | "cancelled" | null;
+  readonly cancelledAttemptId?: OperationId;
+  readonly floorCleanupPending?: boolean;
+  readonly vetoCheckIncomplete?: boolean;
   /** Milliseconds of this device's own interval still to run (monotonic credit only). */
   readonly remainingMs?: number | null;
   readonly retryFromVerifiedHead?: boolean;

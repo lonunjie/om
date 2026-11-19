@@ -8,10 +8,13 @@ use super::*;
 use crate::crypto::cbor;
 use crate::flows::recovery_watch as watch;
 use crate::host::MonotonicSample;
-use crate::state::InboxItemRec;
+use crate::state::{EarlierRecoveryInbox, InboxItemRec};
 
 /// Pacing between inbox calls, on Core's clock (never authority).
 const DRAIN_EVERY_MS: u64 = 60_000;
+// ADR-0201 §2's ordinary foreground polling interval.
+const EARLIER_DRAIN_EVERY_MS: u64 = 5 * 60_000;
+const INBOX_RETENTION_MS: u64 = 400 * 86_400_000;
 const RENEW_EVERY_MS: u64 = 30 * 24 * 60 * 60 * 1000;
 const REFUSED_RETRY_MS: u64 = 24 * 60 * 60 * 1000;
 /// Items held until the next tick.
@@ -19,32 +22,166 @@ const MAX_PENDING: usize = 32;
 /// Item ids acknowledged in one call.
 const ACK_PAGE: usize = 16;
 
+impl RecoveryInboxRec {
+    pub(crate) fn status(&self, epoch: u64, now_ms: u64) -> RecoveryAlertsCode {
+        if self.epoch != Some(epoch) {
+            return RecoveryAlertsCode::Checking;
+        }
+        if self.registration_refused {
+            return RecoveryAlertsCode::NeedsAttention;
+        }
+        let recent = self
+            .drained_at_ms
+            .and_then(|last| now_ms.checked_sub(last))
+            .is_some_and(|age| age < EARLIER_DRAIN_EVERY_MS);
+        if recent && self.registered_at_ms.is_some_and(|last| last <= now_ms) {
+            RecoveryAlertsCode::Ready
+        } else {
+            RecoveryAlertsCode::Checking
+        }
+    }
+}
+
+fn inbox_item(raw: &[u8]) -> Option<(String, u8, Vec<u8>)> {
+    let v = cbor::decode(raw).ok()?;
+    let id = v.get(0).ok()?.b().ok()?;
+    let kind = v.get(1).ok()?.u().ok()?;
+    let bytes = v.get(2).ok()?.b().ok()?;
+    (id.len() == 16 && matches!(kind, 1 | 2) && (1..=16_384).contains(&bytes.len()))
+        .then(|| (hex(id), kind as u8, bytes.to_vec()))
+}
+
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
+    /// Retain just the old drain credential and verifier before the verified replacement swaps the kit and policy.
+    pub(super) fn retire_recovery_inbox(&mut self) {
+        let (Some(kit), Some((_, _, policy))) = (self.recovery_kit_value(), self.recovery_ctx())
+        else {
+            return;
+        };
+        let Some(key) = policy
+            .recovery_key()
+            .filter(|_| kit.epoch == policy.epoch())
+        else {
+            return;
+        };
+        self.st.app.earlier_recovery_inboxes.insert(
+            kit.epoch,
+            EarlierRecoveryInbox {
+                host: kit.host.clone(),
+                port: kit.port,
+                cap: hex(&kit.inbox_cap).into(),
+                verification_key: hex(key),
+                ended_ms: self.now_ms,
+                last_drain_ms: None,
+            },
+        );
+        // Queued registration and ack work for the previous epoch must stop with the epoch.
+        self.st
+            .app
+            .outbox
+            .retain(|e| !matches!(e.purpose, Purpose::RecoveryInbox { .. }));
+        self.st.app.recovery_inbox = RecoveryInboxRec::default();
+    }
+
+    fn earlier_inboxes_tick(&mut self, head: &Acs, epoch: u64) {
+        let now = self.now_ms;
+        self.st
+            .app
+            .earlier_recovery_inboxes
+            .retain(|_, inbox| now.saturating_sub(inbox.ended_ms) < INBOX_RETENTION_MS);
+        let inboxes = &mut self.st.app.earlier_recovery_inboxes;
+        self.st.app.outbox.retain(|entry| match &entry.call {
+            NetCall::RecoveryInboxDrain { recovery_epoch, .. } if *recovery_epoch < epoch => {
+                inboxes.contains_key(recovery_epoch)
+            }
+            _ => true,
+        });
+        let mut calls = Vec::new();
+        for (&earlier_epoch, inbox) in inboxes.iter_mut() {
+            if earlier_epoch >= epoch
+                || inbox.last_drain_ms.is_some_and(|last| now.saturating_sub(last) < EARLIER_DRAIN_EVERY_MS)
+                || self.st.app.outbox.iter().any(|entry| matches!(
+                    entry.call,
+                    NetCall::RecoveryInboxDrain { recovery_epoch, .. } if recovery_epoch == earlier_epoch
+                ))
+            {
+                continue;
+            }
+            let Ok(cap) = unhex(&inbox.cap) else { continue };
+            inbox.last_drain_ms = Some(now);
+            calls.push(NetCall::RecoveryInboxDrain {
+                host: inbox.host.clone(),
+                port: inbox.port,
+                account_id: head.account_id.to_vec(),
+                recovery_epoch: earlier_epoch,
+                cap,
+            });
+        }
+        for call in calls {
+            self.enqueue(call, Purpose::RecoveryInbox { kind: 1 });
+        }
+    }
+
+    fn earlier_inbox_done(
+        &mut self,
+        account: &[u8],
+        epoch: u64,
+        result: Result<Vec<Vec<u8>>, RejectReason>,
+    ) {
+        let Some(inbox) = self.st.app.earlier_recovery_inboxes.get(&epoch) else {
+            return;
+        };
+        match result {
+            Err(RejectReason::NotFound | RejectReason::Unauthorized) => {
+                self.st.app.earlier_recovery_inboxes.remove(&epoch);
+            }
+            Ok(items) if !self.st.app.earlier_recovery_code_used => {
+                let Ok(key) = unhex(&inbox.verification_key) else {
+                    return;
+                };
+                // The alert has no voting, veto or approval semantics. Leave the items for other controllers.
+                self.st.app.earlier_recovery_code_used = items.iter().take(ACK_PAGE).any(|raw| {
+                    let Some((_, 1, bytes)) = inbox_item(raw) else {
+                        return false;
+                    };
+                    crate::recovery::open_request(&bytes, &key).is_ok_and(|request| {
+                        request.account_id == account && request.recovery_epoch == epoch
+                    })
+                });
+            }
+            _ => {}
+        }
+    }
+
     /// Hand what a drain brought to the verifier (it needs the tick's monotonic reading), then keep the inbox registered,
     /// acknowledge what was handled and drain again when due.
     pub(crate) fn inbox_tick(&mut self, mono: &MonotonicSample) {
-        let (Some(kit), Some((head, _, policy)), Some(me)) = (
-            self.recovery_kit_value(),
+        let (Some((head, _, policy)), Some(me)) = (
             self.recovery_ctx(),
             self.st.device.as_ref().map(|d| d.device_id),
         ) else {
             return;
         };
         let epoch = policy.epoch();
-        if !watch::live(&head, &me) || kit.epoch != epoch {
+        if !watch::live(&head, &me) {
             return;
         }
         if self.st.app.recovery_inbox.epoch != Some(epoch) {
-            self.st.app.outbox.retain(|e| !matches!(e.purpose, Purpose::RecoveryInbox { .. }));
+            self.st.app.outbox.retain(|e| {
+                !matches!(e.purpose, Purpose::RecoveryInbox { .. })
+                    || matches!(e.call, NetCall::RecoveryInboxDrain { recovery_epoch, .. }
+                    if self.st.app.earlier_recovery_inboxes.contains_key(&recovery_epoch))
+            });
             self.st.app.recovery_inbox = RecoveryInboxRec {
                 epoch: Some(epoch),
                 ..RecoveryInboxRec::default()
             };
         }
-        let shared_policy = self
-            .recovery_ctx()
-            .filter(|(head, _, _)| head.control.len() > 1)
-            .map(|(_, _, policy)| policy);
+        self.earlier_inboxes_tick(&head, epoch);
+        let Some(kit) = self.recovery_kit_value().filter(|kit| kit.epoch == epoch) else {
+            return;
+        };
+        let shared_key = policy.recovery_key().filter(|_| head.control.len() > 1);
         let items = std::mem::take(&mut self.st.app.recovery_inbox.pending);
         for it in items {
             if let Ok(bytes) = unhex(&it.bytes) {
@@ -66,9 +203,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 // This is a shared, destructive acknowledgement. Leave authenticated requests
                 // for the other devices, even when this device sees a different parent.
                 if it.kind == 1
-                    && shared_policy
-                        .as_ref()
-                        .and_then(|policy| policy.recovery_key())
+                    && shared_key
                         .is_some_and(|key| crate::recovery::open_request(&bytes, key).is_ok())
                 {
                     continue;
@@ -103,13 +238,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             );
             return;
         }
-        let retry_ms = if inbox.registration_refused { REFUSED_RETRY_MS } else { DRAIN_EVERY_MS };
+        let retry_ms = if inbox.registration_refused {
+            REFUSED_RETRY_MS
+        } else {
+            DRAIN_EVERY_MS
+        };
         if inbox.last_ms != 0 && now.saturating_sub(inbox.last_ms) < retry_ms {
             return;
         }
         inbox.last_ms = now;
         inbox.in_flight = true;
-        let renew = inbox.registered_at_ms.is_none_or(|last| now < last || now - last >= RENEW_EVERY_MS);
+        let renew = inbox
+            .registered_at_ms
+            .is_none_or(|last| now < last || now - last >= RENEW_EVERY_MS);
         let call = if !renew {
             NetCall::RecoveryInboxDrain {
                 host,
@@ -150,14 +291,36 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
     }
 
-    pub(crate) fn inbox_done(&mut self, kind: u8, result: Result<Vec<Vec<u8>>, RejectReason>, call: &NetCall) {
+    pub(crate) fn inbox_done(
+        &mut self,
+        kind: u8,
+        result: Result<Vec<Vec<u8>>, RejectReason>,
+        call: &NetCall,
+    ) {
+        if let NetCall::RecoveryInboxDrain {
+            account_id,
+            recovery_epoch,
+            ..
+        } = call
+            && self
+                .st
+                .app
+                .earlier_recovery_inboxes
+                .contains_key(recovery_epoch)
+        {
+            self.earlier_inbox_done(account_id, *recovery_epoch, result);
+            return;
+        }
         let epoch = match call {
             NetCall::RecoveryInboxRegister { recovery_epoch, .. }
             | NetCall::RecoveryInboxDrain { recovery_epoch, .. }
             | NetCall::RecoveryInboxAck { recovery_epoch, .. } => *recovery_epoch,
             _ => return,
         };
-        if self.recovery_kit_value().is_none_or(|kit| kit.epoch != epoch) {
+        if self
+            .recovery_kit_value()
+            .is_none_or(|kit| kit.epoch != epoch)
+        {
             return;
         }
         let inbox = &mut self.st.app.recovery_inbox;
@@ -168,8 +331,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let items = match result {
             Ok(items) => items,
             Err(reason) => {
-                if matches!(kind, 1 | 2) && matches!(reason, RejectReason::NotFound | RejectReason::Unauthorized) {
+                if matches!(kind, 1 | 2)
+                    && matches!(reason, RejectReason::NotFound | RejectReason::Unauthorized)
+                {
                     inbox.registered_at_ms = None;
+                    inbox.drained_at_ms = None;
                     inbox.last_ms = 0;
                     if kind == 2 {
                         inbox.to_ack.clear();
@@ -190,32 +356,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 let NetCall::RecoveryInboxDrain { host, port, .. } = call else {
                     return;
                 };
+                inbox.drained_at_ms = Some(self.now_ms);
                 for raw in items.into_iter().take(ACK_PAGE) {
-                    let Ok(v) = cbor::decode(&raw) else { continue };
-                    let (Some(id), Some(kind), Some(bytes)) = (
-                        v.get(0)
-                            .ok()
-                            .and_then(|x| x.b().ok())
-                            .filter(|b| b.len() == 16),
-                        v.get(1)
-                            .ok()
-                            .and_then(|x| x.u().ok())
-                            .filter(|k| matches!(k, 1 | 2)),
-                        v.get(2)
-                            .ok()
-                            .and_then(|x| x.b().ok())
-                            .filter(|b| !b.is_empty() && b.len() <= 16_384),
-                    ) else {
+                    let Some((id, kind, bytes)) = inbox_item(&raw) else {
                         continue;
                     };
-                    let id = hex(id);
                     let known =
                         inbox.pending.iter().any(|p| p.id == id) || inbox.to_ack.contains(&id);
                     if !known && inbox.pending.len() < MAX_PENDING {
                         inbox.pending.push(InboxItemRec {
                             id,
-                            kind: kind as u8,
-                            bytes: hex(bytes),
+                            kind,
+                            bytes: hex(&bytes),
                             home: Some((host.clone(), *port)),
                         });
                     }

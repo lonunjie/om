@@ -178,6 +178,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 expires_ms: self.now_ms.saturating_add(400 * 86_400_000),
             });
         }
+        self.retire_recovery_inbox();
         self.st.app.acs_chain.push(hex(&signed));
         self.st.app.recovery_policy = Some(pending.policy);
         self.st.app.recovery_key_saved = true;

@@ -424,8 +424,15 @@ pub enum IntentBody {
     ReplaceRecoveryKey,
     /// Close this device's own recovery attempt.
     CancelRecovery,
+    /// Forget the locally saved floors of this exact cancelled attempt (ADR-0225 §3).
+    ForgetRecoveryAttempt {
+        recovery_operation_id: OperationId,
+        confirmation: ConfirmationToken,
+    },
     /// Ask again now: re-read the record (before an attempt) or the Homes' boards and record (during one).
     CheckRecoveryAgain,
+    /// Deliver the exact signed request again without changing the attempt, timer or veto history (ADR-0226 §2).
+    ResendRecoveryRequest,
     /// Try again now to tell a device about the devices added to the account (ADR-0193 section 10).
     RetryDeviceNotice {
         device_id: DeviceId,
@@ -504,7 +511,7 @@ pub enum IntentBody {
 }
 
 /// The destructive intent kinds that need a Core-issued confirmation (mirrors `DESTRUCTIVE_INTENT_KINDS`).
-pub const DESTRUCTIVE_KINDS: [&str; 11] = [
+pub const DESTRUCTIVE_KINDS: [&str; 12] = [
     "BlockPerson",
     "SuspendDevice",
     "ChangePrivacyPolicy",
@@ -516,6 +523,7 @@ pub const DESTRUCTIVE_KINDS: [&str; 11] = [
     "DeclinePeerRecovery",
     "ConfirmPeerRecovery",
     "ConfirmControllerChange",
+    "ForgetRecoveryAttempt",
 ];
 
 impl IntentBody {
@@ -563,7 +571,9 @@ impl IntentBody {
             IntentBody::JoinRecoveryApproval { .. } => "JoinRecoveryApproval",
             IntentBody::ReplaceRecoveryKey => "ReplaceRecoveryKey",
             IntentBody::CancelRecovery => "CancelRecovery",
+            IntentBody::ForgetRecoveryAttempt { .. } => "ForgetRecoveryAttempt",
             IntentBody::CheckRecoveryAgain => "CheckRecoveryAgain",
+            IntentBody::ResendRecoveryRequest => "ResendRecoveryRequest",
             IntentBody::OfferControllerChange { .. } => "OfferControllerChange",
             IntentBody::JoinControllerChange { .. } => "JoinControllerChange",
             IntentBody::ConfirmControllerChange { .. } => "ConfirmControllerChange",
@@ -596,6 +606,9 @@ impl IntentBody {
             | IntentBody::ConfirmRecovery { request_id, .. }
             | IntentBody::DeclinePeerRecovery { request_id, .. }
             | IntentBody::ConfirmPeerRecovery { request_id, .. } => Some(request_id.clone()),
+            IntentBody::ForgetRecoveryAttempt { recovery_operation_id, .. } => {
+                Some(recovery_operation_id.clone())
+            }
             IntentBody::ChangePrivacyPolicy { policy, .. } => Some(code(policy)),
             IntentBody::StartRecovery {
                 scope, custodian, ..
@@ -611,6 +624,7 @@ impl IntentBody {
             | IntentBody::SuspendDevice { confirmation, .. }
             | IntentBody::ChangePrivacyPolicy { confirmation, .. }
             | IntentBody::ConfirmControllerChange { confirmation, .. }
+            | IntentBody::ForgetRecoveryAttempt { confirmation, .. }
             | IntentBody::ApproveDeviceLink { confirmation, .. }
             | IntentBody::RevokeDevice { confirmation, .. }
             | IntentBody::StartRecovery { confirmation, .. }
@@ -1426,6 +1440,19 @@ pub struct RecoveryStatusView {
     /// How far this account's recovery record is: present only when the account keeps one (it has a recovery place).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record: Option<RecoveryRecordCode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alerts: Option<RecoveryAlertsCode>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub earlier_code_used: bool,
+}
+
+/// Current recovery inbox health on a main device (ADR-0226 §1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryAlertsCode {
+    Checking,
+    Ready,
+    NeedsAttention,
 }
 
 /// The state of the recovery record kept at the Home (ADR-0199 section 6), in the words Settings uses.
@@ -1454,6 +1481,12 @@ pub struct RecoveringView {
     /// Where this device's own attempt stands, once one was asked for.
     #[serde(default)]
     pub attempt: Option<crate::state::AttemptState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cancelled_attempt_id: Option<OperationId>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub floor_cleanup_pending: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub veto_check_incomplete: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub retry_from_verified_head: bool,
     /// Milliseconds of this device's own interval still to run (monotonic credit only), once an attempt is waiting.

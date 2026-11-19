@@ -1003,7 +1003,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::OfferRecoveryApproval => self.offer_recovery_approval(op),
             IntentBody::JoinRecoveryApproval { link } => self.join_recovery_approval(op, link),
             IntentBody::CancelRecovery => self.cancel_recovery(),
+            IntentBody::ForgetRecoveryAttempt { recovery_operation_id, .. } => {
+                self.forget_recovery_attempt(recovery_operation_id)
+            }
             IntentBody::CheckRecoveryAgain => self.check_recovery_again(),
+            IntentBody::ResendRecoveryRequest => self.resend_recovery_request(),
             IntentBody::ApproveDeviceLink { request_id, .. } => {
                 self.approve_device_link(request_id)
             }

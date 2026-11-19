@@ -155,11 +155,12 @@ describe("Action Registry", () => {
   });
 
   it("destructive actions need a registry-issued confirmation bound to action, params and context (UI-11)", () => {
-    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "ConfirmControllerChange"]);
+    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "ConfirmControllerChange", "ForgetRecoveryAttempt"]);
     const actions: [string, unknown][] = [
       ["block-person", block], ["suspend-device", { deviceId: "d1" }], ["change-privacy-policy", { policy: "maximum" }],
       ["approve-device-link", { requestId: "lr-1" }], ["finalize-device-revocation", { deviceId: "d1" }],
       ["confirm-controller-change", { requestId: "request-1" }],
+      ["forget-recovery-attempt", { recoveryOperationId: "attempt-1" }],
       ["start-recovery", { scope: "identity", custodian: "recovery_key" }], ["veto-recovery", { requestId: "rr-1" }],
       ["confirm-peer-recovery", { conversationId: "c1", requestId: "ab12" }], ["decline-peer-recovery", { conversationId: "c1", requestId: "ab12" }],
     ];

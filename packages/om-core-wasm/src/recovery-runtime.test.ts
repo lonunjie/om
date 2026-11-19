@@ -62,7 +62,9 @@ describe.skipIf(!existsSync(WASM))("recovery record writes through the host (rea
     const key = await rt.query({ kind: "GetRecoveryKey", ctx, keyOperationId: op });
     expect(key?.sheet).toMatch(/\S/);
     expect(provider.recoveryWrites()).toHaveLength(0); // nothing is written before the key is confirmed
-    expect((await rt.query({ kind: "GetRecoveryStatus", ctx })).record).toBe("finishing_setup");
+    const status = await rt.query({ kind: "GetRecoveryStatus", ctx });
+    expect(status.record).toBe("finishing_setup");
+    expect(status.alerts).toBe("checking");
     await rt.dispatch({ kind: "ConfirmRecoveryKeyStored", ctx, operationId: asOperationId("k"), keyOperationId: op });
     await rt.flush(pid);
     expect(provider.recoveryWrites()).toHaveLength(1);

@@ -370,19 +370,77 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// `CancelRecovery`: close the local lookup or request.
     pub(super) fn cancel_recovery(&mut self) -> OutcomeClass {
-        if self
+        let Some(join) = self
             .st
             .app
             .recovery_join
             .as_ref()
-            .is_none_or(|j| j.terminal.is_some())
-        {
+            .filter(|j| j.terminal.is_none())
+        else {
             return OutcomeClass::Rejected {
                 reason: RejectReason::NotFound,
             };
+        };
+        let keys = unhex(&join.root).ok()
+            .and_then(|root| <[u8; 32]>::try_from(root).ok())
+            .map(zeroize::Zeroizing::new)
+            .map(|root| {
+                join.place.iter().map(|p| &p.scope)
+                    .chain(join.visited.iter().map(|(_, scope)| scope))
+                    .chain(join.attempt.iter().flat_map(|a| a.homes.iter().map(|p| &p.scope)))
+                    .filter_map(|scope| {
+                        let scope_bytes = <[u8; 32]>::try_from(unhex(scope).ok()?).ok()?;
+                        let keys = RecordKeys::derive(&root, &scope_bytes);
+                        let key = Self::floor_key(scope, &keys.locator);
+                        self.st.app.recovery_floors.contains_key(&key).then_some(key)
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+            })
+            .unwrap_or_default();
+        if !keys.is_empty() && let Some(join) = self.st.app.recovery_join.as_mut() {
+            join.cancelled_floors = Some(crate::state::CancelledRecoveryFloors {
+                keys,
+                last_sample: None,
+                credited_ms: 0,
+            });
         }
         self.st.app.close_owner_attempt(AttemptState::Cancelled);
         OutcomeClass::Committed
+    }
+
+    pub(super) fn forget_recovery_attempt(&mut self, recovery_operation_id: &str) -> OutcomeClass {
+        if self.st.app.recovery_join.as_ref().is_none_or(|join| {
+            join.terminal != Some(AttemptState::Cancelled) || join.operation_id != recovery_operation_id
+        }) {
+            return OutcomeClass::Rejected { reason: RejectReason::NotFound };
+        }
+        if let Some(floors) = self.st.app.recovery_join.take().and_then(|j| j.cancelled_floors) {
+            self.st.app.recovery_floors.retain(|key, _| !floors.keys.contains(key));
+        }
+        OutcomeClass::Committed
+    }
+
+    fn expire_cancelled_floors(&mut self, mono: &MonotonicSample) {
+        const RETENTION_MS: u64 = 400 * 86_400_000;
+        let Some(join) = self.st.app.recovery_join.as_mut()
+            .filter(|j| j.terminal == Some(AttemptState::Cancelled))
+        else {
+            return;
+        };
+        let Some(floors) = join.cancelled_floors.as_mut() else { return };
+        match floors.last_sample.as_mut() {
+            Some(last) if last.boot_session == mono.boot_session => {
+                let elapsed = mono.elapsed_ms.saturating_sub(last.elapsed_ms);
+                floors.credited_ms = floors.credited_ms.saturating_add(elapsed);
+                last.elapsed_ms = last.elapsed_ms.max(mono.elapsed_ms);
+            }
+            _ => floors.last_sample = Some(mono.clone()),
+        }
+        if floors.credited_ms >= RETENTION_MS
+            && let Some(floors) = join.cancelled_floors.take()
+        {
+            self.st.app.recovery_floors.retain(|key, _| !floors.keys.contains(key));
+        }
     }
 
     /// `CheckRecoveryAgain`: ask again now. Before an attempt it re-reads the record (the floor decides what a newer,
@@ -416,6 +474,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     // ------------------------------------------------------------------------------------------- delivery
+
+    pub(super) fn resend_recovery_request(&mut self) -> OutcomeClass {
+        if self.attempt().is_none_or(|a| a.state != AttemptState::Waiting) {
+            return OutcomeClass::Rejected { reason: RejectReason::NotFound };
+        }
+        self.owner_post_all();
+        OutcomeClass::Committed
+    }
 
     /// Deliver the exact signed request to every Home and the notice to the reachable contacts. A retry reuses the same
     /// bytes: nothing here resets the timer or makes a second attempt.
@@ -816,6 +882,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Credit the host's reading, resend at 1/3 and 2/3, poll the boards, and when the interval has run start the
     /// reconcile round that precedes adoption.
     pub(crate) fn owner_tick(&mut self, mono: &MonotonicSample) {
+        self.expire_cancelled_floors(mono);
         if self
             .attempt()
             .is_none_or(|a| a.state != AttemptState::Waiting)

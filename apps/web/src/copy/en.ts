@@ -1220,6 +1220,7 @@ export const lostDevicesCopy: LostDevicesCopy = {
     cant_read: "Something is saved, but this key cannot open it. Check the key and try again.",
     out_of_date: "What was found is older than what this device already saw, so it was not used. Try again later.",
     conflict: "What was found does not match your saved sheet. It was not used, and nothing was sent.",
+    floor_table_full: "This device has saved as many recovery attempts as it can.",
   },
   foundHeading: "Your saved account was found",
   foundBody: "You can ask for your account back on this device. Your other devices will be asked to stop it if it was not you, and you will have to wait before it finishes unless one of them approves it.",
@@ -1229,7 +1230,7 @@ export const lostDevicesCopy: LostDevicesCopy = {
   },
   ask: "Ask for my account back",
   waitingHeading: "Waiting to get your account back",
-  waitingBody: "Your request is out. Your account comes back on this device when the wait is over and nobody has stopped it. Keep OM open; the wait only counts while it is running.",
+  waitingBody: "Your request is out. Keep OM open so the wait and checks can finish.",
   remaining: (ms) => {
     if (ms <= 0) return "The wait is over. Making sure nothing changed.";
     const hours = Math.ceil(ms / 3_600_000);
@@ -1239,6 +1240,8 @@ export const lostDevicesCopy: LostDevicesCopy = {
   },
   waitDone: "Your account is back on this device.",
   checkAgain: "Check again now",
+  sendAgain: "Send again",
+  vetoCheckIncomplete: "OM can't confirm that none of your other devices objected. Wait, or approve on another device of yours.",
   stop: "Stop asking",
   approval: {
     heading: "Do you still have another device?",
@@ -1263,6 +1266,8 @@ export const lostDevicesCopy: LostDevicesCopy = {
     cancelled: "You stopped asking. Nothing changed on this device.",
   },
   startOver: "Start over",
+  forgetAttempt: "Forget this attempt",
+  forgetEffect: "This device will forget the recovery information it has already checked for this attempt.",
   outcome: joinCopy.outcome,
 };
 
@@ -1270,7 +1275,7 @@ export const lostDevicesCopy: LostDevicesCopy = {
 export const replaceRecoveryCopy = {
   action: "Make a new safety code",
   pausedBody: "OM has paused updates to your saved recovery information after a change to your main devices. Your current code still opens what was saved. Make a new one to start saving updates again.",
-  body: "Use this if you have no safety code yet, or want a fresh one. Your current code keeps working until you confirm you saved the new one; then only the new code works.",
+  body: "Your current code keeps working until the new one is active. Your old code then stops working on your devices and for contacts that have heard about the change.",
 } as const;
 
 /** A device that still works helps another device get the account back (ADR-0203). */
@@ -1424,6 +1429,9 @@ export const recoveryCopy: RecoveryCopy = {
   recoveryKeyNone: "You do not have a safety code.",
   recoveryKeyOnce: "OM showed your safety code once, when you made it. For your safety it cannot be shown again.",
   incomingAlert: "Someone is trying to get into your account on a new device. If it was not you, stop it.",
+  earlierCodeAlert: "Someone tried to use an earlier safety code for your account.",
+  alertsNeedAttention: "Recovery alerts need attention.",
+  recordNeedsNewKey: "Recovery needs a new safety code.",
   review: "Review it",
   requestsHeading: "Recoveries",
   direction: { incoming: "On another device", outgoing: "Started on this device" },

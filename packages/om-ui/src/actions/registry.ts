@@ -510,7 +510,13 @@ const SPECS: Readonly<Record<string, Spec>> = {
   } },
   "request-recovery": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "RequestRecovery", ctx, operationId: op }) } : null) },
   "cancel-recovery": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "CancelRecovery", ctx, operationId: op }) } : null) },
+  "forget-recovery-attempt": { destructive: true, parse: (p) => {
+    const target = id(p["recoveryOperationId"]);
+    if (!exactly(p, ["recoveryOperationId"]) || target === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "ForgetRecoveryAttempt", ctx, operationId: op, recoveryOperationId: asOperationId(target), confirmation }) };
+  } },
   "check-recovery-again": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "CheckRecoveryAgain", ctx, operationId: op }) } : null) },
+  "resend-recovery-request": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "ResendRecoveryRequest", ctx, operationId: op }) } : null) },
   "replace-recovery-key": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "ReplaceRecoveryKey", ctx, operationId: op }) } : null) },
   "offer-recovery-approval": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "OfferRecoveryApproval", ctx, operationId: op }) } : null) },
   "join-recovery-approval": { destructive: false, parse: (p) => {
