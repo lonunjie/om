@@ -211,7 +211,7 @@ The Home learns what it learns for an ordinary mailbox, plus: the locator and ca
 | failed record get (wrong capability or unknown locator), whole Home | burst 30, refill 1 per 10 s | same |
 | distinct requests per inbox, rolling 24 h | 3 | 3 |
 | pending items per inbox | 8 requests, 32 vetoes (at most 16 per request digest) | same |
-| veto posts per inbox, rolling hour | 8 | 8 |
+| veto posts per inbox per class, rolling hour (ADR-0239) | 8 public; 8 controller (at most 16 in total) | same |
 | fan-out and veto posts, whole Home | burst 10, refill 1 per 60 s | same |
 | inbox drain per inbox | burst 20, refill 1 per 5 s | same |
 | veto read per request digest | burst 10, refill 1 per 10 s | same |
