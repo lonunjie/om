@@ -4323,6 +4323,34 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0236-operation-3-private-link-candidate-hash-authenticated-preflight-and-vote-direction.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0237-recoverykit-place-binding-signed-by-the-recovery-method-and-current-policy-carriage.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0238-anchor-successor-dossiers-older-sheet-classification-root-only-custody-and-hostname-vector-correction.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0239-home-veto-hourly-per-class-audited-text-amendment.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -16826,6 +16854,13 @@
     },
     {
       "path": "verification/vectors/recovery-sheet-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/review6-encoding-scalars.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

@@ -9,7 +9,7 @@ The architecture contract remains locked: `engineering_authorized=false`. **Evid
 - `bounded/` — executable bounded reference models/adversarial enumerations using standard Python;
 - `tla/` — TLA+ formal models/configurations for authority state machines;
 - `cbor/` — independent deterministic-CBOR foundation encoders/fixtures;
-- `vectors/` — regression/golden transition scenarios derived from architecture invariants;
+- `vectors/` — regression/golden transition scenarios derived from architecture invariants ([`review6-encoding-scalars.json`](vectors/review6-encoding-scalars.json) is an encoding-only adjunct for ADR-0236 and ADR-0237: its policy digest is a placeholder and it is not a signed-certificate test);
 - `results/` — machine-readable captured results;
 - [`FEASIBILITY_RECONNAISSANCE_20260923.md`](FEASIBILITY_RECONNAISSANCE_20260923.md) — standards/runtime feasibility reconnaissance for gates that require real implementations.
 

@@ -1,6 +1,6 @@
 # ADR-0225 — Owner recovery: verification from the saved checkpoint, lineage-keyed record floors and independent relationship-key custody
 
-- **Status:** Accepted (by operator delegation)
+- **Status:** Accepted (by operator delegation) Clarified by ADR-0238 (additive note: "complete verified post-checkpoint chain" in section 1 is read as the contiguous verified prefix through the first fully checked non-time owner-recovery link).
 - **Date:** 2026-11-19
 - **Decided by:** operator delegation 2026-11-19 ("decide design questions from the constitution: fail closed, no operator, user-held keys, recovery optional, simplicity for ordinary users, metadata minimisation; fill silences only, never amend audited text, never weaken a cryptographic or metadata floor"). This ADR fills silence only and amends no audited text (AGENTS "Design gate" rule 6).
 - **Class:** `additive_noncritical_extension` ([`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](../docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) section 2, ADR-0165). One optional field in an existing plaintext object and a changed local key for a local store. No frozen W0 object, label or registry value changes meaning; a reader that does not know the new field refuses the record and says to update (fail closed).

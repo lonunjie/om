@@ -1,6 +1,6 @@
 # ADR-0232 — Authenticated, repeatable RecoveryKit delivery to eligible controllers
 
-- **Status:** Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until vectors `KITS-01` to `KITS-04` exist from two independent codecs, the CDDL and registries named below are updated in the same change, and a specialist signs off.
+- **Status:** Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until vectors `KITS-01` to `KITS-04` exist from two independent codecs, the CDDL and registries named below are updated in the same change, and a specialist signs off. Amended by ADR-0237 (additive note: a root-signed place binding in RecoveryKit key 12 and the current RecoveryPolicy in version 2 of kind 19 replace the receiver comparison in section 5 and the version-1 CDDL for a kitless recipient; this ADR is gated and nothing was emitted).
 - **Date:** 2026-11-19
 - **Decided by:** operator delegation 2026-11-19 (standing direction: answer design questions from the constitution by ADR, additive only; never amend audited text, never weaken a cryptographic or metadata floor). Authored by an independent reviewer of a different vendor than the code author; imported by the repository's agent, with the changes listed under "Import notes".
 - **Class:** `additive_noncritical_extension` (ADR-0165): two new in-session application kinds and two labels inside an already authenticated sibling session; no Home endpoint.
