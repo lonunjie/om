@@ -84,7 +84,9 @@ impl AppState {
     ) -> R<Vec<u8>> {
         self.group_carriage.prune_retired(env.now_s);
         let routes = self.group_carriage.mine.get(room);
-        if routes.is_some_and(|r| r.len() >= cg::MAX_MINE_PER_ROOM) {
+        if !self.group_carriage.can_mint_queue()
+            || routes.is_some_and(|r| r.len() >= cg::MAX_MINE_PER_ROOM)
+        {
             return err("route_slots_full");
         }
         let min_expiry = routes.and_then(|v| v.last()).map_or(0, |r| r.expires_at);
