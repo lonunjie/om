@@ -111,13 +111,15 @@ test("a scheduled message is held on this device and goes out at the chosen time
   await alice.getByRole("button", { name: "Schedule for later" }).click();
   const form = alice.getByRole("form", { name: "Schedule this message" });
   await expect(form).toContainText("only while OM is open on this device");
-  const at = new Date(Date.now() + 50_000);
+  // The form is minute-granular and refuses a time under 30 s away, so aim at the first whole minute at least 40 s ahead (never a fixed
+  // offset, which truncates to a minute that is too close or already past, depending on the second the test happens to reach this line).
+  const at = new Date(Math.ceil((Date.now() + 40_000) / 60_000) * 60_000);
   const pad = (n: number): string => String(n).padStart(2, "0");
   await form.getByLabel("Send at").fill(`${String(at.getFullYear())}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
   await form.getByRole("button", { name: "Schedule" }).click();
   await expect(alice.getByRole("region", { name: "Scheduled messages" })).toContainText("scheduled hello");
   await expect(bob.getByRole("log").getByText("scheduled hello")).toHaveCount(0);
-  // It leaves at the chosen minute (the form is minute-granular) and arrives as a normal message; the queue empties.
+  // It leaves at the chosen minute (40 to 100 s away) and arrives as a normal message; the queue empties.
   await expect(bob.getByRole("log").getByText("scheduled hello")).toBeVisible({ timeout: 150_000 });
   await expect(alice.getByRole("region", { name: "Scheduled messages" })).toHaveCount(0, { timeout: 30_000 });
 });
