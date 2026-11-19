@@ -1,0 +1,2354 @@
+{
+  "note": "Derived from docs/constitution/CONSTITUTION_DIGEST.md by tools/constitution.py gen. Non-normative: the originals win. Do not edit by hand.",
+  "digest": "docs/constitution/CONSTITUTION_DIGEST.md",
+  "rules": [
+    {
+      "id": "C-01",
+      "title": "No required OM operator",
+      "text": "OM must exist as a protocol and open-source project without an OM company, account service, relay fleet, master directory, push gateway, recovery service or abuse desk.",
+      "tags": [
+        "operatorless",
+        "survivability"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "1. Goal",
+          "anchor": "1-goal",
+          "lines": [
+            7,
+            13
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-02",
+      "title": "The project holds only public artifacts",
+      "text": "It publishes specs, core, vectors, reference client source, advisories, release metadata and docs, and needs no accounts, keys, plaintext, traffic logs, mailboxes, contact graphs, backup keys, universal blocklist or abuse-report database.",
+      "tags": [
+        "operatorless",
+        "survivability"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "2. Separate the layers",
+          "anchor": "2-separate-the-layers",
+          "lines": [
+            15,
+            63
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-03",
+      "title": "Users operate their own endpoints",
+      "text": "Most users start on a sponsored or hosted Home run by someone else, and whoever operates a Home's roles is one observer for that user.",
+      "tags": [
+        "operatorless",
+        "survivability"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "3. User deployments",
+          "anchor": "3-user-deployments",
+          "lines": [
+            65,
+            85
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0102",
+        "ADR-0130"
+      ]
+    },
+    {
+      "id": "C-04",
+      "title": "Creator-Disappearance Gate",
+      "text": "Already-accepted communication must keep working if the author, website, forge, client distributor or any convenience provider disappears.",
+      "tags": [
+        "operatorless",
+        "survivability"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "4. No mandatory OM network operator",
+          "anchor": "4-no-mandatory-om-network-operator",
+          "lines": [
+            87,
+            99
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-02 — No indispensable institution",
+          "anchor": "p-02--no-indispensable-institution",
+          "lines": [
+            23,
+            27
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-05",
+      "title": "Convenience is allowed, privilege is not",
+      "text": "Businesses and a future foundation may sell or fund convenience but never become mandatory identity, relay, directory, recovery, network-wide update or policy authority, and users can migrate away keeping their AccountID.",
+      "tags": [
+        "operatorless",
+        "survivability"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "5. Convenience businesses are allowed, but never privileged",
+          "anchor": "5-convenience-businesses-are-allowed-but-never-privileged",
+          "lines": [
+            101,
+            113
+          ]
+        },
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "6. Foundation/company governance",
+          "anchor": "6-foundationcompany-governance",
+          "lines": [
+            115,
+            127
+          ]
+        },
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "2026-09-22 governance refinement — no indispensable operator",
+          "anchor": "2026-09-22-governance-refinement--no-indispensable-operator",
+          "lines": [
+            101,
+            109
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-06",
+      "title": "No indispensable institution",
+      "text": "No project, foundation or company may be indispensable to already-established private communication; a feature that cannot meet this needs an explicit, optional, replaceable dependency that cannot redefine identity or history.",
+      "tags": [
+        "operatorless",
+        "survivability"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "2026-09-22 governance refinement — no indispensable operator",
+          "anchor": "2026-09-22-governance-refinement--no-indispensable-operator",
+          "lines": [
+            101,
+            109
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-02 — No indispensable institution",
+          "anchor": "p-02--no-indispensable-institution",
+          "lines": [
+            23,
+            27
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-07",
+      "title": "Operatorless is not metadata-free",
+      "text": "Providers learn some metadata and communities may moderate; what is forbidden is any provider, safety or project role becoming universally mandatory.",
+      "tags": [
+        "operatorless",
+        "survivability",
+        "privacy"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "10. 2026-09-23 08:21 metadata/safety/longevity refinement",
+          "anchor": "10-2026-09-23-0821-metadatasafetylongevity-refinement",
+          "lines": [
+            160,
+            167
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-08",
+      "title": "Scoped, replaceable, non-composable",
+      "text": "Every authority must be scoped to its function, replaceable, and unable to combine with others into universal control.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Core authority rule",
+          "anchor": "core-authority-rule",
+          "lines": [
+            23,
+            47
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0009"
+      ]
+    },
+    {
+      "id": "C-09",
+      "title": "Authority stays local",
+      "text": "A relay, group admin, directory or media provider can act only within its own relay, group, namespace or allocation and cannot revoke identities globally, rewrite keys, decrypt media or add participants.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Scoped",
+          "anchor": "scoped",
+          "lines": [
+            27,
+            35
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-10",
+      "title": "Providers are swappable",
+      "text": "A user can switch relay, blob store, directory, media provider or push strategy without a new identity.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Replaceable",
+          "anchor": "replaceable",
+          "lines": [
+            37,
+            39
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-01 — Users are principals; providers are replaceable tools",
+          "anchor": "p-01--users-are-principals-providers-are-replaceable-tools",
+          "lines": [
+            19,
+            21
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-11",
+      "title": "Roles do not compose",
+      "text": "Roles use distinct identifiers and minimum metadata so one vendor running several roles cannot rebuild the social graph from identifiers and keys, but it can still correlate by timing and network address and OM declares that instead of assuming non-collusion.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Non-composable",
+          "anchor": "non-composable",
+          "lines": [
+            41,
+            47
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0130"
+      ]
+    },
+    {
+      "id": "C-12",
+      "title": "Users are principals",
+      "text": "Identity, history meaning, relationships and protocol authority never belong to relays, directories, storage, push, media, discovery, app stores or managed services.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-01 — Users are principals; providers are replaceable tools",
+          "anchor": "p-01--users-are-principals-providers-are-replaceable-tools",
+          "lines": [
+            19,
+            21
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-13",
+      "title": "Users keep their own choices",
+      "text": "The user controls their devices, contacts, recovery policy and provider choices, and never anyone else's identity.",
+      "tags": [
+        "authority",
+        "identity",
+        "recovery"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Authority map",
+          "anchor": "authority-map",
+          "lines": [
+            49,
+            60
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-14",
+      "title": "Ask where authority went",
+      "text": "Every new feature must name what each new actor can observe, deny, modify, impersonate or correlate, and whether replacing it is survivable.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Design review question",
+          "anchor": "design-review-question",
+          "lines": [
+            87,
+            93
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-15",
+      "title": "No global username registry",
+      "text": "Directories control only their own namespace and search, a local Resolver may use many directories, domains, invites or LAN rendezvous, and an accepted relationship needs no discovery infrastructure.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Discovery does not recreate the central authority",
+          "anchor": "discovery-does-not-recreate-the-central-authority",
+          "lines": [
+            95,
+            99
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-16",
+      "title": "Abuse control without surveillance",
+      "text": "Safety is layered (constrain unknown senders, block and report, group rules, provider-local rules, deliberate evidence disclosure, endpoint-targeted lawful investigation) with no universal decryption mechanism or global ban.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Governance without universal surveillance",
+          "anchor": "governance-without-universal-surveillance",
+          "lines": [
+            62,
+            72
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-17",
+      "title": "Identity outlives any one dependency",
+      "text": "Losing the founder, forge, website, domain, cloud, directory, app store, reference client, bot host, labeler, relay or registry must not destroy AccountID, ConversationID, SpaceID, ServiceID or held history.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "2. What may disappear without invalidating OM identity",
+          "anchor": "2-what-may-disappear-without-invalidating-om-identity",
+          "lines": [
+            31,
+            47
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-18",
+      "title": "Stewards never inherit user authority",
+      "text": "A successor steward does not inherit user, Room, Service or Bridge authority or the right to redefine published registry IDs, and no steward asset becomes part of AccountID or end-user authority.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "9. 2026-09-23 08:21 0M longevity refinement",
+          "anchor": "9-2026-09-23-0821-0m-longevity-refinement",
+          "lines": [
+            143,
+            149
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "5. Asset custody map",
+          "anchor": "5-asset-custody-map",
+          "lines": [
+            86,
+            108
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "23. 0M invariants over time",
+          "anchor": "23-0m-invariants-over-time",
+          "lines": [
+            398,
+            409
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-19",
+      "title": "Three compromises stay distinct",
+      "text": "Compromise of project stewardship, of a user account and of a provider are separate; rotating steward credentials never changes user identities.",
+      "tags": [
+        "authority",
+        "identity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "7. Removal or compromise",
+          "anchor": "7-removal-or-compromise",
+          "lines": [
+            123,
+            135
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-20",
+      "title": "Open does not mean weak",
+      "text": "Interoperability never justifies lowering a security or privacy floor, and changes touching authentication, confidentiality, identity, authority, downgrade or wire compatibility are explicit, versioned, testable and fail safely.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-06 — Open does not mean weak",
+          "anchor": "p-06--open-does-not-mean-weak",
+          "lines": [
+            41,
+            43
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-21",
+      "title": "Unknown critical semantics are refused",
+      "text": "An implementation that does not understand a critical extension or authority/security semantic must refuse the affected operation instead of guessing.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2. Extension semantics",
+          "anchor": "2-extension-semantics",
+          "lines": [
+            7,
+            14
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "5. Protocol generations coexist explicitly",
+          "anchor": "5-protocol-generations-coexist-explicitly",
+          "lines": [
+            93,
+            111
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-22",
+      "title": "Security semantics default to critical",
+      "text": "Authentication, membership, crypto, recovery and authority semantics are critical unless explicitly classed otherwise.",
+      "tags": [
+        "security",
+        "fail-closed",
+        "recovery"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2. Extension semantics",
+          "anchor": "2-extension-semantics",
+          "lines": [
+            7,
+            14
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-23",
+      "title": "Negotiation cannot be stripped",
+      "text": "Capability negotiation is authenticated and bound into the session, group or control transcript, and clients keep minimum security and profile floors.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "3. Negotiation",
+          "anchor": "3-negotiation",
+          "lines": [
+            16,
+            20
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-24",
+      "title": "Negotiation picks the highest safe profile",
+      "text": "Implementations intersect validated profiles, drop forbidden or below-floor ones, and choose the highest security generation; profile IDs and extension versions never denote strength.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "15. Evolution change control (ADR-0165)",
+          "anchor": "15-evolution-change-control-adr-0165",
+          "lines": [
+            429,
+            446
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0165"
+      ]
+    },
+    {
+      "id": "C-25",
+      "title": "Convenience cannot change principles",
+      "text": "\"Easier to implement\" never justifies central authority, hidden privilege, lock-in or weaker security, and principle-level change needs an ADR plus threat-model and machine-contract updates.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-12 — Evidence may change design; convenience may not silently change principles",
+          "anchor": "p-12--evidence-may-change-design-convenience-may-not-silently-change-principles",
+          "lines": [
+            69,
+            73
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-26",
+      "title": "Ambiguity is unfinished architecture",
+      "text": "Ambiguity at a security, authority, wire, recovery or migration boundary must be resolved in the design, never improvised in implementation, and implementation starts only when the freeze contract allows.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-10 — Measure repeatedly; cut once",
+          "anchor": "p-10--measure-repeatedly-cut-once",
+          "lines": [
+            57,
+            61
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-27",
+      "title": "No hidden emergency bypass",
+      "text": "Urgent crypto-break handling uses normal authenticated release and profile channels and introduces no emergency key.",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "7. Cryptographic primitive failure",
+          "anchor": "7-cryptographic-primitive-failure",
+          "lines": [
+            128,
+            162
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-28",
+      "title": "Validity needs no live oracle",
+      "text": "An object's validity comes from its declared semantics, published rules, authenticated state and local policy, never from asking a project domain for \"latest\".",
+      "tags": [
+        "security",
+        "fail-closed"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "6. No permanent “latest version” authority in the wire protocol",
+          "anchor": "6-no-permanent-latest-version-authority-in-the-wire-protocol",
+          "lines": [
+            113,
+            126
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-29",
+      "title": "Privacy is structural",
+      "text": "OM minimizes what any one party can learn, preferring pairwise opaque capabilities, local-first state, separate roles, explicit disclosure and replaceable providers over observation plus policy promises.",
+      "tags": [
+        "privacy",
+        "metadata"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-08 — Privacy is structural",
+          "anchor": "p-08--privacy-is-structural",
+          "lines": [
+            49,
+            51
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-30",
+      "title": "Oblivious lookup splits metadata",
+      "text": "Optional oblivious lookup lets the discovery relay know the client address but not the query, and the resolver know the query but not the address.",
+      "tags": [
+        "privacy",
+        "metadata"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Discovery does not recreate the central authority",
+          "anchor": "discovery-does-not-recreate-the-central-authority",
+          "lines": [
+            95,
+            99
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-31",
+      "title": "Collect less",
+      "text": "The project collects no identity, contact or telemetry for analytics, and keeps diagnostics local, redacted and user-exported by default.",
+      "tags": [
+        "privacy",
+        "metadata"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "3. Project-exposure minimization rules",
+          "anchor": "3-project-exposure-minimization-rules",
+          "lines": [
+            34,
+            47
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-32",
+      "title": "Never overclaim privacy",
+      "text": "Do not describe OM as untraceable, government-proof, impossible to subpoena, law-free or perfectly anonymous.",
+      "tags": [
+        "privacy",
+        "metadata"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "9. Claims to avoid",
+          "anchor": "9-claims-to-avoid",
+          "lines": [
+            102,
+            108
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-33",
+      "title": "No recovery authority",
+      "text": "There is no mandatory recovery service or authority, and recovery policy is the user's.",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "1. Goal",
+          "anchor": "1-goal",
+          "lines": [
+            7,
+            13
+          ]
+        },
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "Authority map",
+          "anchor": "authority-map",
+          "lines": [
+            49,
+            60
+          ]
+        },
+        {
+          "file": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+          "heading": "2026-09-22 governance refinement — no indispensable operator",
+          "anchor": "2026-09-22-governance-refinement--no-indispensable-operator",
+          "lines": [
+            101,
+            109
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-34",
+      "title": "Continuity after a catastrophic break uses prior evidence",
+      "text": "If old authorization signatures become forgeable, rely on evidence from before the break (hybrid transition credentials, witnessed control heads, relationship-held evidence, independent-primitive recovery, user re-verification) and no master key may seize identities.",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "7. Cryptographic primitive failure",
+          "anchor": "7-cryptographic-primitive-failure",
+          "lines": [
+            128,
+            162
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-35",
+      "title": "Show how continuity was established",
+      "text": "The UI distinguishes \"cryptographically continuous\" from \"re-established by user or social verification\".",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "7. Cryptographic primitive failure",
+          "anchor": "7-cryptographic-primitive-failure",
+          "lines": [
+            128,
+            162
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-36",
+      "title": "Migration keeps AccountID",
+      "text": "A new generation should offer authenticated account-control transition, device enrollment, relationship rekey, Room migration, history export, and an explicit unsupported or lossy report.",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "15. Data and identity portability across generations",
+          "anchor": "15-data-and-identity-portability-across-generations",
+          "lines": [
+            283,
+            297
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "23. 0M invariants over time",
+          "anchor": "23-0m-invariants-over-time",
+          "lines": [
+            398,
+            409
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-37",
+      "title": "Every provider role has an escape story",
+      "text": "Escape is proportional to custody; if every route is lost, manual rediscovery is an honest liveness limit, not a reason for a mandatory global provider.",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "10. Provider disappearance",
+          "anchor": "10-provider-disappearance",
+          "lines": [
+            191,
+            206
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-38",
+      "title": "Users can leave an operator",
+      "text": "Export and migration let users and organizations leave an operator, and no vendor may trap canonical history in opaque local storage.",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "3. Project-exposure minimization rules",
+          "anchor": "3-project-exposure-minimization-rules",
+          "lines": [
+            34,
+            47
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "11. Dominant client capture / embrace-extend-extinguish",
+          "anchor": "11-dominant-client-capture--embrace-extend-extinguish",
+          "lines": [
+            208,
+            225
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-39",
+      "title": "Provider disappearance is not identity loss",
+      "text": "DNS or domain loss affects discoverability, not cryptographic ownership; delisting never revokes an AccountID or ServiceID.",
+      "tags": [
+        "recovery",
+        "continuity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "9. Forge/domain/CDN disappearance",
+          "anchor": "9-forgedomaincdn-disappearance",
+          "lines": [
+            177,
+            189
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "20. Moderation/discovery capture",
+          "anchor": "20-moderationdiscovery-capture",
+          "lines": [
+            358,
+            366
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-40",
+      "title": "Every interpretive field has a criticality",
+      "text": "Non-critical fields may be ignored by older implementations (bytes preserved where required); critical ones must be understood or the operation is refused.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2. Extension semantics",
+          "anchor": "2-extension-semantics",
+          "lines": [
+            7,
+            14
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-41",
+      "title": "Public versioned registries",
+      "text": "CryptoProfiles, event and control types, transport and provider capabilities, critical extension IDs and security-relevant formats live in public versioned registries with experimental ranges and public governance that makes no implementation mandatory.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "4. Registries",
+          "anchor": "4-registries",
+          "lines": [
+            22,
+            37
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-42",
+      "title": "The critical prefix is permanent",
+      "text": "IDs under `om.critical.` are permanently critical, unknown ones are treated as critical, and non-critical registrations may not use the prefix.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "4. Registries",
+          "anchor": "4-registries",
+          "lines": [
+            22,
+            37
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0157",
+        "ADR-0155"
+      ]
+    },
+    {
+      "id": "C-43",
+      "title": "Assigned IDs never change meaning",
+      "text": "Registry IDs and `(extension_id, version)` registrations are immutable and never reused, and criticality is immutable per ID.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "7. Version evolution is not silent reinterpretation (ADR-0165)",
+          "anchor": "7-version-evolution-is-not-silent-reinterpretation-adr-0165",
+          "lines": [
+            67,
+            76
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "4. Registry continuity",
+          "anchor": "4-registry-continuity",
+          "lines": [
+            77,
+            91
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0165"
+      ]
+    },
+    {
+      "id": "C-44",
+      "title": "Security-affecting change needs a new ID",
+      "text": "Changes to authority, authentication, confidentiality, membership, downgrade behavior, owning object or fallback validity need a new extension ID or CryptoProfile, never a version bump.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "7. Version evolution is not silent reinterpretation (ADR-0165)",
+          "anchor": "7-version-evolution-is-not-silent-reinterpretation-adr-0165",
+          "lines": [
+            67,
+            76
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0165"
+      ]
+    },
+    {
+      "id": "C-45",
+      "title": "Private extensions need no permission",
+      "text": "Experimental and private extensions use collision-resistant namespaced IDs, and market adoption grants no canonical status.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2026-09-23 registry/extension resolution",
+          "anchor": "2026-09-23-registryextension-resolution",
+          "lines": [
+            53,
+            57
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2026-09-23 08:21 longevity/registry resolution",
+          "anchor": "2026-09-23-0821-longevityregistry-resolution",
+          "lines": [
+            59,
+            65
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-46",
+      "title": "Shared meaning is never only in plugin code",
+      "text": "An extension that changes interoperable state must publish schema, criticality, canonical encoding and capability semantics independently of one executable plugin.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2026-09-23 registry/extension resolution",
+          "anchor": "2026-09-23-registryextension-resolution",
+          "lines": [
+            53,
+            57
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-47",
+      "title": "Canonical encoding before freeze",
+      "text": "Every signed or hashed object has deterministic serialization and published golden vectors before wire freeze, and unknown-field preservation is testable.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "5. Canonical encoding",
+          "anchor": "5-canonical-encoding",
+          "lines": [
+            39,
+            41
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-48",
+      "title": "Published versions are self-contained",
+      "text": "Each release has a mirrorable Protocol Continuity Bundle (specs, encoding, vectors, registry and CryptoProfile snapshots, licenses, signatures), and a live registry is a convenience, not a runtime oracle.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "3. Published protocol versions are self-contained artifacts",
+          "anchor": "3-published-protocol-versions-are-self-contained-artifacts",
+          "lines": [
+            49,
+            75
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "4. Registry continuity",
+          "anchor": "4-registry-continuity",
+          "lines": [
+            77,
+            91
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+          "heading": "2026-09-23 08:21 longevity/registry resolution",
+          "anchor": "2026-09-23-0821-longevityregistry-resolution",
+          "lines": [
+            59,
+            65
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-49",
+      "title": "Generations coexist",
+      "text": "Peers exchange authenticated supported-profile sets, fail closed on critical semantics, and keep old history readable or exportable where its cryptography is still processable.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "5. Protocol generations coexist explicitly",
+          "anchor": "5-protocol-generations-coexist-explicitly",
+          "lines": [
+            93,
+            111
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-50",
+      "title": "Published meaning is immutable",
+      "text": "Corrections that change behavior become a new profile, extension or lineage or an explicit fork, every normative change is classified, and agents must not downgrade the class for ease.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "15. Evolution change control (ADR-0165)",
+          "anchor": "15-evolution-change-control-adr-0165",
+          "lines": [
+            429,
+            446
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0165"
+      ]
+    },
+    {
+      "id": "C-51",
+      "title": "Plan for crypto failure",
+      "text": "Planned deprecation moves through a new preferred profile, rising floor and forbidden old profile; an urgent break ships through normal authenticated channels.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "7. Cryptographic primitive failure",
+          "anchor": "7-cryptographic-primitive-failure",
+          "lines": [
+            128,
+            162
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-52",
+      "title": "Distribution trust is per distribution",
+      "text": "Software-signing roots belong to each distribution, peers do not reject a conforming client for lacking the project's signing key, and \"official client\" is not a wire-level role.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "8. Release/update root failure",
+          "anchor": "8-releaseupdate-root-failure",
+          "lines": [
+            164,
+            175
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "21. Compatibility identity",
+          "anchor": "21-compatibility-identity",
+          "lines": [
+            368,
+            381
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-53",
+      "title": "Market share is not authority",
+      "text": "A dominant client or extension gains no protocol rights, a proprietary extension cannot become mandatory for baseline conformance, and incompatible change by a dominant vendor is a fork, not a redefinition.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "11. Dominant client capture / embrace-extend-extinguish",
+          "anchor": "11-dominant-client-capture--embrace-extend-extinguish",
+          "lines": [
+            208,
+            225
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "12. Dominant extension capture",
+          "anchor": "12-dominant-extension-capture",
+          "lines": [
+            227,
+            240
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-54",
+      "title": "Baseline graduation has criteria",
+      "text": "An extension enters a baseline only with public semantics, canonical encoding and criticality, a feasible independent implementation, permissive terms, security review and fallback; a Room may visibly require an optional public extension.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "12. Dominant extension capture",
+          "anchor": "12-dominant-extension-capture",
+          "lines": [
+            227,
+            240
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "11. Dominant client capture / embrace-extend-extinguish",
+          "anchor": "11-dominant-client-capture--embrace-extend-extinguish",
+          "lines": [
+            208,
+            225
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-55",
+      "title": "Forks use new lineage identifiers",
+      "text": "A fork never reuses an ID for incompatible semantics, is a last resort, and is one of implementation, stewardship, protocol-generation or Room/Space forks.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "14. Fork semantics",
+          "anchor": "14-fork-semantics",
+          "lines": [
+            259,
+            281
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-56",
+      "title": "Freeze only what can outlive its library",
+      "text": "Before freezing a primitive or format: public spec, vectors, a credible independent implementation path, permitting licenses, library-independent serialization and a migration path.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "17. Dependency longevity",
+          "anchor": "17-dependency-longevity",
+          "lines": [
+            314,
+            327
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-57",
+      "title": "Mirror and avoid single chokepoints",
+      "text": "At public-production maturity mirror source, bundles and vectors on independent channels, need no private CI, and load no security-critical code from an unpinned third-party CDN.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "9. Forge/domain/CDN disappearance",
+          "anchor": "9-forgedomaincdn-disappearance",
+          "lines": [
+            177,
+            189
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "16. Public archival preservation",
+          "anchor": "16-public-archival-preservation",
+          "lines": [
+            299,
+            312
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-58",
+      "title": "Platforms cannot redefine the protocol",
+      "text": "The protocol is independent of store identity, push is optional to correctness, and platform limits reduce only that platform's experience.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "18. Mobile/app-store capture",
+          "anchor": "18-mobileapp-store-capture",
+          "lines": [
+            329,
+            342
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-59",
+      "title": "Economic and discovery capture are countered by portability",
+      "text": "Provider contracts are public and reimplementable, no proprietary provider capability is baseline, direct invites bypass discovery, and safety advisories are subscribed policy inputs, not protocol truth.",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "19. Economic capture",
+          "anchor": "19-economic-capture",
+          "lines": [
+            344,
+            356
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "20. Moderation/discovery capture",
+          "anchor": "20-moderationdiscovery-capture",
+          "lines": [
+            358,
+            366
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-60",
+      "title": "Continuity is drilled",
+      "text": "Before claiming public-production resilience the project runs the creator-disappearance, forge, domain, provider and release-root drill (V-017).",
+      "tags": [
+        "extensibility",
+        "protocol",
+        "longevity"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "22. Continuity drill",
+          "anchor": "22-continuity-drill",
+          "lines": [
+            383,
+            396
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "24. Verification obligation",
+          "anchor": "24-verification-obligation",
+          "lines": [
+            411,
+            427
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "9. 2026-09-23 08:21 0M longevity refinement",
+          "anchor": "9-2026-09-23-0821-0m-longevity-refinement",
+          "lines": [
+            143,
+            149
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-61",
+      "title": "Commercial participation yes, protocol privilege no",
+      "text": "Businesses may build clients, run providers and sell support, but SeedLife, the founder and any successor may steward the project without owning the right to make private communication depend on them.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "1. Purpose",
+          "anchor": "1-purpose",
+          "lines": [
+            7,
+            15
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-62",
+      "title": "Implementable without permission",
+      "text": "A conforming implementation must be possible from public normative artifacts, with no proprietary SDK, secret server, private registry, trademark license, contract or SeedLife authorization.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-03 — The protocol is implementable without permission",
+          "anchor": "p-03--the-protocol-is-implementable-without-permission",
+          "lines": [
+            29,
+            31
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-63",
+      "title": "No hidden privilege",
+      "text": "Official clients and convenience providers get no secret extension, privileged endpoint, private key hierarchy, unpublished compatibility rule or mandatory service.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-04 — No hidden protocol privilege",
+          "anchor": "p-04--no-hidden-protocol-privilege",
+          "lines": [
+            33,
+            35
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-64",
+      "title": "Freedom survives capture",
+      "text": "Public releases are under irrevocable open licenses, normative artifacts are mirrorable, and the community keeps the legal and technical ability to fork if the steward is captured.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-05 — Freedom survives governance capture",
+          "anchor": "p-05--freedom-survives-governance-capture",
+          "lines": [
+            37,
+            39
+          ]
+        },
+        {
+          "file": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+          "heading": "13. Project governance capture",
+          "anchor": "13-project-governance-capture",
+          "lines": [
+            242,
+            257
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-65",
+      "title": "No proprietary mandatory extension",
+      "text": "Canonical OM must not require a royalty-bearing patent license, closed SDK, undisclosed spec, private approval or vendor-only service; optional bridges may use external proprietary systems.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-07 — No proprietary mandatory extension",
+          "anchor": "p-07--no-proprietary-mandatory-extension",
+          "lines": [
+            45,
+            47
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-66",
+      "title": "Ten layered anti-capture mechanisms",
+      "text": "Open normative artifacts, public conformance vectors, replaceable roles, core copyleft, network copyleft on reference providers, no broad copyright-assignment CLA, DCO inbound-equals-outbound, royalty-free patent policy, transparent governance and forkability.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "3. Anti-capture mechanisms",
+          "anchor": "3-anti-capture-mechanisms",
+          "lines": [
+            83,
+            96
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-67",
+      "title": "No field-of-use limits",
+      "text": "OM does not forbid commercial, paid-hosting, proprietary-surrounding, research, government or competing use, because that would undermine its open-source claim.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "4. What OM deliberately does not prohibit",
+          "anchor": "4-what-om-deliberately-does-not-prohibit",
+          "lines": [
+            98,
+            102
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-68",
+      "title": "Stewardship cannot revoke rights",
+      "text": "The canonical project picks its release line, supported versions, trademark use and maintainers, but cannot retroactively revoke granted rights, make AccountIDs depend on it, or stop third-party implementation.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "5. Canonical stewardship versus protocol freedom",
+          "anchor": "5-canonical-stewardship-versus-protocol-freedom",
+          "lines": [
+            104,
+            115
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-69",
+      "title": "Tie-breaker for design conflicts",
+      "text": "Prefer the design that, while usable and secure, gives users more durable agency, needs fewer irreplaceable authorities, exposes less metadata, survives failure, stays independently implementable, eases escape from capture, keeps UX simpler and makes fewer irreversible commitments.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "7. Interpretation rule",
+          "anchor": "7-interpretation-rule",
+          "lines": [
+            132,
+            145
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-70",
+      "title": "Capability is not operation",
+      "text": "Supporting a content pack, bot, community, directory or commerce extension does not oblige the project to host, run, moderate, process payments or become a default provider.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "9. Capability support does not imply project operation",
+          "anchor": "9-capability-support-does-not-imply-project-operation",
+          "lines": [
+            151,
+            155
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-71",
+      "title": "Licensing is layered by role",
+      "text": "Core and shared client libraries are MPL-2.0, reference network-service code is AGPL-3.0-or-later, normative schemas, registries, vectors and harness interfaces are Apache-2.0, and docs are CC-BY-SA-4.0.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+          "heading": "1. Licensing is layered by role",
+          "anchor": "1-licensing-is-layered-by-role",
+          "lines": [
+            7,
+            18
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-72",
+      "title": "No ordinary copyright assignment",
+      "text": "Contributions use DCO 1.1 sign-off with inbound-equals-outbound licensing; a broad relicensing CLA is not required, and any narrow agreement needs public review showing no capture path.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+          "heading": "5. Contribution policy: no ordinary copyright assignment",
+          "anchor": "5-contribution-policy-no-ordinary-copyright-assignment",
+          "lines": [
+            48,
+            56
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-73",
+      "title": "Patent rule for the protocol",
+      "text": "Canonical OM must not knowingly adopt a royalty-bearing or permission-gated dependency, and suspected encumbrance blocks until a lawyer-reviewed royalty-free patent commitment exists.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+          "heading": "6. Protocol patent rule",
+          "anchor": "6-protocol-patent-rule",
+          "lines": [
+            58,
+            66
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-74",
+      "title": "Trademarks are not protocol locks",
+      "text": "No trademark license is needed to implement or interoperate, truthful \"OM-compatible\" statements stay allowed, and rights remain usable under another name if the trademark fails.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+          "heading": "7. Trademarks are not protocol locks",
+          "anchor": "7-trademarks-are-not-protocol-locks",
+          "lines": [
+            68,
+            74
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-75",
+      "title": "No closing released versions",
+      "text": "No steward may claim released versions can be closed or granted rights revoked; any future license change needs a public ADR, legal analysis and respect for contributors and anti-capture intent.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+          "heading": "8. Relicensing rule",
+          "anchor": "8-relicensing-rule",
+          "lines": [
+            76,
+            85
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-76",
+      "title": "Founder custody is stated honestly",
+      "text": "Early on one founder steward is accepted; release-root custody is always described as 2-of-3 shares held by one custodian, a threshold against loss and online compromise but 1-of-1 against coercion, never as multi-party.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "2. Incubation state: founder custody is intentionally 1-of-1",
+          "anchor": "2-incubation-state-founder-custody-is-intentionally-1-of-1",
+          "lines": [
+            13,
+            19
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "4. Maturity stages",
+          "anchor": "4-maturity-stages",
+          "lines": [
+            41,
+            84
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0130"
+      ]
+    },
+    {
+      "id": "C-77",
+      "title": "Succession rails, not pretend succession",
+      "text": "Roles and key ceremonies are documented before they are populated so authority can become multi-person without protocol migration.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "6. Founder period",
+          "anchor": "6-founder-period",
+          "lines": [
+            117,
+            130
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "3. Succession rails must exist now",
+          "anchor": "3-succession-rails-must-exist-now",
+          "lines": [
+            21,
+            39
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-78",
+      "title": "Maturity stages gate claims",
+      "text": "S0 founder incubation, S1 trusted maintainer circle, S2 public-production resilience (multiple owners, multi-party release root, independent credential recovery, drills) and S3 institutional longevity; S2 claims need S2 custody.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "4. Maturity stages",
+          "anchor": "4-maturity-stages",
+          "lines": [
+            41,
+            84
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "10. 2026-09-24 co-stewards come from the community (ADR-0114)",
+          "anchor": "10-2026-09-24-co-stewards-come-from-the-community-adr-0114",
+          "lines": [
+            151,
+            166
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-79",
+      "title": "Co-stewards come from the community",
+      "text": "Recruiting them is a stewardship milestone, not a W0 or first-release blocker; the first offer is a scoped reviewer or security role before any custody role.",
+      "tags": [
+        "anti-capture",
+        "licensing",
+        "stewardship"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+          "heading": "10. 2026-09-24 co-stewards come from the community (ADR-0114)",
+          "anchor": "10-2026-09-24-co-stewards-come-from-the-community-adr-0114",
+          "lines": [
+            151,
+            166
+          ]
+        }
+      ],
+      "adrs": [
+        "ADR-0114"
+      ]
+    },
+    {
+      "id": "C-80",
+      "title": "Liability follows the operator",
+      "text": "Compliance attaches as closely as practical to the actor that operates, publishes, hosts, distributes, transacts or controls the service; the project is not a universal intermediary, and open licensing or cryptography does not erase mandatory law.",
+      "tags": [
+        "legal",
+        "operations"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "1. Objective",
+          "anchor": "1-objective",
+          "lines": [
+            8,
+            16
+          ]
+        },
+        {
+          "file": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+          "heading": "8. Legal posture principle",
+          "anchor": "8-legal-posture-principle",
+          "lines": [
+            142,
+            152
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-81",
+      "title": "Minimize project exposure",
+      "text": "Unless a later ADR says otherwise, the project runs no mandatory account service, relay, blob store, directory, bot cloud, community host or payment processor, holds no mandatory plaintext or decryption key, avoids a global marketplace, and publishes releases separately from optional hosted services that are separately identifiable operators.",
+      "tags": [
+        "legal",
+        "operations"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "3. Project-exposure minimization rules",
+          "anchor": "3-project-exposure-minimization-rules",
+          "lines": [
+            34,
+            47
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-82",
+      "title": "No custom restrictive EULA",
+      "text": "The project gives no default warranty, SLA, indemnity, legal advice or compliance certification; role-specific terms come from the actor offering the service.",
+      "tags": [
+        "legal",
+        "operations"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "4. Open-source license protection",
+          "anchor": "4-open-source-license-protection",
+          "lines": [
+            49,
+            55
+          ]
+        },
+        {
+          "file": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+          "heading": "11. Warranty, liability and operator separation",
+          "anchor": "11-warranty-liability-and-operator-separation",
+          "lines": [
+            103,
+            111
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-83",
+      "title": "Private by default, public by choice",
+      "text": "Private messaging is the baseline, public discovery is a distinct optional provider, a catalog operator answers for what it lists, signatures prove provenance not copyright ownership, and the client offers report, block and export without a universal moderation desk.",
+      "tags": [
+        "legal",
+        "operations"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "5. User-generated content and public surfaces",
+          "anchor": "5-user-generated-content-and-public-surfaces",
+          "lines": [
+            57,
+            69
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-84",
+      "title": "OM does not handle money",
+      "text": "OM Core processes no payments, custodies no value, issues no token and is not merchant of record; extensions may carry an opaque entitlement proof only.",
+      "tags": [
+        "legal",
+        "operations"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "7. Payments and digital goods",
+          "anchor": "7-payments-and-digital-goods",
+          "lines": [
+            82,
+            94
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-85",
+      "title": "Review legal duties per role and place",
+      "text": "No country is a home jurisdiction; before a project-controlled distribution or service is broadly offered, review that role in the places it operates.",
+      "tags": [
+        "legal",
+        "operations"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+          "heading": "8. Jurisdiction-neutral release review",
+          "anchor": "8-jurisdiction-neutral-release-review",
+          "lines": [
+            96,
+            100
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-86",
+      "title": "The meanings are product constraints",
+      "text": "OM keeps its name because it carries several compatible meanings, and O may be read as 0 (0M) without a rename.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "Open-source Messenger",
+          "anchor": "open-source-messenger",
+          "lines": [
+            10,
+            12
+          ]
+        },
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "0M — zero total control",
+          "anchor": "0m--zero-total-control",
+          "lines": [
+            36,
+            59
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-87",
+      "title": "Open-source Messenger",
+      "text": "Protocol, normative artifacts and reference implementation stay independently usable, forkable and improvable under the open licensing architecture.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "Open-source Messenger",
+          "anchor": "open-source-messenger",
+          "lines": [
+            10,
+            12
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-88",
+      "title": "OpenMessenger",
+      "text": "Independent clients implement the public protocol without permission, and interoperation with services, bots, LLM agents and bridges is a goal within explicit security boundaries and user consent.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "OpenMessenger",
+          "anchor": "openmessenger",
+          "lines": [
+            14,
+            16
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-89",
+      "title": "OwnMessenger",
+      "text": "Identity, infrastructure, client, themes, media, automations and extensions can be replaced or customized without weakening the security floor or needing a central account.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "OwnMessenger",
+          "anchor": "ownmessenger",
+          "lines": [
+            18,
+            20
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-90",
+      "title": "OurMessenger",
+      "text": "Shared spaces may carry their own roles, rules, rooms, services and governance without making the OM Project their operator.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "OurMessenger",
+          "anchor": "ourmessenger",
+          "lines": [
+            22,
+            24
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-91",
+      "title": "OneMessenger",
+      "text": "Optional features live behind interoperable extensions and capability negotiation, \"One\" means breadth and interoperability, and OM may not centralize control to win adoption.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "OneMessenger",
+          "anchor": "onemessenger",
+          "lines": [
+            26,
+            30
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-92",
+      "title": "0M means zero total control",
+      "text": "Zero does not mean zero servers or authorities; it means no founder, company, government, cloud, app store, directory, provider, dominant client or extension is the one party whose permission OM needs to continue, so authorities stay scoped, replaceable and non-composable.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "0M — zero total control",
+          "anchor": "0m--zero-total-control",
+          "lines": [
+            36,
+            59
+          ]
+        },
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-13 — 0M: zero total control",
+          "anchor": "p-13--0m-zero-total-control",
+          "lines": [
+            75,
+            81
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-93",
+      "title": "Practical anti-capture, not theater",
+      "text": "The target is identity that outlives providers, services without a central issuer, competing directories, independent clients, self-governing communities, movable infrastructure, mirrorable artifacts, and no commercial success turning into protocol privilege.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "0M — zero total control",
+          "anchor": "0m--zero-total-control",
+          "lines": [
+            36,
+            59
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-94",
+      "title": "Naming tie-break list",
+      "text": "For ambiguous product choices: keep the commons open, interoperate, allow safe customization, support shared spaces, prefer extensible capability over fragmentation, keep a simple delightful default, and keep total control at zero.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/NAMING.md",
+          "heading": "Interpretation",
+          "anchor": "interpretation",
+          "lines": [
+            61,
+            73
+          ]
+        }
+      ],
+      "adrs": []
+    },
+    {
+      "id": "C-95",
+      "title": "Complexity belongs under the product",
+      "text": "Normal users get a messenger, not a distributed-systems control panel, with strong defaults, automatic safe migration and advanced controls that do not require understanding relays, ciphers, stores or governance.",
+      "tags": [
+        "naming",
+        "ux"
+      ],
+      "source": [
+        {
+          "file": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+          "heading": "P-09 — Complexity belongs under the product",
+          "anchor": "p-09--complexity-belongs-under-the-product",
+          "lines": [
+            53,
+            55
+          ]
+        }
+      ],
+      "adrs": []
+    }
+  ]
+}

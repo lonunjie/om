@@ -5,12 +5,12 @@ ifneq ($(wildcard /opt/homebrew/opt/rustup/bin),)
 export PATH := /opt/homebrew/opt/rustup/bin:$(PATH)
 endif
 
-.PHONY: help hooks design-gate core-check core-wasm core-guard web-guard web-check web-release-check web-e2e check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
+.PHONY: help constitution tests hooks design-gate core-check core-wasm core-guard web-guard web-check web-release-check web-e2e check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
 
-check: validate docs-check file-registry evolution design-gate web-guard core-guard ## fast checks: validator + docs links + current file registry + protocol-evolution policy
+check: validate docs-check file-registry evolution design-gate constitution web-guard core-guard ## fast checks: validator + docs links + current file registry + protocol-evolution policy
 
 verify-drop: preflight-drop evidence-drop check manifest ## fresh design-drop checks; no Git history or heavyweight toolchain required
 
@@ -28,6 +28,12 @@ preflight-full: ## require Git history + Rust/Java/bootstrap tools used by full 
 design-gate: ## every code path maps to a design domain (machine/architecture_map.json code_paths)
 	$(PY) tools/design_gate.py selfcheck
 	$(PY) tools/design_gate.py audit
+
+constitution: ## constitution digest: sources resolve, ids unique, within word budget, machine/constitution_index.json and adr_index.json current
+	$(PY) tools/constitution.py check
+
+tests: ## unit tests for tools (tests/)
+	$(PY) -m unittest discover -s tests -v
 
 hooks: ## install the design-gate commit-msg hook for this clone (shared by its worktrees)
 	git config core.hooksPath tools/hooks

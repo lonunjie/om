@@ -5401,6 +5401,13 @@
       "authority": "historical_index"
     },
     {
+      "path": "docs/constitution/CONSTITUTION_DIGEST.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
       "class": "architecture_doc",
       "domain": "constitution_governance",
@@ -5997,6 +6004,13 @@
     },
     {
       "path": "docs/reports/2026-11-19-calls-v007-evidence.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-19-constitution-digest-proposal.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -9713,6 +9727,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "machine/adr_index.json",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
       "path": "machine/architecture_design_queue.jsonl",
       "class": "machine_truth",
       "domain": "architecture_process",
@@ -9744,6 +9765,13 @@
       "path": "machine/conformance_suites.json",
       "class": "machine_contract",
       "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
+      "path": "machine/constitution_index.json",
+      "class": "machine_truth",
+      "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "machine_truth"
     },
@@ -12765,6 +12793,13 @@
       "authority": "normative_wire_schema"
     },
     {
+      "path": "tests/test_constitution.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": "third_party/openmls-wasm-shims/README.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -13116,6 +13151,13 @@
     },
     {
       "path": "tools/build_manifest.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/constitution.py",
       "class": "architecture_tool",
       "domain": "architecture_process",
       "license": "Apache-2.0",

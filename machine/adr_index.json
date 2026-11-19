@@ -1,0 +1,2833 @@
+{
+  "note": "Derived from decisions/ADR-*.md and decisions/INDEX.md by tools/constitution.py gen. Do not edit by hand.",
+  "adrs": [
+    {
+      "id": "ADR-0001",
+      "title": "Providers Are Plugins",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0001-provider-independence.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0002",
+      "title": "Passwordless Device-First Identity",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0002-device-first-identity.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0003",
+      "title": "Aliases Are Recyclable; People Are Local Records",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0003-aliases-and-person-records.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0004",
+      "title": "Unknown Senders Use Message Requests",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0004-message-requests.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0005",
+      "title": "Hot/Cold Storage and StoragePool",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0005-storage-pools.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0006",
+      "title": "Private Groups Design Around MLS",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0006-private-groups-mls.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0007",
+      "title": "PWA First, Not Web Only",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0007-web-first-reference-client.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0178"
+      ]
+    },
+    {
+      "id": "ADR-0008",
+      "title": "Small Immutable Canonical Event Model",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0008-canonical-events.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0009",
+      "title": "Scoped, replaceable, non-composable authority",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0009-scoped-replaceable-authority.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0010",
+      "title": "Algorithm-independent AccountID",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0010-algorithm-independent-accountid.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0011",
+      "title": "CryptoProfiles and invisible migration",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0011-crypto-profiles-and-invisible-migration.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0012",
+      "title": "Capability-addressed relays",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0012-capability-addressed-relays.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0013",
+      "title": "SFrame + adaptive LAN/P2P/TURN/SFU calling",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0013-sframe-adaptive-calling.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0014",
+      "title": "Cloudflare as reference provider, not dependency",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0014-cloudflare-reference-not-dependency.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0015",
+      "title": "Defer SMS/MMS/RCS while preserving TransportAdapter",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0015-defer-sms-rcs.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0016",
+      "title": "Local-first and LAN-capable direction",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0016-local-first-lan.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0017",
+      "title": "Privacy-preserving abuse boundary",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0017-privacy-preserving-abuse-boundary.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0018",
+      "title": "Budget-aware provider routing",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0018-budget-aware-provider-routing.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0019",
+      "title": "Discovery Fabric, Not a Mandatory Global Registry",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0019-discovery-fabric-not-global-registry.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0020",
+      "title": "Revocable, Scoped Invitations",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0020-revocable-invites.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0021",
+      "title": "IntroGate and Short-Lived Introduction Tickets",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0021-introgate-tickets-and-abuse.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0022",
+      "title": "Multi-Relay RelaySet",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0022-multi-relay-relayset.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0023",
+      "title": "Privacy-Preserving LAN Rendezvous",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0023-private-lan-rendezvous.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0024",
+      "title": "Pluggable Network and Censorship Resilience",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0024-pluggable-censorship-resilience.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0025",
+      "title": "Optional Oblivious Discovery Privacy",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0025-oblivious-discovery-privacy.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0026",
+      "title": "Recovery is optional and off by default",
+      "status": "Superseded by [ADR-0111](ADR-0111-identity-recovery-on-by-default.md) (2026-09-24). No-recovery identities remain valid as an explicit choic",
+      "date": "",
+      "path": "decisions/ADR-0026-recovery-is-optional-and-off-by-default.md",
+      "amends": [],
+      "index_title": "Recovery is optional and off by default (superseded by ADR-0111)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0027",
+      "title": "Separate identity, history, and provider recovery",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0027-separate-identity-history-and-provider-recovery.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0028",
+      "title": "Two-stage device quarantine and permanent revocation",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0028-two-stage-device-quarantine-and-permanent-revocation.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0127"
+      ]
+    },
+    {
+      "id": "ADR-0029",
+      "title": "Control-device promotion is constitutional",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0029-control-device-promotion-is-constitutional.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0127"
+      ]
+    },
+    {
+      "id": "ADR-0030",
+      "title": "AccountControlState and head gossip",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0030-accountcontrolstate-and-head-gossip.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0031",
+      "title": "User-owned infrastructure is the initial deployment premise",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0031-user-owned-infrastructure-is-the-initial-deployment-premise.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0032",
+      "title": "workers.dev is the v1 personal discovery locator",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0032-workers-dev-is-the-v1-personal-discovery-locator.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0033",
+      "title": "Signed ContactCapsules enable Share Contact",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0033-signed-contactcapsules-enable-share-contact.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0034",
+      "title": "Zero-payment Cloudflare core excludes mandatory R2",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0034-zero-payment-cloudflare-core-excludes-mandatory-r2.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0035",
+      "title": "BlobStore expansion and direct file paths",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0035-blobstore-expansion-and-direct-file-paths.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0036",
+      "title": "Software update trust is designed from the first public release",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0036-software-update-trust-is-designed-from-the-first-public-release.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0148"
+      ]
+    },
+    {
+      "id": "ADR-0037",
+      "title": "Privacy profiles never weaken the cryptographic floor",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0037-privacy-profiles-never-weaken-the-cryptographic-floor.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0038",
+      "title": "Push is an opaque optional wakeup",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0038-push-is-an-opaque-optional-wakeup.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0039",
+      "title": "Backups restore history, never authority",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0039-backups-restore-history-never-authority.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0147"
+      ]
+    },
+    {
+      "id": "ADR-0040",
+      "title": "No uploaded address book in v1",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0040-no-uploaded-address-book-in-v1.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0041",
+      "title": "Disappearing content is client lifecycle state",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0041-disappearing-content-is-client-lifecycle-state.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0042",
+      "title": "Explicit critical protocol extensions",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0042-explicit-critical-protocol-extensions.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0043",
+      "title": "Operatorless Core; No Mandatory Network Operator",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0043-operatorless-core-no-mandatory-network-operator.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0044",
+      "title": "PWA First, Not PWA Only",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0044-pwa-first-not-pwa-only.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0178"
+      ]
+    },
+    {
+      "id": "ADR-0045",
+      "title": "One Portable OM Core Across Client Shells",
+      "status": "Accepted direction",
+      "date": "",
+      "path": "decisions/ADR-0045-one-portable-om-core.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0046",
+      "title": "Provisioning Is Replaceable and Need Not Use an OM OAuth Service",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0046-operatorless-provisioning-methods.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0130"
+      ]
+    },
+    {
+      "id": "ADR-0047",
+      "title": "Operatorless Core Uses Local Evidence Export",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0047-local-evidence-external-reporting.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0048",
+      "title": "Push and Store Obligations Are Distribution-Local",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0048-distribution-local-push-store-obligations.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0049",
+      "title": "Convenience Providers Are Non-Privileged",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0049-convenience-providers-nonprivileged.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0050",
+      "title": "Creator-Disappearance Gate",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0050-creator-disappearance-gate.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0051",
+      "title": "One Shared OM UI Across Official Clients",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0051-one-shared-om-ui.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0052",
+      "title": "Adaptive Window Layout, Not Device-Specific Product Forks",
+      "status": "Accepted direction",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0052-adaptive-window-layout.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0053",
+      "title": "Semantic Motion and Perceived Performance",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0053-semantic-motion-and-perceived-performance.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0054",
+      "title": "User Themes Are Declarative, Sandboxed Data",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0054-declarative-sandboxed-themes.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0055",
+      "title": "PlatformAdapter Exposes Capabilities, Not Product Logic",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0055-platform-adapter-capabilities-not-product-logic.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0056",
+      "title": "Security UI Semantics Are Theme-Proof",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0056-security-ui-semantics-are-theme-proof.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0057",
+      "title": "Accessibility Is a Shared UI Release Gate",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0057-accessibility-is-a-shared-release-gate.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0058",
+      "title": "Default UI Is Calm, Content-First and Ergonomic",
+      "status": "Accepted",
+      "date": "2026-09-22",
+      "path": "decisions/ADR-0058-default-ui-is-calm-content-first.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0059",
+      "title": "ClientHost and DeviceVault are separate security boundaries",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0059-clienthost-and-devicevault-are-separate-security-boundaries.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0060",
+      "title": "IdentityProfile isolation is built in before multi-account UI",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0060-identityprofile-isolation-is-built-in-before-multi-account-ui.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0148"
+      ]
+    },
+    {
+      "id": "ADR-0061",
+      "title": "Rich text is a bounded semantic tree, never executable markup",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0061-rich-text-is-a-bounded-semantic-tree-never-executable-markup.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0062",
+      "title": "Decrypted content remains hostile",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0062-decrypted-content-remains-hostile.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0063",
+      "title": "Durable control signatures do not imply durable message non-repudiation",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0063-durable-control-signatures-do-not-imply-durable-message-non-repudiation.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0064",
+      "title": "Local data has explicit lifecycle classes and diagnostics are local-first",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0064-local-data-has-explicit-lifecycle-classes-and-diagnostics-are-local-first.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0065",
+      "title": "Signed and canonical protocol objects use an OM deterministic-CBOR profile",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0065-signed-and-canonical-protocol-objects-use-an-om-deterministic-cbor-profile.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0066",
+      "title": "AccountControlState formal model is an implementation gate",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0066-accountcontrolstate-formal-model-is-an-implementation-gate.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0067",
+      "title": "Architecture candidate enters engineering with production crypto gated",
+      "status": "Superseded by ADR-0069",
+      "date": "",
+      "path": "decisions/ADR-0067-architecture-candidate-enters-engineering-with-production-crypto-gated.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0068",
+      "title": "Every theme supports light/dark auto; profile themes are optional identity-local UX",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0068-every-theme-supports-light-dark-auto-profile-themes-are-optional-identity-local-ux.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0069",
+      "title": "Architecture hardening precedes product engineering",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0069-architecture-hardening-before-engineering.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0070",
+      "title": "Use a layered anti-capture licensing and contribution model",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0070-anti-capture-licensing-stack.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0071",
+      "title": "Accept founder-only incubation while preparing succession rails",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0071-founder-incubation-with-succession-rails.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0072",
+      "title": "Asynchronous key material is a first-class replaceable provider capability",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0072-async-key-material-is-first-class.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0073",
+      "title": "One-to-one multi-device session management is a distinct protocol state machine",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0073-one-to-one-session-manager.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0074",
+      "title": "MLS groups require application commit ordering and OM-state binding",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0074-mls-commit-ordering-and-group-binding.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0075",
+      "title": "Separate normal routing from catastrophic reachability and blob-location repair",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0075-reachability-and-blob-repair.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0076",
+      "title": "All canonical time fields declare clock and authority semantics",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0076-explicit-time-semantics.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0077",
+      "title": "Self-hosted ClientHosts require an explicit update/deployment lifecycle",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0077-clienthost-update-lifecycle.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0078",
+      "title": "Architecture prose is backed by a machine-enforced repository contract",
+      "status": "Accepted",
+      "date": "",
+      "path": "decisions/ADR-0078-machine-enforced-architecture-contract.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0079",
+      "title": "Resolve architectural choices and split remaining work into typed gates",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0079-close-architecture-questions-into-typed-gates.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0080",
+      "title": "Legal exposure is jurisdiction-neutral and role-scoped",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0080-jurisdiction-neutral-legal-role-boundaries.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0081",
+      "title": "OM keeps six complementary meanings",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0081-six-meanings-of-om.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0082",
+      "title": "Supporting a capability does not make SeedLife its operator",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0082-capability-does-not-imply-project-operated-service.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0083",
+      "title": "Messenger-baseline and community surfaces must be designed before engineering",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0083-basic-expressive-and-community-surfaces-enter-architecture-queue.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0084",
+      "title": "ConversationID is the single stable identity of an interactive Room",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0084-one-conversation-id-for-interactive-rooms.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0085",
+      "title": "Spaces organize independent Rooms; membership and security do not silently inherit",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0085-spaces-link-independent-rooms.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0086",
+      "title": "Roles bundle scoped capabilities; no magical owner or unrestricted Administrator is required",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0086-capability-scoped-authority-without-magical-owner.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0087",
+      "title": "Threads, Topics, private announcements and public Publications are layered distinct semantics",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0087-threads-topics-and-publication-are-layered-not-overloaded.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0088",
+      "title": "Ordinary messenger completeness has explicit semantic boundaries before engineering",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0088-baseline-messenger-semantics-before-engineering.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0148"
+      ]
+    },
+    {
+      "id": "ADR-0089",
+      "title": "Baseline expressive media is bounded inert media",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0089-bounded-inert-expressive-media.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0090",
+      "title": "Content packs are portable inert releases, not app-store objects",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0090-portable-inert-content-packs.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0091",
+      "title": "Standardize a generic entitlement boundary; keep commerce external",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0091-generic-entitlement-boundary-commerce-external.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0092",
+      "title": "Bots and agents are typed service principals; selected context is the default",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0092-typed-service-principals-selected-context-default.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0093",
+      "title": "Executable plugins are capability-sandboxed and cannot define hidden canonical semantics",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0093-capability-sandboxed-plugin-extension-classes.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0094",
+      "title": "0M means zero total control",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0094-zero-total-control-is-a-canonical-om-meaning.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0095",
+      "title": "Service creation is permissionless; agency is authority-based",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0095-service-creation-is-permissionless-and-agency-is-authority-based.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0096",
+      "title": "Bridges preserve foreign provenance and explicitly terminate OM E2EE",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0096-bridges-preserve-foreign-provenance-and-terminate-om-e2ee-explicitly.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0097",
+      "title": "Portable archives restore data, not authority",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0097-portable-archives-restore-data-not-authority.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0098",
+      "title": "Metadata privacy is surface-specific, not implied by E2EE",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0098-metadata-privacy-is-surface-specific.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0099",
+      "title": "Moderation is scoped; shared safety advisories are not authority",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0099-moderation-is-scoped-and-advisories-are-not-authority.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0100",
+      "title": "Published protocol generations are independently preservable and incompatible evolution forks explicitly",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0100-protocol-continuity-bundles-and-explicit-forks.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0101",
+      "title": "Current architecture design queue is closed; verification still blocks engineering",
+      "status": "Accepted",
+      "date": "2026-09-23",
+      "path": "decisions/ADR-0101-design-queue-closed-verification-still-blocks-engineering.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0102",
+      "title": "Home tiers, sponsored starter mailboxes and provider diversity",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0102-home-tiers-sponsored-starter-mailbox-and-provider-diversity.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0112",
+        "ADR-0130",
+        "ADR-0186"
+      ]
+    },
+    {
+      "id": "ADR-0103",
+      "title": "Endpoint coercion, proximate adversaries and platform leakage are first-class threats",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0103-endpoint-coercion-and-platform-leakage.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0104",
+      "title": "Decentralized vulnerability response uses advisories and peer-local floors, never a kill switch",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0104-decentralized-vulnerability-response-without-kill-switch.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0130"
+      ]
+    },
+    {
+      "id": "ADR-0105",
+      "title": "Account retirement is a terminal constitutional transition; legacy policy has minimal power",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0105-account-retirement-succession-and-legacy-policy.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0127",
+        "ADR-0138"
+      ]
+    },
+    {
+      "id": "ADR-0106",
+      "title": "ContinuityAssessment and informed no-recovery",
+      "status": "Accepted; default amended by [ADR-0111](ADR-0111-identity-recovery-on-by-default.md) (recovery on by default). The ContinuityAssessment stay",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0106-continuity-assessment-and-informed-no-recovery.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0107",
+      "title": "Post-quantum status is per conversation type; groups migrate on objective triggers",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0107-per-conversation-pq-status-and-group-pq-transition.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0131",
+        "ADR-0187"
+      ]
+    },
+    {
+      "id": "ADR-0108",
+      "title": "Release waves and scope-granular engineering unlock",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0108-release-waves-and-scoped-engineering-unlock.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0113",
+        "ADR-0134",
+        "ADR-0163"
+      ]
+    },
+    {
+      "id": "ADR-0109",
+      "title": "Gate pass criteria, evidence independence, requirement traceability and a threat register",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0109-gate-pass-criteria-independence-traceability-and-threat-register.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0134"
+      ]
+    },
+    {
+      "id": "ADR-0110",
+      "title": "The repository is canonical; design drops are transport",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0110-repository-is-canonical-design-drops-are-transport.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0139"
+      ]
+    },
+    {
+      "id": "ADR-0111",
+      "title": "Identity recovery is on by default",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0111-identity-recovery-on-by-default.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0127",
+        "ADR-0129",
+        "ADR-0136",
+        "ADR-0138",
+        "ADR-0190"
+      ]
+    },
+    {
+      "id": "ADR-0112",
+      "title": "Cloudflare is the first T1 hosted-Home reference; communities are the growth path",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0112-cloudflare-first-t1-hosted-home-reference.md",
+      "amends": [
+        "ADR-0102"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0113",
+      "title": "Design the whole system first; waves only order delivery",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0113-design-whole-system-first-waves-order-delivery.md",
+      "amends": [
+        "ADR-0108"
+      ],
+      "amended_by": [
+        "ADR-0134"
+      ]
+    },
+    {
+      "id": "ADR-0114",
+      "title": "Co-stewards come from the community; not a first-release blocker",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0114-co-stewards-come-from-the-community.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0115",
+      "title": "Performance budgets are a verification gate (V-022)",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0115-performance-budgets-are-a-gate.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0116",
+      "title": "Verification runs in CI with pinned tools",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0116-verification-ci-and-pinned-tools.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0117",
+      "title": "Can a different AI agent count as an independent reviewer?",
+      "status": "Accepted (Option 2)",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0117-ai-agent-review-and-gate-independence.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0134",
+        "ADR-0167"
+      ]
+    },
+    {
+      "id": "ADR-0118",
+      "title": "Dependency, licensing and update strategy for the production crypto path",
+      "status": "Accepted. §2 resolved as option (d): OM-Crypto-v1 ships without SPQR; a clean-room SPQR (b) is the planned",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0131",
+        "ADR-0135",
+        "ADR-0187"
+      ]
+    },
+    {
+      "id": "ADR-0119",
+      "title": "Freeze the W0 CDDL and registries (V-005)",
+      "status": "Accepted. `spec/cddl/` and `spec/registries/` are frozen.",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0119-freeze-w0-cddl-and-registries.md",
+      "amends": [],
+      "index_title": "Freeze the W0 CDDL and registries",
+      "amended_by": [
+        "ADR-0126",
+        "ADR-0139",
+        "ADR-0140",
+        "ADR-0168",
+        "ADR-0189",
+        "ADR-0192",
+        "ADR-0194"
+      ]
+    },
+    {
+      "id": "ADR-0120",
+      "title": "One-to-one session manager rules",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0120-one-to-one-session-manager-rules.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0136",
+        "ADR-0137",
+        "ADR-0163"
+      ]
+    },
+    {
+      "id": "ADR-0121",
+      "title": "Event ordering, authorization epoch and materialization",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0163",
+        "ADR-0198",
+        "ADR-0223"
+      ]
+    },
+    {
+      "id": "ADR-0122",
+      "title": "Authority reductions, grant cascade and governance protection",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0131"
+      ]
+    },
+    {
+      "id": "ADR-0123",
+      "title": "Moderation evidence access and appeal hold",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0123-moderation-evidence-access-and-appeal-hold.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0124",
+      "title": "Service information flow and bridge provenance",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0124-service-information-flow-and-bridge-provenance.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0129"
+      ]
+    },
+    {
+      "id": "ADR-0125",
+      "title": "Portable archive format rulings",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0125-portable-archive-format-rulings.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0139"
+      ]
+    },
+    {
+      "id": "ADR-0126",
+      "title": "W0 spec addendum from the architecture review",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0126-w0-spec-addendum-from-the-architecture-review.md",
+      "amends": [
+        "ADR-0119"
+      ],
+      "amended_by": [
+        "ADR-0131",
+        "ADR-0138",
+        "ADR-0140",
+        "ADR-0161"
+      ]
+    },
+    {
+      "id": "ADR-0127",
+      "title": "Account authority transition rules",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0127-account-authority-transition-rules.md",
+      "amends": [
+        "ADR-0028",
+        "ADR-0029",
+        "ADR-0105",
+        "ADR-0111"
+      ],
+      "amended_by": [
+        "ADR-0131",
+        "ADR-0136",
+        "ADR-0137",
+        "ADR-0138",
+        "ADR-0147",
+        "ADR-0161",
+        "ADR-0190",
+        "ADR-0191",
+        "ADR-0192"
+      ]
+    },
+    {
+      "id": "ADR-0128",
+      "title": "Group reduction liveness, membership consent and room capabilities",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0128-group-reduction-liveness-membership-consent-and-room-capabilities.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0131",
+        "ADR-0132",
+        "ADR-0138",
+        "ADR-0161",
+        "ADR-0163",
+        "ADR-0173",
+        "ADR-0189",
+        "ADR-0191",
+        "ADR-0222"
+      ]
+    },
+    {
+      "id": "ADR-0129",
+      "title": "Extension, service and client trust boundaries",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0129-extension-service-and-client-trust-boundaries.md",
+      "amends": [
+        "ADR-0111",
+        "ADR-0124"
+      ],
+      "amended_by": [
+        "ADR-0132"
+      ]
+    },
+    {
+      "id": "ADR-0130",
+      "title": "Distribution, provisioning and provider trust roots",
+      "status": "Accepted",
+      "date": "2026-09-24",
+      "path": "decisions/ADR-0130-distribution-provisioning-and-provider-trust-roots.md",
+      "amends": [
+        "ADR-0046",
+        "ADR-0102",
+        "ADR-0104"
+      ],
+      "amended_by": [
+        "ADR-0133",
+        "ADR-0139"
+      ]
+    },
+    {
+      "id": "ADR-0131",
+      "title": "Core-kernel final pre-engineering hardening",
+      "status": "Accepted",
+      "date": "2026-09-25",
+      "path": "decisions/ADR-0131-core-kernel-final-pre-engineering-hardening.md",
+      "amends": [
+        "ADR-0107",
+        "ADR-0118",
+        "ADR-0122",
+        "ADR-0126",
+        "ADR-0127",
+        "ADR-0128"
+      ],
+      "amended_by": [
+        "ADR-0135",
+        "ADR-0140",
+        "ADR-0142",
+        "ADR-0154",
+        "ADR-0161",
+        "ADR-0190"
+      ]
+    },
+    {
+      "id": "ADR-0132",
+      "title": "Abuse, calls and extension-boundary closure",
+      "status": "Accepted",
+      "date": "2026-09-25",
+      "path": "decisions/ADR-0132-abuse-calls-and-extension-boundary-closure.md",
+      "amends": [
+        "ADR-0128",
+        "ADR-0129"
+      ],
+      "amended_by": [
+        "ADR-0136",
+        "ADR-0137"
+      ]
+    },
+    {
+      "id": "ADR-0133",
+      "title": "Provider, release-transparency and conformance closure",
+      "status": "Accepted",
+      "date": "2026-09-25",
+      "path": "decisions/ADR-0133-provider-release-and-conformance-closure.md",
+      "amends": [
+        "ADR-0130"
+      ],
+      "amended_by": [
+        "ADR-0138",
+        "ADR-0201"
+      ]
+    },
+    {
+      "id": "ADR-0134",
+      "title": "Verification execution lifecycle and no-bounce handoff",
+      "status": "Accepted",
+      "date": "2026-09-25",
+      "path": "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
+      "amends": [
+        "ADR-0108",
+        "ADR-0109",
+        "ADR-0113",
+        "ADR-0117"
+      ],
+      "amended_by": [
+        "ADR-0139",
+        "ADR-0163",
+        "ADR-0167"
+      ]
+    },
+    {
+      "id": "ADR-0135",
+      "title": "OM-Crypto-v1 construction pinning (closes the V-001 constructions)",
+      "status": "Accepted for verification; independent review pending (the executor wrote it, so ADR-0117 requires a non-Anthropic reviewer before any gate ",
+      "date": "2026-09-25",
+      "path": "decisions/ADR-0135-om-crypto-v1-construction-pinning.md",
+      "amends": [
+        "ADR-0118",
+        "ADR-0131"
+      ],
+      "amended_by": [
+        "ADR-0136",
+        "ADR-0137",
+        "ADR-0140"
+      ]
+    },
+    {
+      "id": "ADR-0136",
+      "title": "core_kernel independent-review remediation (gpt-5.6-sol, 2026-09-26)",
+      "status": "Accepted for verification; re-review pending (the executor wrote it, so ADR-0117 requires a non-Anthropic reviewer)",
+      "date": "2026-09-26",
+      "path": "decisions/ADR-0136-core-kernel-review-remediation.md",
+      "amends": [
+        "ADR-0111",
+        "ADR-0120",
+        "ADR-0127",
+        "ADR-0132",
+        "ADR-0135"
+      ],
+      "amended_by": [
+        "ADR-0137",
+        "ADR-0138"
+      ]
+    },
+    {
+      "id": "ADR-0137",
+      "title": "Security invariants and core-boundary hardening",
+      "status": "Accepted for verification; independent re-review required under ADR-0117",
+      "date": "2026-09-26",
+      "path": "decisions/ADR-0137-security-invariants-and-core-boundary-hardening.md",
+      "amends": [
+        "ADR-0120",
+        "ADR-0127",
+        "ADR-0132",
+        "ADR-0135",
+        "ADR-0136"
+      ],
+      "amended_by": [
+        "ADR-0138",
+        "ADR-0139",
+        "ADR-0161",
+        "ADR-0168"
+      ]
+    },
+    {
+      "id": "ADR-0138",
+      "title": "Design closure set 1: legacy, privacy profiles and provider-scoped administration",
+      "status": "Accepted architecture design; no engineering authorization implied",
+      "date": "2026-09-26",
+      "path": "decisions/ADR-0138-design-closure-set-1.md",
+      "amends": [
+        "ADR-0105",
+        "ADR-0111",
+        "ADR-0126",
+        "ADR-0127",
+        "ADR-0128",
+        "ADR-0133",
+        "ADR-0136",
+        "ADR-0137"
+      ],
+      "amended_by": [
+        "ADR-0139",
+        "ADR-0140",
+        "ADR-0142",
+        "ADR-0199",
+        "ADR-0200",
+        "ADR-0201"
+      ]
+    },
+    {
+      "id": "ADR-0139",
+      "title": "Final design closure and engineering handoff boundary",
+      "status": "Accepted architecture design; final design-closure decision, no engineering authorization implied",
+      "date": "2026-09-26",
+      "path": "decisions/ADR-0139-final-design-closure-and-engineering-handoff.md",
+      "amends": [
+        "ADR-0110",
+        "ADR-0119",
+        "ADR-0125",
+        "ADR-0130",
+        "ADR-0134",
+        "ADR-0137",
+        "ADR-0138"
+      ],
+      "amended_by": [
+        "ADR-0140",
+        "ADR-0148",
+        "ADR-0156",
+        "ADR-0163"
+      ]
+    },
+    {
+      "id": "ADR-0140",
+      "title": "AsyncKeyBundle v1 privacy, freshness and one-time-prekey context binding",
+      "status": "Accepted architecture remediation; reopens and re-freezes the affected W0 key-material design only",
+      "date": "2026-09-27",
+      "path": "decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md",
+      "amends": [
+        "ADR-0119",
+        "ADR-0126",
+        "ADR-0131",
+        "ADR-0135",
+        "ADR-0138",
+        "ADR-0139"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0141",
+      "title": "Recovery freshness, capability hygiene and frozen-spec consistency",
+      "status": "Accepted",
+      "date": "2026-09-27",
+      "path": "decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0199",
+        "ADR-0201",
+        "ADR-0225",
+        "ADR-0230"
+      ]
+    },
+    {
+      "id": "ADR-0142",
+      "title": "Sealed delivery is mandatory for established OM-Crypto-v1 1:1 relay delivery",
+      "status": "Accepted",
+      "date": "2026-09-27",
+      "path": "decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md",
+      "amends": [
+        "ADR-0131",
+        "ADR-0138"
+      ],
+      "index_title": "Sealed delivery v1 for established one-to-one relationships",
+      "amended_by": [
+        "ADR-0143",
+        "ADR-0144",
+        "ADR-0146",
+        "ADR-0189"
+      ]
+    },
+    {
+      "id": "ADR-0143",
+      "title": "Crash-safe sealed-delivery replay reservation and exact retry completion",
+      "status": "Accepted",
+      "date": "2026-09-27",
+      "path": "decisions/ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md",
+      "amends": [
+        "ADR-0142"
+      ],
+      "amended_by": [
+        "ADR-0144",
+        "ADR-0145"
+      ]
+    },
+    {
+      "id": "ADR-0144",
+      "title": "Pre-review sealed-delivery bootstrap and stale-head semantic closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md",
+      "amends": [
+        "ADR-0142",
+        "ADR-0143"
+      ],
+      "amended_by": [
+        "ADR-0145",
+        "ADR-0147",
+        "ADR-0190"
+      ]
+    },
+    {
+      "id": "ADR-0145",
+      "title": "Bootstrap single-response and completed-retry closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md",
+      "amends": [
+        "ADR-0143",
+        "ADR-0144"
+      ],
+      "amended_by": [
+        "ADR-0146"
+      ]
+    },
+    {
+      "id": "ADR-0146",
+      "title": "Bootstrap candidate terminalization, bounded reply transport and expiry closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md",
+      "amends": [
+        "ADR-0142",
+        "ADR-0145"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0147",
+      "title": "Bootstrap lifetime, restore and durable verifier-timer closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md",
+      "amends": [
+        "ADR-0039",
+        "ADR-0127",
+        "ADR-0144"
+      ],
+      "amended_by": [
+        "ADR-0154",
+        "ADR-0190"
+      ]
+    },
+    {
+      "id": "ADR-0148",
+      "title": "Promote low-risk product foundations into OM V1 without expanding kernel authority",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md",
+      "amends": [
+        "ADR-0036",
+        "ADR-0060",
+        "ADR-0088",
+        "ADR-0139"
+      ],
+      "amended_by": [
+        "ADR-0149",
+        "ADR-0156",
+        "ADR-0162",
+        "ADR-0196"
+      ]
+    },
+    {
+      "id": "ADR-0149",
+      "title": "Adversarial hardening of ADR-0148 promoted V1 foundations",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0149-promoted-v1-adversarial-hardening.md",
+      "amends": [
+        "ADR-0148"
+      ],
+      "amended_by": [
+        "ADR-0155",
+        "ADR-0162"
+      ]
+    },
+    {
+      "id": "ADR-0150",
+      "title": "Promote offline-local delivery, rich lists and native reference targets into V1",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0152",
+        "ADR-0155",
+        "ADR-0156",
+        "ADR-0194",
+        "ADR-0222"
+      ]
+    },
+    {
+      "id": "ADR-0151",
+      "title": "Rich-list validation-layer closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0151-rich-list-validation-layer-closure.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0155"
+      ]
+    },
+    {
+      "id": "ADR-0152",
+      "title": "Promote desktop, replaceable Android wake and local contact cleanup into V1",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md",
+      "amends": [
+        "ADR-0150"
+      ],
+      "amended_by": [
+        "ADR-0153",
+        "ADR-0178"
+      ]
+    },
+    {
+      "id": "ADR-0153",
+      "title": "Wake-registration retirement and residual-leakage closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0153-wake-registration-retirement-and-residual-leakage-closure.md",
+      "amends": [
+        "ADR-0152"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0154",
+      "title": "Verifier-local timer runtime segments and web-verifier liveness",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md",
+      "amends": [
+        "ADR-0131",
+        "ADR-0147"
+      ],
+      "amended_by": [
+        "ADR-0190"
+      ]
+    },
+    {
+      "id": "ADR-0155",
+      "title": "Non-critical extension validity independence and presentation-extension edit closure",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md",
+      "amends": [
+        "ADR-0149",
+        "ADR-0150",
+        "ADR-0151"
+      ],
+      "amended_by": [
+        "ADR-0157"
+      ]
+    },
+    {
+      "id": "ADR-0156",
+      "title": "Engineering-handoff closure: LAN wire binding, later-wave wire freeze, scheduled send and sync namespacing",
+      "status": "Accepted",
+      "date": "2026-09-28",
+      "path": "decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md",
+      "amends": [
+        "ADR-0139",
+        "ADR-0148",
+        "ADR-0150"
+      ],
+      "amended_by": [
+        "ADR-0157",
+        "ADR-0163",
+        "ADR-0176",
+        "ADR-0224"
+      ]
+    },
+    {
+      "id": "ADR-0157",
+      "title": "Independent-review remediation: extension convergence, history-bundle boundary and scheduled-send late binding",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md",
+      "amends": [
+        "ADR-0155",
+        "ADR-0156"
+      ],
+      "amended_by": [
+        "ADR-0161",
+        "ADR-0224"
+      ]
+    },
+    {
+      "id": "ADR-0158",
+      "title": "LanDeliveryProfile v1: private rendezvous, sealed local routes, browser-capable framing",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0158-lan-delivery-profile-v1.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0194",
+        "ADR-0235"
+      ]
+    },
+    {
+      "id": "ADR-0159",
+      "title": "Reconcile the UI/UX interaction model into the V1 reference client",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0159-reconcile-uiux-interaction-model-into-v1-reference-client.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0179"
+      ]
+    },
+    {
+      "id": "ADR-0160",
+      "title": "V-008 Space/Room and Publication wire freeze",
+      "status": "Accepted for W3 wire compatibility; independent review remains required.",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0160-v008-space-publication-wire-freeze.md",
+      "amends": [],
+      "index_title": "V-008 Space/Publication wire freeze",
+      "amended_by": [
+        "ADR-0168"
+      ]
+    },
+    {
+      "id": "ADR-0161",
+      "title": "Terminal DeviceID revocation, mutable-record convergence and GroupHistoryBundle state isolation",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md",
+      "amends": [
+        "ADR-0126",
+        "ADR-0127",
+        "ADR-0128",
+        "ADR-0131",
+        "ADR-0137",
+        "ADR-0157"
+      ],
+      "amended_by": [
+        "ADR-0176"
+      ]
+    },
+    {
+      "id": "ADR-0162",
+      "title": "Conversation-first shell, private adaptive Omnibar and hardened visual/theme semantics",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0162-conversation-first-omnibar-and-theme-visual-system-hardening.md",
+      "amends": [
+        "ADR-0051",
+        "ADR-0053",
+        "ADR-0054",
+        "ADR-0056",
+        "ADR-0057",
+        "ADR-0058",
+        "ADR-0068",
+        "ADR-0148",
+        "ADR-0149"
+      ],
+      "amended_by": [
+        "ADR-0179"
+      ]
+    },
+    {
+      "id": "ADR-0163",
+      "title": "Implementation-readiness contracts, crash-safe group transitions and outcome/retry semantics",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md",
+      "amends": [
+        "ADR-0108",
+        "ADR-0120",
+        "ADR-0121",
+        "ADR-0128",
+        "ADR-0134",
+        "ADR-0139",
+        "ADR-0156"
+      ],
+      "amended_by": [
+        "ADR-0173"
+      ]
+    },
+    {
+      "id": "ADR-0164",
+      "title": "Dangerous algorithms and explicit failure paths",
+      "status": "accepted normative implementation-readiness supplement",
+      "date": "",
+      "path": "decisions/ADR-0164-dangerous-algorithms-and-failure-paths.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0165",
+      "title": "Protocol evolution, compatibility classes and engineering-agent guardrails",
+      "status": "accepted normative evolution/change-control supplement",
+      "date": "",
+      "path": "decisions/ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0166",
+      "title": "Consolidate the parallel 2026-09-29 design lines",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0166-consolidate-parallel-2026-09-29-design-lines.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0179"
+      ]
+    },
+    {
+      "id": "ADR-0167",
+      "title": "Operator-directed single-vendor review model",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0167-operator-single-vendor-review-model.md",
+      "amends": [
+        "ADR-0117",
+        "ADR-0134"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0168",
+      "title": "core_kernel review findings F-14..F-16",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0168-core-kernel-review-findings-f14-f16.md",
+      "amends": [
+        "ADR-0119",
+        "ADR-0137",
+        "ADR-0160"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0169",
+      "title": "Authorize engineering scope `core_kernel` (W0)",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0169-authorize-core-kernel-engineering.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0170",
+      "title": "W0 provider and reference-client review findings",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0170-w0-provider-and-client-review.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0171",
+      "title": "Authorize engineering scope `provider_reference` (W0)",
+      "status": "Accepted",
+      "date": "2026-09-29",
+      "path": "decisions/ADR-0171-authorize-provider-reference-engineering.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0172",
+      "title": "V-006 result, first-release web matrix and `reference_client_ui` authorization (W0)",
+      "status": "Accepted",
+      "date": "2026-10-01",
+      "path": "decisions/ADR-0172-authorize-reference-client-ui-engineering.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0173",
+      "title": "GroupCommitOrdering: same-parent order, fork detection and fork recovery (W1)",
+      "status": "Accepted",
+      "date": "2026-10-01",
+      "path": "decisions/ADR-0173-group-commit-ordering-fork-detection-and-recovery.md",
+      "amends": [
+        "ADR-0128",
+        "ADR-0163"
+      ],
+      "amended_by": [
+        "ADR-0176",
+        "ADR-0189"
+      ]
+    },
+    {
+      "id": "ADR-0174",
+      "title": "Materialization rulings from the second materializer (V-009)",
+      "status": "Accepted",
+      "date": "2026-10-01",
+      "path": "decisions/ADR-0174-materialization-rulings-from-the-second-materializer.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0175",
+      "title": "V-019: the v1-to-hybrid-PQ group migration is an OM-level authenticated transition",
+      "status": "Accepted",
+      "date": "2026-10-01",
+      "path": "decisions/ADR-0175-v019-group-migration-is-an-om-level-authenticated-transition.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0176",
+      "title": "V-004 groups wire freeze: GroupControlState, GroupControlIntent, GroupCommitBinding, GroupHistoryBundle and typed pin/poll bodies (W1)",
+      "status": "Accepted for W1 wire compatibility; the operator-model review (ADR-0167) is recorded with the groups review.",
+      "date": "2026-10-01",
+      "path": "decisions/ADR-0176-v004-groups-wire-freeze.md",
+      "amends": [
+        "ADR-0156",
+        "ADR-0161",
+        "ADR-0173"
+      ],
+      "amended_by": [
+        "ADR-0189",
+        "ADR-0198",
+        "ADR-0223"
+      ]
+    },
+    {
+      "id": "ADR-0177",
+      "title": "Authorize engineering scope `groups` (W1)",
+      "status": "**Accepted** (operator, 2026-10-11). The operator accepted the ADR-0167 single-vendor review basis as is; the cross-vendor re-check stays a ",
+      "date": "2026-10-01",
+      "path": "decisions/ADR-0177-authorize-groups-engineering.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0187",
+        "ADR-0198"
+      ]
+    },
+    {
+      "id": "ADR-0178",
+      "title": "PWA is the canonical client; native shells are thin hosts; store-independent distribution",
+      "status": "Accepted (operator direction, 2026-10-11)",
+      "date": "2026-10-11",
+      "path": "decisions/ADR-0178-pwa-canonical-store-independent-distribution.md",
+      "amends": [
+        "ADR-0007",
+        "ADR-0044",
+        "ADR-0152"
+      ],
+      "amended_by": [
+        "ADR-0187"
+      ]
+    },
+    {
+      "id": "ADR-0179",
+      "title": "The default reference theme is named OM Calm",
+      "status": "Accepted (operator direction, 2026-10-11)",
+      "date": "2026-10-11",
+      "path": "decisions/ADR-0179-default-theme-is-named-om-calm.md",
+      "amends": [
+        "ADR-0159",
+        "ADR-0162",
+        "ADR-0166"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0180",
+      "title": "Web vault passphrase layer; device suspend keeps its confirmation",
+      "status": "Accepted (operator direction, 2026-10-11; recommendations adopted)",
+      "date": "2026-10-11",
+      "path": "decisions/ADR-0180-web-vault-passphrase-layer-and-device-suspend-confirmation.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0181",
+      "title": "First contact in `core_kernel`: per-invite intro identity, hidden requester account, first-contact limits, Core-issued confirmation nonces",
+      "status": "Accepted by operator delegation 2026-10-28",
+      "date": "2026-10-28",
+      "path": "decisions/ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0192",
+        "ADR-0195"
+      ]
+    },
+    {
+      "id": "ADR-0182",
+      "title": "Post-quantum (ML-DSA-65) co-signature on the release-root delegation",
+      "status": "Accepted by operator delegation 2026-10-28",
+      "date": "2026-10-28",
+      "path": "decisions/ADR-0182-post-quantum-co-signature-on-the-release-root-delegation.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0183",
+      "title": "Open beta: which release gates are waived, which are not, and when each comes back",
+      "status": "Accepted by operator delegation 2026-10-29 (operator: \"decide on waivers for the not so necessary parts in development and I approve on thos",
+      "date": "2026-10-29",
+      "path": "decisions/ADR-0183-open-beta-release-waivers.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0184",
+      "title": "Chat-history backup file (`OMB-1`): a password-sealed, history-only file; restoring grants no authority",
+      "status": "Accepted by operator delegation 2026-11-03 (operator: build chat backup as a saved file that works with any storage the person already has; ",
+      "date": "2026-11-03",
+      "path": "decisions/ADR-0184-chat-history-backup-file.md",
+      "amends": [],
+      "index_title": "Chat-history backup file (OMB-1): a password-sealed, history-only file; restoring grants no authority",
+      "amended_by": [
+        "ADR-0196"
+      ]
+    },
+    {
+      "id": "ADR-0185",
+      "title": "Home wake channel (`om.relay.wake.v1`): event-driven delivery instead of a poll timer",
+      "status": "Accepted by operator delegation 2026-11-03 (operator: reduce the exchange with the delivery service to what is needed instead of constant po",
+      "date": "2026-11-03",
+      "path": "decisions/ADR-0185-home-wake-channel.md",
+      "amends": [],
+      "index_title": "Home wake channel (`om.relay.wake.v1`): event-driven delivery instead of a poll timer; optional, polling is the fallback",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0186",
+      "title": "Every person sets up their own relay; no built-in default relay; the deploy button belongs to onboarding",
+      "status": "Accepted",
+      "date": "2026-11-03",
+      "path": "decisions/ADR-0186-every-person-runs-their-own-relay.md",
+      "amends": [
+        "ADR-0102"
+      ],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0187",
+      "title": "The MLS engine on wasm: unforked OpenMLS in the existing Core module, with entropy and time through the existing host imports",
+      "status": "**Accepted** by the operator on 2026-11-14 (option A2, the size budget and the `cargo-deny` exception as proposed below; recorded in \"Operat",
+      "date": "2026-11-14",
+      "path": "decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md",
+      "amends": [
+        "ADR-0107",
+        "ADR-0118",
+        "ADR-0177",
+        "ADR-0178"
+      ],
+      "index_title": "The MLS engine on wasm: unforked OpenMLS in the existing Core module, entropy and time through the existing host imports (accepted by the operator 2026-11-14)",
+      "amended_by": [
+        "ADR-0198"
+      ]
+    },
+    {
+      "id": "ADR-0188",
+      "title": "`border.strong` meets 3:1: the OM Calm component boundary is darkened to the nearest passing value",
+      "status": "Accepted",
+      "date": "2026-11-14",
+      "path": "decisions/ADR-0188-border-strong-meets-3-to-1.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0189",
+      "title": "Group carriage over sealed delivery, when a committer accepts its own Commit, and Room defaults by protection profile",
+      "status": "Accepted",
+      "date": "2026-11-14",
+      "path": "decisions/ADR-0189-group-carriage-own-commit-acceptance-and-room-defaults.md",
+      "amends": [
+        "ADR-0119",
+        "ADR-0128",
+        "ADR-0142",
+        "ADR-0173",
+        "ADR-0176"
+      ],
+      "index_title": "Group carriage over sealed delivery, when a committer accepts its own Commit, and Room defaults by protection profile (accepted by operator delegation 2026-11-14)",
+      "amended_by": [
+        "ADR-0191",
+        "ADR-0198",
+        "ADR-0214"
+      ]
+    },
+    {
+      "id": "ADR-0190",
+      "title": "How a contact verifies a recovery-only successor: evidence travels, time never does",
+      "status": "Accepted",
+      "date": "2026-11-14",
+      "path": "decisions/ADR-0190-contact-side-recovery-verification.md",
+      "amends": [
+        "ADR-0111",
+        "ADR-0127",
+        "ADR-0131",
+        "ADR-0144",
+        "ADR-0147",
+        "ADR-0154"
+      ],
+      "index_title": "How a contact verifies a recovery-only successor: evidence travels, time never does (accepted by operator delegation 2026-11-14)",
+      "amended_by": [
+        "ADR-0199",
+        "ADR-0201"
+      ]
+    },
+    {
+      "id": "ADR-0191",
+      "title": "The Add Commit's transport frame carries the signed account heads of the added accounts",
+      "status": "Accepted",
+      "date": "2026-11-16",
+      "path": "decisions/ADR-0191-add-commit-carries-signed-account-heads.md",
+      "amends": [
+        "ADR-0127",
+        "ADR-0128",
+        "ADR-0189"
+      ],
+      "index_title": "The Add Commit's transport frame carries the signed account heads of the added accounts (accepted by operator delegation 2026-11-16)",
+      "amended_by": [
+        "ADR-0229"
+      ]
+    },
+    {
+      "id": "ADR-0192",
+      "title": "Device-link ceremony: key schedule, transcript MAC, comparison code, replay and expiry context, and the notice signer role",
+      "status": "Accepted",
+      "date": "2026-11-17",
+      "path": "decisions/ADR-0192-device-link-ceremony-transcript-mac-and-notice-signer.md",
+      "amends": [
+        "ADR-0119",
+        "ADR-0127",
+        "ADR-0181"
+      ],
+      "index_title": "Device-link ceremony: key schedule, transcript MAC, comparison code, replay and expiry context, notice signer (accepted by operator delegation 2026-11-16)",
+      "amended_by": [
+        "ADR-0193",
+        "ADR-0195",
+        "ADR-0227",
+        "ADR-0231"
+      ]
+    },
+    {
+      "id": "ADR-0193",
+      "title": "Enrollment liveness: a link is approved with a durable, authenticated, acknowledged notice owed to every other device",
+      "status": "Accepted",
+      "date": "2026-11-17",
+      "path": "decisions/ADR-0193-enrollment-notice-pending-delivery-for-unreachable-devices.md",
+      "amends": [
+        "ADR-0192"
+      ],
+      "index_title": "Enrollment liveness: a link is approved with a durable, acknowledged notice owed to every other device (accepted by operator delegation 2026-11-16)",
+      "amended_by": [
+        "ADR-0195"
+      ]
+    },
+    {
+      "id": "ADR-0194",
+      "title": "Direct large-file transfer: a peer's acknowledgement is a claim; delivery is confirmed by an authenticated integrity receipt",
+      "status": "Accepted",
+      "date": "2026-11-17",
+      "path": "decisions/ADR-0194-direct-transfer-integrity-receipt.md",
+      "amends": [
+        "ADR-0119",
+        "ADR-0150",
+        "ADR-0158"
+      ],
+      "index_title": "Direct transfer: a peer acknowledgement is a claim; delivery needs an authenticated integrity receipt (accepted by operator delegation 2026-11-16)",
+      "amended_by": [
+        "ADR-0235"
+      ]
+    },
+    {
+      "id": "ADR-0195",
+      "title": "Device-link approval: a continuation form for accounts whose chain and credentials exceed one message",
+      "status": "Accepted",
+      "date": "2026-11-17",
+      "path": "decisions/ADR-0195-device-link-approval-continuation-form.md",
+      "amends": [
+        "ADR-0181",
+        "ADR-0192",
+        "ADR-0193"
+      ],
+      "index_title": "Device-link approval: a continuation form for accounts whose chain and credentials exceed one message (accepted by operator delegation 2026-11-17)",
+      "amended_by": [
+        "ADR-0199"
+      ]
+    },
+    {
+      "id": "ADR-0196",
+      "title": "A person's own nickname for a contact: local, in Core's contact record, in the backup, never sent",
+      "status": "Accepted",
+      "date": "2026-11-17",
+      "path": "decisions/ADR-0196-local-contact-nickname.md",
+      "amends": [
+        "ADR-0148",
+        "ADR-0184"
+      ],
+      "index_title": "A person's own nickname for a contact: local, in Core's contact record, in the backup, never sent (accepted by operator delegation 2026-11-17)",
+      "amended_by": [
+        "ADR-0197"
+      ]
+    },
+    {
+      "id": "ADR-0197",
+      "title": "Lookalike display names: a UTS #39 skeleton in the client, a pinned minimal table, calm \"looks similar\" cues",
+      "status": "Accepted",
+      "date": "2026-11-17",
+      "path": "decisions/ADR-0197-lookalike-name-matching.md",
+      "amends": [
+        "ADR-0196"
+      ],
+      "index_title": "Lookalike display names: a UTS #39 skeleton in the client, a pinned minimal table, calm \"looks similar\" cues (accepted by operator delegation 2026-11-17)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0198",
+      "title": "Group application messages carry the typed ConversationEvent: reply, reactions, edit and delete in a Room",
+      "status": "Accepted",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0198-group-application-messages-typed-events.md",
+      "amends": [
+        "ADR-0121",
+        "ADR-0176",
+        "ADR-0177",
+        "ADR-0187",
+        "ADR-0189"
+      ],
+      "index_title": "Group application messages carry the typed ConversationEvent: reply, reactions, edit and delete in a Room (accepted by operator delegation 2026-11-18)",
+      "amended_by": [
+        "ADR-0222",
+        "ADR-0223",
+        "ADR-0229"
+      ]
+    },
+    {
+      "id": "ADR-0199",
+      "title": "RecoveryRecord carriage: the signed head travels in the record, one wire form, and who writes it when",
+      "status": "Accepted",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0199-recoveryrecord-carriage-and-writer-schedule.md",
+      "amends": [
+        "ADR-0138",
+        "ADR-0141",
+        "ADR-0190",
+        "ADR-0195"
+      ],
+      "index_title": "RecoveryRecord carriage: the signed head travels in the record, one wire form, and who writes it when (accepted by operator delegation 2026-11-18)",
+      "amended_by": [
+        "ADR-0225",
+        "ADR-0227",
+        "ADR-0230",
+        "ADR-0232"
+      ]
+    },
+    {
+      "id": "ADR-0200",
+      "title": "The recovery key sheet carries its own place: one checksummed string, no URL ever typed",
+      "status": "Accepted",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0200-recovery-key-sheet-carries-its-place.md",
+      "amends": [
+        "ADR-0138"
+      ],
+      "index_title": "The recovery key sheet carries its own place: one checksummed string, no URL ever typed (accepted by operator delegation 2026-11-18)",
+      "amended_by": [
+        "ADR-0225",
+        "ADR-0230"
+      ]
+    },
+    {
+      "id": "ADR-0201",
+      "title": "Home RecoveryStore API: capability binding, request inbox, veto board and limits",
+      "status": "Accepted",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0201-home-recoverystore-api-inbox-veto-and-limits.md",
+      "amends": [
+        "ADR-0133",
+        "ADR-0138",
+        "ADR-0141",
+        "ADR-0190"
+      ],
+      "index_title": "Home RecoveryStore API: capability binding, request inbox, veto board and limits (accepted by operator delegation 2026-11-18)",
+      "amended_by": [
+        "ADR-0226",
+        "ADR-0234"
+      ]
+    },
+    {
+      "id": "ADR-0202",
+      "title": "Owner recovery evidence, stale requests and controller approval",
+      "status": "Accepted",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0202-owner-recovery-evidence-and-controller-approval.md",
+      "amends": [],
+      "index_title": "Owner recovery evidence, stale requests and controller approval (accepted by operator delegation 2026-11-18)",
+      "amended_by": [
+        "ADR-0225",
+        "ADR-0226",
+        "ADR-0230"
+      ]
+    },
+    {
+      "id": "ADR-0203",
+      "title": "Owner recovery checkpoint and approval carriage",
+      "status": "Accepted by delegation, 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0203-owner-recovery-carriage.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0225",
+        "ADR-0226",
+        "ADR-0230",
+        "ADR-0234"
+      ]
+    },
+    {
+      "id": "ADR-0204",
+      "title": "Typing indicators: off unless the person turns them on, direct channel only, no new relay-visible signal",
+      "status": "Accepted with gates, 2026-11-18 (operator-delegated ruling: the direct-channel-only form is accepted). **Implementation is blocked** until (",
+      "date": "",
+      "path": "decisions/ADR-0204-typing-indicators.md",
+      "amends": [],
+      "index_title": "Typing indicators: off unless the person turns them on, direct channel only (accepted with gates; implementation blocked)",
+      "amended_by": [
+        "ADR-0235"
+      ]
+    },
+    {
+      "id": "ADR-0205",
+      "title": "Replacing the recovery key: accounts without a kit, a newer sheet checkpoint, and what stays open",
+      "status": "Accepted by delegation, 2026-11-18 (fills silence; amends no audited text). Independent review of the composition remains a production gate.",
+      "date": "",
+      "path": "decisions/ADR-0205-replacing-the-recovery-key-and-what-stays-open.md",
+      "amends": [],
+      "index_title": "Replacing the recovery key: accounts without a kit, a newer sheet checkpoint, and what stays open (accepted by delegation 2026-11-18)",
+      "amended_by": [
+        "ADR-0225",
+        "ADR-0227",
+        "ADR-0230",
+        "ADR-0231",
+        "ADR-0232"
+      ]
+    },
+    {
+      "id": "ADR-0206",
+      "title": "Resume relationship recovery after owner recovery",
+      "status": "Accepted by delegation, 2026-11-18, including the Q-REL-1 and Q-REL-2 rulings below.",
+      "date": "",
+      "path": "decisions/ADR-0206-relationship-restore-after-owner-recovery.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0207",
+      "title": "Room rejoin after owner recovery",
+      "status": "Accepted by delegation, 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0207-room-rejoin-after-owner-recovery.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0208",
+      "title": "The local search index at rest",
+      "status": "Accepted by delegation, 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0208-local-search-index-at-rest.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0209",
+      "title": "A change feed for group screens",
+      "status": "Accepted by delegation, 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0209-group-change-feed.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0210",
+      "title": "Push wake through the person's own Home (`om.relay.push.v1`)",
+      "status": "Accepted by operator delegation, 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0210-push-wake-through-the-persons-own-home.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0211",
+      "title": "SQLite Home runtime and local usage accounting",
+      "status": "Accepted by operator delegation for Stage 1 implementation choices",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0211-sqlite-home-runtime-and-local-usage.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0212",
+      "title": "Room admission evidence and frame retry",
+      "status": "Accepted by operator delegation on 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0212-room-admission-evidence-and-frame-retry.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0229"
+      ]
+    },
+    {
+      "id": "ADR-0213",
+      "title": "Compare a contact's AccountID from the contact sheet",
+      "status": "Accepted",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0213-contact-account-id-comparison.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0214",
+      "title": "Mint and revoke per-Room deposit capabilities",
+      "status": "Accepted by delegation",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0214-minted-room-route-revocation.md",
+      "amends": [
+        "ADR-0189"
+      ],
+      "amended_by": [
+        "ADR-0229"
+      ]
+    },
+    {
+      "id": "ADR-0215",
+      "title": "Sync contact nicknames between eligible devices",
+      "status": "Accepted by delegation",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0215-account-private-contact-nickname-sync.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0229"
+      ]
+    },
+    {
+      "id": "ADR-0216",
+      "title": "Approving a linked device as a controller",
+      "status": "Accepted by delegation. The controller exclusion ruling amends no audited text and weakens no security floor.",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0216-controller-approval-ceremony.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0226",
+        "ADR-0227",
+        "ADR-0231",
+        "ADR-0232"
+      ]
+    },
+    {
+      "id": "ADR-0217",
+      "title": "Authorize engineering scope `calls` (W2), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-18, explicit instruction: \"yes, authorize calls\"). This is a decision of the operator, not a review result a",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0217-authorize-calls-engineering.md",
+      "amends": [],
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0218",
+      "title": "Calls wire freeze (CallSignal, type 44) and the constructions the design leaves to engineering",
+      "status": "Accepted for W2 wire compatibility. Rulings 6 to 8 are operator rulings of 2026-11-18 (delegated from the constitution); the other rules are",
+      "date": "2026-11-18",
+      "path": "decisions/ADR-0218-calls-wire-freeze-and-delegated-constructions.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0228",
+        "ADR-0233"
+      ]
+    },
+    {
+      "id": "ADR-0219",
+      "title": "Local one-to-one call lifecycle",
+      "status": "Accepted by operator delegation, 2026-11-18.",
+      "date": "",
+      "path": "decisions/ADR-0219-call-session-lifecycle.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0228",
+        "ADR-0233"
+      ]
+    },
+    {
+      "id": "ADR-0220",
+      "title": "Web call media host and continuity",
+      "status": "Accepted by delegation for engineering under ADR-0217. V-007 release evidence is open.",
+      "date": "",
+      "path": "decisions/ADR-0220-web-call-media-host.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0233"
+      ]
+    },
+    {
+      "id": "ADR-0221",
+      "title": "Own-Home media leases and local call continuity",
+      "status": "",
+      "date": "",
+      "path": "decisions/ADR-0221-own-home-media-leases-and-call-continuity.md",
+      "amends": [],
+      "amended_by": [
+        "ADR-0228",
+        "ADR-0233"
+      ]
+    },
+    {
+      "id": "ADR-0222",
+      "title": "Mentions in one-to-one and group messages: typed inline mention nodes plus the mention set",
+      "status": "Accepted",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0222-mentions-in-one-to-one-and-group-messages.md",
+      "amends": [
+        "ADR-0128",
+        "ADR-0150",
+        "ADR-0198"
+      ],
+      "index_title": "Mentions in one-to-one and group messages: typed inline mention nodes plus the mention set (accepted by operator delegation 2026-11-19)",
+      "amended_by": [
+        "ADR-0223"
+      ]
+    },
+    {
+      "id": "ADR-0223",
+      "title": "Polls in a Room: create, vote, change a vote, close, as typed W1 events with a convergent tally",
+      "status": "Accepted",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0223-polls-in-a-room.md",
+      "amends": [
+        "ADR-0121",
+        "ADR-0176",
+        "ADR-0198",
+        "ADR-0222"
+      ],
+      "index_title": "Polls in a Room: create, vote, change a vote, close, as typed W1 events with a convergent tally (accepted by operator delegation 2026-11-19)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0224",
+      "title": "Device-local scheduled send in the reference client",
+      "status": "Accepted",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0224-device-local-scheduled-send.md",
+      "amends": [
+        "ADR-0156",
+        "ADR-0157"
+      ],
+      "index_title": "Device-local scheduled send in the reference client (accepted by operator delegation 2026-11-19)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0225",
+      "title": "Owner recovery: verification from the saved checkpoint, lineage-keyed record floors and independent relationship-key custody",
+      "status": "Accepted (by operator delegation) Clarified by ADR-0238 (additive note: \"complete verified post-checkpoint chain\" in section 1 is read as th",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0225-owner-recovery-checkpoint-evidence-lineage-floors-and-relationship-key-custody.md",
+      "amends": [
+        "ADR-0141",
+        "ADR-0199",
+        "ADR-0200",
+        "ADR-0202",
+        "ADR-0203",
+        "ADR-0205"
+      ],
+      "index_title": "Owner recovery: verification from the saved checkpoint, lineage-keyed record floors and independent relationship-key custody (accepted by operator delegation 2026-11-19)",
+      "amended_by": [
+        "ADR-0230",
+        "ADR-0232"
+      ]
+    },
+    {
+      "id": "ADR-0226",
+      "title": "Recovery transport: epoch-scoped inbox, request refresh, the veto board, board pacing and ceremony replay",
+      "status": "Accepted (by operator delegation)",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0226-recovery-inbox-epochs-request-refresh-veto-board-pacing-and-ceremony-replay.md",
+      "amends": [
+        "ADR-0201",
+        "ADR-0202",
+        "ADR-0203",
+        "ADR-0216"
+      ],
+      "index_title": "Recovery transport: epoch-scoped inbox, request refresh, the veto board, board pacing and ceremony replay (accepted by operator delegation 2026-11-19)",
+      "amended_by": [
+        "ADR-0232",
+        "ADR-0234"
+      ]
+    },
+    {
+      "id": "ADR-0227",
+      "title": "Safety-code replacement bound to its parent and quorum, kit delivery to an existing main device, and what a replaced code promises",
+      "status": "Accepted (by operator delegation)",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0227-safety-code-replacement-quorum-kit-delivery-to-main-devices-and-the-retired-code-promise.md",
+      "amends": [
+        "ADR-0192",
+        "ADR-0199",
+        "ADR-0205",
+        "ADR-0216"
+      ],
+      "index_title": "Safety-code replacement bound to its parent and quorum, kit delivery to an existing main device, and what a replaced code promises (accepted by operator delegation 2026-11-19)",
+      "amended_by": [
+        "ADR-0231",
+        "ADR-0232"
+      ]
+    },
+    {
+      "id": "ADR-0228",
+      "title": "Calls: per-device media secrets, ordered signalling, answer retry and watchdog, and exact TURN lease lookup",
+      "status": "Accepted (by operator delegation)",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0228-calls-per-device-media-secrets-ordered-signalling-answer-retry-watchdog-and-turn-lease-lookup.md",
+      "amends": [
+        "ADR-0218",
+        "ADR-0219",
+        "ADR-0221"
+      ],
+      "index_title": "Calls: per-device media secrets, ordered signalling, answer retry and watchdog, and exact TURN lease lookup (accepted by operator delegation 2026-11-19)",
+      "amended_by": [
+        "ADR-0233"
+      ]
+    },
+    {
+      "id": "ADR-0229",
+      "title": "Room account evidence scope, retirement of dedicated queues, causal evidence for synchronized preferences and reaction compaction at the bound",
+      "status": "Accepted (by operator delegation)",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0229-room-account-evidence-scope-queue-retirement-preference-causal-evidence-and-reaction-compaction.md",
+      "amends": [
+        "ADR-0191",
+        "ADR-0198",
+        "ADR-0212",
+        "ADR-0214",
+        "ADR-0215"
+      ],
+      "index_title": "Room account evidence scope, retirement of dedicated queues, causal evidence for synchronized preferences and reaction compaction at the bound (accepted by operator delegation 2026-11-19)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0230",
+      "title": "Independent relationship code (second written code), anchored record evidence and restricted restore",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0230-second-written-code-anchored-record-evidence-and-restricted-restore.md",
+      "amends": [
+        "ADR-0141",
+        "ADR-0199",
+        "ADR-0200",
+        "ADR-0202",
+        "ADR-0203",
+        "ADR-0205",
+        "ADR-0225"
+      ],
+      "index_title": "Independent relationship code (second written code), anchored record evidence and restricted restore (accepted by delegation 2026-11-19, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0231",
+      "title": "Operation 3: controller quorum on one staged recovery-policy child",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0231-controller-quorum-on-one-staged-recovery-policy-child-operation-3.md",
+      "amends": [
+        "ADR-0192",
+        "ADR-0205",
+        "ADR-0216",
+        "ADR-0227"
+      ],
+      "index_title": "Operation 3: controller quorum on one staged recovery-policy child (accepted by delegation 2026-11-19, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0232",
+      "title": "Authenticated, repeatable RecoveryKit delivery to eligible controllers",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0232-authenticated-repeatable-recoverykit-delivery-to-eligible-controllers.md",
+      "amends": [
+        "ADR-0199",
+        "ADR-0205",
+        "ADR-0216",
+        "ADR-0225",
+        "ADR-0226",
+        "ADR-0227"
+      ],
+      "index_title": "Authenticated, repeatable RecoveryKit delivery to eligible controllers (accepted by delegation 2026-11-19, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0233",
+      "title": "Device-separated call media keys; group calls remain unauthorized",
+      "status": "Accepted by delegation (2026-11-19) for one-to-one calls: it restates ADR-0228 section 1 and changes no wire byte. **Group calls are not aut",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0233-per-device-call-media-secrets-group-calls-remain-unauthorized.md",
+      "amends": [
+        "ADR-0218",
+        "ADR-0219",
+        "ADR-0220",
+        "ADR-0221",
+        "ADR-0228"
+      ],
+      "index_title": "Device-separated call media keys; group calls remain unauthorized (accepted by delegation 2026-11-19)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0234",
+      "title": "Objection-board privacy boundary, class-aware admission and honest-versus-hostile Home claims",
+      "status": "Accepted by delegation (2026-11-19) **only** for items 1, 2, 3 and 6 (class-aware admission and the honest statement of what a hostile Home ",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0234-objection-board-metadata-and-class-aware-admission.md",
+      "amends": [
+        "ADR-0201",
+        "ADR-0203",
+        "ADR-0226"
+      ],
+      "index_title": "Objection-board privacy boundary, class-aware admission and honest-versus-hostile Home claims (accepted by delegation 2026-11-19 for the admission repair and the claims; class-order and completeness items not adopted)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0235",
+      "title": "Independent metadata ruling for direct-only typing indications",
+      "status": "Proposed / blocked. **Not accepted.** Implementation is blocked by the separate direct-transport authorization (`local_delivery` is not auth",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0235-direct-only-typing-indications-metadata-ruling.md",
+      "amends": [
+        "ADR-0158",
+        "ADR-0194",
+        "ADR-0204"
+      ],
+      "index_title": "Independent metadata ruling for direct-only typing indications (proposed, blocked)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0236",
+      "title": "Operation 3: candidate hash in the private link, authenticated origin preflight and vote direction",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0236-operation-3-private-link-candidate-hash-authenticated-preflight-and-vote-direction.md",
+      "amends": [],
+      "index_title": "Operation 3: candidate hash in the private link, authenticated origin preflight and vote direction (accepted by delegation 2026-11-19, enablement gated; admits a private-link metadata exposure)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0237",
+      "title": "Root-signed RecoveryKit place binding and current-policy carriage in kit delivery",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0237-recoverykit-place-binding-signed-by-the-recovery-method-and-current-policy-carriage.md",
+      "amends": [],
+      "index_title": "Root-signed RecoveryKit place binding and current-policy carriage in kit delivery (accepted by delegation 2026-11-19, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0238",
+      "title": "Anchor successor dossiers, older-sheet classification, root-only no-store custody and the hostname vector correction",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-19). The design is accepted as the specification. Code may not ship or be enabled until ve",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0238-anchor-successor-dossiers-older-sheet-classification-root-only-custody-and-hostname-vector-correction.md",
+      "amends": [],
+      "index_title": "Anchor successor dossiers, older-sheet classification, root-only no-store custody and the hostname vector correction (accepted by delegation 2026-11-19, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0239",
+      "title": "Recovery-veto hourly class quotas: explicit audited Home API amendment required",
+      "status": "Accepted (2026-11-19), by the operator's direct delegation of this decision to the agent (\"you decide on what's best for ADR-0239 based on o",
+      "date": "2026-11-19",
+      "path": "decisions/ADR-0239-home-veto-hourly-per-class-audited-text-amendment.md",
+      "amends": [],
+      "index_title": "Recovery-veto hourly class quotas: audited Home API amendment (accepted, operator-delegated)",
+      "amended_by": []
+    }
+  ]
+}

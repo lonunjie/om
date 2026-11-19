@@ -4,7 +4,10 @@
 `machine/architecture_map.json` maps domains to their canonical docs and ADRs, and `code_paths` maps code paths to the
 domains they implement. This tool turns that into three things:
 
-  needs [PATH ...]      print the domains, docs and ADRs a change to those paths (default: staged files) must be read against
+  needs [--brief] [PATH ...]
+                        print the domains, docs and ADRs a change to those paths (default: staged files) must be read against;
+                          --brief replaces the nine constitution documents with a pointer to CONSTITUTION_DIGEST.md (output
+                          only: the Design-Read domains and the commit-msg demands are unchanged)
   commit-msg FILE       the git hook: a commit that stages code in a mapped path needs two trailers in its message,
                           Design-Read: <domain>, <domain>, ...   (every domain `needs` printed; ids only, no prose)
                           Design-Departures: none | <ADR-nnnn / waiver / R-nnn ids>
@@ -57,11 +60,20 @@ def staged() -> list[str]:
     return [x for x in r.stdout.splitlines() if x]
 
 
-def show(doms: dict[str, list[str]], amap: dict) -> None:
+BRIEF_POINTER = "read docs/constitution/CONSTITUTION_DIGEST.md (or: tools/constitution.py find <topic>)"
+
+
+def show(doms: dict[str, list[str]], amap: dict, brief: bool = False) -> None:
     for dom in sorted(doms):
         d = amap["domains"][dom]
         print(f"{dom}  ({len(doms[dom])} path(s))")
+        pointed = False
         for doc in d.get("docs", []):
+            if brief and dom == "constitution_governance" and doc.startswith("docs/constitution/"):
+                if not pointed:
+                    print(f"    {BRIEF_POINTER}")
+                    pointed = True
+                continue
             print(f"    {doc}")
         if d.get("adrs"):
             print("    " + ", ".join(d["adrs"]))
@@ -69,12 +81,13 @@ def show(doms: dict[str, list[str]], amap: dict) -> None:
 
 def cmd_needs(args: list[str]) -> int:
     amap = load()
-    paths = args or staged()
+    brief = "--brief" in args
+    paths = [a for a in args if a != "--brief"] or staged()
     doms = domains_for(paths, amap)
     if not doms:
         print("no mapped code path: the design gate does not apply")
         return 0
-    show(doms, amap)
+    show(doms, amap, brief)
     print("\nAfter reading them, commit with:\n  Design-Read: " + ", ".join(sorted(doms)) + "\n  Design-Departures: none")
     return 0
 
