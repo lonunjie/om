@@ -15,7 +15,7 @@ use om_core::recovery_record::{
 use om_core::recovery_sheet::{LBL_SHEET_CHECK, OwnerCheckpoint, Sheet, line_check, parse};
 use serde_json::{Value, json};
 
-const BASE32: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+pub(super) const BASE32: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const BASE64URL: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const KEY: [u8; 32] = sequence(0);
 const ROOT: [u8; 32] = sequence(0x40);
@@ -73,7 +73,7 @@ fn relationship_key<'a>(binary: &'a [u8], root: &Sheet) -> Option<&'a [u8; 32]> 
     binary[2..34].try_into().ok()
 }
 
-fn encode_radix(bytes: &[u8], alphabet: &[u8], width: usize) -> String {
+pub(super) fn encode_radix(bytes: &[u8], alphabet: &[u8], width: usize) -> String {
     let mut bits = 0;
     let mut buffer = 0u16;
     let mut text = String::new();
@@ -331,4 +331,50 @@ fn rk2_03_snapshot_layer() {
         bad,
         om_core::crypto::Error::Binding("record: exactly one of keys 7 and 8")
     ));
+}
+
+#[test]
+fn rk2a_06_hostname_sheet_goldens() {
+    let vector = crate::v2::golden("RK2A-06");
+    for (host, expected) in vector.as_object().unwrap() {
+        // Include the deliberately invalid spellings with recomputed checks so
+        // failures distinguish host syntax from corruption.
+        let original = relationship_sheet(&root_sheet(), &KEY);
+        let mut binary = original[..68].to_vec();
+        binary.push(host.len() as u8);
+        binary.extend_from_slice(host.as_bytes());
+        binary.extend_from_slice(&CHECKPOINT.to_bytes());
+        binary.extend_from_slice(&check(&binary));
+        let compact = encode_radix(&binary, BASE32, 5);
+        let sheet = to_sheet_form(&compact);
+        let qr = format!("om:recover/{}", encode_radix(&binary, BASE64URL, 6));
+        let root = Sheet::full_v2(ROOT, SCOPE, None, host, CHECKPOINT);
+        assert_eq!(
+            json!({"valid": root.is_ok(), "binary": hex(&binary), "compact": compact, "sheet": sheet, "qr": qr}),
+            *expected
+        );
+        for representation in [&compact, &sheet, &qr] {
+            assert!(
+                parse(representation).is_err(),
+                "relationship kind rejected at root entry"
+            );
+        }
+        if let Ok(root) = root {
+            assert_eq!(relationship_sheet(&root, &KEY), binary);
+            for representation in [&compact, &sheet, &qr] {
+                assert_eq!(relationship_text(representation, &root), Some(KEY));
+            }
+            let mut corrupt = binary;
+            *corrupt.last_mut().unwrap() ^= 1;
+            assert!(relationship_key(&corrupt, &root).is_none());
+        } else {
+            // Change only the kind and recompute the check. The normal sheet
+            // parser must still reject the host independently of kind/check.
+            binary[1] = 1;
+            let end = binary.len() - 4;
+            let checksum = check(&binary[..end]);
+            binary[end..].copy_from_slice(&checksum);
+            assert!(Sheet::from_bytes(&binary).is_err(), "{host}");
+        }
+    }
 }

@@ -27,7 +27,7 @@ mod tests {
         V::T(data.into())
     }
 
-    fn transcript(operation: u64) -> Value {
+    pub(super) fn transcript(operation: u64) -> Value {
         let offer = ra::Offer {
             expiry_s: 1_800_000_000,
             secret: std::array::from_fn(|i| i as u8),
@@ -93,3 +93,6 @@ mod tests {
         assert_eq!(differences, vec![(&0, &3)]);
     }
 }
+
+#[cfg(test)]
+mod v2;
