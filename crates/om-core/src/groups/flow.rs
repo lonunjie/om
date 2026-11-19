@@ -285,11 +285,22 @@ pub struct GroupMention {
     pub account: String,
 }
 
+fn group_reaction_order(r: &GroupReactionRec) -> (u64, u64, u32) {
+    (r.epoch, r.clock_ms, r.clock_logical)
+}
+
 impl GroupMsg {
-    /// The reactions as a person sees them: each key once, how many members have it set, and whether one is ours.
+    /// The reactions as a person sees them: each key once, how many members have it set, and whether one is ours. Per member
+    /// only the 16 present registers with the highest order are shown (ADR-0229 section 5).
     pub fn reaction_counts(&self) -> Vec<(String, usize, bool)> {
         let mut out: Vec<(String, usize, bool)> = vec![];
-        for r in self.reactions.iter().filter(|r| r.present) {
+        let flags = crate::flows::social::shown_flags(
+            &self.reactions,
+            |r| r.account.clone(),
+            |r| r.present,
+            group_reaction_order,
+        );
+        for (r, _) in self.reactions.iter().zip(flags).filter(|(_, s)| *s) {
             match out.iter_mut().find(|v| v.0 == r.key) {
                 Some(v) => {
                     v.1 += 1;
@@ -1958,8 +1969,19 @@ impl AppState {
         if !crate::flows::social::valid_reaction_key(key) {
             return err("bad_reaction");
         }
-        if self.group_shown(conv, message_id).is_none() {
+        let Some(shown) = self.group_shown(conv, message_id) else {
             return err("not_found");
+        };
+        if present {
+            // ADR-0229 section 5: our own client refuses a seventeenth present reaction on a message.
+            let me = h(&ctx.my_account);
+            let mine = |r: &&GroupReactionRec| r.account == me && r.present;
+            if !shown.reactions.iter().filter(mine).any(|r| r.key == key)
+                && shown.reactions.iter().filter(mine).count()
+                    >= crate::flows::social::MAX_REACTIONS_SHOWN
+            {
+                return err("too_many_reactions");
+            }
         }
         let body = V::M(vec![
             (0, V::B(id16(message_id)?.to_vec())),
@@ -2388,46 +2410,26 @@ impl AppState {
                 if author.epoch < m.epoch {
                     return Applied::Refused("event_before_target");
                 }
-                if let Some(r) = m
-                    .reactions
-                    .iter_mut()
-                    .find(|r| r.account == author.account && r.key == key)
-                {
-                    if order > (r.epoch, r.clock_ms, r.clock_logical) {
-                        r.present = present;
-                        (r.epoch, r.clock_ms, r.clock_logical) = order;
-                        return Applied::Changed(id);
-                    }
-                    return Applied::Nothing;
+                let changed = crate::flows::social::admit_register(
+                    &mut m.reactions,
+                    |r| r.account == author.account,
+                    |r| r.key == key,
+                    group_reaction_order,
+                    GroupReactionRec {
+                        account: author.account.clone(),
+                        key: key.clone(),
+                        present,
+                        mine: author.mine,
+                        epoch: order.0,
+                        clock_ms: order.1,
+                        clock_logical: order.2,
+                    },
+                );
+                if changed {
+                    Applied::Changed(id)
+                } else {
+                    Applied::Nothing
                 }
-                let held = m
-                    .reactions
-                    .iter()
-                    .filter(|r| r.account == author.account)
-                    .count();
-                if held >= crate::flows::social::MAX_REACTIONS_PER_ACTOR {
-                    // full: a removed one makes room, otherwise the new one is not kept
-                    match m
-                        .reactions
-                        .iter()
-                        .position(|r| r.account == author.account && !r.present)
-                    {
-                        Some(i) => {
-                            m.reactions.remove(i);
-                        }
-                        None => return Applied::Nothing,
-                    }
-                }
-                m.reactions.push(GroupReactionRec {
-                    account: author.account.clone(),
-                    key,
-                    present,
-                    mine: author.mine,
-                    epoch: order.0,
-                    clock_ms: order.1,
-                    clock_logical: order.2,
-                });
-                Applied::Changed(id)
             }
             _ => Applied::Refused("unsupported_kind"),
         }

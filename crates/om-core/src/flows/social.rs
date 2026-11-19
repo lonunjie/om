@@ -7,8 +7,83 @@ use super::*;
 
 /// A reaction key is a Unicode token of 1 to 64 bytes (`ReactionSet` in events.cddl).
 pub const MAX_REACTION_KEY_BYTES: usize = 64;
-/// Registers kept per person and message (adds and tombstones together). A bound on what a peer can make us store.
-pub const MAX_REACTIONS_PER_ACTOR: usize = 16;
+/// Registers kept per person and message (adds and removals together). A bound on what a peer can make us store
+/// (ADR-0229 section 5).
+pub const MAX_REACTION_REGISTERS: usize = 64;
+/// Present reactions shown per person and message: the present registers with the highest order (ADR-0229 section 5).
+pub const MAX_REACTIONS_SHOWN: usize = 16;
+
+/// The order of a register: `(sending epoch, EventClock physical, EventClock logical)`; a one-to-one chat has no epoch.
+pub(crate) type RegOrder = (u64, u64, u32);
+
+/// Admit one event into a bounded register set by order, never by arrival (ADR-0229 section 5 items 2 to 4). `in_scope`
+/// selects the registers of this actor, `is_key` the register of the event's key. A register for the key is replaced only by
+/// a higher order. Otherwise it is inserted when fewer than `MAX_REACTION_REGISTERS` are held, or, when full, evicts the
+/// lowest-ordered register only if the event is ordered above it; an event at or below the lowest retained order is
+/// refused, whether an add or a removal. The retained set is the registers with the highest order of their latest event,
+/// a function of the set of events and not of their arrival order. Returns whether the set changed.
+pub(crate) fn admit_register<T>(
+    regs: &mut Vec<T>,
+    in_scope: impl Fn(&T) -> bool,
+    is_key: impl Fn(&T) -> bool,
+    ord: impl Fn(&T) -> RegOrder,
+    new: T,
+) -> bool {
+    let new_ord = ord(&new);
+    if let Some(i) = regs.iter().position(|r| in_scope(r) && is_key(r)) {
+        if new_ord > ord(&regs[i]) {
+            regs[i] = new;
+            return true;
+        }
+        return false;
+    }
+    let held = regs.iter().filter(|r| in_scope(r)).count();
+    if held >= MAX_REACTION_REGISTERS {
+        let Some(low) = regs
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| in_scope(r))
+            .min_by_key(|(_, r)| ord(r))
+            .map(|(i, _)| i)
+        else {
+            return false;
+        };
+        if new_ord <= ord(&regs[low]) {
+            return false;
+        }
+        regs.remove(low);
+    }
+    regs.push(new);
+    true
+}
+
+/// Mark the registers that are shown: of the present ones of each actor (`actor_of`), the `MAX_REACTIONS_SHOWN` with the
+/// highest order. Returns one flag per register.
+pub(crate) fn shown_flags<T>(
+    regs: &[T],
+    actor_of: impl Fn(&T) -> String,
+    present: impl Fn(&T) -> bool,
+    ord: impl Fn(&T) -> RegOrder,
+) -> Vec<bool> {
+    let mut flags = vec![false; regs.len()];
+    let mut by_actor: std::collections::BTreeMap<String, Vec<usize>> = Default::default();
+    for (i, r) in regs.iter().enumerate() {
+        if present(r) {
+            by_actor.entry(actor_of(r)).or_default().push(i);
+        }
+    }
+    for idx in by_actor.values_mut() {
+        idx.sort_by_key(|&i| std::cmp::Reverse(ord(&regs[i])));
+        for &i in idx.iter().take(MAX_REACTIONS_SHOWN) {
+            flags[i] = true;
+        }
+    }
+    flags
+}
+
+fn rec_order(r: &ReactionRec) -> RegOrder {
+    (0, r.clock_ms, r.clock_logical)
+}
 
 pub(crate) fn valid_reaction_key(k: &str) -> bool {
     !k.trim().is_empty() && k.len() <= MAX_REACTION_KEY_BYTES && !k.chars().any(|c| c.is_control())
@@ -31,30 +106,19 @@ pub(super) fn apply_reaction(
         return false;
     };
     let recs = &mut m.social.reactions;
-    if let Some(r) = recs.iter_mut().find(|r| r.mine == mine && r.key == key) {
-        if (clock.physical_ms, clock.logical) > (r.clock_ms, r.clock_logical) {
-            r.present = present;
-            r.clock_ms = clock.physical_ms;
-            r.clock_logical = clock.logical;
-        }
-        return true;
-    }
-    if recs.iter().filter(|r| r.mine == mine).count() >= MAX_REACTIONS_PER_ACTOR {
-        // Full: a removed one makes room, otherwise the new one is not kept.
-        match recs.iter().position(|r| r.mine == mine && !r.present) {
-            Some(i) => {
-                recs.remove(i);
-            }
-            None => return true,
-        }
-    }
-    recs.push(ReactionRec {
-        mine,
-        key: key.to_string(),
-        present,
-        clock_ms: clock.physical_ms,
-        clock_logical: clock.logical,
-    });
+    admit_register(
+        recs,
+        |r| r.mine == mine,
+        |r| r.key == key,
+        rec_order,
+        ReactionRec {
+            mine,
+            key: key.to_string(),
+            present,
+            clock_ms: clock.physical_ms,
+            clock_logical: clock.logical,
+        },
+    );
     true
 }
 
@@ -117,7 +181,19 @@ pub(super) fn apply_edit_delete(
 /// The reactions of a message as a person sees them: each key once, how many have it set, and whether one is ours.
 pub(crate) fn reaction_views(m: &Msg) -> Vec<ReactionView> {
     let mut out: Vec<ReactionView> = vec![];
-    for r in m.social.reactions.iter().filter(|r| r.present) {
+    let flags = shown_flags(
+        &m.social.reactions,
+        |r| r.mine.to_string(),
+        |r| r.present,
+        rec_order,
+    );
+    for (r, _) in m
+        .social
+        .reactions
+        .iter()
+        .zip(flags)
+        .filter(|(_, shown)| *shown)
+    {
         match out.iter_mut().find(|v| v.key == r.key) {
             Some(v) => {
                 v.count += 1;
@@ -425,6 +501,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Ok(())
     }
 
+    /// Whether adding our present reaction `key` would make more than `MAX_REACTIONS_SHOWN` of ours present on the message.
+    fn own_reaction_would_exceed(&self, conv: &str, message_id: &str, key: &str) -> bool {
+        let Some(m) = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .and_then(|r| r.messages.iter().find(|m| m.id == message_id))
+        else {
+            return false;
+        };
+        let mine = &m.social.reactions;
+        !mine.iter().any(|r| r.mine && r.present && r.key == key)
+            && mine.iter().filter(|r| r.mine && r.present).count() >= MAX_REACTIONS_SHOWN
+    }
+
     pub(super) fn set_reaction(
         &mut self,
         op: &OperationId,
@@ -444,6 +536,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(target) = self.event_target(conv, message_id) else {
             return reject(self, RejectReason::NotFound);
         };
+        if present && self.own_reaction_would_exceed(conv, message_id, key) {
+            return reject(self, RejectReason::Invalid); // ADR-0229 s5: no seventeenth present reaction
+        }
         let body = V::M(vec![
             (0, V::B(target.to_vec())),
             (1, V::T(key.to_string())),
@@ -456,5 +551,144 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             apply_reaction(&mut r.messages, message_id, true, key, present, clock);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod register_tests {
+    //! ADR-0229 section 5: the register set is the 64 keys with the highest order of their latest event, whatever the delivery
+    //! order, for both reducers; at most 16 present reactions per member are shown.
+    use super::*;
+    use crate::groups::flow::GroupReactionRec;
+
+    /// `(key index, present, order)`: 70 keys, each added and some later removed, plus a removal that churn evicts and an
+    /// earlier add of the same key that arrives after it.
+    fn events() -> Vec<(usize, bool, u64)> {
+        let mut v = vec![];
+        for k in 0..70usize {
+            v.push((k, true, 10 + k as u64));
+        }
+        for k in (0..70usize).step_by(3) {
+            v.push((k, false, 200 + k as u64));
+        }
+        // key 100: removed at 5 and added at 4 (the add is older than the removal and than the floor once churned)
+        v.push((100, false, 5));
+        v.push((100, true, 4));
+        v
+    }
+
+    fn shuffled(mut v: Vec<(usize, bool, u64)>, seed: u64) -> Vec<(usize, bool, u64)> {
+        let mut x = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        for i in (1..v.len()).rev() {
+            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            v.swap(i, (x >> 33) as usize % (i + 1));
+        }
+        v
+    }
+
+    fn run_1to1(order: &[(usize, bool, u64)]) -> Vec<(String, bool, u64)> {
+        let mut regs: Vec<ReactionRec> = vec![];
+        for &(k, present, o) in order {
+            admit_register(
+                &mut regs,
+                |r| r.mine,
+                |r| r.key == format!("k{k}"),
+                rec_order,
+                ReactionRec {
+                    mine: true,
+                    key: format!("k{k}"),
+                    present,
+                    clock_ms: o,
+                    clock_logical: 0,
+                },
+            );
+        }
+        assert!(regs.len() <= MAX_REACTION_REGISTERS);
+        let mut out: Vec<_> = regs.iter().map(|r| (r.key.clone(), r.present, r.clock_ms)).collect();
+        out.sort();
+        out
+    }
+
+    fn run_group(order: &[(usize, bool, u64)]) -> Vec<(String, bool, u64)> {
+        let mut regs: Vec<GroupReactionRec> = vec![];
+        for &(k, present, o) in order {
+            admit_register(
+                &mut regs,
+                |r| r.account == "a",
+                |r| r.key == format!("k{k}"),
+                |r| (r.epoch, r.clock_ms, r.clock_logical),
+                GroupReactionRec {
+                    account: "a".into(),
+                    key: format!("k{k}"),
+                    present,
+                    mine: false,
+                    epoch: 0,
+                    clock_ms: o,
+                    clock_logical: 0,
+                },
+            );
+        }
+        assert!(regs.len() <= MAX_REACTION_REGISTERS);
+        let mut out: Vec<_> = regs.iter().map(|r| (r.key.clone(), r.present, r.clock_ms)).collect();
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn same_events_in_any_order_keep_the_same_registers() {
+        let base = events();
+        let want1 = run_1to1(&base);
+        let wantg = run_group(&base);
+        assert_eq!(want1, wantg);
+        assert_eq!(want1.len(), MAX_REACTION_REGISTERS);
+        for seed in 0..200u64 {
+            let p = shuffled(base.clone(), seed);
+            assert_eq!(run_1to1(&p), want1, "1:1 seed {seed}");
+            assert_eq!(run_group(&p), wantg, "group seed {seed}");
+        }
+        let mut rev = base.clone();
+        rev.reverse();
+        assert_eq!(run_1to1(&rev), want1);
+    }
+
+    #[test]
+    fn an_older_event_than_the_lowest_retained_is_refused_add_or_removal() {
+        let mut regs: Vec<ReactionRec> = vec![];
+        let put = |regs: &mut Vec<ReactionRec>, k: usize, present: bool, o: u64| {
+            admit_register(
+                regs,
+                |r| r.mine,
+                |r| r.key == format!("k{k}"),
+                rec_order,
+                ReactionRec { mine: true, key: format!("k{k}"), present, clock_ms: o, clock_logical: 0 },
+            )
+        };
+        for k in 0..64 {
+            assert!(put(&mut regs, k, true, 100 + k as u64));
+        }
+        assert!(!put(&mut regs, 900, true, 50), "older add refused");
+        assert!(!put(&mut regs, 901, false, 50), "older removal refused");
+        assert!(put(&mut regs, 902, false, 500), "newer removal evicts the lowest");
+        assert!(!regs.iter().any(|r| r.key == "k0"));
+        assert!(!put(&mut regs, 0, true, 100), "the evicted key's old add stays refused");
+    }
+
+    #[test]
+    fn only_the_sixteen_highest_present_registers_are_shown_per_actor() {
+        let mut regs: Vec<ReactionRec> = vec![];
+        for k in 0..40usize {
+            admit_register(
+                &mut regs,
+                |r| r.mine,
+                |r| r.key == format!("k{k}"),
+                rec_order,
+                ReactionRec { mine: true, key: format!("k{k}"), present: true, clock_ms: k as u64, clock_logical: 0 },
+            );
+        }
+        let flags = shown_flags(&regs, |r| r.mine.to_string(), |r| r.present, rec_order);
+        assert_eq!(flags.iter().filter(|f| **f).count(), MAX_REACTIONS_SHOWN);
+        for (r, f) in regs.iter().zip(flags) {
+            assert_eq!(f, r.clock_ms >= 24);
+        }
     }
 }
