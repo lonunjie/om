@@ -336,7 +336,9 @@ impl crate::state::AppState {
                     let endpoint = mls(engine.key_package_endpoint(&kps[0]))?;
                     let (target, _) = super::target_of(&intent.args)?;
                     endpoint.device == device
-                        && self.group_bind(&[endpoint], Some(&target.id)).is_ok()
+                        && self
+                            .group_bind(&hex(&conv), &[endpoint], Some(&target.id))
+                            .is_ok()
                 }
                 CommitPlan::Remove(devs) => devs.as_slice() == [device],
                 _ => false,
@@ -637,7 +639,9 @@ impl crate::state::AppState {
             let valid = if intent.operation == op::DEVICE_ADD {
                 ci.removed.is_empty()
                     && matches!(ci.added.as_slice(), [leaf] if leaf.device == device)
-                    && self.group_bind(&ci.added, Some(&target.id)).is_ok()
+                    && self
+                        .group_bind(&hex(&bd.conversation_id), &ci.added, Some(&target.id))
+                        .is_ok()
             } else {
                 ci.added.is_empty() && ci.removed.as_slice() == [device]
             };

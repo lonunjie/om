@@ -44,7 +44,7 @@ fn un(x: &str) -> R<Vec<u8>> {
 fn un16(x: &str) -> R<[u8; 16]> {
     un(x)?.try_into().map_err(|_| GroupError("record_corrupt"))
 }
-fn invite_room(invite_id: &str) -> String {
+pub(super) fn invite_room(invite_id: &str) -> String {
     format!("invite:{invite_id}")
 }
 
@@ -986,9 +986,15 @@ impl AppState {
         Ok(out)
     }
 
-    /// Verify an initial Room-only account pin. The authenticated member vouches for the association with this Room;
-    /// the ACS chain, the current controller signature and each released credential prove the device authorization.
-    fn carry_room_head(&self, h: &cg::AccountHead) -> Option<super::carriage::RoomHead> {
+    /// Verify a carried account proof for `room` (ADR-0229 section 1). With no pin for the account in this Room, an initial
+    /// Room-only pin: the authenticated member vouches for the association with this Room; the ACS chain, the current
+    /// controller signature and each released credential prove the device authorization. With a Room-only pin already
+    /// held for the account in this Room, a verified extension of exactly that pin: the chain contains the pinned state
+    /// (generation and digest), every later transition verifies under the ordinary verifier, and the tip is the current
+    /// verified state. A different state at the pinned generation is a conflict. A chain that does not contain the pin,
+    /// or whose tip is not higher, changes nothing. A direct relationship pin is advanced only by the relationship path,
+    /// and a chain that crosses a recovery link does not verify here (`verify_chain` takes no recovery evidence).
+    fn carry_room_head(&self, room: &str, h: &cg::AccountHead) -> RoomHeadVerdict {
         let account = hex(&h.account);
         if self
             .carry_own_tip()
@@ -997,17 +1003,22 @@ impl AppState {
                 .relationships
                 .values()
                 .any(|r| r.peer_account_id == account && !r.peer_acs_body.is_empty())
-            || self.group_carriage.room_heads.contains_key(&account)
         {
-            return None;
+            return RoomHeadVerdict::Ignore;
         }
-        let acs = control::verify_chain(&h.chain, &h.credentials).ok()?;
+        let held = self
+            .group_carriage
+            .room_heads
+            .get(&cg::room_head_key(room, &account));
+        let Ok(acs) = control::verify_chain(&h.chain, &h.credentials) else {
+            return RoomHeadVerdict::Ignore;
+        };
         if acs.account_id != h.account
             || acs.body() != h.state
             || control::safety_frozen(&acs)
             || !Self::carry_head_matches(&acs, &h.credentials, &h.head)
         {
-            return None;
+            return RoomHeadVerdict::Ignore;
         }
         let creds: Vec<Credential> = h
             .credentials
@@ -1021,10 +1032,32 @@ impl AppState {
                         .any(|(d, x)| *d == c.device_id && *x == c.hash())
             })
             .collect();
-        Some(super::carriage::RoomHead {
+        let rh = super::carriage::RoomHead {
             state: hex(&h.state),
             credentials: creds.iter().map(|c| hex(&c.body())).collect(),
-        })
+            conflict: false,
+        };
+        let Some(held) = held else {
+            return RoomHeadVerdict::Initial(rh);
+        };
+        let Some(pinned) = unhex(&held.state)
+            .ok()
+            .and_then(|b| Acs::from_body(&b).ok())
+        else {
+            return RoomHeadVerdict::Ignore;
+        };
+        let at_generation = h.chain.iter().find_map(|s| {
+            let a =
+                Acs::from_body(crate::crypto::cbor::decode(s).ok()?.get(1).ok()?.b().ok()?).ok()?;
+            (a.generation == pinned.generation).then_some(a)
+        });
+        match at_generation {
+            Some(a) if a.hash() != pinned.hash() => RoomHeadVerdict::Conflict,
+            Some(_) if !held.conflict && acs.generation > pinned.generation => {
+                RoomHeadVerdict::Advance(rh)
+            }
+            _ => RoomHeadVerdict::Ignore,
+        }
     }
 
     // ------------------------------------------------------------------------------------------ outbox and G10
@@ -1333,7 +1366,7 @@ impl AppState {
     /// with that account. A self-signature proves nothing and is never consulted. `Hold` is not a refusal: the head
     /// that would commit it may be stale (a relationship exists, so the existing K7 refresh can supply it) or unknown
     /// (no relationship: nothing in the design says where to anchor it, report question Q5).
-    fn carry_trust(&self, signed: &[u8]) -> R<Trust> {
+    fn carry_trust(&self, room: &str, signed: &[u8]) -> R<Trust> {
         let body = cg::envelope_body(signed)?;
         let cred = Credential::from_body(&body).map_err(|_| GroupError("malformed"))?;
         let hb = hex(&body);
@@ -1374,13 +1407,17 @@ impl AppState {
         }
         if rels.is_empty() {
             // no head of ours for this account: a head the Welcome carried and this device verified may prove it
-            if self.group_carriage.room_heads.get(&acct).is_some_and(|rh| {
-                rh.credentials.contains(&hb)
-                    && unhex(&rh.state)
-                        .ok()
-                        .and_then(|b| Acs::from_body(&b).ok())
-                        .is_some_and(|a| super::endpoint::active_in(&a, &cred))
-            }) {
+            if self
+                .group_carriage
+                .room_head(room, &acct)
+                .is_some_and(|rh| {
+                    rh.credentials.contains(&hb)
+                        && unhex(&rh.state)
+                            .ok()
+                            .and_then(|b| Acs::from_body(&b).ok())
+                            .is_some_and(|a| super::endpoint::active_in(&a, &cred))
+                })
+            {
                 return Ok(Trust::Ok(cred));
             }
             Ok(Trust::Hold {
@@ -1698,8 +1735,9 @@ impl AppState {
             let actor_rec = dir
                 .get(&hex(&actor))
                 .ok_or(GroupError("non_roster_sender"))?;
-            if !self.group_device_authorized(&un(&pk.account)?, &committer, &committer_pk)
+            if !self.group_device_authorized(room, &un(&pk.account)?, &committer, &committer_pk)
                 || !self.group_device_authorized(
+                    room,
                     &un(&actor_rec.account)?,
                     &actor,
                     &un(&actor_rec.pk)?,
@@ -1722,16 +1760,27 @@ impl AppState {
             .collect();
         let mut added_heads: Vec<(String, [u8; 32])> = vec![];
         for h in heads.iter().filter(|h| named.contains(&h.account)) {
-            if let Some(rh) = self.carry_room_head(h) {
-                let k = hex(&h.account);
-                self.group_carriage.room_heads.insert(k.clone(), rh);
-                added_heads.push((k, h.account));
+            let k = cg::room_head_key(room, &hex(&h.account));
+            match self.carry_room_head(room, h) {
+                RoomHeadVerdict::Initial(rh) => {
+                    self.group_carriage.room_heads.insert(k.clone(), rh);
+                    added_heads.push((k, h.account));
+                }
+                RoomHeadVerdict::Advance(rh) => {
+                    self.group_carriage.room_heads.insert(k, rh);
+                }
+                RoomHeadVerdict::Conflict => {
+                    if let Some(rh) = self.group_carriage.room_heads.get_mut(&k) {
+                        rh.conflict = true;
+                    }
+                }
+                RoomHeadVerdict::Ignore => {}
             }
         }
         // Evidence for added devices: every credential chains to a validated head, every route verifies.
         let (mut ok, mut refresh, mut unanchored) = (vec![], vec![], vec![]);
         for e in &added {
-            match self.carry_trust(&e.credential)? {
+            match self.carry_trust(room, &e.credential)? {
                 Trust::Ok(cred) => {
                     if cred.device_id != e.device {
                         return err("route_for_another_device");
@@ -1846,16 +1895,27 @@ impl AppState {
             .collect();
         let mut added_heads = vec![];
         for h in heads.iter().filter(|h| named.contains(&h.account)) {
-            if let Some(rh) = self.carry_room_head(h) {
-                let k = hex(&h.account);
-                self.group_carriage.room_heads.insert(k.clone(), rh);
-                added_heads.push(k);
+            let k = cg::room_head_key(room, &hex(&h.account));
+            match self.carry_room_head(room, h) {
+                RoomHeadVerdict::Initial(rh) => {
+                    self.group_carriage.room_heads.insert(k.clone(), rh);
+                    added_heads.push(k);
+                }
+                RoomHeadVerdict::Advance(rh) => {
+                    self.group_carriage.room_heads.insert(k, rh);
+                }
+                RoomHeadVerdict::Conflict => {
+                    if let Some(rh) = self.group_carriage.room_heads.get_mut(&k) {
+                        rh.conflict = true;
+                    }
+                }
+                RoomHeadVerdict::Ignore => {}
             }
         }
         let (mut verified, mut dir) = (vec![], vec![]);
         let (mut refresh, mut unanchored) = (vec![], vec![]);
         for e in &routes {
-            match self.carry_trust(&e.credential)? {
+            match self.carry_trust(room, &e.credential)? {
                 Trust::Ok(cred) => {
                     if cred.device_id != e.device {
                         return err("route_for_another_device");
@@ -1934,6 +1994,18 @@ impl AppState {
     }
 }
 
+/// The verdict of [`AppState::carry_room_head`].
+enum RoomHeadVerdict {
+    /// Not usable, or nothing to change.
+    Ignore,
+    /// The first pin of this account in this Room.
+    Initial(super::carriage::RoomHead),
+    /// A verified extension of the pin held for this Room.
+    Advance(super::carriage::RoomHead),
+    /// A different state at the pinned generation: the account is pending in this Room.
+    Conflict,
+}
+
 /// The verdict of [`AppState::carry_trust`].
 enum Trust {
     Ok(Credential),
@@ -1949,4 +2021,206 @@ struct Held<'a> {
     since: Option<u64>,
     now_s: u64,
     room: &'a str,
+}
+
+#[cfg(test)]
+mod room_pin_tests {
+    //! ADR-0229 section 1: a Room's account pin belongs to that Room and advances only along a verified descendant.
+    use super::*;
+    use crate::crypto::rng::insecure_test_rng::InsecureTestRng;
+    use crate::crypto::store::Device;
+
+    struct Chain {
+        signer_dev: Device,
+        states: Vec<Acs>,
+        signed: Vec<Vec<u8>>,
+        creds: Vec<Vec<u8>>,
+    }
+
+    /// A one-controller account: genesis, then each further state adds one messaging device (`n` states in all), or, for
+    /// `revoke_last`, revokes the device the previous state added.
+    fn chain(rng: &mut InsecureTestRng, dev: Device, n: usize, revoke_last: bool) -> Chain {
+        let mut states = vec![dev.acs()];
+        let mut signed = vec![control::sign_acs(
+            &states[0].body(),
+            &[(&dev.device_id, &dev.signer)],
+            rng,
+        )];
+        let mut creds = vec![dev.credential().body()];
+        let mut last_added = None;
+        for i in 1..n {
+            let parent = states.last().unwrap().clone();
+            let mut child = parent.clone();
+            child.generation = parent.generation + 1;
+            child.previous = Some(parent.hash());
+            if revoke_last && i == n - 1 {
+                let d = last_added.unwrap();
+                child.messaging.remove(&d);
+                child.revoked.insert(d);
+            } else {
+                let mut m = Device::new(rng);
+                m.account_id = dev.account_id;
+                child.messaging.insert(m.device_id);
+                child.credentials.push((m.device_id, m.credential().hash()));
+                creds.push(m.credential().body());
+                last_added = Some(m.device_id);
+            }
+            signed.push(control::sign_acs(
+                &child.body(),
+                &[(&dev.device_id, &dev.signer)],
+                rng,
+            ));
+            states.push(child);
+        }
+        Chain {
+            signer_dev: dev,
+            states,
+            signed,
+            creds,
+        }
+    }
+
+    /// The account head carried for the first `upto` states of `c`.
+    fn head_for(c: &Chain, upto: usize, rng: &mut InsecureTestRng) -> cg::AccountHead {
+        let tip = &c.states[upto - 1];
+        let mut rnd = [0u8; 32];
+        rng.fill_bytes(&mut rnd);
+        cg::AccountHead {
+            account: tip.account_id,
+            head: cg::sign_account_head(
+                &c.signer_dev.signer,
+                &c.signer_dev.device_id,
+                &tip.account_id,
+                tip.generation,
+                &tip.hash(),
+                rnd,
+            ),
+            state: tip.body(),
+            credentials: c.creds.clone(),
+            chain: c.signed[..upto].to_vec(),
+        }
+    }
+
+    fn generation_of(rh: &super::super::carriage::RoomHead) -> u64 {
+        Acs::from_body(&unhex(&rh.state).unwrap())
+            .unwrap()
+            .generation
+    }
+
+    #[test]
+    fn a_pin_belongs_to_its_room_and_advances_only_along_its_own_descendants() {
+        let mut rng = InsecureTestRng::from_label(b"room-pin");
+        let dev = Device::new(&mut rng);
+        let id = dev.account_id;
+        let c = chain(&mut rng, dev, 3, true);
+        let acct = hex(&id);
+        let mut app = AppState::default();
+        let key = |room: &str| cg::room_head_key(room, &acct);
+
+        // Room A pins generation 2
+        let h2 = head_for(&c, 2, &mut rng);
+        let RoomHeadVerdict::Initial(rh) = app.carry_room_head("A", &h2) else {
+            panic!("initial pin");
+        };
+        assert_eq!(generation_of(&rh), 2);
+        app.group_carriage.room_heads.insert(key("A"), rh);
+
+        // Room B holds nothing: the same account is pending there, and a head establishes its own pin
+        assert!(app.group_carriage.room_head("B", &acct).is_none());
+        assert!(app.group_heads("B").is_empty());
+        assert!(!app.group_heads("A").is_empty());
+        assert!(matches!(
+            app.carry_room_head("B", &h2),
+            RoomHeadVerdict::Initial(_)
+        ));
+
+        // the same pinned head again changes nothing; a later revocation advances A's pin only
+        assert!(matches!(
+            app.carry_room_head("A", &h2),
+            RoomHeadVerdict::Ignore
+        ));
+        let h3 = head_for(&c, 3, &mut rng);
+        let RoomHeadVerdict::Advance(rh3) = app.carry_room_head("A", &h3) else {
+            panic!("a verified descendant advances the pin");
+        };
+        assert_eq!(generation_of(&rh3), 3);
+        app.group_carriage.room_heads.insert(key("A"), rh3);
+        assert!(app.group_carriage.room_head("B", &acct).is_none());
+
+        // a lower tip than the pin changes nothing (monotonic)
+        assert!(matches!(
+            app.carry_room_head("A", &h2),
+            RoomHeadVerdict::Ignore
+        ));
+    }
+
+    #[test]
+    fn an_unrelated_lineage_under_the_same_account_id_is_a_conflict_in_its_room_and_harmless_elsewhere()
+     {
+        let mut rng = InsecureTestRng::from_label(b"room-pin-conflict");
+        let dev = Device::new(&mut rng);
+        let id = dev.account_id;
+        let honest = chain(&mut rng, dev, 3, false);
+        let mut other = Device::new(&mut rng);
+        other.account_id = id;
+        let forged = chain(&mut rng, other, 3, false);
+        let acct = hex(&id);
+        let mut app = AppState::default();
+
+        let RoomHeadVerdict::Initial(rh) =
+            app.carry_room_head("A", &head_for(&honest, 2, &mut rng))
+        else {
+            panic!("initial pin");
+        };
+        app.group_carriage
+            .room_heads
+            .insert(cg::room_head_key("A", &acct), rh);
+        // another Room first sees the copied identifier: it pins its own, A is untouched
+        assert!(matches!(
+            app.carry_room_head("C", &head_for(&forged, 2, &mut rng)),
+            RoomHeadVerdict::Initial(_)
+        ));
+        assert!(app.group_carriage.room_head("A", &acct).is_some());
+        // in A the unrelated tip (a different state at the pinned generation) is a conflict, never an advance
+        assert!(matches!(
+            app.carry_room_head("A", &head_for(&forged, 3, &mut rng)),
+            RoomHeadVerdict::Conflict
+        ));
+        app.group_carriage
+            .room_heads
+            .get_mut(&cg::room_head_key("A", &acct))
+            .unwrap()
+            .conflict = true;
+        assert!(
+            app.group_carriage.room_head("A", &acct).is_none(),
+            "pending"
+        );
+        assert!(app.group_heads("A").is_empty());
+        // and a later genuine descendant does not reopen it
+        assert!(matches!(
+            app.carry_room_head("A", &head_for(&honest, 3, &mut rng)),
+            RoomHeadVerdict::Ignore
+        ));
+    }
+
+    #[test]
+    fn a_pin_moves_with_its_room_when_the_invite_room_becomes_the_room() {
+        let mut rng = InsecureTestRng::from_label(b"room-pin-rekey");
+        let dev = Device::new(&mut rng);
+        let id = dev.account_id;
+        let c = chain(&mut rng, dev, 2, false);
+        let acct = hex(&id);
+        let mut app = AppState::default();
+        let RoomHeadVerdict::Initial(rh) =
+            app.carry_room_head("invite:1", &head_for(&c, 2, &mut rng))
+        else {
+            panic!("initial pin");
+        };
+        app.group_carriage
+            .room_heads
+            .insert(cg::room_head_key("invite:1", &acct), rh);
+        app.group_carriage.rekey("invite:1", "room-hex");
+        assert!(app.group_carriage.room_head("room-hex", &acct).is_some());
+        assert!(app.group_carriage.room_head("invite:1", &acct).is_none());
+    }
 }

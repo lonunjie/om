@@ -952,8 +952,9 @@ pub struct GroupCarriageRec {
     pub head_cache: Option<String>,
     #[serde(default)]
     pub head_sync_asked_ms: u64,
-    /// The signed head of each account this device holds no relationship head for, as a Welcome carried it and this
-    /// device verified it (account hex). Used only to prove those accounts' leaves; the newest generation wins.
+    /// The signed head of each account this device holds no relationship head for, as a Welcome or Commit carried it and
+    /// this device verified it, per `(Room, AccountID)` (ADR-0229 section 1; key `"{room}/{account hex}"`, see
+    /// [`room_head_key`]). Used only to prove that account's leaves in that Room; a pin never answers for another Room.
     #[serde(default)]
     pub room_heads: BTreeMap<String, RoomHead>,
     /// The signed head each peer's Accept carried (account hex -> hex), kept so a later Welcome can name that account
@@ -982,11 +983,20 @@ pub struct GroupCarriageRec {
     pub rejoin: super::rejoin::RejoinState,
 }
 
+/// The key of a Room-only pin: the Room and the account (hex), so a pin answers for that Room only (ADR-0229 section 1).
+pub fn room_head_key(room: &str, account: &str) -> String {
+    format!("{room}/{account}")
+}
+
 /// A verified head of an account the device has no relationship head for: the state body and its credential bodies.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoomHead {
     pub state: String,
     pub credentials: Vec<String>,
+    /// A later carried chain showed a different state at the pinned generation (ADR-0229 section 1 item 3): the account is
+    /// pending in this Room and the pin is not used.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub conflict: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1093,8 +1103,38 @@ impl GroupCarriageRec {
         self.mine.retain(|_, routes| !routes.is_empty());
     }
 
+    /// The usable Room-only pin for `account` (hex) in `room`.
+    pub fn room_head(&self, room: &str, account: &str) -> Option<&RoomHead> {
+        self.room_heads
+            .get(&room_head_key(room, account))
+            .filter(|rh| !rh.conflict)
+    }
+
+    /// The usable Room-only pins of `room`.
+    pub fn room_heads_of<'a>(&'a self, room: &str) -> impl Iterator<Item = &'a RoomHead> + 'a {
+        let prefix = format!("{room}/");
+        self.room_heads
+            .iter()
+            .filter(move |(k, rh)| k.starts_with(&prefix) && !rh.conflict)
+            .map(|(_, rh)| rh)
+    }
+
     /// Move a room's records to a new room key (the invite room becomes the Room once the Welcome gives its id).
     pub fn rekey(&mut self, from: &str, to: &str) {
+        let prefix = format!("{from}/");
+        let moved: Vec<String> = self
+            .room_heads
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect();
+        for k in moved {
+            if let Some(rh) = self.room_heads.remove(&k) {
+                self.room_heads
+                    .entry(format!("{to}/{}", &k[prefix.len()..]))
+                    .or_insert(rh);
+            }
+        }
         if let Some(v) = self.mine.remove(from) {
             self.mine.entry(to.to_string()).or_default().extend(v);
         }

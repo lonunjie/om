@@ -137,7 +137,8 @@ impl AppState {
             .last()
             .is_some_and(|l| recovered_device(l, &head, device))
             || !self
-                .group_heads()
+                // relationship lane: no Room is named, so only own and relationship pins count
+                .group_heads("")
                 .iter()
                 .any(|(best, _)| best.hash() == head.hash())
             || !r.peer_credentials.iter().any(|s| {
@@ -508,7 +509,12 @@ impl AppState {
             return err("waiting_for_coordinator");
         }
         if record.account != hex(&account.id)
-            || !self.group_device_authorized(&account.id, device, &bytes(&record.pk)?)
+            || !self.group_device_authorized(
+                &hex(&room.conversation_id),
+                &account.id,
+                device,
+                &bytes(&record.pk)?,
+            )
         {
             return err("not_authorized");
         }
@@ -519,7 +525,7 @@ impl AppState {
         let Some(directory) = self.group_devices.get(&hex(conv)) else {
             return false;
         };
-        let heads = self.group_heads();
+        let heads = self.group_heads(&hex(conv));
         let has_ineligible_leaf = |head: &Acs, include_quarantine: bool| {
             let account = hex(&head.account_id);
             directory.iter().any(|(d, r)| {
@@ -554,7 +560,7 @@ impl AppState {
             let device = b(req(&intent.args, 2)?)?;
             let generation = u(req(&intent.args, 3)?)?;
             let (head, creds) = self
-                .group_heads()
+                .group_heads(&hex(&parent.conversation_id))
                 .into_iter()
                 .find(|(head, _)| {
                     target.id == head.account_id

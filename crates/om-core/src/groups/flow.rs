@@ -1306,7 +1306,7 @@ impl AppState {
             .iter()
             .map(|r| mls(ctx.engine.key_package_endpoint(&un(&r.key_package)?)))
             .collect::<R<Vec<_>>>()?;
-        let bound = self.group_bind(&eps, Some(&invitee))?;
+        let bound = self.group_bind(&hex(&conv), &eps, Some(&invitee))?;
         for (r, b) in inv.releases.iter().zip(&bound) {
             if un(&r.device)? != b.device || un(&r.pk)? != b.pk {
                 return err("release_mismatch");
@@ -2736,7 +2736,8 @@ impl AppState {
         // Every leaf of the group this Welcome joins must be proven by a head this device
         // validated; the directory the sender supplies is only compared against that proof.
         let eps = mls(ctx.engine.welcome_endpoints(&un(welcome)?))?;
-        let bound = self.group_bind(&eps, None)?;
+        // the invite room: pins this Welcome's carriage proved are held under it until the Room id is known
+        let bound = self.group_bind(&super::carry::invite_room(invite_id), &eps, None)?;
         for (d, a, pk) in directory {
             let ok = bound
                 .iter()
@@ -2793,8 +2794,8 @@ impl AppState {
         let ci = mls(ctx.engine.inspect_commit(&self.group_mls_id(conv)?, commit))?;
         // The authors are re-checked now, against the heads as they are at apply time: a device revoked or quarantined
         // since the Commit was created (or since it joined) is refused, and so is one no validated head lists.
-        if !self.group_device_authorized(&un(&rec.account)?, committer, &pk)
-            || !self.group_device_authorized(&account, actor_device, &un(&act.pk)?)
+        if !self.group_device_authorized(&h(conv), &un(&rec.account)?, committer, &pk)
+            || !self.group_device_authorized(&h(conv), &account, actor_device, &un(&act.pk)?)
         {
             rep.events
                 .push(GroupEvent::Dropped("committer_not_authorized"));
@@ -2816,7 +2817,7 @@ impl AppState {
         let bound = if ci.added.is_empty() {
             vec![]
         } else {
-            match self.group_bind(&ci.added, None) {
+            match self.group_bind(&h(conv), &ci.added, None) {
                 Ok(b) => b,
                 Err(_) => {
                     rep.events

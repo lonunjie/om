@@ -117,7 +117,7 @@ impl AppState {
     /// each active relationship. Where two heads name one account only the newest generation counts (an older one may
     /// still list a device a newer one revoked); two different heads at the same generation are a fork and the
     /// account then has no head at all (fail closed).
-    pub(super) fn group_heads(&self) -> Vec<(Acs, Vec<Credential>)> {
+    pub(super) fn group_heads(&self, room: &str) -> Vec<(Acs, Vec<Credential>)> {
         let mut all: Vec<(Acs, Vec<Credential>)> = vec![];
         if let Ok(tip) = self.carry_own_tip() {
             let creds = self
@@ -149,8 +149,9 @@ impl AppState {
                 .collect();
             all.push((acs, creds));
         }
-        // heads a Welcome carried for accounts this device has no relationship head for (verified when they arrived)
-        for rh in self.group_carriage.room_heads.values() {
+        // heads this Room's Welcome or Commit carried for accounts this device has no relationship head for (verified when
+        // they arrived); a Room's pin answers for that Room only (ADR-0229 section 1)
+        for rh in self.group_carriage.room_heads_of(room) {
             let (Some(acs), creds) = (
                 unhex(&rh.state).ok().and_then(|b| Acs::from_body(&b).ok()),
                 rh.credentials
@@ -188,8 +189,14 @@ impl AppState {
 
     /// Whether the newest validated head of `account` lists `device` (the credential whose key is `pk`) as an active
     /// control or messaging device, not revoked and not quarantined. No head for the account: not authorized.
-    pub(super) fn group_device_authorized(&self, account: &[u8], device: &[u8], pk: &[u8]) -> bool {
-        self.group_heads().iter().any(|(a, creds)| {
+    pub(super) fn group_device_authorized(
+        &self,
+        room: &str,
+        account: &[u8],
+        device: &[u8],
+        pk: &[u8],
+    ) -> bool {
+        self.group_heads(room).iter().any(|(a, creds)| {
             a.account_id == account
                 && creds
                     .iter()
@@ -199,7 +206,12 @@ impl AppState {
 
     /// Prove every endpoint against the validated heads, restricted to `only` (one account) when given. Refuses an
     /// empty list, a repeated device or a repeated leaf key, and any endpoint no head proves.
-    pub(super) fn group_bind(&self, eps: &[Endpoint], only: Option<&[u8]>) -> R<Vec<Bound>> {
+    pub(super) fn group_bind(
+        &self,
+        room: &str,
+        eps: &[Endpoint],
+        only: Option<&[u8]>,
+    ) -> R<Vec<Bound>> {
         if eps.is_empty() {
             return err("endpoint_unbound");
         }
@@ -210,7 +222,7 @@ impl AppState {
                 return err("endpoint_duplicate");
             }
         }
-        let heads = self.group_heads();
+        let heads = self.group_heads(room);
         eps.iter()
             .map(|e| {
                 heads
