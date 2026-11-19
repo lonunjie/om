@@ -21,7 +21,7 @@ def mac(key, data):
     return hmac.digest(key, data, "sha256")
 
 
-def main():
+def build(operation=0):
     expiry = 1800000000
     secret = bytes(range(16))
     a_cap, b_recv = bytes([0xA1] * 24), bytes([0xB2] * 24)
@@ -30,9 +30,9 @@ def main():
     token = bytes([1]) + expiry.to_bytes(4, "big") + secret
     token += bytes([len(a_cap)]) + a_cap + bytes([len(b_recv)]) + b_recv + uri
     uri_token = base64.urlsafe_b64encode(token).rstrip(b"=").decode()
-    link = f"om:controller-change/0/{origin.hex()}/{uri_token}"
+    link = f"om:controller-change/{operation}/{origin.hex()}/{uri_token}"
     binding = enc([
-        "om.controller_change.v1", 0,
+        "om.controller_change.v1", operation,
         b(bytes([0x11] * 32)), b(bytes([0x22] * 32)), b(origin),
         b(bytes([0x42] * 16)), b(bytes([0x53] * 32)), b(bytes([0x64] * 32)),
     ])
@@ -45,15 +45,15 @@ def main():
             for purpose in ("req", "resp", "code", "bind")}
     proof = enc(["om.controller_change.v1", b(ceremony_id), b(binding)])
     code_mac = mac(bytes.fromhex(keys["code"]), enc(["OM-RECOVERY-APPROVAL-MAC-v1", 1, b(proof)]))
-    print(json.dumps({
+    return {
         "link": link,
         "binding": binding.hex(),
         "ceremony_id": ceremony_id.hex(),
         "keys": keys,
         "proof": proof.hex(),
         "code": f"{int.from_bytes(code_mac[:8], 'big') % 1_000_000:06d}",
-    }, indent=2))
+    }
 
 
 if __name__ == "__main__":
-    main()
+    print(json.dumps(build(), indent=2))
