@@ -1562,20 +1562,74 @@ mod controller_probes {
 }
 
 #[test]
-fn first_call_answer_selects_one_of_two_linked_devices() {
+fn first_call_answer_selects_one_of_three_independent_offers() {
     use om_core::calls::{CallReason, CallState, CallView};
+    use om_core::crypto::{
+        cbor::{self, V},
+        delivery,
+        kdf::hkdf_sha256,
+        rng::insecure_test_rng::InsecureTestRng,
+        unhex,
+    };
+    use om_core::host::NetCall;
+    use om_core::state::ProfileState;
+    use zeroize::Zeroizing;
+
     let mut w = world();
     let request_id = w.offer_and_ask();
     assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
     w.settle();
+    let mut tablet = Runtime::new("call-tablet", &w.net);
+    let t = tablet.open("p-t");
+    w.alice
+        .dispatch(&w.a, "offer-tablet", IntentBody::OfferDeviceLink);
+    w.alice.flush_net(&w.a);
+    let offer: LinkOfferView = w.alice.query(Query::GetLinkOffer {
+        ctx: w.a.clone(),
+        operation_id: "offer-tablet".into(),
+    });
+    tablet.dispatch(
+        &t,
+        "ask-tablet",
+        IntentBody::RequestDeviceLink { link: offer.link },
+    );
+    w.settle();
+    tablet.flush_net(&t);
+    w.settle();
+    let request_id = w.devices(true).link_requests[0].request_id.clone();
+    assert_eq!(
+        w.approve(&request_id, "ok-tablet"),
+        Some(OutcomeClass::Committed)
+    );
+    let settle = |w: &mut World, tablet: &mut Runtime| {
+        settle_all(&mut [
+            (&mut w.alice, &w.a),
+            (&mut w.carol, &w.c),
+            (&mut w.phone, &w.n),
+            (tablet, &t),
+        ]);
+    };
+    settle(&mut w, &mut tablet);
     // Establish the existing sessions and their delivery routes before sending an ephemeral offer.
     w.say("phone", "p1", "from the phone");
-    w.settle();
-    w.say("carol", "c1", "to both of you");
-    w.settle();
+    tablet.dispatch(
+        &t,
+        "t1",
+        IntentBody::SendMessage {
+            conversation_id: conv_of(&tablet, &t),
+            draft: Draft {
+                text: "from the tablet".into(),
+                reply_to: None,
+            },
+        },
+    );
+    settle(&mut w, &mut tablet);
+    w.say("carol", "c1", "to all of you");
+    settle(&mut w, &mut tablet);
     w.alice.core.enable_calls();
     w.carol.core.enable_calls();
     w.phone.core.enable_calls();
+    tablet.core.enable_calls();
     let contacts: Vec<ConversationSummary> = w
         .carol
         .query(Query::GetConversationList { ctx: w.c.clone() });
@@ -1588,30 +1642,100 @@ fn first_call_answer_selects_one_of_two_linked_devices() {
             sdp: Some(b"offer".to_vec()),
         },
     );
-    w.settle();
+    let ops = w.carol.core.net_ops(&w.c).unwrap();
+    let offers = |callee: &Runtime, ctx: &ProfileExecutionContext| {
+        let mut profile = ProfileState::decode(
+            ctx.profile_id.clone(),
+            &callee.store.records(&ctx.profile_id),
+        )
+        .unwrap();
+        let rel = &profile.app.relationships[&conv_of(callee, ctx)];
+        let device = profile.device.as_mut().unwrap();
+        let mut open = ops.iter().filter_map(|op| {
+            let NetCall::Deposit {
+                bytes,
+                mailbox,
+                relay_uri,
+            } = &op.call
+            else {
+                return None;
+            };
+            let wrapper = cbor::decode(bytes).unwrap();
+            let key_id = wrapper.get(3).unwrap().b().unwrap().try_into().unwrap();
+            let key = rel
+                .my_delivery
+                .iter()
+                .find(|key| unhex(&key.public.key_id).unwrap().as_slice() == &key_id)?;
+            let inner = delivery::open(
+                bytes,
+                &unhex(&key.seed).unwrap().try_into().unwrap(),
+                &key_id,
+                relay_uri.as_deref().unwrap(),
+                mailbox,
+                callee.clock.get() / 1000,
+            )
+            .unwrap();
+            let envelope = cbor::decode(&inner.inner_envelope).unwrap();
+            let fields = envelope.a().unwrap();
+            let session = device.sessions.get_mut(fields[0].b().unwrap()).unwrap();
+            let (pt, _) = session
+                .dr
+                .decrypt(
+                    fields[2].b().unwrap(),
+                    fields[3].b().unwrap(),
+                    b"OM-CALL-SIGNAL-CTX-v1",
+                    &mut InsecureTestRng::from_label(b"call-offer fixture"),
+                )
+                .unwrap();
+            let pt = Zeroizing::new(pt);
+            let signal = cbor::decode(&pt).unwrap();
+            assert_eq!(signal.get(2).unwrap().u().unwrap(), 1);
+            let package = signal.get(7).unwrap();
+            Some(Zeroizing::new(
+                <[u8; 32]>::try_from(package.get(0).unwrap().b().unwrap()).unwrap(),
+            ))
+        });
+        let secret = open.next().expect("this device received an offer");
+        assert!(open.next().is_none());
+        (device.device_id, secret)
+    };
+    let (_, alice_secret) = offers(&w.alice, &w.a);
+    let (phone_id, phone_secret) = offers(&w.phone, &w.n);
+    let (_, tablet_secret) = offers(&tablet, &t);
+    assert!(*alice_secret != *phone_secret);
+    assert!(*alice_secret != *tablet_secret);
+    assert!(*phone_secret != *tablet_secret);
+
+    settle(&mut w, &mut tablet);
     let from = |p: &Runtime, ctx: &ProfileExecutionContext| {
         p.query::<CallView>(Query::GetCallView { ctx: ctx.clone() })
     };
     let incoming = from(&w.alice, &w.a);
     assert_eq!(incoming.state, CallState::Incoming);
     assert_eq!(from(&w.phone, &w.n).state, CallState::Incoming);
+    assert_eq!(from(&tablet, &t).state, CallState::Incoming);
     let answer = |id: &str| IntentBody::AcceptCall {
         call_session_id: id.into(),
         sdp: b"answer".to_vec(),
         media_flags: 1,
     };
     w.alice
-        .dispatch(&w.a, "answer", answer(&incoming.call_session_id));
+        .dispatch(&w.a, "race", answer(&incoming.call_session_id));
     w.phone
-        .dispatch(&w.n, "race", answer(&incoming.call_session_id));
-    w.alice.flush_net(&w.a);
+        .dispatch(&w.n, "answer", answer(&incoming.call_session_id));
+    w.phone.flush_net(&w.n);
     w.carol.poll(&w.c);
-    w.settle();
-    assert_eq!(from(&w.alice, &w.a).state, CallState::Connecting);
-    assert_eq!(
-        from(&w.phone, &w.n).reason,
-        Some(CallReason::AnsweredElsewhere)
-    );
+    settle(&mut w, &mut tablet);
+    assert_eq!(from(&w.phone, &w.n).state, CallState::Connecting);
+    for (rt, ctx) in [(&mut w.alice, &w.a), (&mut tablet, &t)] {
+        assert_eq!(from(rt, ctx).reason, Some(CallReason::AnsweredElsewhere));
+        assert!(
+            rt.core
+                .take_call_keys(ctx, &incoming.call_session_id)
+                .unwrap()
+                .is_none()
+        );
+    }
     let caller = w
         .carol
         .core
@@ -1619,17 +1743,38 @@ fn first_call_answer_selects_one_of_two_linked_devices() {
         .unwrap()
         .unwrap();
     let winner = w
-        .alice
+        .phone
         .core
-        .take_call_keys(&w.a, &incoming.call_session_id)
+        .take_call_keys(&w.n, &incoming.call_session_id)
         .unwrap()
         .unwrap();
     assert!(caller.send() == winner.receive());
-    assert!(
-        w.phone
-            .core
-            .take_call_keys(&w.n, &incoming.call_session_id)
-            .unwrap()
-            .is_none()
-    );
+    assert!(caller.receive() == winner.send());
+    let carol = ProfileState::decode(
+        w.c.profile_id.clone(),
+        &w.carol.store.records(&w.c.profile_id),
+    )
+    .unwrap()
+    .device
+    .unwrap()
+    .device_id;
+    let id = unhex(&incoming.call_session_id).unwrap();
+    for (sender, recipient, key) in [
+        (carol, phone_id, caller.send()),
+        (phone_id, carol, caller.receive()),
+    ] {
+        let info = cbor::encode(&V::A(vec![
+            V::T("OM-CALL-MEDIA-BASE-KDF-v1".into()),
+            V::B(sender.to_vec()),
+            V::B(recipient.to_vec()),
+            V::U(0),
+        ]));
+        let mut derived = Zeroizing::new([0; 32]);
+        hkdf_sha256(&id, phone_secret.as_ref(), &info, derived.as_mut());
+        assert!(derived.as_ref() == key);
+        for other in [&alice_secret, &tablet_secret] {
+            hkdf_sha256(&id, other.as_ref(), &info, derived.as_mut());
+            assert!(derived.as_ref() != key);
+        }
+    }
 }

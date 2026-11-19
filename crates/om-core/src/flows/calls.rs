@@ -71,16 +71,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
 
         let id = self.rand16();
-        let mut secret = Zeroizing::new([0; 32]);
-        self.rng.fill_bytes(secret.as_mut());
         let deadline = self.now_ms.saturating_add(RING_MS);
-        let offer = Signal {
-            id,
-            seq: 0,
-            body: Body::Offer(media, sdp.to_vec(), secret.clone()),
-        };
-        let payload = offer.encode();
-        let mut call = Call::new(id, &rel.id, media, true, deadline, secret);
+        let mut call = Call::new(id, &rel.id, media, true, deadline);
         call.next_seq = 1;
         // No session acquisition, bootstrap or self-sync for an ephemeral offer.
         let devices = std::iter::once(rel.peer_device_id.clone()).chain(
@@ -89,7 +81,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .filter_map(|(id, sibling)| (!sibling).then_some(id)),
         );
         for device in devices.filter_map(|id| h16(&id).ok()) {
+            let mut secret = Zeroizing::new([0; 32]);
+            self.rng.fill_bytes(secret.as_mut());
+            let payload = Signal {
+                id,
+                seq: 0,
+                body: Body::Offer(media, sdp.to_vec(), secret.clone()),
+            }
+            .encode();
             if self.queue_call(&rel.id, device, &id, &payload, deadline, DepositKind::Offer) {
+                call.offer_secrets.insert(device, secret);
                 call.targets.push(ContactDevice {
                     id: device,
                     last_seq: None,
@@ -357,7 +358,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 Body::Answer(sdp.to_vec(), flags),
                 &[caller],
                 DepositKind::Answer,
-            ) {
+            ) && call.connect(&me, caller)
+            {
                 if let Some(seen) = self
                     .st
                     .app
@@ -368,7 +370,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     seen.unanswered = false;
                 }
                 call.view.local_media_flags = flags;
-                call.connect(&me, caller);
                 call.connect_deadline_ms = Some(self.now_ms.saturating_add(CONNECT_MS));
                 OutcomeClass::Committed
             } else {
@@ -521,14 +522,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             at_ms: self.now_ms,
             unanswered: false,
         });
-        let mut incoming = Call::new(
-            id,
-            conv,
-            media,
-            false,
-            self.now_ms.saturating_add(RING_MS),
-            secret,
-        );
+        let mut incoming = Call::new(id, conv, media, false, self.now_ms.saturating_add(RING_MS));
+        incoming.offer_secrets.insert(sender, secret);
         incoming.targets.push(ContactDevice {
             id: sender,
             last_seq: Some(seq),
@@ -601,7 +596,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if call.selected.is_some_and(|s| s != sender) {
             return;
         }
-        let Some(peer) = call.targets.iter_mut().find(|p| {
+        let Some(peer) = call.targets.iter().position(|p| {
             p.id == sender
                 && p.rejected.is_none()
                 && p.last_seq.is_none_or(|prior| signal.seq > prior)
@@ -614,14 +609,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     && call.selected.is_none()
                     && (call.view.media != CallMedia::Audio || flags & 2 == 0) =>
             {
-                peer.last_seq = Some(signal.seq);
                 let me = self
                     .st
                     .device
                     .as_ref()
                     .expect("call has a local device")
                     .device_id;
-                call.connect(&me, sender);
+                if !call.connect(&me, sender) {
+                    return;
+                }
+                call.targets[peer].last_seq = Some(signal.seq);
                 call.connect_deadline_ms = Some(self.now_ms.saturating_add(CONNECT_MS));
                 call.view.peer_media_flags = flags;
                 call.description = Some(CallDescription {
@@ -647,7 +644,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 );
             }
             Body::Reject(reason) if call.view.outgoing && call.selected.is_none() => {
-                peer.rejected = Some(reason);
+                call.targets[peer].rejected = Some(reason);
+                call.offer_secrets.remove(&sender);
                 self.finish_if_no_targets(call);
             }
             Body::End(reason)
@@ -658,7 +656,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         CallReason::Timeout | CallReason::Failed | CallReason::Canceled
                     ) =>
             {
-                peer.rejected = Some(reason);
+                call.targets[peer].rejected = Some(reason);
+                call.offer_secrets.remove(&sender);
                 self.finish_if_no_targets(call);
             }
             Body::End(reason) if !call.view.outgoing || call.selected == Some(sender) => {
@@ -669,7 +668,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 self.terminate_call(call, reason, false);
             }
             Body::Ice(sdp) if call.selected == Some(sender) => {
-                peer.last_seq = Some(signal.seq);
+                call.targets[peer].last_seq = Some(signal.seq);
                 call.ice = Some(CallDescription {
                     kind: DescriptionKind::IceUpdate,
                     seq: signal.seq,
@@ -677,7 +676,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 });
             }
             Body::Media(flags) if call.selected == Some(sender) => {
-                peer.last_seq = Some(signal.seq);
+                call.targets[peer].last_seq = Some(signal.seq);
                 call.view.peer_media_flags = flags;
             }
             _ => {}
@@ -894,6 +893,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     if let Some(target) = call.targets.iter_mut().find(|t| t.id == sent.device) {
                         target.rejected = Some(CallReason::Failed);
                     }
+                    call.offer_secrets.remove(&sent.device);
                     self.finish_if_no_targets(&mut call);
                 }
                 DepositKind::Answer => self.terminate_call(&mut call, CallReason::Failed, false),

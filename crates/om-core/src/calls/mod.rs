@@ -12,6 +12,7 @@ use crate::crypto::{
 };
 use crate::host::NetCall;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use zeroize::Zeroizing;
 
 pub(crate) use wire::{Body, Signal, valid_sdp};
@@ -244,7 +245,8 @@ pub(crate) struct Call {
     pub targets: Vec<ContactDevice>,
     pub selected: Option<[u8; 16]>,
     pub next_seq: u32,
-    pub secret: Option<Zeroizing<[u8; 32]>>,
+    /// Live offer secrets, keyed by the authenticated peer device for each leg (ADR-0228 §1).
+    pub offer_secrets: BTreeMap<[u8; 16], Zeroizing<[u8; 32]>>,
     pub keys: Option<InstallMediaKeys>,
     pub description: Option<CallDescription>,
     pub ice: Option<CallDescription>,
@@ -261,7 +263,6 @@ impl Call {
         media: CallMedia,
         outgoing: bool,
         deadline_ms: u64,
-        secret: Zeroizing<[u8; 32]>,
     ) -> Self {
         Self {
             id,
@@ -287,7 +288,7 @@ impl Call {
             targets: vec![],
             selected: None,
             next_seq: 0,
-            secret: Some(secret),
+            offer_secrets: BTreeMap::new(),
             keys: None,
             description: None,
             ice: None,
@@ -321,17 +322,20 @@ impl Call {
         !matches!(self.view.state, CallState::Ended | CallState::Failed)
     }
 
-    pub fn connect(&mut self, local: &[u8; 16], peer: [u8; 16]) {
-        if let Some(secret) = self.secret.take() {
-            self.keys = Some(InstallMediaKeys::new(&secret, &self.id, local, &peer));
-        }
+    pub fn connect(&mut self, local: &[u8; 16], peer: [u8; 16]) -> bool {
+        let Some(secret) = self.offer_secrets.remove(&peer) else {
+            return false;
+        };
+        self.offer_secrets.clear();
+        self.keys = Some(InstallMediaKeys::new(&secret, &self.id, local, &peer));
         self.selected = Some(peer);
         self.view.ring_deadline_ms = None;
         self.view.state = CallState::Connecting;
+        true
     }
 
     pub fn finish(&mut self, reason: CallReason) {
-        self.secret = None;
+        self.offer_secrets.clear();
         self.keys = None;
         self.description = None;
         self.ice = None;
