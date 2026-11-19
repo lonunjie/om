@@ -142,6 +142,22 @@ describe("disable and refresh", () => {
     expect(fetch.mock.calls.map(([, init]) => init?.method).filter((m) => m !== "GET")).toEqual(["PUT", "DELETE"]);
     expect(r.log).toEqual(["browser-unsub"]);
   });
+  it("renews the registration at each start with the browser's own subscription, once per mailbox (ADR-0210)", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>((_, init) => Promise.resolve(init?.method === "GET"
+      ? Response.json({ key: toBase64Url(KEY) })
+      : new Response(null, { status: 204 })));
+    const caps = [new Uint8Array(32).fill(1), new Uint8Array(32).fill(2)];
+    const push = createPushClient({ base: "https://home.example", http: { fetch, timeoutMs: 1000 },
+      features: () => Promise.resolve(["om.relay.push.v1"]), receiveCaps: () => Promise.resolve(caps),
+    });
+    const puts = (): number => fetch.mock.calls.filter(([, init]) => init?.method === "PUT").length;
+    const r = rig({ push, permission: "granted" });
+    expect(await r.svc.enable({ confirmedMaximum: false })).toBe("enabled");
+    expect(puts()).toBe(2);
+    await r.svc.refresh({ maximum: false });
+    expect(puts()).toBe(4);
+    expect(r.log.filter((l) => l.startsWith("subscribe"))).toHaveLength(1);
+  });
   it("disable tells the Home, drops the browser subscription and forgets the choice", async () => {
     const r = rig();
     await r.svc.enable({ confirmedMaximum: false });

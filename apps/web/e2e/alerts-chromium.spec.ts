@@ -31,18 +31,19 @@ async function seedPending(page: Page, secretHex: string): Promise<void> {
 /** A stand-in for the browser's push subscription and notification permission. It keeps its state in sessionStorage so a reload sees the same subscription. */
 const standIn = (): void => {
   const KEY = "e2e-push";
-  const read = (): { sub: string | null; perm: string; asked: number; subscribed: number } => { try { return JSON.parse(sessionStorage.getItem(KEY) ?? "") as never; } catch { return { sub: null, perm: "default", asked: 0, subscribed: 0 }; } };
+  const read = (): { sub: string | null; key?: number[]; perm: string; asked: number; subscribed: number } => { try { return JSON.parse(sessionStorage.getItem(KEY) ?? "") as never; } catch { return { sub: null, perm: "default", asked: 0, subscribed: 0 }; } };
   const write = (v: ReturnType<typeof read>): void => { sessionStorage.setItem(KEY, JSON.stringify(v)); };
-  const sub = (): { endpoint: string; unsubscribe: () => Promise<boolean> } | null => {
-    const s = read().sub;
-    return s === null ? null : { endpoint: s, unsubscribe: () => { write({ ...read(), sub: null }); return Promise.resolve(true); } };
+  // Like a real PushSubscription, it says which application server key it was made for (`options.applicationServerKey`); the app compares it with the Home's.
+  const sub = (): { endpoint: string; options: { applicationServerKey: ArrayBuffer | null }; unsubscribe: () => Promise<boolean> } | null => {
+    const { sub: s, key } = read();
+    return s === null ? null : { endpoint: s, options: { applicationServerKey: key === undefined ? null : Uint8Array.from(key).buffer }, unsubscribe: () => { write({ ...read(), sub: null }); return Promise.resolve(true); } };
   };
   const pm = {
     getSubscription: () => Promise.resolve(sub()),
     subscribe: (o: { userVisibleOnly: boolean; applicationServerKey: Uint8Array }) => {
       if (!o.userVisibleOnly || o.applicationServerKey.length !== 65) return Promise.reject(new Error("bad subscribe"));
       const s = read();
-      write({ ...s, sub: `https://fcm.googleapis.com/fcm/send/e2e-${Math.random().toString(36).slice(2)}`, subscribed: s.subscribed + 1 });
+      write({ ...s, key: Array.from(o.applicationServerKey), sub: `https://fcm.googleapis.com/fcm/send/e2e-${Math.random().toString(36).slice(2)}`, subscribed: s.subscribed + 1 });
       return Promise.resolve(sub());
     },
   };
