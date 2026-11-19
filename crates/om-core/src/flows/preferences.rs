@@ -507,16 +507,24 @@ mod tests {
     }
 
     #[test]
-    fn claims_about_unseen_or_ineligible_origins_are_dropped_and_an_unreceived_clear_is_not_waived() {
+    fn claims_about_unseen_or_ineligible_origins_are_dropped_and_an_unreceived_clear_is_not_waived()
+    {
         let (x, s, ghost) = (dev(1), dev(2), dev(3));
         let mut item = NicknameItem::default();
         item.insert(&x, rec(1, 1, Some("X1"), &[]));
         let mut claim = rec(1, 2, Some("S"), &[(x.clone(), 9), (ghost.clone(), 4)]);
         claim.clamp(&item, |d| d != &h16(&ghost).unwrap());
-        assert_eq!(claim.seen.len(), 1, "an entry naming no eligible device is ignored");
+        assert_eq!(
+            claim.seen.len(),
+            1,
+            "an entry naming no eligible device is ignored"
+        );
         let mut unseen = rec(1, 2, Some("S"), &[("not-hex".into(), 4), (dev(7), 4)]);
         unseen.clamp(&item, |_| true);
-        assert!(unseen.seen.is_empty(), "malformed and never-seen origins carry no claim");
+        assert!(
+            unseen.seen.is_empty(),
+            "malformed and never-seen origins carry no claim"
+        );
         item.insert(&s, claim);
         assert_eq!(item.nickname().as_deref(), Some("S"));
         // X's clear at 9 arrives later: the claim of having seen it cannot waive it

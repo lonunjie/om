@@ -578,9 +578,13 @@ mod register_tests {
     }
 
     fn shuffled(mut v: Vec<(usize, bool, u64)>, seed: u64) -> Vec<(usize, bool, u64)> {
-        let mut x = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let mut x = seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         for i in (1..v.len()).rev() {
-            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            x = x
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             v.swap(i, (x >> 33) as usize % (i + 1));
         }
         v
@@ -604,7 +608,10 @@ mod register_tests {
             );
         }
         assert!(regs.len() <= MAX_REACTION_REGISTERS);
-        let mut out: Vec<_> = regs.iter().map(|r| (r.key.clone(), r.present, r.clock_ms)).collect();
+        let mut out: Vec<_> = regs
+            .iter()
+            .map(|r| (r.key.clone(), r.present, r.clock_ms))
+            .collect();
         out.sort();
         out
     }
@@ -629,7 +636,10 @@ mod register_tests {
             );
         }
         assert!(regs.len() <= MAX_REACTION_REGISTERS);
-        let mut out: Vec<_> = regs.iter().map(|r| (r.key.clone(), r.present, r.clock_ms)).collect();
+        let mut out: Vec<_> = regs
+            .iter()
+            .map(|r| (r.key.clone(), r.present, r.clock_ms))
+            .collect();
         out.sort();
         out
     }
@@ -660,7 +670,13 @@ mod register_tests {
                 |r| r.mine,
                 |r| r.key == format!("k{k}"),
                 rec_order,
-                ReactionRec { mine: true, key: format!("k{k}"), present, clock_ms: o, clock_logical: 0 },
+                ReactionRec {
+                    mine: true,
+                    key: format!("k{k}"),
+                    present,
+                    clock_ms: o,
+                    clock_logical: 0,
+                },
             )
         };
         for k in 0..64 {
@@ -668,9 +684,15 @@ mod register_tests {
         }
         assert!(!put(&mut regs, 900, true, 50), "older add refused");
         assert!(!put(&mut regs, 901, false, 50), "older removal refused");
-        assert!(put(&mut regs, 902, false, 500), "newer removal evicts the lowest");
+        assert!(
+            put(&mut regs, 902, false, 500),
+            "newer removal evicts the lowest"
+        );
         assert!(!regs.iter().any(|r| r.key == "k0"));
-        assert!(!put(&mut regs, 0, true, 100), "the evicted key's old add stays refused");
+        assert!(
+            !put(&mut regs, 0, true, 100),
+            "the evicted key's old add stays refused"
+        );
     }
 
     #[test]
@@ -682,7 +704,13 @@ mod register_tests {
                 |r| r.mine,
                 |r| r.key == format!("k{k}"),
                 rec_order,
-                ReactionRec { mine: true, key: format!("k{k}"), present: true, clock_ms: k as u64, clock_logical: 0 },
+                ReactionRec {
+                    mine: true,
+                    key: format!("k{k}"),
+                    present: true,
+                    clock_ms: k as u64,
+                    clock_logical: 0,
+                },
             );
         }
         let flags = shown_flags(&regs, |r| r.mine.to_string(), |r| r.present, rec_order);

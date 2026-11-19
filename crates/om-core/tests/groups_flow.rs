@@ -1833,12 +1833,52 @@ fn registers_converge_under_reorder_and_repeat() {
     deliver(&mut devs, 0, &del);
     deliver(&mut devs, 0, &late);
     assert!(msgs(&devs[2], &conv).is_empty());
-    // no member may hold more than 16 registers on one message
+    // ADR-0229 s5: a member shows at most 16 present reactions on one message, and our own client refuses a seventeenth
     let b = say(&mut devs, 0, &conv, "many", None);
-    for n in 0..20u32 {
+    for n in 0..16u32 {
         react(&mut devs, 1, &conv, &b, &format!("k{n}"), true);
     }
+    let d = &mut devs[1];
+    assert!(
+        d.app
+            .group_do(
+                ctx!(d),
+                GroupIntent::SetReaction {
+                    conversation_id: conv.clone(),
+                    message_id: b.clone(),
+                    key: "k16".into(),
+                    present: true,
+                },
+            )
+            .is_err(),
+        "no seventeenth present reaction from our own client"
+    );
     assert_eq!(counts(&devs[0], &conv, &b).len(), 16);
+    // a peer that is not Core can still send more; every receiver holds at most 64 registers, shows the 16 newest present
+    let c = say(&mut devs, 0, &conv, "flood", None);
+    for n in 0..70u32 {
+        let w = craft(
+            &mut devs,
+            1,
+            &conv,
+            2,
+            (NOW + 1000 + u64::from(n), 0),
+            events::K_REACTION,
+            V::M(vec![
+                (0, target(&c)),
+                (1, V::T(format!("f{n}"))),
+                (2, V::Bool(true)),
+            ]),
+        );
+        deliver(&mut devs, 1, &w);
+    }
+    let shown = counts(&devs[0], &conv, &c);
+    assert_eq!(shown.len(), 16);
+    assert!(
+        shown
+            .iter()
+            .all(|(k, ..)| { k[1..].parse::<u32>().is_ok_and(|n| n >= 54) })
+    );
 }
 
 #[test]
