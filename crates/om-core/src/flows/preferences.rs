@@ -137,7 +137,35 @@ impl NicknameItem {
     }
 }
 
+impl NicknameItem {
+    /// The highest sequence this device has itself received and authenticated from `origin` for this item (its own records
+    /// for our device id). Nothing a sibling claims raises it.
+    fn highest(&self, origin: &str) -> u64 {
+        self.origins.get(origin).map_or(0, |o| {
+            let latest = o.latest.as_ref().map_or(0, |m| m.sequence);
+            latest.max(o.tombstone.as_ref().map_or(0, |m| m.sequence))
+        })
+    }
+}
+
 impl Mutation {
+    /// ADR-0229 section 4: believe a claimed observation `(origin, sequence)` only up to the highest sequence this device has
+    /// itself received from that origin (an unseen origin is dropped, the claim is then "nothing observed"), and ignore
+    /// entries naming a device that was not eligible under the sender's verified ACS at the stated generation. The clamped
+    /// vector is what is stored and what this device later sends, so a claim never suppresses an origin's later records and
+    /// is never propagated beyond what we verified. Clamping happens once, at ingest, so a later removal of the claimant
+    /// leaves nothing to reconcile.
+    fn clamp(&mut self, item: &NicknameItem, eligible_at_generation: impl Fn(&[u8; 16]) -> bool) {
+        self.seen.retain(|origin, seq| {
+            let Ok(id) = h16(origin) else { return false };
+            if !eligible_at_generation(&id) {
+                return false;
+            }
+            *seq = (*seq).min(item.highest(origin));
+            *seq > 0
+        });
+    }
+
     fn encode(&self, profile: &[u8; 32], key: &str) -> Vec<u8> {
         let seen = self
             .seen
@@ -355,16 +383,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let mutation = Mutation::decode(p, &sender_id)?;
         // The chain was fully verified by acs_head. Eligibility is required at authorship and now.
-        if mutation.generation > head.generation
-            || !chain
-                .iter()
-                .rev()
-                .filter_map(|s| ceremony::chain_head(s))
-                .find(|acs| acs.generation == mutation.generation)
-                .is_some_and(|acs| eligible(&acs, sender))
-        {
+        let at_generation = (mutation.generation <= head.generation)
+            .then(|| {
+                chain
+                    .iter()
+                    .rev()
+                    .filter_map(|s| ceremony::chain_head(s))
+                    .find(|acs| acs.generation == mutation.generation)
+            })
+            .flatten();
+        let Some(at_generation) = at_generation.filter(|acs| eligible(acs, sender)) else {
             return Some(()); // No receipt: the origin can retry after our ACS catches up.
-        }
+        };
+        let mut mutation = mutation;
         let conv = self
             .st
             .app
@@ -379,6 +410,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return Some(());
         }
         let item = items.entry(key.to_string()).or_default();
+        mutation.clamp(item, |d| eligible(&at_generation, d));
         if !item.insert(&sender_id, mutation) {
             return Some(());
         }
@@ -441,5 +473,54 @@ mod tests {
             item.insert("a", clear.clone()); // a late duplicate cannot erase its descendant
             assert_eq!(item.nickname().as_deref(), Some("New name"));
         }
+    }
+
+    fn dev(n: u8) -> String {
+        format!("{:032x}", n)
+    }
+
+    fn rec(seq: u64, logical: u64, value: Option<&str>, seen: &[(String, u64)]) -> Mutation {
+        Mutation {
+            generation: 1,
+            sequence: seq,
+            logical,
+            value: value.map(Into::into),
+            seen: seen.iter().cloned().collect(),
+            delivery: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn a_claim_beyond_what_we_received_does_not_suppress_the_origins_next_update() {
+        let (x, s) = (dev(1), dev(2));
+        let mut item = NicknameItem::default();
+        item.insert(&x, rec(1, 1, Some("X1"), &[]));
+        let mut claim = rec(1, 1, Some("S"), &[(x.clone(), 1000)]);
+        claim.clamp(&item, |_| true);
+        assert_eq!(claim.seen.get(&x), Some(&1), "clamped to what we received");
+        item.insert(&s, claim);
+        item.insert(&x, rec(2, 2, Some("X2"), &[]));
+        assert_eq!(item.nickname().as_deref(), Some("X2"));
+        // the clamped claim is what we would send on
+        let next = item.next(1, 9, Some("N".into())).unwrap();
+        assert!(next.seen.values().all(|v| *v <= 2));
+    }
+
+    #[test]
+    fn claims_about_unseen_or_ineligible_origins_are_dropped_and_an_unreceived_clear_is_not_waived() {
+        let (x, s, ghost) = (dev(1), dev(2), dev(3));
+        let mut item = NicknameItem::default();
+        item.insert(&x, rec(1, 1, Some("X1"), &[]));
+        let mut claim = rec(1, 2, Some("S"), &[(x.clone(), 9), (ghost.clone(), 4)]);
+        claim.clamp(&item, |d| d != &h16(&ghost).unwrap());
+        assert_eq!(claim.seen.len(), 1, "an entry naming no eligible device is ignored");
+        let mut unseen = rec(1, 2, Some("S"), &[("not-hex".into(), 4), (dev(7), 4)]);
+        unseen.clamp(&item, |_| true);
+        assert!(unseen.seen.is_empty(), "malformed and never-seen origins carry no claim");
+        item.insert(&s, claim);
+        assert_eq!(item.nickname().as_deref(), Some("S"));
+        // X's clear at 9 arrives later: the claim of having seen it cannot waive it
+        item.insert(&x, rec(9, 3, None, &[]));
+        assert_eq!(item.nickname(), None);
     }
 }
