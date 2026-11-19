@@ -37,11 +37,11 @@ fn state_from_signed(raw: &[u8]) -> Option<Acs> {
     Acs::from_body(required_bytes(&envelope, 1)?).ok()
 }
 
-fn optional_array(value: &V, key: u64) -> Option<&[V]> {
+pub(super) fn optional_array(value: &V, key: u64) -> Option<&[V]> {
     value.opt(key).map_or(Some(&[]), |v| v.a().ok())
 }
 
-fn bounded(evidence: &V, plaintext_size: usize) -> Option<()> {
+pub(super) fn bounded(evidence: &V, plaintext_size: usize) -> Option<()> {
     let segment = optional_array(evidence, 4)?;
     let tail = evidence.get(1).ok()?.a().ok()?;
     let credentials = evidence.get(2).ok()?.a().ok()?;

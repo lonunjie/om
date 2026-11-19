@@ -19,9 +19,9 @@ const PURPOSE: &str = "om.controller_change.v1";
 const PREFLIGHT: &str = "OM-CONTROLLER-OP3-PREFLIGHT-SIG-v1";
 const REQUEST: &str = "OM-CONTROLLER-OP3-REQUEST-PROOF-SIG-v1";
 const MAX_PLAINTEXT: usize = 100_000;
-const FIXED_JOIN_TIME: u32 = 1_799_999_700;
+pub(super) const FIXED_JOIN_TIME: u32 = 1_799_999_700;
 
-fn decode_op3_offer(link: &str, now: u32) -> Option<([u8; 16], ra::Offer, [u8; 32])> {
+pub(super) fn decode_op3_offer(link: &str, now: u32) -> Option<([u8; 16], ra::Offer, [u8; 32])> {
     fn lower_hex<const N: usize>(text: &str) -> Option<[u8; N]> {
         if text.len() != N * 2 || !text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
             return None;
@@ -88,7 +88,7 @@ fn cc3a_01_fixed_link_preserves_binding_and_legacy_transcripts() {
     assert_eq!(transcript(0), previous);
 }
 
-fn binding(parent: &Acs, selected_hash: [u8; 32], child_hash: [u8; 32]) -> Vec<u8> {
+pub(super) fn binding(parent: &Acs, selected_hash: [u8; 32], child_hash: [u8; 32]) -> Vec<u8> {
     encode(&array([
         string(PURPOSE),
         V::U(3),
@@ -101,7 +101,7 @@ fn binding(parent: &Acs, selected_hash: [u8; 32], child_hash: [u8; 32]) -> Vec<u
     ]))
 }
 
-fn ceremony_id(binding: &[u8], offer: &ra::Offer) -> [u8; 32] {
+pub(super) fn ceremony_id(binding: &[u8], offer: &ra::Offer) -> [u8; 32] {
     let route = ra::context(
         offer.expiry_s.into(),
         offer.uri.as_bytes(),
@@ -111,16 +111,16 @@ fn ceremony_id(binding: &[u8], offer: &ra::Offer) -> [u8; 32] {
     ds_hash(ra::LBL_KDF, &encode(&array([bytes(binding), bytes(route)])))
 }
 
-fn raw_hash(data: &[u8]) -> V {
+pub(super) fn raw_hash(data: &[u8]) -> V {
     bytes(sha256(&[data]))
 }
 
-fn preflight_input(id: &[u8; 32], proposal: &[u8]) -> Vec<u8> {
+pub(super) fn preflight_input(id: &[u8; 32], proposal: &[u8]) -> Vec<u8> {
     let body = encode(&array([bytes(id), raw_hash(proposal)]));
     ds_sig(PREFLIGHT, PROFILE_V1, ROLE_CONTROLLER, &ORIGIN, &body)
 }
 
-fn request_input(id: &[u8; 32], preflight: &[u8], partial_child: &[u8]) -> Vec<u8> {
+pub(super) fn request_input(id: &[u8; 32], preflight: &[u8], partial_child: &[u8]) -> Vec<u8> {
     let body = encode(&array([
         bytes(id),
         raw_hash(preflight),
@@ -129,7 +129,7 @@ fn request_input(id: &[u8; 32], preflight: &[u8], partial_child: &[u8]) -> Vec<u
     ds_sig(REQUEST, PROFILE_V1, ROLE_DEVICE, &SELECTED, &body)
 }
 
-fn reply_input(id: &[u8; 32], request: &[u8], reply_body: &[u8]) -> Vec<u8> {
+pub(super) fn reply_input(id: &[u8; 32], request: &[u8], reply_body: &[u8]) -> Vec<u8> {
     encode(&array([
         string(PURPOSE),
         string("reply"),
@@ -208,7 +208,7 @@ fn checked_preflight(
         .then_some(child)
 }
 
-fn checked_vote(
+pub(super) fn checked_vote(
     f: &Fixture,
     child: &Acs,
     id: &[u8; 32],
@@ -246,7 +246,7 @@ fn checked_vote(
         .cloned()
 }
 
-fn checked_reply(
+pub(super) fn checked_reply(
     f: &Fixture,
     child: &Acs,
     id: &[u8; 32],

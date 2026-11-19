@@ -11,7 +11,7 @@ const TRANSFER_HASH: &str = "OM-RECOVERY-KIT-TRANSFER-HASH-v1";
 const ACK_BIND: &str = "OM-RECOVERY-KIT-ACK-BIND-v1";
 const TRANSFER: [u8; 16] = [0x55; 16];
 
-fn place_fields(kit: &RecoveryKit, account: &[u8], commitment: &[u8]) -> V {
+pub(super) fn place_fields(kit: &RecoveryKit, account: &[u8], commitment: &[u8]) -> V {
     let fields = map([
         (0, V::U(1)),
         (1, bytes(account)),
@@ -24,7 +24,11 @@ fn place_fields(kit: &RecoveryKit, account: &[u8], commitment: &[u8]) -> V {
     with_field(&fields, 7, kit.port.map(|port| V::U(port.into())))
 }
 
-fn signed_place(body: &[u8], signer: &DeviceSigner, rnd: u8) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+pub(super) fn signed_place(
+    body: &[u8],
+    signer: &DeviceSigner,
+    rnd: u8,
+) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     let input = ds_sig(PLACE, PROFILE_V1, ROLE_RECOVERY, &ACCOUNT, body);
     let signature = signer.sign_with(&input, [rnd; 32]);
     let entry = sig::signature_entry(&ACCOUNT, PROFILE_V1, ROLE_RECOVERY, signature.clone());
@@ -32,12 +36,12 @@ fn signed_place(body: &[u8], signer: &DeviceSigner, rnd: u8) -> (Vec<u8>, Vec<u8
     (input, signature, certificate)
 }
 
-fn transfer_digest(send: &V) -> [u8; 32] {
+pub(super) fn transfer_digest(send: &V) -> [u8; 32] {
     let tuple = array([3, 6, 7, 9].map(|field| send.get(field).unwrap().clone()));
     ds_hash(TRANSFER_HASH, &encode(&tuple))
 }
 
-fn ack_from_send(send: &V) -> V {
+pub(super) fn ack_from_send(send: &V) -> V {
     let mut fields: Vec<_> = (0..9).map(|k| (k, send.get(k).unwrap().clone())).collect();
     fields[0].1 = V::U(20);
     fields.swap(4, 5);
@@ -55,6 +59,26 @@ fn admit(
     sibling: (&[u8; 16], &[u8; 16]),
     advertised_scope: &[u8; 32],
 ) -> Option<RecoveryKit> {
+    admit_bounded(
+        raw,
+        head,
+        anchor,
+        sibling,
+        advertised_scope,
+        om_core::recovery_record::MAX_KIT_BYTES,
+        |base| RecoveryKit::from_bytes(&encode(base)).ok(),
+    )
+}
+
+pub(super) fn admit_bounded(
+    raw: &[u8],
+    head: Option<&Acs>,
+    anchor: &Acs,
+    sibling: (&[u8; 16], &[u8; 16]),
+    advertised_scope: &[u8; 32],
+    max_kit_bytes: usize,
+    decode_base: impl FnOnce(&V) -> Option<RecoveryKit>,
+) -> Option<RecoveryKit> {
     let head = head?;
     let send = decode(raw).ok()?;
     if send.m().ok()?.len() != 11
@@ -70,6 +94,10 @@ fn admit(
     {
         return None;
     }
+    let kit_bytes = required_bytes(&send, 9)?;
+    if kit_bytes.len() > max_kit_bytes {
+        return None;
+    }
     let policy = RecoveryPolicy::from_body(required_bytes(&send, 10)?).ok()?;
     let commitment = policy.hash();
     if head.recovery_commitment != Some(commitment)
@@ -80,10 +108,6 @@ fn admit(
         return None;
     }
 
-    let kit_bytes = required_bytes(&send, 9)?;
-    if kit_bytes.len() > om_core::recovery_record::MAX_KIT_BYTES {
-        return None;
-    }
     let kit_value = decode(kit_bytes).ok()?;
     if let Some(ref_) = kit_value.opt(11) {
         if ref_.m().ok()?.len() != 3
@@ -111,7 +135,7 @@ fn admit(
     )
     .ok()?;
     let base = with_field(&with_field(&kit_value, 11, None), 12, None);
-    let kit = RecoveryKit::from_bytes(&encode(&base)).ok()?;
+    let kit = decode_base(&base)?;
     (kit.epoch == policy.epoch()
         && valid_host(&kit.host)
         && &kit.scope == advertised_scope

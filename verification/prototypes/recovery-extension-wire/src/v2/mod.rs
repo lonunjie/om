@@ -4,6 +4,8 @@
 mod controller;
 mod kit;
 mod record;
+#[path = "../v3/mod.rs"]
+mod v3;
 
 use crate::tests::{bytes, string};
 use om_core::control::{LBL_ACS_SIG, verify_genesis};
