@@ -547,13 +547,55 @@ describe("the veto board", () => {
       if (n % 8 === 0) advance(HOUR + 1);
       expectOk(await veto(store, i.accountId, digest, n, rand(16), rand(32)));
     }
-    advance(HOUR + 1);
     const signed = signedVeto(i.accountId, digest, 100);
     const { checkSignedVeto } = await import("@om/home-wire");
     expectOk(await store.postVeto({ requestId: rand(16), signed, ...checkSignedVeto(signed), cap: i.cap }));
     const items = await board(store, digest);
     expect(items).toHaveLength(17);
     expect(items[0]).toEqual(signed);
+  });
+
+  it("retains each hourly class count independently after restart", async () => {
+    const fixture = await mk();
+    const i = await inbox(fixture.store);
+    const first = signedRequest(i.accountId);
+    const second = signedRequest(i.accountId);
+    expectOk(await post(fixture.store, first));
+    expectOk(await post(fixture.store, second));
+    const digest = await requestDigestOf(first);
+    const otherDigest = await requestDigestOf(second);
+    for (let n = 0; n < 8; n++) {
+      expectOk(await veto(fixture.store, i.accountId, digest, n, rand(16), i.cap));
+    }
+    advance(120);
+    const store = await fixture.restart();
+    expectOk(await veto(store, i.accountId, otherDigest, 8, rand(16), i.cap));
+    expect(await board(store, otherDigest)).toHaveLength(0);
+    expectOk(await veto(store, i.accountId, otherDigest, 9));
+    expect(await board(store, otherDigest)).toHaveLength(1);
+    advance(HOUR);
+    expectOk(await veto(store, i.accountId, otherDigest, 10, rand(16), i.cap));
+    expect(await board(store, otherDigest)).toHaveLength(2);
+  });
+
+  it("upgrades an existing hourly log and retains its public pacing", async () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec("CREATE TABLE veto_log (inbox_id BLOB NOT NULL, at INTEGER NOT NULL)");
+    const accountId = rand(32);
+    const inboxId = await recoveryInboxId(accountId, 1);
+    for (let n = 0; n < 8; n++) {
+      db.prepare("INSERT INTO veto_log (inbox_id, at) VALUES (?, ?)").run(inboxId, T0);
+    }
+    const { store } = await mk({}, db);
+    const cap = rand(32);
+    expectOk(await store.registerInbox(inboxId, cap, rand(16)));
+    const request = signedRequest(accountId);
+    expectOk(await post(store, request));
+    const digest = await requestDigestOf(request);
+    expectOk(await veto(store, accountId, digest));
+    expect(await board(store, digest)).toHaveLength(0);
+    expectOk(await veto(store, accountId, digest, 1, rand(16), cap));
+    expect(await board(store, digest)).toHaveLength(1);
   });
 
   it("items and board rows are kept 14 days and then dropped; a request digest is forgotten with them", async () => {

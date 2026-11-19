@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS reqs (inbox_id BLOB NOT NULL, digest BLOB NOT NULL, b
 CREATE INDEX IF NOT EXISTS reqs_digest ON reqs (digest);
 CREATE TABLE IF NOT EXISTS vetoes (seq INTEGER PRIMARY KEY AUTOINCREMENT, inbox_id BLOB NOT NULL, digest BLOB NOT NULL, hash BLOB NOT NULL, bytes BLOB NOT NULL, expires_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS vetoes_digest ON vetoes (digest, seq);
-CREATE TABLE IF NOT EXISTS veto_log (inbox_id BLOB NOT NULL, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS veto_log (inbox_id BLOB NOT NULL, at INTEGER NOT NULL, controller INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS veto_read_buckets (bucket INTEGER PRIMARY KEY CHECK (bucket BETWEEN 0 AND 255), tokens REAL NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS ops (request_id TEXT PRIMARY KEY, fp TEXT NOT NULL, result BLOB NOT NULL, expires_at INTEGER NOT NULL);
 `;
@@ -58,6 +58,10 @@ export class RecoveryStore extends DurableObject<Env> {
     }
     if (!one(this.sql, "SELECT 1 FROM pragma_table_info('vetoes') WHERE name = 'controller'")) {
       run(this.sql, "ALTER TABLE vetoes ADD COLUMN controller INTEGER NOT NULL DEFAULT 0");
+    }
+    // Older log rows have no class. Charge them to the public window until they expire.
+    if (!one(this.sql, "SELECT 1 FROM pragma_table_info('veto_log') WHERE name = 'controller'")) {
+      run(this.sql, "ALTER TABLE veto_log ADD COLUMN controller INTEGER NOT NULL DEFAULT 0");
     }
     if (getMeta(this.sql, "veto_read_key") === undefined) {
       setMeta(this.sql, "veto_read_key", randomBytes(32));
@@ -373,13 +377,14 @@ export class RecoveryStore extends DurableObject<Env> {
         if (!one(this.sql, "SELECT 1 FROM reqs WHERE inbox_id = ? AND digest = ?", inboxId, a.requestDigest)) return false;
         if (one(this.sql, "SELECT 1 FROM vetoes WHERE digest = ? AND hash = ? AND controller = ?", a.requestDigest, hash, controller)) return false;
         const n = (q: string, ...b: (Uint8Array | number)[]): number => one<{ n: number }>(this.sql, q, ...b)?.n ?? 0;
-        if (n("SELECT COUNT(*) AS n FROM veto_log WHERE inbox_id = ? AND at > ?", inboxId, now - HOUR_SECONDS) >= LIMITS.recoveryVetoesPerHour) return false;
+        const hourly = controller ? LIMITS.recoveryControllerVetoesPerHour : LIMITS.recoveryVetoesPerHour;
+        if (n("SELECT COUNT(*) AS n FROM veto_log WHERE inbox_id = ? AND controller = ? AND at > ?", inboxId, controller, now - HOUR_SECONDS) >= hourly) return false;
         const capacity = controller ? LIMITS.recoveryControllerVetoesPerDigest : LIMITS.recoveryPendingVetoesPerDigest;
         if (n("SELECT COUNT(*) AS n FROM vetoes WHERE digest = ? AND controller = ?", a.requestDigest, controller) >= capacity) return false;
         const inboxFull = n("SELECT COUNT(*) AS n FROM items WHERE inbox_id = ? AND kind = 2", inboxId) >= LIMITS.recoveryPendingVetoes;
         if (!controller && (inboxFull || n("SELECT COUNT(*) AS n FROM vetoes WHERE inbox_id = ? AND controller = 0", inboxId) >= LIMITS.recoveryPendingVetoes)) return false;
         const expires = now + LIMITS.maxRetentionSeconds;
-        run(this.sql, "INSERT INTO veto_log (inbox_id, at) VALUES (?, ?)", inboxId, now);
+        run(this.sql, "INSERT INTO veto_log (inbox_id, at, controller) VALUES (?, ?, ?)", inboxId, now, controller);
         run(this.sql, "INSERT INTO vetoes (inbox_id, digest, hash, bytes, expires_at, controller) VALUES (?, ?, ?, ?, ?, ?)", inboxId, a.requestDigest, hash, a.signed, expires, controller);
         if (!inboxFull) run(this.sql, "INSERT INTO items (id, inbox_id, kind, bytes, expires_at) VALUES (?, ?, 2, ?, ?)", randomBytes(16), inboxId, a.signed, expires);
         return true;

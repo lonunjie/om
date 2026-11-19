@@ -292,6 +292,24 @@ describe("PC-R recovery store (om.recovery.store.v1)", () => {
       expect(decodeVetoList((await board(home, digest)).bytes)).toEqual([controllerVeto, publicVeto]);
     });
 
+    it("PC-R23 the controller class retains admission at the public hourly limit", async () => {
+      const i = await newInbox(home);
+      const req = signedRequest(i.accountId);
+      expect(name(await fanout(home, req.signed))).toBe("ok");
+      const digest = await requestDigestOf(req);
+      const publicVetoes = Array.from({ length: 8 }, (_, n) => signedVeto(i.accountId, digest, n));
+      for (const veto of publicVetoes) {
+        const answer = await postVeto(home, veto);
+        expect([answer.status, toHex(answer.bytes)]).toEqual([204, ""]);
+      }
+      const controller = signedVeto(i.accountId, digest, 8);
+      const answer = await postVeto(home, controller, i.cap);
+      expect([answer.status, toHex(answer.bytes)]).toEqual([204, ""]);
+      const items = decodeVetoList((await board(home, digest)).bytes);
+      expect(items).toHaveLength(9);
+      expect(items).toEqual([controller, ...publicVetoes]);
+    });
+
     for (const present of [true, false]) {
       it(`PC-R22 board pacing at the burst boundary for a ${present ? "present" : "missing"} digest`, async () => {
         const i = await newInbox(home);

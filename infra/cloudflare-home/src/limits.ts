@@ -79,7 +79,9 @@ export const LIMITS = {
   recoveryPendingVetoes: 32,
   recoveryPendingVetoesPerDigest: 16,
   recoveryControllerVetoesPerDigest: 8,
+  /** Separate rolling-hour admission budgets per inbox for public and controller-capability vetoes. */
   recoveryVetoesPerHour: 8,
+  recoveryControllerVetoesPerHour: 8,
   /** Fan-out and veto posts, whole Home (the only recovery limits that answer `rate_limited` to a poster). */
   recoveryPostBurst: 10,
   recoveryPostRefillSeconds: 60,
