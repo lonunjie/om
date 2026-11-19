@@ -33,6 +33,7 @@ import { createBackupServices, type BackupServices } from "./backupServices";
 import { createLockServices, type LockServices } from "./lockServices";
 import { readIdleMinutes, writeIdleMinutes, type IdleMinutes } from "./lockPrefs";
 import { useIdleLock } from "./useIdleLock";
+import { addBusyProbe } from "../sw/busy";
 
 export interface RealAppProps {
   /** `null`: no provider is configured; the app says so and queues everything locally. */
@@ -73,6 +74,7 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
   useEffect(() => {
     const life = { live: true };
     let rt: WasmCoreClient | undefined;
+    let unbusy: (() => void) | undefined;
     void (async () => {
       const env = browserVaultEnv("OM");
       if (env === undefined) { if (life.live) setBoot({ k: "no_vault" }); return; } // fail closed: no durable boundary, nothing starts
@@ -80,18 +82,19 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
         const vault = createWebDeviceVault(env);
         const registry = createProfileRegistry(env.indexedDB);
         const drafts = createDraftStore((id) => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id));
+        unbusy = addBusyProbe(() => drafts.hasPending()); // an update waits while a draft or the scheduled queue is not yet sealed
         const searchKv = (id: ProfileId): EncryptedKv => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id, "search-index");
         rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace() });
         const known = await registry.list();
         const platform = createWebPlatform();
         if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, searchKv, platform, capture: composerCapture(platform), known });
-        else rt.dispose();
+        else { unbusy(); rt.dispose(); }
       } catch {
         rt?.dispose();
         if (life.live) setBoot({ k: "failed" });
       }
     })();
-    return () => { life.live = false; rt?.dispose(); };
+    return () => { life.live = false; unbusy?.(); rt?.dispose(); };
   }, [provider, pollMs]);
 
   return (

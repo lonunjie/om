@@ -24,6 +24,8 @@ export interface DraftStore {
   set(profileId: ProfileId, conversationId: ConversationId, text: string): void;
   /** Writes everything pending now. Call before locking: a locked vault cannot seal. */
   flush(): Promise<void>;
+  /** Whether a draft or the scheduled queue changed and is not yet sealed on disk (a reload now would lose it). */
+  hasPending(): boolean;
   /** Drops the identity's drafts from memory (after locking). They stay sealed on disk. */
   forget(profileId: ProfileId): void;
   /** When each chat was last shown on this device (message time, ms); waits for the vault. */
@@ -138,6 +140,10 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
       timer ??= setTimeout(() => { timer = undefined; void flush(); }, SAVE_AFTER_MS);
     },
     flush,
+    hasPending() {
+      for (const e of entries.values()) if (e.dirty.size > 0 || e.scheduledDirty) return true;
+      return false;
+    },
     forget(profileId) { entries.delete(profileId); },
     loadSeen(profileId) {
       const e = entry(profileId);

@@ -1222,6 +1222,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/useCalls.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/useCalls.ts",
       "class": "product_code",
       "domain": "calls_media",
@@ -1376,6 +1383,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/sw/busy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/sw/core.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -1405,6 +1419,13 @@
     },
     {
       "path": "apps/web/src/sw/push.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/sw/register.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

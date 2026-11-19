@@ -123,4 +123,17 @@ describe("seen markers", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(data.size).toBe(0);
   });
+  it("reports unsealed work as pending until it is written, so an update waits for it", async () => {
+    const { kv } = fakeKv();
+    const store = createDraftStore(() => kv);
+    expect(store.hasPending()).toBe(false);
+    store.set(alice, chat("c1"), "half a thought");
+    expect(store.hasPending()).toBe(true);
+    await store.flush();
+    expect(store.hasPending()).toBe(false);
+    store.setScheduled(alice, [{ id: "s1", conversationId: chat("c1"), text: "later", dueAt: 5, createdAt: 1 }]);
+    expect(store.hasPending()).toBe(true);
+    await store.flush();
+    expect(store.hasPending()).toBe(false);
+  });
 });

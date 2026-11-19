@@ -1,3 +1,5 @@
+import { sessionBusy } from "./busy";
+
 // Page-side registration: feature-detected, a no-op when unsupported or in dev.
 export interface RegisterOptions {
   /** Called when a verified bundle is staged. Invoke `apply` only at a user-visible or idle boundary. */
@@ -38,15 +40,16 @@ const hasUnsavedInput = (): boolean => {
 };
 const CHECK_MS = 60 * 60 * 1000;
 
-/** Apply a staged update without asking: as soon as the page is hidden, or after IDLE_MS with no input. The new worker takes
- *  over, then the page reloads (see `reloadOnTakeover`). Returns a stop function. */
+/** Apply a staged update without asking: as soon as the page is hidden, or after IDLE_MS with no input, but never while the shell reports
+ *  a live call or media session, an active ceremony or unsaved work (`sessionBusy`): a hidden tab or an idle keyboard is not an idle
+ *  call. The new worker takes over, then the page reloads (see `reloadOnTakeover`). Returns a stop function. */
 export const applyWhenIdle = (apply: () => void): (() => void) => {
   let last = Date.now();
   const touch = (): void => { last = Date.now(); };
   const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
   for (const e of events) addEventListener(e, touch, { passive: true });
   const tick = (): void => {
-    if (hasUnsavedInput()) return;
+    if (hasUnsavedInput() || sessionBusy()) return;
     if (document.visibilityState === "hidden" || Date.now() - last >= IDLE_MS) { stop(); apply(); }
   };
   const timer = setInterval(tick, 2000);

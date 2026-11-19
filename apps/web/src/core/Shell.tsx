@@ -27,6 +27,7 @@ import { takeOpenNewGroup } from "./loadCore";
 import type { LockServices } from "./lockServices";
 import type { CallDriver } from "@om/core-wasm";
 import { useCalls } from "./useCalls";
+import { addBusyProbe } from "../sw/busy";
 import { CallHost } from "./CallHost";
 
 const useCallSurface = import.meta.env.VITE_OM_CALLS === "1" ? useCalls : () => undefined;
@@ -102,6 +103,8 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
   const mode = useLayoutMode();
   // A replacement safety code (ADR-0205) being shown from Settings > Recovery; nothing changes until the person confirms it is saved.
   const [replacingKey, setReplacingKey] = useState<OperationId | null>(null);
+  // Showing a new safety code is a ceremony: a reload before it is confirmed saved would lose the only copy, so an update waits.
+  useEffect(() => (replacingKey === null ? undefined : addBusyProbe(() => true)), [replacingKey]);
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   // Files and voice notes waiting to be sent. Memory only: they survive switching chats but never reach disk, and locking or switching identity drops them.
   const [replies, setReplies] = useState<ReadonlyMap<ConversationId, ReplyTarget>>(() => new Map());

@@ -4,6 +4,7 @@ import type { CallMediaProvider } from "@om/provider-http";
 import type { CallDriver } from "@om/core-wasm";
 import type { CallIceConfig, CallMediaKind, CallTransport, CallTransportFailure } from "@om/web-platform/calls";
 import { firstOutcome, resolveIntent, type ConversationServices } from "@om/ui";
+import { addBusyProbe } from "../sw/busy";
 
 type Failure = CallTransportFailure | "privacy" | "privateUnavailable" | "relayConnection";
 type OwnMedia = Awaited<ReturnType<CallMediaProvider["mediaCapabilities"]>>;
@@ -291,6 +292,10 @@ export function useCalls(services: ConversationServices, driver?: CallDriver, pr
       depart();
     };
   }, [driver, client, ctx, intent, release, provider]);
+
+  // The update path asks whether a call is in progress before it reloads the page (sw/busy.ts). Refs, so the answer is live at each tick:
+  // a call being set up, ringing, connecting, connected or reconnecting, or media still held, is not a moment to take over.
+  useEffect(() => addBusyProbe(() => selected.current !== null || preparation.current !== null || !terminal(current.current)), []);
 
   useEffect(() => {
     if (!driver || !provider) return;
