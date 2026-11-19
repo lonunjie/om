@@ -352,6 +352,76 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         );
     }
 
+    /// ADR-0226 section 5: remember the sealed pieces of multi-piece evidence (manifest first, then every chunk) so the
+    /// sender can repeat the whole sequence bit-identically at one, two, three and four fifths of the exchange's remaining
+    /// life. Nothing is asked of the receiver, and nothing is buffered before the manifest.
+    pub(super) fn schedule_evidence_repeat(
+        &mut self,
+        op: &str,
+        route: &RelayEntry,
+        sealed: &[Vec<u8>],
+        expires_at_ms: u64,
+    ) {
+        if sealed.len() < 2 || expires_at_ms <= self.now_ms {
+            return;
+        }
+        self.st.app.ceremony_repeats.insert(
+            op.to_string(),
+            EvidenceRepeat {
+                route: route.clone(),
+                sealed: sealed.iter().map(|s| hex(s)).collect(),
+                start_ms: self.now_ms,
+                expires_at: expires_at_ms,
+                done: 0,
+            },
+        );
+    }
+
+    /// Send the due repeat of each plan once (an offline stretch skips to the latest due one), and end the plan after the
+    /// last repeat or at the exchange's expiry. A plan waits while its earlier repeat is still queued. The repeats go out
+    /// under their own operation id, so a refusal of a repeat never ends the ceremony the first pass belongs to.
+    pub(super) fn run_evidence_repeats(&mut self) {
+        use zeroize::Zeroize;
+        let now = self.now_ms;
+        let ops: Vec<String> = self.st.app.ceremony_repeats.keys().cloned().collect();
+        for op in ops {
+            let Some(plan) = self.st.app.ceremony_repeats.get(&op).cloned() else {
+                continue;
+            };
+            let again = format!("{op}#repeat");
+            let span = plan.expires_at.saturating_sub(plan.start_ms);
+            let due = (1..=u64::from(EVIDENCE_REPEATS))
+                .filter(|k| plan.start_ms.saturating_add(span / 5 * k) <= now)
+                .max()
+                .unwrap_or(0) as u8;
+            let queued = self.st.app.outbox.iter().any(|e| {
+                matches!(&e.purpose, Purpose::DepositCeremony { operation_id, .. } if *operation_id == again)
+            });
+            let mut finished = now >= plan.expires_at || plan.done >= EVIDENCE_REPEATS;
+            if !finished && due > plan.done && !queued {
+                for s in &plan.sealed {
+                    if let Ok(bytes) = unhex(s) {
+                        self.deposit_ceremony(
+                            &again,
+                            &plan.route.capability,
+                            &plan.route.relay_uri,
+                            bytes,
+                            false,
+                        );
+                    }
+                }
+                if let Some(p) = self.st.app.ceremony_repeats.get_mut(&op) {
+                    p.done = due;
+                }
+                finished = due >= EVIDENCE_REPEATS;
+            }
+            if finished && let Some(mut p) = self.st.app.ceremony_repeats.remove(&op) {
+                p.route.capability.zeroize();
+                p.sealed.clear();
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------------------------ existing device: offer
 
     /// `OfferDeviceLink`: only an active control device offers (a messaging device never links another). Two queues
@@ -505,6 +575,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony deposit or queue creation was refused for good: the ceremony ends, nothing is half adopted.
     pub(super) fn ceremony_failed(&mut self, op: &str, approval: bool) {
+        self.st.app.ceremony_repeats.remove(op);
         self.controller_failed(op, approval);
         self.approval_failed(op, approval);
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
@@ -526,6 +597,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A ceremony past its deadline ends; transfer time never extends the link's lifetime.
     pub(super) fn expire_ceremonies(&mut self) {
+        self.run_evidence_repeats();
         self.expire_approvals();
         for o in self.st.app.link_offers.values_mut() {
             if o.expires_at <= self.now_ms && !o.state.is_terminal() {
@@ -1076,6 +1148,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         while self.st.app.notices.len() > MAX_NOTICES {
             self.st.app.notices.remove(0);
         }
+        if use_cont {
+            // the approval (manifest) and its chunks; the roster and history pieces are not part of the chain evidence
+            let pieces = 1 + chunk_msgs.len();
+            self.schedule_evidence_repeat(
+                &offer.operation_id,
+                &offer.b_route,
+                &sealed[..pieces],
+                offer.expires_at,
+            );
+        }
         for (i, s) in sealed.into_iter().enumerate() {
             self.deposit_ceremony(
                 &offer.operation_id,
@@ -1311,6 +1393,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Ok(M_APPROVE) if !join.approved && join.cont.is_none() => {
                 if !self.on_approval(&v, &nonce, &keys, &join.request_digest) {
                     // Anything short of a fully verified approval (including a missing notice) ends the ceremony.
+                    self.finish_join(LinkState::Failed);
+                }
+            }
+            // ADR-0226 section 5: an identical repeat of the manifest is a no-op, a different one ends the ceremony.
+            Ok(M_APPROVE) if !join.approved => {
+                if join
+                    .cont
+                    .as_ref()
+                    .is_some_and(|c| c.approval != hex(&cbor::encode(&v)))
+                {
                     self.finish_join(LinkState::Failed);
                 }
             }

@@ -982,6 +982,9 @@ pub struct AppState {
     /// Recovery approval ceremonies this (surviving controller) device offered (ADR-0203), by operation id.
     #[serde(default)]
     pub approval_offers: BTreeMap<OperationId, ApprovalOffer>,
+    /// Ceremony evidence the sender repeats bit-identically (ADR-0226 section 5), by operation id.
+    #[serde(default)]
+    pub ceremony_repeats: BTreeMap<OperationId, EvidenceRepeat>,
     #[serde(default)]
     pub controller_change: Option<ControllerChange>,
 
@@ -1768,6 +1771,22 @@ pub struct LinkOffer {
     #[serde(default)]
     pub approval_undelivered: bool,
 }
+
+/// The sender's repeat plan for a ceremony whose evidence is several pieces (a manifest and its chunks): the sealed pieces
+/// exactly as first sent, in order (manifest first), the route to the receiver's queue, and how many of the repeats at one,
+/// two, three and four fifths of the exchange's life have run (ADR-0226 section 5). The receiver announces nothing.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceRepeat {
+    pub route: RelayEntry,
+    pub sealed: Vec<String>,
+    pub start_ms: u64,
+    pub expires_at: u64,
+    pub done: u8,
+}
+
+/// Repeats of ceremony evidence, at one fifth of the remaining life each (ADR-0226 section 5).
+pub const EVIDENCE_REPEATS: u8 = 4;
 
 /// The new device's side of a ceremony.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

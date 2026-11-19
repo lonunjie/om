@@ -47,6 +47,8 @@ struct Fx {
     offer: LinkOffer,
     states: usize,
     creds: usize,
+    /// The approving device after it approved (its outbox and repeat plan).
+    approver: ProfileState,
 }
 
 impl Fx {
@@ -220,6 +222,7 @@ impl Fx {
             offer,
             states: new_chain,
             creds: new_creds,
+            approver,
         }
     }
 
@@ -542,4 +545,128 @@ fn a_restart_in_the_middle_of_the_transfer_resumes_and_still_verifies_everything
     });
     fx.feed(&mut late, EXPIRES_MS + 2, &wire[half..]);
     assert!(!adopted(&late));
+}
+
+/// The deposits the approver queued as repeats (own operation id), in order, as the bytes sealed.
+fn repeat_deposits(st: &ProfileState) -> Vec<Vec<u8>> {
+    st.app
+        .outbox
+        .iter()
+        .filter_map(|e| match (&e.call, &e.purpose) {
+            (NetCall::Deposit { bytes, .. }, Purpose::DepositCeremony { operation_id, .. })
+                if operation_id.ends_with("#repeat") =>
+            {
+                Some(bytes.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_transfer_that_lost_its_manifest_completes_from_the_senders_repeat() {
+    let mut fx = Fx::full();
+    let plan = fx
+        .approver
+        .app
+        .ceremony_repeats
+        .get("offer")
+        .cloned()
+        .expect("the approver keeps a repeat plan");
+    let sealed: Vec<Vec<u8>> = plan.sealed.iter().map(|h| unhex(h).unwrap()).collect();
+    assert_eq!(
+        sealed,
+        fx.wire[..sealed.len()],
+        "the same bytes, manifest first"
+    );
+    assert!(sealed.len() > 2);
+
+    // First pass: the manifest is lost, every chunk arrives. Nothing is buffered and nothing is adopted.
+    let mut st = fx.fresh.clone();
+    let wire = fx.wire.clone();
+    fx.feed(&mut st, NOW_MS + 1000, &wire[1..]);
+    assert!(!adopted(&st));
+    assert!(
+        st.app.link_join.as_ref().unwrap().cont.is_none(),
+        "no pre-manifest buffering"
+    );
+
+    // Before one fifth of the life nothing is repeated; at one fifth the whole sequence goes out again.
+    let fifth = CEREMONY_TTL_MS / 5;
+    let mut approver = fx.approver.clone();
+    drive(&mut approver, &mut fx.rng, NOW_MS + fifth - 1, |tx| {
+        tx.expire_ceremonies()
+    });
+    assert!(repeat_deposits(&approver).is_empty());
+    drive(&mut approver, &mut fx.rng, NOW_MS + fifth, |tx| {
+        tx.expire_ceremonies()
+    });
+    let again = repeat_deposits(&approver);
+    assert_eq!(again, sealed, "bit-identical, manifest first");
+    fx.feed(&mut st, NOW_MS + fifth + 1000, &again);
+    assert_eq!(join_state(&st), LinkState::Linked);
+    assert_eq!(st.app.acs_chain.len(), 65);
+}
+
+#[test]
+fn the_sequence_is_repeated_at_one_to_four_fifths_then_forgotten() {
+    let mut fx = Fx::full();
+    let n = fx.approver.app.ceremony_repeats["offer"].sealed.len();
+    let fifth = CEREMONY_TTL_MS / 5;
+    let mut approver = fx.approver.clone();
+    for k in 1..=4u64 {
+        drive(&mut approver, &mut fx.rng, NOW_MS + k * fifth, |tx| {
+            tx.expire_ceremonies()
+        });
+        assert_eq!(repeat_deposits(&approver).len(), n, "after {k} fifths");
+        // drain: the repeat is queued once, never twice, within one step
+        drive(&mut approver, &mut fx.rng, NOW_MS + k * fifth + 1, |tx| {
+            tx.expire_ceremonies()
+        });
+        assert_eq!(repeat_deposits(&approver).len(), n);
+        approver
+            .app
+            .outbox
+            .retain(|e| !matches!(&e.purpose, Purpose::DepositCeremony { operation_id, .. } if operation_id.ends_with("#repeat")));
+        if k < 4 {
+            assert!(approver.app.ceremony_repeats.contains_key("offer"));
+        }
+    }
+    assert!(
+        approver.app.ceremony_repeats.is_empty(),
+        "forgotten after the last repeat"
+    );
+    // an offline stretch sends one repeat, not one per missed fifth
+    let mut late = fx.approver.clone();
+    drive(&mut late, &mut fx.rng, NOW_MS + 3 * fifth + 5, |tx| {
+        tx.expire_ceremonies()
+    });
+    assert_eq!(repeat_deposits(&late).len(), n);
+    // and nothing is repeated once the exchange has expired
+    let mut expired = fx.approver.clone();
+    drive(&mut expired, &mut fx.rng, EXPIRES_MS, |tx| {
+        tx.expire_ceremonies()
+    });
+    assert!(repeat_deposits(&expired).is_empty() && expired.app.ceremony_repeats.is_empty());
+}
+
+#[test]
+fn a_different_manifest_repeated_under_the_same_ceremony_ends_it() {
+    let mut fx = Fx::full();
+    let mut st = fx.fresh.clone();
+    let wire = fx.wire.clone();
+    fx.feed(&mut st, NOW_MS + 1000, &wire[..1]);
+    assert!(st.app.link_join.as_ref().unwrap().cont.is_some());
+    fx.feed(&mut st, NOW_MS + 1500, &wire[..1]); // an identical repeat: a no-op
+    assert_eq!(join_state(&st), LinkState::AwaitingApproval);
+    assert!(st.app.link_join.as_ref().unwrap().cont.is_some());
+    let mut altered = fx.plain(0);
+    if let V::M(m) = &mut altered {
+        m.retain(|(k, _)| *k != 8);
+        m.push((8, V::T("another label".into())));
+    }
+    let msg = fx.seal(&altered);
+    fx.feed(&mut st, NOW_MS + 2000, &[msg]);
+    assert_eq!(join_state(&st), LinkState::Failed);
+    assert!(!adopted(&st));
 }

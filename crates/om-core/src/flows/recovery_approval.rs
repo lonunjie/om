@@ -677,6 +677,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             offer.b_route.capability.clone(),
             offer.b_route.relay_uri.clone(),
         );
+        // ADR-0226 section 5: the reply (manifest) and every chunk are repeated whole by the sender; nothing is buffered
+        // by the receiver before the manifest.
+        self.schedule_evidence_repeat(op, &offer.b_route, &sealed, offer.expires_at);
         for s in sealed {
             self.deposit_ceremony(op, &cap, &uri, s, true);
         }
@@ -806,6 +809,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             (LinkState::Transferring, Some(ra::TYPE_CHUNK)) => {
                 self.approval_on_chunk(&a, &join, &pt)
+            }
+            // An identical repeat of the reply is a no-op; a different one ends the exchange (ADR-0226 section 5).
+            (LinkState::Transferring, Some(ra::TYPE_REPLY)) => {
+                if let Some((_, raw)) = ra::Reply::from_bytes(&pt) {
+                    if join.descriptor.as_deref() != Some(hex(&raw).as_str()) {
+                        self.approval_end(LinkState::Failed);
+                    }
+                }
             }
             // An early chunk may be dropped; anything else is not part of this exchange.
             _ => {}
