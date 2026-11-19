@@ -2243,6 +2243,44 @@ fn a_poll_in_a_room_is_created_voted_changed_retracted_and_closed_on_every_devic
 }
 
 #[test]
+fn the_poll_cap_counts_polls_kept_open_not_closed_ones() {
+    // ADR-0223 section 6: at most 64 polls per Room are kept open for tallying. A closed poll is history, not an open poll.
+    let (mut devs, conv) = room();
+    for _ in 0..64 {
+        go(&mut devs, 1, poll_intent(&conv, false, 1));
+        let id = msgs(&devs[1], &conv).last().unwrap().id.clone();
+        go(
+            &mut devs,
+            1,
+            GroupIntent::ClosePoll {
+                conversation_id: conv.clone(),
+                poll_id: id,
+            },
+        );
+    }
+    // 64 closed polls, none open: the 65th is created and reaches every device, and the closed tallies are all still there
+    go(&mut devs, 1, poll_intent(&conv, false, 1));
+    for d in &devs {
+        let polls: Vec<_> = msgs(d, &conv).into_iter().filter(|m| m.poll_view.is_some()).collect();
+        assert_eq!(polls.len(), 65);
+        assert_eq!(
+            polls
+                .iter()
+                .filter(|m| m.poll_view.as_ref().is_some_and(|p| p.closed))
+                .count(),
+            64
+        );
+    }
+    // 64 open (63 more) is the bound; the next one is refused, here and by the receivers' reducer
+    for _ in 0..63 {
+        go(&mut devs, 1, poll_intent(&conv, false, 1));
+    }
+    let d = &mut devs[1];
+    let refused = d.app.group_do(ctx!(d), poll_intent(&conv, false, 1));
+    assert_eq!(refused.unwrap_err().0, "too_many_polls");
+}
+
+#[test]
 fn the_tally_follows_order_not_arrival_and_the_visibility_rule_holds_counts_back() {
     let me = "aa".repeat(32);
     let members: std::collections::BTreeSet<String> =

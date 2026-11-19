@@ -44,8 +44,10 @@ const CAP_POST: &str = "room.post";
 const CAP_REPLY: &str = "room.reply";
 const CAP_REACT: &str = "room.react";
 const CAP_MODERATE: &str = "room.redact_others";
-/// Polls kept per Room and vote registers kept per poll (ADR-0223).
+/// Polls kept open for tallying (ADR-0223 section 6). Closed polls are not counted: they stay in the Room's message log as ordinary
+/// messages with their final tally, under the log's own retention, never dropped to make room.
 const MAX_POLLS: usize = 64;
+/// Vote registers kept per poll (ADR-0223).
 const MAX_POLL_VOTES: usize = 64;
 /// Longest message text, in bytes (the same bound a text message has always had here).
 const MAX_TEXT_BYTES: usize = 8192;
@@ -1894,7 +1896,9 @@ impl AppState {
             return err("bad_poll");
         }
         let open = self.group_msgs.get(&h(conv)).map_or(0, |l| {
-            l.iter().filter(|m| m.poll.is_some() && !m.deleted).count()
+            l.iter()
+                .filter(|m| !m.deleted && m.poll.as_ref().is_some_and(|p| p.closed.is_none()))
+                .count()
         });
         if open >= MAX_POLLS {
             return err("too_many_polls");
@@ -2239,7 +2243,7 @@ impl AppState {
                 }
                 if log
                     .iter()
-                    .filter(|m| m.poll.is_some() && !m.deleted)
+                    .filter(|m| !m.deleted && m.poll.as_ref().is_some_and(|p| p.closed.is_none()))
                     .count()
                     >= MAX_POLLS
                 {
