@@ -1,6 +1,9 @@
 {
   "source": "ADR-0187 (Accepted 2026-11-14), measured baseline in docs/reports/2026-11-14-groups-driver-status.md: om_wasm_groups.wasm minus om_wasm.wasm, production-optimised, gzip level 9",
-  "baseline": { "deltaRawBytes": 2169546, "deltaGzipBytes": 652950 },
-  "headroomPercent": 5,
-  "headroomNote": "PROPOSED, not set by the operator (D68): the ADR gives a baseline and says a breach means falling back to option D, but names no limit. Set to 0 for the strict ADR figures (+2.17 MB raw / +653 KB gzip)."
+  "baseline": {
+    "deltaRawBytes": 2169546,
+    "deltaGzipBytes": 652950
+  },
+  "headroomPercent": 0,
+  "headroomNote": "Set to 0 (2026-11-19): the limit is the ADR-0187 measured baseline itself. The current delta is below it (stripped symbols), so no tolerance is needed; a breach means falling back to option D."
 }
