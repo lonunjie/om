@@ -24,6 +24,7 @@ RelayRotateResponse = {0: api-major, 1: opaque-cap, 2: opaque-cap, ?3: uint}
 
 MintDepositCapabilityRequest = {0: api-major, 1: request-id, 2: bstr, ?3: uint, ?4: uint}
 DepositCapabilityRecord = {0: api-major, 1: opaque-id16, 2: opaque-cap, ?3: uint}
+QueueRetireRequest = {0: api-major, 1: request-id} ; POST /v1/relay/queues/{queue}/retire, feature om.relay.queue-retire.v1 (ADR-0229 section 3)
 
 IntroTicketRequest = {0: api-major, 1: request-id, 2: bstr, ?3: uint}
 

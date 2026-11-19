@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it, vi } from "vitest";
-import { HomeError, decodeTurnRequest, encodeTurnLease, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, decodeMintRequest, decodeQueueCreate, encodeDepositCapabilityRecord, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
+import { HomeError, decodeTurnRequest, encodeTurnLease, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, decodeMintRequest, decodeQueueCreate, decodeQueueRetireRequest, encodeDepositCapabilityRecord, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
 import type { NetCall } from "@om/core-wasm";
 import { createHomesProvider, createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider, type TurnResult } from "./index";
 import { createMediaClient } from "./media";
@@ -153,6 +153,47 @@ describe("routes (audit M1)", () => {
     expect(deletes).toEqual([`/v1/relay/deposit-capabilities/${plan.requestId}`, `/v1/relay/deposit-capabilities/${toHex(id)}`]);
     wrongQueue = true;
     expect(await p.mintRoomRoute(p.prepareRoomRoute())).toBeUndefined();
+  });
+
+  it("retires a dedicated queue with its own admin capability; not_found and revoked count as done; an unadvertised Home is left alone", async () => {
+    let features: string[] = ["om.relay.queue-retire.v1"];
+    let answer = 204;
+    let errorName = "";
+    let admin = "";
+    const sent: { path: string; auth: string | null; id: string }[] = [];
+    const p = createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(),
+      fetch: (i, init) => {
+        const path = new URL(urlOf(i)).pathname;
+        if (path === "/.well-known/om-provider-capabilities") return Promise.resolve(new Response(JSON.stringify({ schema_version: 1, api_versions: ["1"], features })));
+        if (path === "/v1/relay/queues") {
+          admin = toBase64Url(decodeQueueCreate(init?.body as Uint8Array).adminCap ?? new Uint8Array());
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        sent.push({ path, auth: new Headers(init?.headers).get("authorization"), id: toHex(decodeQueueRetireRequest(init?.body as Uint8Array).requestId) });
+        return Promise.resolve(answer === 204 ? new Response(null, { status: 204 }) : new Response(encodeHomeError(new HomeError(errorName as "not_found")) as BodyInit, { status: answer, headers: { "content-type": "application/cbor" } }));
+      },
+    });
+    const plan = p.prepareRoomRoute();
+    await p.mintRoomRoute(plan).catch(() => undefined);
+    const r = { relayUri: plan.relayUri, mailbox: plan.mailbox, requestId: toHex(rand(16)) };
+    await expect(p.retireQueue({ ...r, relayUri: "https://other.example/" })).rejects.toThrow();
+    await expect(p.retireQueue({ ...r, requestId: "zz" })).rejects.toThrow();
+    expect(await p.retireQueue(r)).toBe("retired");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.path).toMatch(/^\/v1\/relay\/queues\/[0-9a-f]{32}\/retire$/);
+    expect(sent[0]?.id).toBe(r.requestId);
+    expect(admin).not.toBe("");
+    expect(sent[0]?.auth).toBe(`Bearer ${admin}`);
+    for (const [name, status] of [["not_found", 404], ["revoked", 403]] as const) {
+      answer = status; errorName = name;
+      expect(await p.retireQueue(r)).toBe("retired");
+    }
+    answer = 503; errorName = "retryable";
+    await expect(p.retireQueue(r)).rejects.toThrow();
+    features = [];
+    expect(await p.retireQueue(r)).toBe("unsupported");
+    expect(sent).toHaveLength(4);
   });
 
   it("deposits to a route's capability as given when the route is at this Home; derives for a legacy destination", async () => {

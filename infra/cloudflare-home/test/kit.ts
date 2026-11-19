@@ -3,7 +3,7 @@
 // tested independently of the reference adapter.
 import {
   BLOB_DIGEST_HEADER, blobCiphertextDigest, concat, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, newBlobCap, blobLocator, decodeDepositCapabilityRecord, decodeDepositReceipt, decodeDrainResponse, decodeHomeError, decodeRotateResponse, encode, encodeAckRequest, encodeDepositRequest, encodeDrainRequest,
-  encodeMintRequest, encodeQueueCreate, encodeRotateRequest, map, toBase64Url, type HomeErrorBody, type RelayDrainResponse,
+  encodeMintRequest, encodeQueueCreate, encodeQueueRetireRequest, encodeRotateRequest, map, toBase64Url, type HomeErrorBody, type RelayDrainResponse,
 } from "@om/home-wire";
 import type { Home } from "./harness";
 
@@ -51,6 +51,9 @@ export const relay = {
   rotate: (home: Home, cap: Uint8Array, requestId = rand(16)) => call(home, "/v1/relay/rotate", post(encodeRotateRequest({ requestId, cap })), decodeRotateResponse),
   mint: (home: Home, admin: Uint8Array, opts: { ttlSeconds?: number; maxItems?: number } = {}, requestId = rand(16)) =>
     call(home, "/v1/relay/deposit-capabilities", post(encodeMintRequest({ requestId, label: new Uint8Array(0), ...opts }), bearer(admin)), decodeDepositCapabilityRecord),
+  /** ADR-0229 section 3. `queue` is the routing prefix named in the path (default: the admin capability's own). */
+  retire: (home: Home, admin: Uint8Array, requestId = rand(16), queue: Uint8Array = admin.slice(0, 16)) =>
+    call(home, `/v1/relay/queues/${Array.from(queue, (x) => x.toString(16).padStart(2, "0")).join("")}/retire`, post(encodeQueueRetireRequest({ requestId }), bearer(admin)), () => undefined),
   revoke: (home: Home, admin: Uint8Array, id: Uint8Array) => call(home, `/v1/relay/deposit-capabilities/${Array.from(id, (x) => x.toString(16).padStart(2, "0")).join("")}`, { method: "DELETE", headers: bearer(admin) }, () => undefined),
 };
 

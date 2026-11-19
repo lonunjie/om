@@ -22,6 +22,8 @@ export { Obj } from "./fields";
 export const FEATURES = {
   relayQueues: "om.relay.queues.v1",
   relayWake: "om.relay.wake.v1",
+  /** A dedicated queue can be retired by its admin capability and is released after a tombstone horizon (ADR-0229 section 3). */
+  relayQueueRetire: "om.relay.queue-retire.v1",
   /** The Home lets only its owner create resources (queues, descriptors, key pools, intro services); see `admissionHash`. */
   admission: "om.admission.v1",
   keysPool: "om.keys.pool.v1",

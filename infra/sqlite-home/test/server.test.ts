@@ -188,3 +188,37 @@ it("PC-H05 starts again after a crash that left a hot rollback journal beside a 
   const drained = await relay.drain(home, c.receive);
   expect(drained.ok && drained.value.items).toHaveLength(1);
 });
+
+it("ADR-0229 s3: a retired queue keeps only a tombstone, repeated create and retire leave no files once swept, and retire allocates nothing for an unknown address", async () => {
+  home = await startSqliteHome({ persist: dir.dir, direct: true });
+  const baseline = readdirSync(dir.dir);
+  const stranger = newCaps();
+  expect((await relay.retire(home, stranger.admin)).ok).toBe(false);
+  expect(readdirSync(dir.dir)).toEqual(baseline);
+
+  const made = [newCaps(), newCaps(), newCaps()];
+  for (const c of made) {
+    expect((await relay.create(home, c)).ok).toBe(true);
+    expect((await relay.deposit(home, c.deposit, sealed())).ok).toBe(true);
+    expect((await relay.retire(home, c.admin)).ok).toBe(true);
+    expect((await relay.deposit(home, c.deposit, sealed())).ok).toBe(false); // revoked
+  }
+  await home.dispose();
+  const files = made.map((c) => join(dir.dir, `queue--q-${toHex(c.prefix)}.sqlite`));
+  for (const file of files) {
+    const db = new DatabaseSync(file);
+    try {
+      for (const table of ["items", "seen", "dcaps"]) expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.["n"], table).toBe(0);
+      expect(db.prepare("SELECT k FROM meta ORDER BY k").all().map((r) => r["k"])).toEqual(["retired_day", "tomb_until"]);
+      // the horizon passes: the Home's own alarm sweeps the tombstone after a restart
+      db.exec("UPDATE meta SET v = 0 WHERE k = 'tomb_until'; UPDATE _home_alarm SET time = 0");
+    } finally {
+      db.close();
+    }
+  }
+  home = await startSqliteHome({ persist: dir.dir, direct: true });
+  await vi.waitFor(() => { expect(readdirSync(dir.dir)).toEqual(baseline); }, { timeout: 5000 });
+  // the address is unknown again and still allocates nothing
+  expect((await relay.deposit(home, made[0]?.deposit ?? new Uint8Array(48), sealed())).ok).toBe(false);
+  expect(readdirSync(dir.dir)).toEqual(baseline);
+});

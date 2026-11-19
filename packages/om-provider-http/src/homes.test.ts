@@ -24,6 +24,7 @@ function fake(baseUrl: string): { p: HttpProvider; seen: Seen } {
     prepareRoomRoute: () => ({ relayUri: `${baseUrl}/`, mailbox: "m", requestId: "r", ttlSeconds: 600 }),
     mintRoomRoute: (plan: RoomRouteMint) => Promise.resolve({ ...plan, capability: "minted", id: "grant", expiresAt: 999 }),
     revokeDeposit: () => Promise.resolve(),
+    retireQueue: () => Promise.resolve("retired"),
     allocateRoutes: (count: number) => Promise.resolve(Array.from({ length: count }, () => ({ mailbox: `m${String(n++)}`, relayUri: `${baseUrl}/`, capability: "cap" }))),
     perform: (call: NetCall): Promise<NetResult> => { seen.calls.push(call); return Promise.resolve({ result: "ok" }); },
     poll: (mailbox: string) => { seen.polls.push(mailbox); return Promise.resolve([]); },

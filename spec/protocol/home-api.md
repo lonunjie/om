@@ -49,6 +49,7 @@ Reference HTTP paths are bindings, not semantic authority.
 | relay drain | `POST /v1/relay/drain` | `receive_cap` | `RelayDrainRequest -> RelayDrainResponse` | moved, revoked, retryable |
 | relay ack | `POST /v1/relay/ack` | `receive_cap` | `RelayAckRequest -> Empty` | not_found, stale_generation |
 | relay rotate | `POST /v1/relay/rotate` | `receive_cap` | `RelayRotateRequest -> RelayRotateResponse` | revoked, retryable |
+| relay queue retire | `POST /v1/relay/queues/{queue}/retire` | admin cap | `QueueRetireRequest -> empty` | revoked, retryable; idempotent per request id; feature `om.relay.queue-retire.v1`; the address stays tombstoned until the later of the longest grant lifetime and the retry horizon, and an unused queue expires after 400 days (or the longest grant lifetime plus 14 days) |
 | mint deposit capability | `POST /v1/relay/deposit-capabilities` | `relay_admin_cap` | `MintDepositCapabilityRequest -> DepositCapabilityRecord` | unauthorized, quota |
 | revoke deposit capability | `DELETE /v1/relay/deposit-capabilities/{id}` | `relay_admin_cap` | idempotent | not_found is success-equivalent |
 | publish descriptor | `PUT /v1/discovery/descriptors/{id}` | `directory_publish_cap` | signed ContactDescriptor | stale_generation, invalid_signature |

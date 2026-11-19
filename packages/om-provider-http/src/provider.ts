@@ -23,7 +23,7 @@
 import type { BlobLimits, RecoveryPlace, Inbound, MailboxKind, NetCall, NetError, NetResult, PerformExtra, Provider, RouteOffer, RoomRouteMint, RoomRouteOffer, DepositRevocation } from "@om/core-wasm";
 import {
   API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeDepositCapabilityRecord, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
-  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeMintRequest, encodeQueueCreate, encodeTicketParams, fromHex, toHex, fromBase64Url, toBase64Url,
+  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeMintRequest, encodeQueueCreate, encodeQueueRetireRequest, encodeTicketParams, fromHex, toHex, fromBase64Url, toBase64Url,
   FEATURES, type MediaCapabilities, type TurnLease, UNKNOWN_USAGE, USAGE_PATH, encode, map, parseUsageState, type HomeErrorBody, type ProviderUsageState, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
@@ -72,12 +72,25 @@ export interface CallMediaProvider {
   issueTurn(): Promise<TurnResult>;
 }
 
+/** A dedicated queue to retire (ADR-0229 section 3): its Home, its mailbox and the 128-bit request id the retry reuses. */
+export interface QueueRetirement {
+  readonly relayUri: string;
+  readonly mailbox: string;
+  readonly requestId: string;
+}
+
 export interface HttpProvider extends Provider, CallMediaProvider {
   /** Routes for new mailboxes at this Home (Provider.allocateRoutes, always present here). */
   allocateRoutes(count: number, held?: readonly string[]): Promise<readonly RouteOffer[]>;
   prepareRoomRoute(): RoomRouteMint;
   mintRoomRoute(plan: RoomRouteMint): Promise<RoomRouteOffer | undefined>;
   revokeDeposit(grant: DepositRevocation): Promise<void>;
+  /**
+   * Retires a dedicated queue at its own Home with the queue's admin capability (om.relay.queue-retire.v1). `retired` once the Home
+   * says so, or already says `not_found` or `revoked` (the queue is non-authoritative either way); `unsupported` when this Home does not
+   * advertise the operation (nothing was sent). Anything else throws, and the caller retries with the same request id.
+   */
+  retireQueue(retirement: QueueRetirement): Promise<"retired" | "unsupported">;
   readonly baseUrl: string;
   /** True once this Home refused to create a resource because it asks for the owner's admission secret and this client's was missing or wrong. */
   admissionRefused(): boolean;
@@ -760,6 +773,18 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     if (isResult(r) || (r.kind !== "ok" && r.error.name !== "not_found")) throw new Error("room grant revoke unavailable");
   }
 
+  async function retireQueue(r: QueueRetirement): Promise<"retired" | "unsupported"> {
+    if (r.relayUri !== `${base}/` || !/^[0-9a-f]{32}$/.test(r.mailbox) || !/^[0-9a-f]{32}$/.test(r.requestId)) throw new Error("invalid queue retirement");
+    if (!(await advertisedFeatures())?.includes(FEATURES.relayQueueRetire)) return "unsupported";
+    const caps = await mailboxCaps(await secret(), fromHex(r.mailbox));
+    const res = await mutate(`${base}/v1/relay/queues/${toHex(caps.queueId)}/retire`, {
+      method: "POST", bearer: caps.admin, body: encodeQueueRetireRequest({ requestId: fromHex(r.requestId) }),
+    });
+    if (isResult(res)) throw new Error("queue retire unavailable");
+    if (res.kind === "ok" || res.error.name === "not_found" || res.error.name === "revoked") return "retired";
+    throw new Error("queue retire unavailable");
+  }
+
   // ------------------------------------------------------------------------------------------ Provider
 
   return {
@@ -804,6 +829,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       return { mailbox: plan.mailbox, relayUri: plan.relayUri, capability: toHex(grant.cap), id: toHex(grant.id), expiresAt: grant.expiresAt };
     },
     revokeDeposit,
+    retireQueue,
     usageState,
     mediaCapabilities: async () => opts.admission ? (await ownMedia()).mediaCapabilities() : undefined,
     issueTurn: async () => mediaClient === undefined ? { kind: "refused" } : (await mediaClient).issueTurn(),

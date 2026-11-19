@@ -188,3 +188,14 @@ describe("blob spool bodies (feature om.blob.spool.v1)", () => {
     for (const v of [null, "", "AAAA", "not base64 !", encodeBlobDigestHeader(new Uint8Array(33))]) expect(parseBlobDigestHeader(v)).toBeUndefined();
   });
 });
+
+describe("queue retire request (ADR-0229 section 3)", () => {
+  it("round-trips a 128-bit request id and rejects other shapes", async () => {
+    const { decodeQueueRetireRequest, encodeQueueRetireRequest, FEATURES, map } = await import("./index");
+    const requestId = crypto.getRandomValues(new Uint8Array(16));
+    expect(decodeQueueRetireRequest(encodeQueueRetireRequest({ requestId }))).toEqual({ requestId });
+    expect(FEATURES.relayQueueRetire).toBe("om.relay.queue-retire.v1");
+    expect(() => decodeQueueRetireRequest(encodeQueueRetireRequest({ requestId: new Uint8Array(8) }))).toThrow();
+    expect(() => decodeQueueRetireRequest(encode(map([[0, 1], [1, requestId], [2, new Uint8Array(1)]])))).toThrow();
+  });
+});

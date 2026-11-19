@@ -4,12 +4,12 @@
 import { DurableObject } from "cloudflare:workers";
 import {
   CborError, HomeError, WAKE_AUTH_SECONDS, WAKE_CLOSE, WAKE_FRAME_MAX, WAKE_PING, WAKE_PONG, WAKE_SUBPROTOCOL, concat, decodeWakeAuth, encodeWakeEvent, encodeDepositCapabilityRecord, encodeDepositReceipt, encodeDrainResponse, encodeRotateResponse, parseDeposit, quotaDetail,
-  type DepositCapabilityRecord, type MintDepositCapabilityRequest, type QueueCreateRequest, type RelayAckRequest, type RelayDepositRequest, type RelayDrainRequest, type RelayRotateRequest,
+  type DepositCapabilityRecord, type MintDepositCapabilityRequest, type QueueCreateRequest, type QueueRetireRequest, type RelayAckRequest, type RelayDepositRequest, type RelayDrainRequest, type RelayRotateRequest,
 } from "@om/home-wire";
 import type { Env } from "./env";
 import { fail } from "./http";
 import { pushOn } from "./capabilities";
-import { LIMITS, limitsOf } from "./limits";
+import { DAY, LIMITS, limitsOf } from "./limits";
 import { depositCapStatus, receiveStatus, sealedExpiry } from "./rules";
 import { MAILBOX_SCHEMA, ack, cursorOf, enqueue, nextExpiry, page, purgeExpired } from "./mailbox";
 import { metaNumber, metaString, one, run, setMeta } from "./sql";
@@ -19,6 +19,13 @@ const SCHEMA = `${MAILBOX_SCHEMA}
 CREATE TABLE IF NOT EXISTS dcaps (hash TEXT PRIMARY KEY, id BLOB NOT NULL, generation INTEGER NOT NULL, expires_at INTEGER, revoked INTEGER NOT NULL DEFAULT 0, max_items INTEGER, tokens REAL NOT NULL, tokens_at INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS dcaps_id ON dcaps (id);
 `;
+
+/**
+ * ADR-0229 section 3. A queue no one has used for this long is retired by the Home itself: 400 days, or the longest lifetime a
+ * grant on it could carry plus 14 days when that is longer. A grant lifetime is bounded by the mint cap.
+ */
+const MAX_GRANT_SECONDS = LIMITS.maxRetentionSeconds * 4;
+const IDLE_SECONDS = Math.max(400 * DAY, MAX_GRANT_SECONDS + 14 * DAY);
 
 /** Per-socket state, kept in the socket attachment so it survives hibernation. `at` is the connect time (ms since epoch). */
 interface WakeState { readonly authed: boolean; readonly at: number }
@@ -44,6 +51,52 @@ export class MailboxQueue extends DurableObject<Env> {
     return metaString(this.sql, "receive") !== undefined;
   }
 
+  /** A retired queue answers `revoked` to everything routed to its address until its tombstone is swept (ADR-0229 section 3). */
+  private retired(): boolean {
+    return metaNumber(this.sql, "retired_day", -1) >= 0;
+  }
+
+  private notRetired(): void {
+    if (this.retired()) throw new HomeError("revoked");
+  }
+
+  /** Records that the queue was used today (day granularity, written at most once a day) so the idle sweep can tell. */
+  private touch(): void {
+    const day = Math.floor(nowSeconds() / DAY);
+    if (metaNumber(this.sql, "active_day", -1) !== day) setMeta(this.sql, "active_day", day);
+  }
+
+  /** The moment an unused queue retires itself, from its last day of use. */
+  private idleAt(): number | undefined {
+    const day = metaNumber(this.sql, "active_day", -1);
+    if (day < 0 || !this.exists()) return undefined;
+    return (day + 1) * DAY + Math.max(IDLE_SECONDS, metaNumber(this.sql, "grant_horizon", 0) + 14 * DAY);
+  }
+
+  /**
+   * Retires the queue: everything it held goes (items, replay rows, receive and admin hashes, grants) and only a tombstone of
+   * its address stays, with the day it was retired and the moment the tombstone may be swept: the later of the longest grant
+   * lifetime ever issued on it and the retry horizon. `keep` is the idempotency row of the retire request, which lives that long.
+   */
+  private retireNow(now: number, keep?: { rid: string; fp: string; result: Uint8Array }): void {
+    const horizon = Math.max(metaNumber(this.sql, "grant_horizon", 0), this.dcapHorizon(now), LIMITS.idempotencySeconds);
+    run(this.sql, "DELETE FROM items");
+    run(this.sql, "DELETE FROM seen");
+    run(this.sql, "DELETE FROM ops");
+    run(this.sql, "DELETE FROM dcaps");
+    run(this.sql, "DELETE FROM meta");
+    setMeta(this.sql, "retired_day", Math.floor(now / DAY));
+    setMeta(this.sql, "tomb_until", now + horizon);
+    if (keep) run(this.sql, "INSERT OR REPLACE INTO ops (request_id, fp, result, expires_at) VALUES (?, ?, ?, ?)", keep.rid, keep.fp, keep.result, now + horizon);
+    this.closeWake(WAKE_CLOSE.unauthorized);
+  }
+
+  /** The longest remaining lifetime of any grant now held: a grant without its own expiry counts as the mint cap. */
+  private dcapHorizon(now: number): number {
+    const rows = this.sql.exec("SELECT expires_at FROM dcaps WHERE revoked = 0").toArray() as unknown as { expires_at: number | null }[];
+    return rows.reduce((m, r) => Math.max(m, r.expires_at === null ? MAX_GRANT_SECONDS : Math.max(0, r.expires_at - now)), 0);
+  }
+
   /** Idempotency: the same request_id and the same operation fingerprint returns the stored outcome; a different one is invalid_request. */
   private async replay(requestId: Uint8Array, fp: string): Promise<Uint8Array | undefined> {
     return this.replayById(await fingerprint(requestId), fp);
@@ -66,12 +119,26 @@ export class MailboxQueue extends DurableObject<Env> {
   }
 
   private async schedule(): Promise<void> {
-    const t = nextExpiry(this.sql);
-    if (t === undefined) { await this.ctx.storage.deleteAlarm(); return; }
-    await this.ctx.storage.setAlarm(Math.max(Date.now() + 1000, t * 1000 + 1000));
+    const due = this.retired() ? metaNumber(this.sql, "tomb_until") : [nextExpiry(this.sql), this.idleAt()].reduce<number | undefined>((m, t) => (t === undefined ? m : m === undefined ? t : Math.min(m, t)), undefined);
+    if (due === undefined) { await this.ctx.storage.deleteAlarm(); return; }
+    await this.ctx.storage.setAlarm(Math.max(Date.now() + 1000, due * 1000 + 1000));
   }
 
   override async alarm(): Promise<void> {
+    const now = nowSeconds();
+    if (this.retired()) {
+      if (now >= metaNumber(this.sql, "tomb_until")) {
+        await this.ctx.storage.deleteAlarm();
+        await this.ctx.storage.deleteAll(); // the tombstone is past its horizon: the address is unknown again, and nothing stays
+      } else await this.schedule();
+      return;
+    }
+    const idle = this.idleAt();
+    if (idle !== undefined && now >= idle) {
+      this.ctx.storage.transactionSync(() => { this.retireNow(now); });
+      await this.schedule();
+      return;
+    }
     purgeExpired(this.sql, nowSeconds());
     run(this.sql, "DELETE FROM dcaps WHERE expires_at IS NOT NULL AND expires_at + ? < ? AND revoked = 0", LIMITS.skewSeconds, nowSeconds());
     await this.schedule();
@@ -85,6 +152,7 @@ export class MailboxQueue extends DurableObject<Env> {
       const done = await this.replay(req.requestId, fp);
       if (done) return done;
       const [rh, dh, ah] = [await capHash(req.receiveCap), await capHash(req.depositCap), req.adminCap ? await capHash(req.adminCap) : undefined];
+      this.notRetired();
       if (this.exists()) {
         const same = metaString(this.sql, "receive") === rh && one(this.sql, "SELECT 1 AS x FROM dcaps WHERE hash = ? AND generation = 0", dh) !== undefined && (metaString(this.sql, "admin") ?? undefined) === ah;
         if (!same) throw new HomeError("unauthorized");
@@ -94,8 +162,10 @@ export class MailboxQueue extends DurableObject<Env> {
         if (ah !== undefined) setMeta(this.sql, "admin", ah);
         run(this.sql, "INSERT INTO dcaps (hash, id, generation, tokens, tokens_at) VALUES (?, ?, 0, ?, ?)", dh, randomBytes(16), LIMITS.depositBurst, nowSeconds());
       }
+      this.touch();
       const out = new Uint8Array(0);
       await this.remember(req.requestId, fp, out, LIMITS.idempotencySeconds);
+      await this.schedule();
       return out;
     });
   }
@@ -118,6 +188,7 @@ export class MailboxQueue extends DurableObject<Env> {
       const result = this.ctx.storage.transactionSync(() => {
         const done = this.replayById(rid, fp);
         if (done) return { out: done };
+        this.notRetired();
         const now = nowSeconds();
         // A forged, truncated or other-queue capability and a full queue answer identically (PC-A02).
         const full = (): HomeError => new HomeError("quota", { detail: quotaDetail(1, this.hard) });
@@ -146,6 +217,7 @@ export class MailboxQueue extends DurableObject<Env> {
         }
         const limits = limitsOf(this.env);
         const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard, maxItems: limits.maxQueueItems, maxBytes: limits.maxQueueBytes });
+        this.touch();
         const out = encodeDepositReceipt({ itemId: q.id, seq: q.seq });
         this.rememberById(rid, fp, out, LIMITS.idempotencySeconds);
         return { out, seq: q.duplicate ? undefined : q.seq };
@@ -163,10 +235,11 @@ export class MailboxQueue extends DurableObject<Env> {
   /** Current receive capability always; the previous one only during the rotation overlap. */
   private async receiveAuth(cap: Uint8Array, forAck: boolean): Promise<void> {
     const h = await capHash(cap);
+    this.notRetired();
     if (!this.exists()) throw new HomeError("unauthorized");
     if (metaNumber(this.sql, "revoked") === 1) throw new HomeError("revoked");
     const s = receiveStatus(h, metaString(this.sql, "receive"), metaString(this.sql, "prev_receive"), metaNumber(this.sql, "overlap_until"), nowSeconds());
-    if (s === "current" || s === "previous_in_overlap") return;
+    if (s === "current" || s === "previous_in_overlap") { this.touch(); return; }
     if (s === "previous_expired") throw new HomeError(forAck ? "stale_generation" : "revoked");
     throw new HomeError("unauthorized");
   }
@@ -204,6 +277,7 @@ export class MailboxQueue extends DurableObject<Env> {
       const done = await this.replay(req.requestId, fp);
       if (done) return done;
       const h = await capHash(req.cap);
+      this.notRetired();
       if (!this.exists() || metaString(this.sql, "receive") !== h) {
         if (this.exists() && metaString(this.sql, "prev_receive") === h) throw new HomeError("stale_generation");
         throw new HomeError(metaNumber(this.sql, "revoked") === 1 ? "revoked" : "unauthorized");
@@ -320,8 +394,10 @@ export class MailboxQueue extends DurableObject<Env> {
   // ---------------------------------------------------------------------------------------------------- admin
 
   private async adminAuth(cap: Uint8Array): Promise<void> {
+    this.notRetired();
     const admin = metaString(this.sql, "admin");
     if (!this.exists() || admin === undefined || admin !== (await capHash(cap))) throw new HomeError("unauthorized");
+    this.touch();
   }
 
   /** True admin proof only; used to gate reads that are for the queue's owner (the usage read). */
@@ -349,11 +425,31 @@ export class MailboxQueue extends DurableObject<Env> {
         const expiresAt = req.ttlSeconds === undefined ? null : now + Math.min(req.ttlSeconds, LIMITS.maxRetentionSeconds * 4);
         run(this.sql, "INSERT INTO dcaps (hash, id, generation, expires_at, max_items, tokens, tokens_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
           hash, id, metaNumber(this.sql, "generation"), expiresAt, req.maxItems ?? null, LIMITS.depositBurst, now);
+        // The longest lifetime a grant on this queue ever had bounds how long a tombstone must stay (ADR-0229 section 3).
+        setMeta(this.sql, "grant_horizon", Math.max(metaNumber(this.sql, "grant_horizon", 0), expiresAt === null ? MAX_GRANT_SECONDS : expiresAt - now));
         const rec: DepositCapabilityRecord = { id, cap, ...(expiresAt === null ? {} : { expiresAt }) };
         const out = encodeDepositCapabilityRecord(rec);
         this.rememberById(rid, fp, out, LIMITS.rotateResultSeconds);
         return out;
       });
+    });
+  }
+
+  /**
+   * Retires this queue (ADR-0229 section 3, om.relay.queue-retire.v1): authorized by the admin capability, idempotent under its
+   * request_id (a repeat within the retry horizon returns the stored outcome, a different operation under the same id is
+   * `invalid_request`), permanent. Afterwards every operation on the address answers `revoked` until the tombstone is swept.
+   */
+  retire(adminCap: Uint8Array, req: QueueRetireRequest): Promise<Reply> {
+    return reply(async () => {
+      const [rid, fp] = await Promise.all([fingerprint(req.requestId), capHash(adminCap).then((h) => fingerprint(new TextEncoder().encode(`retire:${h}`)))]);
+      const done = this.replayById(rid, fp);
+      if (done) return done;
+      await this.adminAuth(adminCap);
+      const out = new Uint8Array(0);
+      this.ctx.storage.transactionSync(() => { this.retireNow(nowSeconds(), { rid, fp, result: out }); });
+      await this.schedule();
+      return out;
     });
   }
 

@@ -123,6 +123,16 @@ export function decodeMintRequest(b: Uint8Array): MintDepositCapabilityRequest {
   return { requestId, label, ...(ttlSeconds === undefined ? {} : { ttlSeconds }), ...(maxItems === undefined ? {} : { maxItems }) };
 }
 
+/** Retire a dedicated queue for good (ADR-0229 section 3, feature `om.relay.queue-retire.v1`); the queue is named in the path and the bearer is its admin capability. */
+export interface QueueRetireRequest { readonly requestId: Id16 }
+export const encodeQueueRetireRequest = (r: QueueRetireRequest) => encode(map([[0, API_MAJOR], [1, r.requestId]]));
+export function decodeQueueRetireRequest(b: Uint8Array): QueueRetireRequest {
+  const o = open(b);
+  const requestId = o.bytes(1, ID, ID);
+  o.done();
+  return { requestId };
+}
+
 export interface DepositCapabilityRecord { readonly id: Id16; readonly cap: Cap; readonly expiresAt?: number }
 export const encodeDepositCapabilityRecord = (r: DepositCapabilityRecord) => encode(map([[0, API_MAJOR], [1, r.id], [2, r.cap], [3, r.expiresAt]]));
 export function decodeDepositCapabilityRecord(b: Uint8Array): DepositCapabilityRecord {

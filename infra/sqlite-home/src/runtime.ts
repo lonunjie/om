@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // The SQLite and socket parts of the reference Home's runtime, implemented with Node primitives.
-import { chmodSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import type { Env } from "../../cloudflare-home/src/env";
@@ -11,6 +11,8 @@ type ObjectConstructor = new (ctx: LocalContext, env: Env) => object;
 type ObjectMethod = (...args: unknown[]) => unknown;
 
 class Storage {
+  /** Set by `deleteAll`: the resource is gone, so its file is unlinked once the transaction has committed and the handle is closed. */
+  released = false;
   readonly sql = {
     exec: (query: string, ...binds: SQLInputValue[]) => {
       if (binds.length === 0 && query.includes(";")) {
@@ -59,7 +61,8 @@ class Storage {
   }
 
   deleteAll(): void {
-    // Descriptor expiry clears this resource's data, including its tombstone and alarm.
+    this.released = true;
+    // Descriptor expiry and a queue's swept tombstone clear this resource's data, including its tombstone and alarm.
     const tables = this.db.prepare("SELECT name FROM sqlite_schema WHERE type = 'table'").all();
     for (const { name } of tables) {
       if (typeof name === "string" && /^[a-z_]+$/.test(name)) this.db.exec(`DELETE FROM "${name}"`);
@@ -154,6 +157,13 @@ export class LocalRuntime {
     })();
   }
 
+  /** Unlinks a resource's database and any journal beside it, and forgets its alarm. */
+  private release(key: string): void {
+    const path = this.path(key);
+    for (const file of [path, `${path}-journal`, `${path}-wal`, `${path}-shm`]) rmSync(file, { force: true });
+    this.alarms.delete(key);
+  }
+
   private path(key: string): string { return join(this.directory, `${key}.sqlite`); }
 
   private scope(key: string): Scope | undefined { return this.scopes.get(key.split("--", 1)[0] ?? ""); }
@@ -186,6 +196,7 @@ export class LocalRuntime {
       const db = new DatabaseSync(persistent ? path : ":memory:");
       const storage = new Storage(db);
       const queue = this.queue(key);
+      let failed = true;
       try {
         db.exec("PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; PRAGMA auto_vacuum=FULL; BEGIN IMMEDIATE");
         // All calls on an object, including across awaits, are serialized. Promise resolution is after COMMIT.
@@ -196,6 +207,7 @@ export class LocalRuntime {
         const result = await wakeEffects.run(effects, () => action.apply(obj, args));
         const alarm = persistent ? storage.alarmTime() : undefined;
         db.exec("COMMIT");
+        failed = false;
         this.recordAlarm(key, alarm);
         for (const effect of effects) {
           try { effect(); } catch { /* delivery is already durable; a wake is best effort */ }
@@ -204,6 +216,9 @@ export class LocalRuntime {
         return result;
       } finally {
         db.close(); // an exception before commit rolls the transaction back
+        // A resource that deleted itself (a swept queue tombstone, an expired descriptor) leaves no file behind. Only a committed delete
+        // gets here with `released` set and a database on disk; an exception before COMMIT rolled the deletion back, so it keeps its file.
+        if (persistent && storage.released && !failed) this.release(key);
       }
     });
     const done = turn.then(() => undefined, () => undefined);

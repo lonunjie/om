@@ -218,6 +218,34 @@ describe("relay semantics", () => {
     expect(!over.ok && over.error.name).toBe("quota");
   });
 
+  it("ADR-0229 s3: retiring a dedicated queue is authenticated, idempotent and permanent; the address then answers revoked, an unknown one does not", async () => {
+    const c = await queue();
+    const grant = await relay.mint(home, c.admin, { ttlSeconds: 3600 });
+    if (!grant.ok) throw new Error("mint failed");
+    expect((await relay.deposit(home, grant.value.cap, sealed())).ok).toBe(true);
+    // wrong credentials, a wrong queue in the path and a non-admin capability do nothing
+    expect(errorOf(await relay.retire(home, c.receive)).name).toBe("unauthorized");
+    expect(errorOf(await relay.retire(home, c.admin, rand(16), rand(16))).name).toBe("unauthorized");
+    expect((await relay.deposit(home, c.deposit, sealed())).ok).toBe(true);
+    const id = rand(16);
+    expect((await relay.retire(home, c.admin, id)).ok).toBe(true);
+    // the exact retry under the same request_id returns the determined outcome; a new id finds the queue already retired
+    expect((await relay.retire(home, c.admin, id)).ok).toBe(true);
+    expect(errorOf(await relay.retire(home, c.admin)).name).toBe("revoked");
+    // nothing can undo it: every capability, every operation, answers revoked
+    expect(errorOf(await relay.deposit(home, c.deposit, sealed())).name).toBe("revoked");
+    expect(errorOf(await relay.deposit(home, grant.value.cap, sealed())).name).toBe("revoked");
+    expect(errorOf(await relay.drain(home, c.receive)).name).toBe("revoked");
+    expect(errorOf(await relay.ack(home, c.receive, [rand(16)])).name).toBe("revoked");
+    expect(errorOf(await relay.rotate(home, c.receive)).name).toBe("revoked");
+    expect(errorOf(await relay.mint(home, c.admin)).name).toBe("revoked");
+    expect((await relay.create(home, c)).ok).toBe(false);
+    // an address that never existed is still just unknown (and allocates nothing)
+    const stranger = newCaps();
+    expect(errorOf(await relay.retire(home, stranger.admin)).name).toBe("unauthorized");
+    expect(errorOf(await relay.deposit(home, stranger.deposit, sealed())).name).toBe("quota");
+  });
+
   it("Room queue grants replay exactly and are revocable only at the owning queue", async () => {
     const old = await queue();
     const fresh = await queue();

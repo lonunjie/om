@@ -9391,6 +9391,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/queue-retire.unit.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/test/recovery-kit.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",

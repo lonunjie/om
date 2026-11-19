@@ -4,7 +4,7 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, MEDIA_TURN_PATH, MEDIA_MAX_REPLY_BYTES, parseTurnLease, decodeTurnRequest, encodeTurnLease, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
-  ADMISSION_HEADER, BLOB_DIGEST_HEADER, RECOVERY_CAP_BYTES, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, checkRecordEnvelope, checkSignedRequest, checkSignedVeto, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, toBase64Url, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, PUSH_PATHS, parsePushRequest, fromHex, decode, Obj, type HomeErrorName,
+  ADMISSION_HEADER, BLOB_DIGEST_HEADER, RECOVERY_CAP_BYTES, RECOVERY_RECORD_MAX_BYTES, RECOVERY_SIGNED_OBJECT_MAX_BYTES, REQUEST_ID_HEADER, checkRecordEnvelope, checkSignedRequest, checkSignedVeto, decodeFanout, decodeInboxAck, decodeInboxDrain, decodeInboxRegister, decodeRecordPut, toBase64Url, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeQueueRetireRequest, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, PUSH_PATHS, parsePushRequest, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
 import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, mediaCapabilities, pushOn, recoveryOn, wakeOn } from "./capabilities";
 import type { Env } from "./env";
@@ -225,6 +225,15 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     const admin = bearer(request);
     if (!admin || !wellFormed(admin, 16)) return fail("unauthorized");
     return fromReply(await queueOf(env, admin).mint(admin, parse(decodeMintRequest, await body(request, 1024))));
+  }
+  const retireMatch = /^\/v1\/relay\/queues\/([0-9a-f]{32})\/retire$/.exec(path);
+  if (retireMatch) {
+    // ADR-0229 section 3: the queue is named in the path, the bearer is its admin capability and must carry the same routing prefix.
+    if (m !== "POST") return fail("invalid_request");
+    const admin = bearer(request);
+    if (!admin || !wellFormed(admin, 16)) return fail("unauthorized");
+    if (hex(admin.slice(0, 16)) !== retireMatch[1]) return fail("unauthorized");
+    return fromReply(await queueOf(env, admin).retire(admin, parse(decodeQueueRetireRequest, await body(request, 1024))));
   }
   const revokeMatch = /^\/v1\/relay\/deposit-capabilities\/([0-9a-f]{32})$/.exec(path);
   if (revokeMatch) {

@@ -85,6 +85,7 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
     },
     prepareRoomRoute: () => first.prepareRoomRoute(),
     mintRoomRoute: (plan) => homes.find((h) => `${h.baseUrl}/` === plan.relayUri)?.mintRoomRoute(plan) ?? Promise.resolve(undefined),
+    retireQueue: (retirement) => homes.find((h) => `${h.baseUrl}/` === retirement.relayUri)?.retireQueue(retirement) ?? Promise.reject(new Error("room route Home unavailable")),
     revokeDeposit: (grant) => homes.find((h) => `${h.baseUrl}/` === grant.relayUri)?.revokeDeposit(grant) ?? Promise.reject(new Error("room route Home unavailable")),
     // Files live at the active Home; an object of ours is deleted at the Home whose address its location carries.
     recoveryPlace: () => (first.recoveryPlace ? first.recoveryPlace() : Promise.resolve(null)),
