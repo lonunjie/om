@@ -6,7 +6,7 @@
  * opportunity and tells its owner it went out late; an item that can no longer be sent is dropped with a notice and never moves to another device.
  */
 import { useEffect, useRef, useState } from "react";
-import type { ConversationId, OutcomeClass } from "@om/platform-api";
+import { asOperationId, type ConversationId, type OperationId, type OutcomeClass } from "@om/platform-api";
 import { resolveIntent, settledOutcome } from "./services";
 import type { ConversationServices } from "./services";
 
@@ -17,7 +17,20 @@ export interface ScheduledItem {
   /** When to send (ms since the epoch, this device's clock). */
   readonly dueAt: number;
   readonly createdAt: number;
+  /**
+   * Which send attempt the item is on (absent = 0). It is the durable journal of the release: the attempt's Core operation id is derived
+   * from it (`scheduledOperationId`), so a restart after the send was handed to Core but before the item left the queue repeats the exact
+   * same operation, which Core answers from its record instead of sending again. The attempt advances (and is saved) only when Core
+   * answered that the send needs the person, which makes the next try a new operation.
+   */
+  readonly attempt?: number;
 }
+
+/** The longest queued-item id the operation id below can carry (Core bounds an operation id at 128 bytes). */
+export const MAX_SCHEDULED_ID_CHARS = 64;
+
+/** The stable Core operation id for one send attempt of a queued item: the same item and attempt always give the same id. */
+export const scheduledOperationId = (item: Pick<ScheduledItem, "id" | "attempt">): OperationId => asOperationId(`sched:${item.id}:${String(item.attempt ?? 0)}`);
 
 export type ScheduleNoticeKind = "late" | "dropped";
 export interface ScheduleNotice { readonly id: string; readonly kind: ScheduleNoticeKind; readonly conversationId: ConversationId; readonly text: string }
@@ -70,10 +83,16 @@ export function useScheduledSender(o: { readonly services: ConversationServices;
           const r = resolveIntent(services, "send-message", { conversationId: item.conversationId, text: item.text });
           let outcome: OutcomeClass = { kind: "Rejected", reason: "invalid" };
           if (r.status === "intent") {
-            try { const handle = await services.client.dispatch(r.intent); outcome = await settledOutcome(services, handle.operationId); } catch { continue; }
+            // The exact retry of a send already handed to Core (a restart before the item left the queue) lands on Core's record of it: one message.
+            try { const handle = await services.client.dispatch({ ...r.intent, operationId: scheduledOperationId(item) }); outcome = await settledOutcome(services, handle.operationId); } catch { continue; }
           }
           if (!isLive()) return;
-          if (!isSent(outcome) && !isGone(outcome)) continue; // needs the person: keep it, try again at the next opportunity
+          if (!isSent(outcome) && !isGone(outcome)) {
+            // Needs the person: keep it and try again at the next opportunity, as a new operation (Core still holds the answer to this one).
+            itemsRef.current = itemsRef.current.map((x) => (x.id === item.id ? { ...x, attempt: (x.attempt ?? 0) + 1 } : x));
+            onItems(itemsRef.current);
+            continue;
+          }
           itemsRef.current = itemsRef.current.filter((x) => x.id !== item.id);
           onItems(itemsRef.current);
           if (isGone(outcome)) setNotices((n) => [...n, { id: `n-${item.id}`, kind: "dropped", conversationId: item.conversationId, text: item.text }]);

@@ -116,7 +116,9 @@ describe("seen markers", () => {
     const second = createDraftStore(() => kv);
     expect(await second.loadScheduled(alice)).toEqual([item]);
     expect(await second.loadScheduled(bob)).toEqual([item]); // the store is per kv here; per-profile separation is the kv's (one vault per identity)
-    expect(readScheduled([item, { id: 1 }, null, "x", { ...item, id: "s2", dueAt: Number.NaN }])).toEqual([item]);
+    expect(readScheduled([item, { id: 1 }, null, "x", { ...item, id: "s2", dueAt: Number.NaN }, { ...item, id: "x".repeat(65) }])).toEqual([item]);
+    // the release journal (the attempt) survives the store; a malformed one is dropped, never trusted
+    expect(readScheduled([{ ...item, attempt: 2 }, { ...item, id: "s3", attempt: -1 }, { ...item, id: "s4", attempt: 1.5 }]).map((x) => x.attempt)).toEqual([2, undefined, undefined]);
     first.setScheduled(alice, []);
     await vi.advanceTimersByTimeAsync(0);
     expect(data.size).toBe(0);

@@ -3,7 +3,7 @@
 // by the identity's vault, in the same encrypted store as the chats, under a key Core ignores (it reads only "core/").
 // Locked vault = nothing can be read or written, so drafts stay in memory until the next unlock; nothing reaches the network.
 import type { ConversationId, EncryptedKv, ProfileId } from "@om/platform-api";
-import { MAX_SCHEDULED, MAX_SCHEDULED_CHARS, type ScheduledItem } from "@om/ui";
+import { MAX_SCHEDULED, MAX_SCHEDULED_CHARS, MAX_SCHEDULED_ID_CHARS, type ScheduledItem } from "@om/ui";
 
 const PREFIX = "ui/draft/";
 /** When this device last showed each chat, so the list can count what arrived since. It is presentation only: never sent anywhere, never a read receipt. */
@@ -43,8 +43,9 @@ export function readScheduled(raw: unknown): readonly ScheduledItem[] {
     if (typeof x !== "object" || x === null) continue;
     const r = x as Record<string, unknown>;
     if (typeof r["id"] !== "string" || typeof r["conversationId"] !== "string" || typeof r["text"] !== "string" || typeof r["dueAt"] !== "number" || typeof r["createdAt"] !== "number") continue;
-    if (r["text"].length > MAX_SCHEDULED_CHARS || !Number.isFinite(r["dueAt"]) || out.length >= MAX_SCHEDULED) continue;
-    out.push({ id: r["id"], conversationId: r["conversationId"] as ConversationId, text: r["text"], dueAt: r["dueAt"], createdAt: r["createdAt"] });
+    if (r["id"] === "" || r["id"].length > MAX_SCHEDULED_ID_CHARS || r["text"].length > MAX_SCHEDULED_CHARS || !Number.isFinite(r["dueAt"]) || out.length >= MAX_SCHEDULED) continue;
+    const attempt = r["attempt"];
+    out.push({ id: r["id"], conversationId: r["conversationId"] as ConversationId, text: r["text"], dueAt: r["dueAt"], createdAt: r["createdAt"], ...(typeof attempt === "number" && Number.isSafeInteger(attempt) && attempt > 0 ? { attempt } : {}) });
   }
   return out;
 }

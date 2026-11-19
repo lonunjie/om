@@ -4,11 +4,11 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { asConversationId, asPersonId, asProfileId } from "@om/platform-api";
+import { asConversationId, asPersonId, asProfileId, type CoreIntent } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testCopy } from "./__fixtures__/copy";
-import { Composer, ScheduledList, useScheduledSender, type ConversationServices, type ScheduleControl, type ScheduledItem } from "./index";
+import { Composer, ScheduledList, scheduledOperationId, useScheduledSender, type ConversationServices, type ScheduleControl, type ScheduledItem } from "./index";
 
 afterEach(cleanup);
 const ME = asProfileId("me");
@@ -82,3 +82,67 @@ describe("scheduled send", () => {
     expect(container.textContent).toBe("");
   });
 });
+
+/** A crash is modelled as: unmount, then mount again with whatever the sealed queue held at that moment (`stored`). */
+function Crashy({ services, stored, persist, now }: { readonly services: ConversationServices; readonly stored: readonly ScheduledItem[]; readonly persist: (next: readonly ScheduledItem[]) => void; readonly now: () => number }) {
+  const [items, setItems] = useState(stored);
+  useScheduledSender({ services, items, onItems: (next) => { persist(next); setItems(next); }, now, intervalMs: 20 });
+  return <p data-testid="queue">{items.map((i) => i.id).join(",")}</p>;
+}
+const sentTexts = async (h: ReturnType<typeof setup>["h"], services: ConversationServices) => (await h.query({ kind: "GetConversationView", ctx: services.ctx, conversationId: CONV })).timeline.map((i) => i.text);
+
+describe("scheduled send: crash cuts", () => {
+  it("crash before the dispatch: the restart sends it once", async () => {
+    const { h, services } = setup();
+    const stored = [item("s1", "once", 100)];
+    render(<Crashy services={services} stored={stored} persist={() => undefined} now={() => 10_000} />);
+    await waitFor(async () => { expect(await sentTexts(h, services)).toEqual(["once"]); });
+    await new Promise((r) => setTimeout(r, 80));
+    expect(await sentTexts(h, services)).toEqual(["once"]);
+  });
+
+  it("crash after the dispatch and before the item left the queue: the restart repeats the same operation and nothing is sent twice", async () => {
+    const { h, services } = setup();
+    const stored = [item("s1", "once", 100)]; // the removal never reached the sealed store
+    const first = render(<Crashy services={services} stored={stored} persist={() => undefined} now={() => 10_000} />);
+    await waitFor(async () => { expect(await sentTexts(h, services)).toEqual(["once"]); });
+    first.unmount(); // the crash
+    h.simulateRestart();
+    let persisted: readonly ScheduledItem[] = stored;
+    render(<Crashy services={{ ...services, ctx: h.contextFor(ME) }} stored={stored} persist={(n) => { persisted = n; }} now={() => 20_000} />);
+    await waitFor(() => { expect(persisted).toEqual([]); }); // the item was finally released from the queue ...
+    expect(await sentTexts(h, services)).toEqual(["once"]); // ... without a second message
+  });
+
+  it("crash after the item left the queue: nothing is sent again", async () => {
+    const { h, services } = setup();
+    let persisted: readonly ScheduledItem[] = [item("s1", "once", 100)];
+    const first = render(<Crashy services={services} stored={persisted} persist={(n) => { persisted = n; }} now={() => 10_000} />);
+    await waitFor(() => { expect(persisted).toEqual([]); });
+    first.unmount();
+    h.simulateRestart();
+    render(<Crashy services={{ ...services, ctx: h.contextFor(ME) }} stored={persisted} persist={() => undefined} now={() => 20_000} />);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(await sentTexts(h, services)).toEqual(["once"]);
+  });
+
+  it("the operation id is stable for an item and attempt, and a send that needs the person is retried as a new operation", async () => {
+    expect(scheduledOperationId({ id: "s1" })).toBe(scheduledOperationId({ id: "s1", attempt: 0 }));
+    expect(scheduledOperationId({ id: "s1", attempt: 1 })).not.toBe(scheduledOperationId({ id: "s1" }));
+    expect(scheduledOperationId({ id: "s1" })).not.toBe(scheduledOperationId({ id: "s2" }));
+    const { h, services } = setup();
+    const ops: string[] = [];
+    const client = {
+      ...h,
+      dispatch: (intent: CoreIntent) => { ops.push(intent.operationId); return h.dispatch(intent); },
+      observe: (_ctx: unknown, _op: unknown, listener: (o: { kind: "NeedsUserAction"; action: "reauthenticate" }) => void) => { listener({ kind: "NeedsUserAction", action: "reauthenticate" }); return () => undefined; },
+    } as unknown as ConversationServices["client"];
+    let persisted: readonly ScheduledItem[] = [];
+    render(<Crashy services={{ ...services, client }} stored={[item("s1", "later", 100)]} persist={(n) => { persisted = n; }} now={() => 10_000} />);
+    await waitFor(() => { expect(persisted[0]?.attempt).toBeGreaterThanOrEqual(1); });
+    await waitFor(() => { expect(new Set(ops).size).toBeGreaterThanOrEqual(2); });
+    expect(ops[0]).toBe("sched:s1:0");
+    expect(ops[1]).toBe("sched:s1:1");
+  });
+});
+
