@@ -26,6 +26,7 @@ pub struct Release {
     forked_from: Option<[u8; 32]>,
     title: String,
     items: BTreeMap<String, AssetRef>,
+    labels: BTreeMap<String, String>,
 }
 
 impl Release {
@@ -55,6 +56,7 @@ impl Release {
             return Err("licensing_empty");
         }
         let mut items = BTreeMap::new();
+        let mut labels = BTreeMap::new();
         let mut blobs = BTreeMap::new();
         for item in wire(wire(body.get(8))?.a())? {
             let item_id = text(wire(item.get(0))?, 128, "item_id_scalars")?;
@@ -68,7 +70,8 @@ impl Release {
             if item.opt(1) != value.opt(11) {
                 return Err("item_kind");
             }
-            text(wire(item.get(5))?, 512, "label_scalars")?;
+            let label = text(wire(item.get(5))?, 512, "label_scalars")?;
+            labels.insert(item_id.into(), label.into());
             for (key, limit, reason) in [(3, 32, "emoji_scalars"), (4, 64, "keyword_scalars")] {
                 if let Some(values) = item.opt(key) {
                     for v in wire(values.a())? {
@@ -95,6 +98,7 @@ impl Release {
             forked_from,
             title,
             items,
+            labels,
         })
     }
 
@@ -293,14 +297,18 @@ struct Stored {
     policy: CachePolicy,
     favourites: BTreeSet<String>,
     cached: BTreeSet<[u8; 32]>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    recents: BTreeMap<String, u64>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct Packs(BTreeMap<String, Stored>);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PackView {
+    #[serde(serialize_with = "serialize_release_id")]
     pub release_id: [u8; 32],
     pub title: String,
     pub signed_by: Vec<[u8; 16]>,
@@ -308,6 +316,70 @@ pub struct PackView {
     pub cache_policy: CachePolicy,
     pub favourites: BTreeSet<String>,
     pub cached_blobs: usize,
+}
+
+fn serialize_release_id<S: serde::Serializer>(
+    id: &[u8; 32],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&hex(id))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PickerItem {
+    item_id: String,
+    blob_id: String,
+    kind: &'static str,
+    label: String,
+    alt_text: String,
+    fallback_text: Option<String>,
+    cached: bool,
+    favourite: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackPicker {
+    pub pack_id: String,
+    pub pack: PackView,
+    pub items: Vec<PickerItem>,
+    pub recents: Vec<String>,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PickerChange {
+    Favourite { present: bool },
+    Recent,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackPreview {
+    pack_id: String,
+    pub release_id: String,
+    sequence: u32,
+    title: String,
+    description: Option<String>,
+    creator_display: Option<String>,
+    source_urls: Vec<String>,
+    spdx_id: Option<String>,
+    license_url: Option<String>,
+    license_text_hash: Option<String>,
+    item_count: usize,
+    size: String,
+    controller_count: usize,
+    threshold: usize,
+    signed_by: Vec<[u8; 16]>,
+    pub control_digest: Option<String>,
+}
+
+struct Lineage {
+    control: Option<String>,
+    control_envelope_hash: Option<[u8; 32]>,
+    signed_by: Vec<[u8; 16]>,
+    forked_from: Option<[u8; 32]>,
 }
 
 impl Packs {
@@ -323,44 +395,9 @@ impl Packs {
         if input.confirmed_release != release.id {
             return Err("confirmation_required");
         }
+        let lineage = self.lineage(&release, input.control)?;
         let key = hex(&release.pack_id);
         let old = self.0.get(&key);
-        let old_control = old.and_then(|p| p.control.as_deref());
-        if input.control.is_some_and(|bytes| {
-            bytes.len() > registry().types["ContentPackControlState"].max_bytes
-        }) {
-            return Err("size_limit");
-        }
-        let incoming_hash = input.control.map(|bytes| crate::crypto::sha256(&[bytes]));
-        let (control, control_envelope_hash, signed_by) = match (old, input.control, old_control) {
-            (None, _, _) if release.sequence != 1 => return Err("sequence_skip"),
-            (Some(p), _, control)
-                if p.release_id == release.id
-                    && (incoming_hash.is_none() || p.control_envelope_hash == incoming_hash) =>
-            {
-                (
-                    control.map(str::to_owned),
-                    p.control_envelope_hash,
-                    p.signed_by.clone(),
-                )
-            }
-            (Some(_), _, None) | (Some(_), None, _) => return Err("updates_frozen"),
-            (previous, Some(signed), old_control) => {
-                if let Some(p) = previous
-                    && p.release_id != release.id
-                {
-                    release.follows(p.release_id, p.sequence)?;
-                }
-                let parent = old_control
-                    .map(|s| Control::body(&wire(unhex(s))?))
-                    .transpose()?;
-                let (_, signers, body) = Control::verify(signed, parent.as_ref(), &release)?;
-                (Some(hex(&body)), incoming_hash, signers)
-            }
-            (None, None, _) => (None, None, Vec::new()),
-        };
-        let forked_from = old.and_then(|p| p.forked_from).or(release.forked_from);
-        self.check_fork(&release, forked_from)?;
 
         if input.favourites.len() > release.items.len() || input.cached.len() > release.items.len()
         {
@@ -402,16 +439,121 @@ impl Packs {
                 release_id: release.id,
                 sequence: release.sequence,
                 pack_id: release.pack_id,
-                control,
-                control_envelope_hash,
-                signed_by,
-                forked_from,
+                control: lineage.control,
+                control_envelope_hash: lineage.control_envelope_hash,
+                signed_by: lineage.signed_by,
+                forked_from: lineage.forked_from,
                 policy: input.policy,
                 favourites,
                 cached,
+                recents: old
+                    .filter(|p| p.release_id == release.id)
+                    .map(|p| p.recents.clone())
+                    .unwrap_or_default(),
             },
         );
         Ok(())
+    }
+
+    fn lineage(&self, release: &Release, supplied: Option<&[u8]>) -> Result<Lineage, Error> {
+        let key = hex(&release.pack_id);
+        let old = self.0.get(&key);
+        let old_control = old.and_then(|p| p.control.as_deref());
+        if supplied.is_some_and(|bytes| {
+            bytes.len() > registry().types["ContentPackControlState"].max_bytes
+        }) {
+            return Err("size_limit");
+        }
+        let incoming_hash = supplied.map(|bytes| crate::crypto::sha256(&[bytes]));
+        let (control, control_envelope_hash, signed_by) = match (old, supplied, old_control) {
+            (None, _, _) if release.sequence != 1 => return Err("sequence_skip"),
+            (Some(p), _, control)
+                if p.release_id == release.id
+                    && (incoming_hash.is_none() || p.control_envelope_hash == incoming_hash) =>
+            {
+                (
+                    control.map(str::to_owned),
+                    p.control_envelope_hash,
+                    p.signed_by.clone(),
+                )
+            }
+            (Some(_), _, None) | (Some(_), None, _) => return Err("updates_frozen"),
+            (previous, Some(signed), old_control) => {
+                if let Some(p) = previous
+                    && p.release_id != release.id
+                {
+                    release.follows(p.release_id, p.sequence)?;
+                }
+                let parent = old_control
+                    .map(|s| Control::body(&wire(unhex(s))?))
+                    .transpose()?;
+                let (_, signers, body) = Control::verify(signed, parent.as_ref(), release)?;
+                (Some(hex(&body)), incoming_hash, signers)
+            }
+            (None, None, _) => (None, None, Vec::new()),
+        };
+        let forked_from = old.and_then(|p| p.forked_from).or(release.forked_from);
+        self.check_fork(release, forked_from)?;
+
+        Ok(Lineage {
+            control,
+            control_envelope_hash,
+            signed_by,
+            forked_from,
+        })
+    }
+
+    pub(crate) fn preview(
+        &self,
+        bytes: &[u8],
+        control: Option<&[u8]>,
+    ) -> Result<PackPreview, Error> {
+        let release = Release::parse(bytes)?;
+        let lineage = self.lineage(&release, control)?;
+        let head = lineage
+            .control
+            .as_deref()
+            .map(|s| Control::body(&wire(unhex(s))?))
+            .transpose()?;
+        let body = wire(cbor::decode(bytes))?;
+        let string = |value: Option<&V>| value.and_then(|v| v.t().ok()).map(str::to_owned);
+        let provenance = wire(body.get(9))?;
+        let licensing = body.opt(10);
+        let mut unique = BTreeSet::new();
+        let size = release
+            .items
+            .values()
+            .filter(|asset| unique.insert(asset.attachment.blob_id))
+            .map(|asset| u128::from(asset.attachment.plaintext_size))
+            .sum::<u128>();
+        Ok(PackPreview {
+            pack_id: hex(&release.pack_id),
+            release_id: hex(&release.id),
+            sequence: release.sequence,
+            title: release.title,
+            description: string(body.opt(6)),
+            creator_display: string(provenance.opt(0)),
+            source_urls: provenance
+                .opt(1)
+                .and_then(|v| v.a().ok())
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(|v| string(Some(v)))
+                .collect(),
+            spdx_id: string(licensing.and_then(|v| v.opt(0))),
+            license_url: string(licensing.and_then(|v| v.opt(1))),
+            license_text_hash: licensing
+                .and_then(|v| v.opt(2))
+                .map(digest)
+                .transpose()?
+                .map(|id| hex(&id)),
+            item_count: release.items.len(),
+            size: size.to_string(),
+            controller_count: head.as_ref().map_or(0, |c| c.controllers.len()),
+            threshold: head.as_ref().map_or(0, |c| c.threshold),
+            signed_by: lineage.signed_by,
+            control_digest: lineage.control_envelope_hash.map(|id| hex(&id)),
+        })
     }
 
     fn check_fork(&self, release: &Release, mut target: Option<[u8; 32]>) -> Result<(), Error> {
@@ -441,6 +583,7 @@ impl Packs {
         p.manifest = None;
         p.favourites.clear();
         p.cached.clear();
+        p.recents.clear();
         Ok(())
     }
 
@@ -459,6 +602,78 @@ impl Packs {
         let bytes = Zeroizing::new(unhex(p.manifest.as_deref()?).ok()?);
         let release = Release::parse(&bytes).ok()?;
         (release.id == p.release_id && release.pack_id == id).then_some(release)
+    }
+
+    pub(crate) fn list(&self) -> Vec<(String, PackView)> {
+        self.0
+            .values()
+            .filter_map(|p| self.view(p.pack_id).map(|view| (hex(&p.pack_id), view)))
+            .collect()
+    }
+
+    pub(crate) fn picker(&self, id: [u8; 32]) -> Option<PackPicker> {
+        let p = self.0.get(&hex(&id))?;
+        let release = self.release(id)?;
+        let mut recent: Vec<_> = p.recents.iter().collect();
+        recent.sort_unstable_by_key(|(_, order)| std::cmp::Reverse(**order));
+        Some(PackPicker {
+            pack_id: hex(&id),
+            pack: self.view(id)?,
+            recents: recent.into_iter().map(|(item, _)| item.clone()).collect(),
+            items: release
+                .items
+                .iter()
+                .map(|(item_id, asset)| PickerItem {
+                    item_id: item_id.clone(),
+                    blob_id: hex(&asset.attachment.blob_id),
+                    kind: asset.presentation.kind.as_str(),
+                    label: release.labels[item_id].clone(),
+                    alt_text: asset.presentation.alt_text.clone(),
+                    fallback_text: asset.presentation.fallback_text.clone(),
+                    cached: p.cached.contains(&asset.attachment.blob_id),
+                    favourite: p.favourites.contains(item_id),
+                })
+                .collect(),
+        })
+    }
+
+    pub(crate) fn update_picker(
+        &mut self,
+        id: [u8; 32],
+        release_id: [u8; 32],
+        item: &str,
+        change: PickerChange,
+    ) -> Result<(), Error> {
+        let release = self.release(id).ok_or("pack_missing")?;
+        if release.id != release_id {
+            return Err("release_id_mismatch");
+        }
+        let asset = release.item(item).ok_or("item_missing_or_duplicate")?;
+        let p = self.0.get_mut(&hex(&id)).ok_or("pack_missing")?;
+        match change {
+            PickerChange::Favourite { present: true } => {
+                p.favourites.insert(item.to_owned());
+            }
+            PickerChange::Favourite { present: false } => {
+                p.favourites.remove(item);
+                let blob = asset.attachment.blob_id;
+                if p.policy == CachePolicy::FavouritesOnly
+                    && !p.favourites.iter().any(|id| {
+                        release
+                            .item(id)
+                            .is_some_and(|item| item.attachment.blob_id == blob)
+                    })
+                {
+                    p.cached.remove(&blob);
+                }
+            }
+            PickerChange::Recent => {
+                let order = p.recents.values().copied().max().unwrap_or(0);
+                let order = order.checked_add(1).ok_or("value_range")?;
+                p.recents.insert(item.to_owned(), order);
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn view(&self, id: [u8; 32]) -> Option<PackView> {
@@ -541,6 +756,7 @@ mod tests {
             forked_from: Some([2; 32]),
             title: "Fork".into(),
             items: BTreeMap::new(),
+            labels: BTreeMap::new(),
         };
         let anchor = Stored {
             manifest: None,
@@ -554,6 +770,7 @@ mod tests {
             policy: CachePolicy::Lazy,
             favourites: BTreeSet::new(),
             cached: BTreeSet::new(),
+            recents: BTreeMap::new(),
         };
         let mut packs = Packs(BTreeMap::from([("source".into(), anchor)]));
         assert_eq!(packs.check_fork(&release, release.forked_from), Ok(()));

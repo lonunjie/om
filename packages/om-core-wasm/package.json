@@ -8,11 +8,13 @@
     ".": "./src/index.ts",
     "./test-support": "./src/test-support.ts",
     "./om_wasm.wasm": "./dist/om_wasm.wasm",
-    "./om_wasm_groups.wasm": "./dist/om_wasm_groups.wasm"
+    "./om_wasm_groups.wasm": "./dist/om_wasm_groups.wasm",
+    "./om_wasm_expressive.wasm": "./dist/om_wasm_expressive.wasm"
   },
   "scripts": {
     "build:wasm": "node build.mjs",
-    "build:wasm:groups": "node build.mjs --groups"
+    "build:wasm:groups": "node build.mjs --groups",
+    "build:wasm:expressive": "node build.mjs --expressive"
   },
   "dependencies": {
     "@om/platform-api": "workspace:*"

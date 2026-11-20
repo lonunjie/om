@@ -2,6 +2,7 @@ import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } 
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { AttachmentApi } from "./attachments";
+import type { ExpressiveApi } from "./expressive";
 import type { GroupApi } from "./groups";
 import type { PrivacyPolicyLevel } from "./intents";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryApprovalOfferView, RecoveryStatusView } from "./devices";
@@ -86,4 +87,5 @@ export interface CoreClient {
   readonly attachments?: AttachmentApi;
   /** Ordinary groups (ADR-0177). Absent on a client with no group support; present but `available() === false` on a build without the engine. */
   readonly groups?: GroupApi;
+  readonly expressive?: ExpressiveApi;
 }

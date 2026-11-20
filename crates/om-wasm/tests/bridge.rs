@@ -393,3 +393,68 @@ fn recovery_tick_is_a_host_command_with_a_durable_commit() {
     assert!(tick.get("ok").is_some(), "{tick}");
     finish(&mut b, &tick);
 }
+
+#[test]
+fn expressive_media_needs_an_engineering_build_and_explicit_opt_in() {
+    for enabled in [false, true] {
+        let mut bridge = Bridge::new(|| InsecureTestRng::from_label(b"expressive-bridge"), || 0);
+        assert_eq!(
+            call(
+                &mut bridge,
+                json!({"cmd": "init", "home": home(), "expressiveMedia": enabled})
+            ),
+            json!({"ok": null}),
+        );
+        assert_eq!(
+            call(&mut bridge, json!({"cmd": "expressive_available"}))["ok"],
+            json!(cfg!(feature = "expressive-media") && enabled),
+        );
+    }
+}
+
+#[cfg(feature = "expressive-media")]
+#[test]
+fn expressive_pack_commands_validate_context_and_gate_mutations() {
+    let mut disabled = Bridge::new(|| InsecureTestRng::from_label(b"expressive-disabled"), || 0);
+    call(&mut disabled, json!({"cmd": "init", "home": home()}));
+    let ctx = call(
+        &mut disabled,
+        json!({"cmd": "open_profile", "profileId": "p", "records": []}),
+    )["ok"]
+        .clone();
+    assert_eq!(
+        call(
+            &mut disabled,
+            json!({
+                "cmd": "expressive_do", "ctx": ctx, "intent": {"kind": "remove_pack", "packId": "00".repeat(32)},
+            })
+        )["ok"]["refused"],
+        "expressive_disabled"
+    );
+
+    let mut enabled = Bridge::new(|| InsecureTestRng::from_label(b"expressive-enabled"), || 0);
+    call(
+        &mut enabled,
+        json!({"cmd": "init", "home": home(), "expressiveMedia": true}),
+    );
+    let ctx = call(
+        &mut enabled,
+        json!({"cmd": "open_profile", "profileId": "p", "records": []}),
+    )["ok"]
+        .clone();
+    assert_eq!(
+        call(
+            &mut enabled,
+            json!({
+                "cmd": "expressive_query", "ctx": ctx, "query": {"kind": "packs"},
+            })
+        )["ok"],
+        json!([])
+    );
+    assert!(call(&mut enabled, json!({
+        "cmd": "expressive_query", "ctx": {"profileId": "p", "generation": "stale"}, "query": {"kind": "packs"},
+    })).get("err").is_some());
+    assert!(call(&mut enabled, json!({
+        "cmd": "expressive_query", "ctx": ctx, "query": {"kind": "preview_pack", "input": {"release": "ff"}},
+    }))["ok"]["refused"].is_string());
+}

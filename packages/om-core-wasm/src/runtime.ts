@@ -4,14 +4,14 @@
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   CallRoute, CallView, AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  CoreClient, CoreIntent, CoreQuery, DecodedExpressive, ExpressiveApi, ExpressivePackInput, ExpressivePackQuery, ExpressiveQueryResult, ExpressiveSource, OpenedExpressive, ValidatedExpressiveAsset, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, RecoveryStatusView, Unsubscribe,
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
 import type { BackupHeader, BackupPlan, BlobLimits, RecoveryPlace, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, DepositRevocation, QueueRetirement, RoomRouteMint, RoomRouteOffer, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
-import type { WasmCore } from "./wasm";
+import { MAX_WASM_COMMAND_BYTES, type WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
 import { createDirectDriver } from "./direct-driver";
 import type { DirectCiphertextCache, DirectDriver, DirectTransport, PickedFile } from "./direct-driver";
@@ -37,6 +37,8 @@ export interface CoreRuntimeOptions {
   readonly autoDrain?: boolean;
   /** Engineering opt-in for an attached call host. Public builds leave this off. */
   readonly calls?: boolean;
+  /** Engineering opt-in, paired with the expressive-media Wasm artifact. Public builds omit it. */
+  readonly expressiveMedia?: boolean;
   readonly callNowMs?: () => number;
   /** Delay before retrying a network operation that was unavailable (default 2000 ms). */
   readonly retryMs?: number;
@@ -85,6 +87,7 @@ export interface CallDriver {
 
 export interface WasmCoreClient extends CoreClient {
   readonly calls?: CallDriver | undefined;
+  readonly expressive: ExpressiveApi;
   /** Present only when the host passed `directDriver`: the channel driver for direct transfer. `directDriver?.sendAgainFor(ctx)` is the `ConversationServices.sendAgain`. */
   readonly directDriver?: DirectDriver | undefined;
   /** Loads the profile's records, opens it in Core and returns its (frozen) execution context. */
@@ -165,6 +168,19 @@ interface PrepareJson {
   readonly refused?: { readonly error: string; readonly max?: number };
   readonly commit: Commit | null;
 }
+interface ExpressiveFetchJson {
+  readonly altText: string;
+  readonly call?: NetCallBlob;
+}
+type ExpressiveOpenJson = Exclude<OpenedExpressive, { readonly state: "renderable" }>
+  | (Omit<ValidatedExpressiveAsset, "bytes"> & {
+    readonly state: "renderable"; readonly plaintext: string; readonly altText: string;
+  });
+
+function packInput(input: ExpressivePackInput): { release: string; control?: string } {
+  return { release: toHex(input.release), ...(input.control === undefined ? {} : { control: toHex(input.control) }) };
+}
+
 interface OpenJson {
   readonly opened?: { readonly plaintext: string; readonly mediaType: string; readonly filename?: string | null };
   readonly refused?: { readonly error: string; readonly max?: number };
@@ -193,7 +209,12 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   const pollMs = opts.pollMs ?? 0;
   const pollEvery = (): number => (typeof pollMs === "function" ? pollMs() : pollMs);
   const openProfiles = new Set<ProfileId>();
-  core.call({ cmd: "init", home: opts.home, ...(opts.calls === true ? { calls: true } : {}) });
+  core.call({
+    cmd: "init", home: opts.home,
+    ...(opts.calls === true ? { calls: true } : {}),
+    ...(opts.expressiveMedia === true ? { expressiveMedia: true } : {}),
+  });
+  const expressiveEnabled = opts.expressiveMedia === true && core.call({ cmd: "expressive_available" }) === true;
 
   let tail: Promise<unknown> = Promise.resolve();
   /** All state-changing calls run strictly one at a time (Core allows one outstanding commit). */
@@ -600,9 +621,109 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     }),
   };
 
+  async function openExpressive(ctx: ProfileExecutionContext, messageId: MessageId, source: ExpressiveSource): Promise<{
+    readonly opened: OpenedExpressive | null; readonly ciphertext?: string;
+  }> {
+    if (!expressiveEnabled) return { opened: null };
+    const result = core.call({ cmd: "expressive_query", ctx, query: { kind: "fetch", messageId, source } }) as ExpressiveFetchJson | null;
+    if (result === null) return { opened: null };
+    const placeholder = { opened: { state: "placeholder" as const, altText: result.altText } };
+    if (result.call === undefined) return placeholder;
+    let got: NetResult;
+    try { got = await provider.perform(result.call); } catch { return placeholder; }
+    if (got.result !== "bytes" || got.bytes.length >= MAX_WASM_COMMAND_BYTES) return placeholder;
+    let answer: ExpressiveOpenJson | null;
+    try {
+      answer = core.call({ cmd: "expressive_query", ctx, query: { kind: "open", messageId, source, ciphertext: got.bytes } }) as ExpressiveOpenJson | null;
+    } catch (err) {
+      if (err instanceof CoreCallError && (err.code === "invalid" || err.code === "size_limit")) return placeholder;
+      throw err;
+    }
+    if (answer?.state !== "renderable") return { opened: answer };
+    const { altText, mediaProfileId, kind, facts, plaintext } = answer;
+    return { opened: { state: "renderable", altText, asset: { mediaProfileId, kind, facts, bytes: fromHex(plaintext) } }, ciphertext: got.bytes };
+  }
+
+  const expressive: ExpressiveApi = {
+    available: () => expressiveEnabled,
+    do(inputCtx, intent) {
+      const ctx = ctxOf(inputCtx);
+      return exclusive(async () => {
+        if (!expressiveEnabled) return { refused: "expressive_disabled" };
+        if (intent.kind === "install_pack") {
+          const { input, cached } = intent;
+          const total = cached.reduce((size, blob) => size + blob.ciphertext.length, input.release.length + (input.control?.length ?? 0));
+          if (total >= MAX_WASM_COMMAND_BYTES / 2) return { refused: "size_limit" };
+        }
+        const command = intent.kind !== "install_pack" ? intent : {
+          kind: intent.kind, input: packInput(intent.input), releaseId: intent.confirmation.releaseId,
+          controlDigest: intent.confirmation.controlDigest, policy: intent.policy, favourites: intent.favourites,
+          cached: intent.cached.map(({ blobId, ciphertext }) => ({ blobId, ciphertext: toHex(ciphertext) })),
+        };
+        let r: { accepted?: true; refused?: string; commit?: Commit | null };
+        try {
+          r = core.call({ cmd: "expressive_do", ctx, intent: command }) as typeof r;
+        } catch (err) {
+          if (err instanceof CoreCallError && err.code === "size_limit") return { refused: err.code };
+          throw err;
+        }
+        await commit(r.commit ?? null, ctx);
+        if (r.refused !== undefined) return { refused: r.refused };
+        if (r.accepted !== true) throw new CoreCallError("internal", "expressive intent returned no result");
+        return { accepted: true };
+      });
+    },
+    async query<Q extends ExpressivePackQuery>(inputCtx: ProfileExecutionContext, q: Q): Promise<ExpressiveQueryResult[Q["kind"]]> {
+      const ctx = ctxOf(inputCtx);
+      if (q.kind === "open") return (await openExpressive(ctx, q.messageId, { ...q.source })).opened as ExpressiveQueryResult[Q["kind"]];
+      if (!expressiveEnabled) {
+        const result = q.kind === "packs" ? [] : q.kind === "picker" ? null : { refused: "expressive_disabled" };
+        return result as ExpressiveQueryResult[Q["kind"]];
+      }
+      const query = q.kind === "preview_pack" ? { kind: q.kind, input: packInput(q.input) } : q;
+      return core.call({ cmd: "expressive_query", ctx, query }) as ExpressiveQueryResult[Q["kind"]];
+    },
+    async prepare(inputCtx, selection, ciphertext) {
+      if (!expressiveEnabled) return { ok: false, refusal: { error: "unsupported" } };
+      const ctx = ctxOf(inputCtx);
+      await ensureLimits();
+      return exclusive(async () => {
+        const r = core.call({ cmd: "prepare_expressive", ctx, ...selection, ciphertext: toHex(ciphertext) }) as PrepareJson;
+        await commit(r.commit ?? null, ctx);
+        if (r.prepared === undefined) return { ok: false, refusal: refusalOf(r.refused) };
+        if (!(await stage(ctx.profileId, r.prepared.blobId, fromHex(r.prepared.ciphertext)))) return { ok: false, refusal: { error: "unavailable" } };
+        return { ok: true, blobId: r.prepared.blobId };
+      });
+    },
+    async decode(inputCtx, messageId, inputSource, decoder, options): Promise<DecodedExpressive | null> {
+      const ctx = ctxOf(inputCtx);
+      const source = { ...inputSource };
+      const { opened, ciphertext } = await openExpressive(ctx, messageId, source);
+      if (opened?.state !== "renderable" || ciphertext === undefined) return opened?.state === "placeholder" ? opened : null;
+      const placeholder = { state: "placeholder" as const, altText: opened.altText };
+      let result;
+      try { result = await decoder.decode(opened.asset, options); }
+      catch { result = { state: "fallback" as const }; }
+      let published = false;
+      try {
+        const accepted = core.call({ cmd: "expressive_decode", ctx, messageId, source, ciphertext,
+          observed: result.state === "decoded" ? result.facts : null }) === true;
+        if (accepted && result.state === "decoded") {
+          published = true;
+          return { ...result, altText: opened.altText };
+        }
+        return placeholder;
+      } finally {
+        if (!published && result.state === "decoded") result.playback?.close();
+        opened.asset.bytes.fill(0);
+      }
+    },
+  };
+
   let directDriver: DirectDriver | undefined;
   const client: WasmCoreClient = {
     calls,
+    expressive,
     get directDriver() { return directDriver; },
     async openProfile(profileId) {
       const records = await readRecords(profileId);
@@ -783,7 +904,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
       timers.clear();
       for (const p of callTimers.keys()) stopCallTimer(p);
-      if (calls !== undefined) for (const p of openProfiles) core.call({ cmd: "close_profile", profileId: p });
+      if (calls !== undefined || expressiveEnabled) for (const p of openProfiles) core.call({ cmd: "close_profile", profileId: p });
     },
   };
   if (opts.directDriver !== undefined) {

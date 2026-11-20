@@ -7,6 +7,8 @@ use om_core::attach::Meta;
 use om_core::backup::BackupPlan;
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
 use om_core::direct::{DirectFrame, ErrorCode, FetchState, TRANSFER_ID_LEN};
+#[cfg(feature = "expressive-media")]
+use om_core::expressive as media;
 use om_core::groups::carriage::Sealed;
 use om_core::groups::flow::{
     DeviceRelease, GroupEvent, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Outbound,
@@ -27,6 +29,95 @@ struct RecoveryPlaceArg {
     scope: String,
 }
 
+#[cfg(feature = "expressive-media")]
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum ExpressiveSource {
+    Attachment { index: usize },
+    Inline { index: usize },
+    Reaction { key: String, mine: bool },
+}
+
+#[cfg(feature = "expressive-media")]
+impl ExpressiveSource {
+    fn source(&self) -> media::Source<'_> {
+        match self {
+            Self::Attachment { index } => media::Source::Attachment(*index),
+            Self::Inline { index } => media::Source::Inline(*index),
+            Self::Reaction { key, mine } => media::Source::Reaction { key, mine: *mine },
+        }
+    }
+}
+
+#[cfg(feature = "expressive-media")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PackBlob {
+    blob_id: String,
+    ciphertext: String,
+}
+
+#[cfg(feature = "expressive-media")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PackInput {
+    release: String,
+    control: Option<String>,
+}
+
+#[cfg(feature = "expressive-media")]
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+enum ExpressiveIntent {
+    InstallPack {
+        input: PackInput,
+        release_id: String,
+        control_digest: Option<String>,
+        policy: media::CachePolicy,
+        favourites: Vec<String>,
+        cached: Vec<PackBlob>,
+    },
+    RemovePack {
+        pack_id: String,
+    },
+    UpdatePicker {
+        pack_id: String,
+        release_id: String,
+        item_id: String,
+        change: media::PickerChange,
+    },
+}
+
+#[cfg(feature = "expressive-media")]
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+enum ExpressiveQuery {
+    PreviewPack {
+        input: PackInput,
+    },
+    Packs,
+    Picker {
+        pack_id: String,
+    },
+    Fetch {
+        message_id: String,
+        source: ExpressiveSource,
+    },
+    Open {
+        message_id: String,
+        source: ExpressiveSource,
+        ciphertext: String,
+    },
+}
+
 #[derive(Deserialize)]
 #[serde(
     tag = "cmd",
@@ -38,6 +129,9 @@ enum Command {
         home: HomeSummary,
         #[serde(default)]
         calls: bool,
+        #[cfg(feature = "expressive-media")]
+        #[serde(default)]
+        expressive_media: bool,
     },
     OpenProfile {
         profile_id: String,
@@ -106,6 +200,33 @@ enum Command {
         ctx: ProfileExecutionContext,
         call_session_id: String,
         route: om_core::calls::CallRoute,
+    },
+    ExpressiveAvailable,
+    #[cfg(feature = "expressive-media")]
+    ExpressiveDo {
+        ctx: ProfileExecutionContext,
+        intent: ExpressiveIntent,
+    },
+    #[cfg(feature = "expressive-media")]
+    ExpressiveQuery {
+        ctx: ProfileExecutionContext,
+        query: ExpressiveQuery,
+    },
+    #[cfg(feature = "expressive-media")]
+    PrepareExpressive {
+        ctx: ProfileExecutionContext,
+        pack_id: String,
+        release_id: String,
+        item_id: String,
+        ciphertext: String,
+    },
+    #[cfg(feature = "expressive-media")]
+    ExpressiveDecode {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        source: ExpressiveSource,
+        ciphertext: String,
+        observed: Option<media::DecodeFacts>,
     },
     Outcome {
         ctx: ProfileExecutionContext,
@@ -954,7 +1075,12 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
     fn run(&mut self, cmd: Command) -> Result<Value, CoreError> {
         let enc = |v: &dyn erased::Ser| v.to_value();
         match cmd {
-            Command::Init { home, calls } => {
+            Command::Init {
+                home,
+                calls,
+                #[cfg(feature = "expressive-media")]
+                expressive_media,
+            } => {
                 if self.core.is_some() {
                     return Err(CoreError::Invalid("already initialised"));
                 }
@@ -965,6 +1091,10 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 let mut core = Core::new(make_rng(), HostClock(clock), home);
                 if calls {
                     core.enable_calls();
+                }
+                #[cfg(feature = "expressive-media")]
+                if expressive_media {
+                    core.enable_expressive_media();
                 }
                 self.core = Some(core);
                 Ok(Value::Null)
@@ -1036,6 +1166,56 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::PendingOperations { ctx } => {
                 Ok(enc(&self.core()?.pending_operations(&ctx)?))
             }
+            Command::ExpressiveAvailable => Ok(json!(self.core()?.expressive_media_available())),
+            #[cfg(feature = "expressive-media")]
+            Command::ExpressiveDo { ctx, intent } => expressive_do(self.core()?, &ctx, intent),
+            #[cfg(feature = "expressive-media")]
+            Command::ExpressiveQuery { ctx, query } => expressive_query(self.core()?, &ctx, query),
+            #[cfg(feature = "expressive-media")]
+            Command::PrepareExpressive {
+                ctx,
+                pack_id,
+                release_id,
+                item_id,
+                ciphertext,
+            } => {
+                let core = self.core()?;
+                let pack = id32(&pack_id)?;
+                if !core.expressive_media_available() {
+                    return Ok(json!({ "refused": om_core::attach::AttachError::Unsupported }));
+                }
+                if !core
+                    .content_pack(&ctx, pack)?
+                    .is_some_and(|p| om_core::crypto::hex(&p.release_id) == release_id)
+                {
+                    return Ok(json!({ "refused": om_core::attach::AttachError::NotFound }));
+                }
+                let (out, step) = core.prepare_expressive(
+                    &ctx,
+                    pack,
+                    &item_id,
+                    &expressive_ciphertext(&ciphertext)?,
+                    media::BlobPolicy::Fresh,
+                )?;
+                Ok(match out {
+                    Ok(prepared) => json!({ "prepared": prepared, "commit": step.commit }),
+                    Err(e) => json!({ "refused": e, "commit": step.commit }),
+                })
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::ExpressiveDecode {
+                ctx,
+                message_id,
+                source,
+                ciphertext,
+                observed,
+            } => Ok(json!(self.core()?.check_expressive_decode(
+                &ctx,
+                &message_id,
+                source.source(),
+                &expressive_ciphertext(&ciphertext)?,
+                observed.as_ref()
+            ))),
             Command::Outcome { ctx, operation_id } => {
                 Ok(enc(&self.core()?.outcome(&ctx, &operation_id)?))
             }
@@ -1485,6 +1665,173 @@ pub fn system_bridge(clock: impl Fn() -> u64 + 'static) -> Bridge<rng::SystemRng
 
 fn err(code: &str, message: &str) -> Value {
     json!({ "err": { "code": code, "message": message } })
+}
+
+#[cfg(feature = "expressive-media")]
+fn bounded_hex(s: &str, max: usize) -> Result<Vec<u8>, CoreError> {
+    if s.len() > max * 2 {
+        return Err(CoreError::Invalid("expressive size"));
+    }
+    unhex(s)
+}
+
+#[cfg(feature = "expressive-media")]
+fn id32(s: &str) -> Result<[u8; 32], CoreError> {
+    bounded_hex(s, 32)?
+        .try_into()
+        .map_err(|_| CoreError::Invalid("pack id"))
+}
+
+#[cfg(feature = "expressive-media")]
+fn expressive_ciphertext(s: &str) -> Result<Vec<u8>, CoreError> {
+    bounded_hex(s, (6 << 20) + om_core::attach::TAG_LEN as usize)
+}
+
+#[cfg(feature = "expressive-media")]
+impl PackInput {
+    fn bytes(&self) -> Result<(Vec<u8>, Option<Vec<u8>>), CoreError> {
+        Ok((
+            bounded_hex(&self.release, 2 << 20)?,
+            self.control
+                .as_deref()
+                .map(|s| bounded_hex(s, 128 << 10))
+                .transpose()?,
+        ))
+    }
+}
+
+#[cfg(feature = "expressive-media")]
+fn expressive_do<R: RngCore + CryptoRng>(
+    core: &mut Core<R>,
+    ctx: &ProfileExecutionContext,
+    intent: ExpressiveIntent,
+) -> Result<Value, CoreError> {
+    if !core.expressive_media_available() {
+        return Ok(json!({ "refused": "expressive_disabled" }));
+    }
+    let (out, commit) = match intent {
+        ExpressiveIntent::InstallPack {
+            input,
+            release_id,
+            control_digest,
+            policy,
+            favourites,
+            cached,
+        } => {
+            if cached.len() > 512 {
+                return Ok(json!({ "refused": "value_range" }));
+            }
+            let (release, control) = input.bytes()?;
+            let preview = match core.preview_content_pack(ctx, &release, control.as_deref())? {
+                Ok(preview) => preview,
+                Err(reason) => return Ok(json!({ "refused": reason })),
+            };
+            if preview.release_id != release_id || preview.control_digest != control_digest {
+                return Ok(json!({ "refused": "confirmation_required" }));
+            }
+            let ids = cached
+                .iter()
+                .map(|blob| id32(&blob.blob_id))
+                .collect::<Result<Vec<_>, _>>()?;
+            let bodies = cached
+                .iter()
+                .map(|blob| expressive_ciphertext(&blob.ciphertext))
+                .collect::<Result<Vec<_>, _>>()?;
+            let cached: Vec<_> = ids
+                .into_iter()
+                .zip(&bodies)
+                .map(|(blob_id, ciphertext)| media::CachedBlob {
+                    blob_id,
+                    ciphertext,
+                })
+                .collect();
+            let confirmed_release = id32(&release_id)?;
+            core.install_content_pack(
+                ctx,
+                media::Install {
+                    release: &release,
+                    expected_release: confirmed_release,
+                    confirmed_release,
+                    control: control.as_deref(),
+                    policy,
+                    favourites: &favourites,
+                    cached: &cached,
+                },
+            )?
+        }
+        ExpressiveIntent::RemovePack { pack_id } => {
+            core.remove_content_pack(ctx, id32(&pack_id)?)?
+        }
+        ExpressiveIntent::UpdatePicker {
+            pack_id,
+            release_id,
+            item_id,
+            change,
+        } => core.update_expressive_picker(
+            ctx,
+            id32(&pack_id)?,
+            id32(&release_id)?,
+            &item_id,
+            change,
+        )?,
+    };
+    Ok(match out {
+        Ok(()) => json!({ "accepted": true, "commit": commit }),
+        Err(e) => json!({ "refused": e, "commit": commit }),
+    })
+}
+
+#[cfg(feature = "expressive-media")]
+fn expressive_query<R: RngCore + CryptoRng>(
+    core: &Core<R>,
+    ctx: &ProfileExecutionContext,
+    query: ExpressiveQuery,
+) -> Result<Value, CoreError> {
+    use media::Opened;
+    Ok(match query {
+        ExpressiveQuery::PreviewPack { input } => {
+            let (release, control) = input.bytes()?;
+            match core.preview_content_pack(ctx, &release, control.as_deref())? {
+                Ok(preview) => json!({ "preview": preview }),
+                Err(reason) => json!({ "refused": reason }),
+            }
+        }
+        ExpressiveQuery::Packs => json!(core.content_packs(ctx)?),
+        ExpressiveQuery::Picker { pack_id } => json!(core.expressive_picker(ctx, id32(&pack_id)?)?),
+        ExpressiveQuery::Fetch { message_id, source } => {
+            let Some(p) = core.expressive_presentation(ctx, &message_id, source.source()) else {
+                return Ok(Value::Null);
+            };
+            match core.expressive_fetch(ctx, &message_id, source.source()) {
+                Ok(call) => json!({ "call": call, "altText": p.alt_text }),
+                Err(_) => json!({ "altText": p.alt_text }),
+            }
+        }
+        ExpressiveQuery::Open {
+            message_id,
+            source,
+            ciphertext,
+        } => {
+            let Some(p) = core.expressive_presentation(ctx, &message_id, source.source()) else {
+                return Ok(Value::Null);
+            };
+            match core.open_expressive(
+                ctx,
+                &message_id,
+                source.source(),
+                &expressive_ciphertext(&ciphertext)?,
+            ) {
+                Ok(Opened::Renderable { plaintext, facts }) => json!({
+                    "state": "renderable", "plaintext": om_core::crypto::hex(&plaintext), "facts": facts,
+                    "kind": p.kind.as_str(), "mediaProfileId": p.media_profile_id, "altText": p.alt_text,
+                }),
+                Ok(Opened::Placeholder { alt_text }) => {
+                    json!({ "state": "placeholder", "altText": alt_text })
+                }
+                Err(_) => json!({ "state": "placeholder", "altText": p.alt_text }),
+            }
+        }
+    })
 }
 
 fn unhex(s: &str) -> Result<Vec<u8>, CoreError> {

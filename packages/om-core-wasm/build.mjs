@@ -17,10 +17,14 @@ const env = { ...process.env, PATH: `/opt/homebrew/opt/rustup/bin:${process.env.
 // `--groups` builds the variant with the OpenMLS engine (`groups-openmls`, ADR-0187, a proposed delegated draft) to
 // dist/om_wasm_groups.wasm. It is never the default artifact and never what `make core-wasm` ships.
 const groups = process.argv.includes("--groups");
-const features = groups ? "om-core/production,groups-openmls" : "om-core/production";
-execFileSync("cargo", ["build", "-p", "om-wasm", "--target", "wasm32-unknown-unknown", "--release", "--locked", "--features", features], { cwd: root, env, stdio: "inherit" });
+const expressive = process.argv.includes("--expressive");
+if (groups && expressive) throw new Error("Choose one engineering artifact");
+const features = ["om-core/production"];
+if (groups) features.push("groups-openmls");
+if (expressive) features.push("expressive-media");
+execFileSync("cargo", ["build", "-p", "om-wasm", "--target", "wasm32-unknown-unknown", "--release", "--locked", "--features", features.join(",")], { cwd: root, env, stdio: "inherit" });
 mkdirSync(outDir, { recursive: true });
-const name = groups ? "om_wasm_groups.wasm" : "om_wasm.wasm";
+const name = groups ? "om_wasm_groups.wasm" : expressive ? "om_wasm_expressive.wasm" : "om_wasm.wasm";
 const out = join(outDir, name);
 copyFileSync(join(targetDir, "wasm32-unknown-unknown/release/om_wasm.wasm"), out);
 const sha256 = createHash("sha256").update(readFileSync(out)).digest("hex");

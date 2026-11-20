@@ -7,7 +7,7 @@ mod webp;
 
 pub use asset::*;
 pub use pack::*;
-pub use webp::{Facts, Frame, validate_facts, walk_webp};
+pub use webp::{DecodeFacts, Facts, Frame, validate_facts, walk_webp};
 
 pub const WEBP: &str = "om.expressive.webp-v1";
 pub const INLINE: &str = "om.expressive.inline-emoji.v1";
@@ -47,6 +47,15 @@ struct Limits {
 }
 
 impl Kind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Sticker => "sticker",
+            Self::CustomEmoji => "custom_emoji",
+            Self::ReactionAsset => "reaction_asset",
+            Self::LoopAnimation => "loop_animation",
+        }
+    }
+
     fn limits(self) -> Limits {
         match self {
             Self::Sticker => Limits {

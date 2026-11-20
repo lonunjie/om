@@ -25,6 +25,7 @@ export interface WasmCore {
 }
 
 const MAX_RANDOM_CHUNK = 65536;
+export const MAX_WASM_COMMAND_BYTES = 16 << 20; // om_in_alloc caps its reservation at this size.
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -74,6 +75,7 @@ export async function instantiateCore(source: BufferSource, host: WasmHost = {})
     call(command) {
       if (dead) throw new CoreCallError("trapped", "the Core instance trapped earlier and must be re-opened from storage");
       const req = encoder.encode(JSON.stringify(command));
+      if (req.length > MAX_WASM_COMMAND_BYTES) throw new CoreCallError("size_limit", "command exceeds the Core ABI input limit");
       let text: string;
       try {
         const inPtr = ex.om_in_alloc(req.length);

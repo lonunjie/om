@@ -13,7 +13,8 @@ pub struct Frame {
     pub duration_ms: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Facts {
     pub width: u32,
     pub height: u32,
@@ -21,6 +22,25 @@ pub struct Facts {
     pub duration_ms: Option<u32>,
     pub encoded_size: usize,
     pub total_pixels: u32,
+}
+
+/// Facts observed by the platform decoder after opening this asset.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecodeFacts {
+    pub width: u32,
+    pub height: u32,
+    pub frame_count: Option<u32>,
+}
+
+impl Facts {
+    pub fn matches_decode(&self, observed: &DecodeFacts) -> bool {
+        self.width == observed.width
+            && self.height == observed.height
+            && observed
+                .frame_count
+                .is_none_or(|frames| self.frames == frames)
+    }
 }
 
 struct Budget {

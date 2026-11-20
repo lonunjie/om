@@ -1195,6 +1195,28 @@ fn expressive_sticker_survives_pack_removal_and_restart_with_same_blob() {
         p.bob.core.open_expressive(&p.b, id, Source::Attachment(0), &first.ciphertext),
         Ok(Opened::Renderable { plaintext, .. }) if plaintext == WEBP_HEADER,
     ));
+    let mut observed = om_core::expressive::DecodeFacts {
+        width: 1,
+        height: 1,
+        frame_count: Some(1),
+    };
+    let accepts = |facts: &om_core::expressive::DecodeFacts| {
+        p.bob.core.check_expressive_decode(
+            &p.b,
+            id,
+            Source::Attachment(0),
+            &first.ciphertext,
+            Some(facts),
+        )
+    };
+    assert!(accepts(&observed));
+    observed.frame_count = None; // bitmap-only platforms cannot observe the track count
+    assert!(accepts(&observed));
+    observed.frame_count = Some(2);
+    assert!(!accepts(&observed));
+    observed.frame_count = Some(1);
+    observed.width = 2;
+    assert!(!accepts(&observed));
     let mut tampered = first.ciphertext;
     tampered[0] ^= 1;
     assert_eq!(
@@ -1203,6 +1225,78 @@ fn expressive_sticker_survives_pack_removal_and_restart_with_same_blob() {
             .open_expressive(&p.b, id, Source::Attachment(0), &tampered),
         Err(AttachError::IntegrityFailure),
     );
+}
+
+#[test]
+fn expressive_picker_state_is_profile_local_and_commit_gated() {
+    use om_core::expressive::PickerChange;
+    let mut p = active_pair_with_expressive(true, true);
+    expressive_prepare(&mut p, Kind::Sticker, BlobPolicy::Fresh);
+    let release = p
+        .alice
+        .core
+        .content_pack(&p.a, PACK)
+        .unwrap()
+        .unwrap()
+        .release_id;
+    assert!(p.bob.core.content_packs(&p.b).unwrap().is_empty());
+
+    let (result, commit) = p
+        .alice
+        .core
+        .update_expressive_picker(
+            &p.a,
+            PACK,
+            release,
+            "item",
+            PickerChange::Favourite { present: true },
+        )
+        .unwrap();
+    result.unwrap();
+    assert!(
+        p.alice
+            .core
+            .content_pack(&p.a, PACK)
+            .unwrap()
+            .unwrap()
+            .favourites
+            .is_empty()
+    );
+    assert!(p.alice.settle(&Step {
+        commit,
+        handle: None
+    }));
+
+    let (result, commit) = p
+        .alice
+        .core
+        .update_expressive_picker(&p.a, PACK, release, "item", PickerChange::Recent)
+        .unwrap();
+    result.unwrap();
+    assert!(p.alice.settle(&Step {
+        commit,
+        handle: None
+    }));
+    let stale = p
+        .alice
+        .core
+        .update_expressive_picker(&p.a, PACK, [0; 32], "item", PickerChange::Recent)
+        .unwrap();
+    assert_eq!(stale.0, Err("release_id_mismatch"));
+    assert!(stale.1.is_none());
+
+    p.a = p.alice.restart().remove(0);
+    assert!(
+        p.alice
+            .core
+            .expressive_picker(&p.a, PACK)
+            .unwrap()
+            .is_none()
+    );
+    p.alice.core.enable_expressive_media();
+    let picker = p.alice.core.expressive_picker(&p.a, PACK).unwrap().unwrap();
+    assert!(picker.pack.favourites.contains("item"));
+    assert_eq!(picker.recents, ["item"]);
 }
 
 #[test]

@@ -2048,15 +2048,115 @@ impl<R: RngCore + CryptoRng> Core<R> {
         Ok(slot.state.expressive_packs.view(pack))
     }
 
+    pub fn expressive_media_available(&self) -> bool {
+        self.expressive_enabled
+    }
+
+    pub fn preview_content_pack(
+        &self,
+        ctx: &ProfileExecutionContext,
+        release: &[u8],
+        control: Option<&[u8]>,
+    ) -> Result<Result<crate::expressive::PackPreview, crate::expressive::Error>, CoreError> {
+        let slot = self.slot(ctx)?;
+        Ok(if self.expressive_enabled {
+            slot.state.expressive_packs.preview(release, control)
+        } else {
+            Err("expressive_disabled")
+        })
+    }
+
+    pub fn content_packs(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Vec<(String, crate::expressive::PackView)>, CoreError> {
+        let slot = self.slot(ctx)?;
+        Ok(if self.expressive_enabled {
+            slot.state.expressive_packs.list()
+        } else {
+            Vec::new()
+        })
+    }
+
+    pub fn expressive_picker(
+        &self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+    ) -> Result<Option<crate::expressive::PackPicker>, CoreError> {
+        let slot = self.slot(ctx)?;
+        Ok(if self.expressive_enabled {
+            slot.state.expressive_packs.picker(pack)
+        } else {
+            None
+        })
+    }
+
+    pub fn update_expressive_picker(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+        release: [u8; 32],
+        item: &str,
+        change: crate::expressive::PickerChange,
+    ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
+        self.slot(ctx)?;
+        self.txn_inner(
+            &ctx.profile_id,
+            |tx| {
+                Ok(if tx.expressive_enabled {
+                    tx.st
+                        .expressive_packs
+                        .update_picker(pack, release, item, change)
+                } else {
+                    Err("expressive_disabled")
+                })
+            },
+            true,
+        )
+    }
+
+    /// Re-open the same digest-bound source after asynchronous decode. A replaced or
+    /// deleted message cannot authorize a frame from the previous visible asset.
+    pub fn check_expressive_decode(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        source: crate::expressive::Source<'_>,
+        ciphertext: &[u8],
+        observed: Option<&crate::expressive::DecodeFacts>,
+    ) -> bool {
+        let Some(observed) = observed else {
+            return false;
+        };
+        let Ok(crate::expressive::Opened::Renderable {
+            mut plaintext,
+            facts,
+        }) = self.open_expressive(ctx, message_id, source, ciphertext)
+        else {
+            return false;
+        };
+        use zeroize::Zeroize;
+        plaintext.zeroize();
+        facts.matches_decode(observed)
+    }
+
     pub fn remove_content_pack(
         &mut self,
         ctx: &ProfileExecutionContext,
         pack: [u8; 32],
     ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
         self.slot(ctx)?;
-        self.txn_inner(&ctx.profile_id, |tx| {
-            Ok(tx.st.expressive_packs.remove(pack))
-        }, true)
+        self.txn_inner(
+            &ctx.profile_id,
+            |tx| {
+                Ok(if tx.expressive_enabled {
+                    tx.st.expressive_packs.remove(pack)
+                } else {
+                    Err("expressive_disabled")
+                })
+            },
+            true,
+        )
     }
 
     pub fn evict_content_pack_blob(

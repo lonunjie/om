@@ -31,5 +31,8 @@ getrandom02 = { package = "getrandom", version = "0.2", features = ["custom"], o
 # Links the OpenMLS engine (ADR-0187, proposed delegated draft) into the module. Off by default.
 groups-openmls = ["om-core/groups-openmls", "dep:getrandom02"]
 
+# Includes the opt-in expressive-media host commands in a separate engineering artifact.
+expressive-media = []
+
 [dev-dependencies]
 om-core = { path = "../om-core", features = ["insecure-test-rng", "test-loopback"] }

@@ -1,3 +1,4 @@
+import type { ExpressiveTarget } from "./expressive";
 import type { RecoveryCustodianCode, RecoveryScope } from "./devices";
 import type { ConversationId, DeviceId, MessageId, OperationId, PersonId, ProfileExecutionContext, ProfileId, Brand } from "./ids";
 
@@ -148,9 +149,16 @@ export interface JoinControllerChange extends IntentBase { readonly kind: "JoinC
 export interface ConfirmControllerChange extends IntentBase { readonly kind: "ConfirmControllerChange"; readonly requestId: string; readonly confirmation: ConfirmationToken }
 export interface CancelControllerChange extends IntentBase { readonly kind: "CancelControllerChange"; readonly requestId: string }
 
+export interface SendExpressive extends IntentBase {
+  readonly kind: "SendExpressive";
+  readonly conversationId: ConversationId;
+  readonly target: ExpressiveTarget;
+  readonly asset: { readonly source: "prepared"; readonly blobId: string };
+}
+
 export type CoreIntent =
   | OfferControllerChange | JoinControllerChange | ConfirmControllerChange | CancelControllerChange
-  | SendMessage | SendMessageMentioning | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
+  | SendExpressive | SendMessage | SendMessageMentioning | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | AcceptCall | DeclineCall | EndCall | UpdateCallIce | SetCallMedia | SetContactAllowCalls | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | ReconnectContact | AcceptInvitation
@@ -160,7 +168,7 @@ export type CoreIntentKind = CoreIntent["kind"];
 
 export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "OfferControllerChange", "JoinControllerChange", "ConfirmControllerChange", "CancelControllerChange",
-  "SendMessage", "SendMessageMentioning", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
+  "SendExpressive", "SendMessage", "SendMessageMentioning", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "SetReaction", "EditMessage", "DeleteMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "AcceptCall", "DeclineCall", "EndCall", "UpdateCallIce", "SetCallMedia", "SetContactAllowCalls", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "ReconnectContact", "AcceptInvitation",

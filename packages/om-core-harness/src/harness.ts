@@ -5,12 +5,14 @@ import {
 import type {
   AttachmentApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
-  DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  DeliveryState, ExpressiveApi, ExpressiveSource, OpenedExpressive, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   PeerRecoveryView, PersonId, PrivacyPolicyLevel, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, ReplyView, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
+import { createExpressiveSim, sourceKey, type SeedExpressivePack } from "./expressive";
 import { createGroupSim, type GroupSim } from "./groups";
 
+export type { SeedExpressivePack } from "./expressive";
 export type { GroupSim } from "./groups";
 
 export type { SeedDevice, SeedDevices, SeedIncomingRecovery, SeedRecovery } from "./devices";
@@ -45,6 +47,7 @@ export interface SeedConversation {
 /** A seeded attachment: `bytes` stay in the harness's blob map so `attachments.open` can return them; the view shows `state: "remote"` for incoming and `stored_for_later` for outgoing. */
 export interface SeedAttachment { readonly filename?: string; readonly mediaType: string; readonly bytes: Uint8Array; readonly durationMs?: number }
 export interface SeedMessage {
+  readonly expressive?: readonly { readonly source: ExpressiveSource; readonly opened: OpenedExpressive }[];
   readonly text: string;
   readonly direction: "incoming" | "outgoing";
   readonly attachments?: readonly SeedAttachment[];
@@ -57,6 +60,7 @@ export interface SeedMessage {
   readonly replyTo?: number;
 }
 export interface SeedProfile {
+  readonly expressivePacks?: readonly SeedExpressivePack[];
   readonly profileId: ProfileId;
   readonly label: string;
   readonly conversations?: readonly SeedConversation[];
@@ -74,6 +78,7 @@ export interface Harness extends CoreClient {
   readonly attachments: AttachmentApi;
   /** Always present here: simulated ordinary groups for UI tests (no engine, no wire; the other people are played by `simulate*`). */
   readonly groups: GroupSim;
+  readonly expressive: ExpressiveApi;
   /** Registers a profile (generation fixed at seed) and returns its captured context. */
   seedProfile(seed: SeedProfile): ProfileExecutionContext;
   /** Fresh context for a seeded profile at its current generation (what a restarted UI would capture). */
@@ -97,6 +102,7 @@ export interface Harness extends CoreClient {
 }
 
 export interface HarnessOptions {
+  readonly expressiveMedia?: boolean;
   readonly clock?: () => number;
   readonly env?: HarnessEnv | undefined;
   /** What the pretend delivery service accepts for files (default 4 MiB per file; `null`: it holds no files). */
@@ -110,6 +116,7 @@ const LIVE_OFFER: readonly AttachmentState[] = ["waiting_for_recipient", "transf
 const DIRECT_STATES: readonly AttachmentState[] = ["waiting_for_recipient", "transferring", "peer_says_received", "delivered_locally", "not_confirmed", "not_offered"];
 
 interface MutableMessage {
+  expressive?: Map<string, OpenedExpressive>;
   messageId: MessageId;
   operationId: OperationId | null;
   direction: "incoming" | "outgoing";
@@ -420,6 +427,52 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         notify(intent.ctx.profileId);
         return record(intent, { kind: "Committed" });
       }
+      case "SendExpressive": {
+        if (!expressive.api.available()) return rejected("unsupported");
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (conv === null) return rejected("not_found");
+        if (st.persons.get(conv.personId)?.blocked === true) return rejected("unavailable");
+        const prepared = expressive.prepared(intent.ctx, intent.asset.blobId);
+        if (prepared === undefined) return rejected("not_found");
+        const { target } = intent;
+        const kind = prepared.asset.asset.kind;
+        const fallback = prepared.fallbackText ?? prepared.asset.altText;
+        let source: ExpressiveSource;
+        let message: MutableMessage;
+        if (target === "Inline" || target === "Attachment") {
+          if (target === "Inline" ? kind !== "custom_emoji" : (kind !== "sticker" && kind !== "loop_animation")) {
+            return rejected("invalid");
+          }
+          const messageId = asMessageId(`msg-${String(++messageSeq)}`);
+          message = { messageId, operationId: intent.operationId, direction: "outgoing", text: fallback, sentAt: clock(), delivery: { state: "sent" } };
+          source = { kind: target === "Inline" ? "inline" : "attachment", index: 0 };
+          if (target === "Attachment") {
+            message.attachments = [{ index: 0, blobId: intent.asset.blobId, size: prepared.asset.asset.bytes.length, mediaType: "image/webp", state: "stored_for_later" }];
+          }
+          messageOwner.set(messageId, intent.ctx.profileId);
+          conv.messages.push(message);
+        } else if ("Reaction" in target) {
+          if (kind !== "custom_emoji" && kind !== "reaction_asset") return rejected("invalid");
+          const found = conv.messages.find((m) => m.messageId === target.Reaction.message_id);
+          if (found === undefined) return rejected("not_found");
+          const { key } = target.Reaction;
+          if (key.trim() === "" || new TextEncoder().encode(key).length > 64 || /\p{Cc}/u.test(key)) return rejected("invalid");
+          (found.mine ??= new Set()).add(key);
+          source = { kind: "reaction", key, mine: true };
+          message = found;
+        } else {
+          if (kind !== "custom_emoji") return rejected("invalid");
+          const found = conv.messages.find((m) => m.messageId === target.Edit.message_id && m.direction === "outgoing");
+          if (found === undefined) return rejected("not_found");
+          found.text = fallback;
+          found.edited = true;
+          source = { kind: "inline", index: 0 };
+          message = found;
+        }
+        (message.expressive ??= new Map()).set(sourceKey(source), prepared.asset);
+        expressive.consume(intent.ctx, intent.asset.blobId);
+        return record(intent, { kind: "Committed" }, message.messageId);
+      }
       case "SendMessage":
       case "SendMessageMentioning": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
@@ -458,6 +511,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         } else {
           if (intent.text.trim() === "" || intent.text.length > 8000) return rejected("invalid");
           target.text = intent.text;
+          for (const key of target.expressive?.keys() ?? []) {
+            if (key.startsWith('["inline",')) target.expressive?.delete(key);
+          }
           target.edited = true;
         }
         return record(intent, { kind: "Committed" });
@@ -472,6 +528,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const mine = target.mine ?? new Set<string>();
         if (intent.present) mine.add(intent.reaction); else mine.delete(intent.reaction);
         target.mine = mine;
+        target.expressive?.delete(sourceKey({ kind: "reaction", key: intent.reaction, mine: true }));
         return record(intent, { kind: "Committed" });
       }
       case "SendAttachments": {
@@ -659,12 +716,23 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     }),
   };
 
+  const expressive = createExpressiveSim({
+    enabled: options.expressiveMedia === true,
+    settle,
+    stateFor,
+    newBlobId,
+    opened(ctx, id, source) {
+      const messages = [...stateFor(ctx).conversations.values()].flatMap((c) => c.messages);
+      return messages.find((msg) => msg.messageId === id)?.expressive?.get(sourceKey(source)) ?? null;
+    },
+  });
   const groups = createGroupSim({ stateFor, hasRelationship: (ctx, id) => stateFor(ctx).conversations.has(id), clock, contactName: (ctx, id) => { const c = stateFor(ctx).conversations.get(id); return c === undefined ? null : c.nickname ?? c.displayName; } });
 
   return {
     marker: HARNESS_MARKER,
     attachments: attachmentApi,
     groups,
+    expressive: expressive.api,
     seedProfile(seed) {
       if (profiles.has(seed.profileId)) throw new HarnessError("profile already seeded");
       const st: ProfileState = {
@@ -685,6 +753,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           const target = m.replyTo === undefined ? undefined : seededIds[m.replyTo];
           if (target !== undefined) msg.replyTo = target;
           seededIds.push(messageId);
+          if (m.expressive !== undefined) msg.expressive = new Map(m.expressive.map(({ source, opened }) => [sourceKey(source), opened]));
           if (m.reactions !== undefined && m.reactions.length > 0) msg.theirs = new Set(m.reactions);
           if (m.attachments !== undefined) {
             msg.attachments = m.attachments.map((a, index): AttachmentView => {
@@ -714,7 +783,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       for (const i of seed.introductions ?? []) st.introductions.set(i.id, { ...i, verification: i.verification ?? "unverified" });
       sim.seed(seed.profileId, seed.account);
       profiles.set(seed.profileId, st);
-      return captureProfileContext(seed.profileId, st.generation);
+      const ctx = captureProfileContext(seed.profileId, st.generation);
+      expressive.seed(ctx, seed.expressivePacks ?? []);
+      return ctx;
     },
 
     contextFor(profileId) {
