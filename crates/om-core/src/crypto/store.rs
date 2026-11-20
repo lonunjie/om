@@ -103,6 +103,7 @@ pub struct Device {
     pub signer: DeviceSigner,
     pub ik_secret: [u8; 32],
     pub acs_generation: u64,
+    pub(crate) capabilities: Vec<String>,
     pub epoch: u64,
     pub next_id: u32,
     pub spk: SignedEc,
@@ -210,6 +211,7 @@ impl Device {
             signer,
             ik_secret,
             acs_generation: 1,
+            capabilities: vec![],
             epoch: 1,
             next_id: 3,
             spk: SignedEc {
@@ -356,6 +358,7 @@ impl Device {
             account_id: self.account_id,
             signing_pk: self.signer.public(),
             ik: self.ik(),
+            capabilities: self.capabilities.clone(),
         }
     }
 
@@ -898,7 +901,7 @@ impl Device {
                 V::B(k.seed.to_vec()),
             ])
         };
-        V::M(vec![
+        let mut fields = vec![
             (0, V::T("om-v001-device".into())),
             (1, V::B(self.ik_secret.to_vec())),
             (2, V::U(self.next_id as u64)),
@@ -1001,7 +1004,14 @@ impl Device {
                         .collect(),
                 ),
             ),
-        ])
+        ];
+        if !self.capabilities.is_empty() {
+            fields.push((
+                23,
+                V::A(self.capabilities.iter().cloned().map(V::T).collect()),
+            ));
+        }
+        V::M(fields)
     }
 
     pub fn from_cbor(v: &V) -> Result<Self, Error> {
@@ -1141,6 +1151,7 @@ impl Device {
             },
             ik_secret: v.get(1)?.b32()?,
             acs_generation: v.get(14)?.u()?,
+            capabilities: binding::credential_capabilities(v.opt(23))?,
             epoch: v.get(15)?.u()?,
             next_id: v.get(2)?.u32()?,
             spk: ec(v.get(3)?)?,

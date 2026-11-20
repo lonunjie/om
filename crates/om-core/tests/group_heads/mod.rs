@@ -37,6 +37,7 @@ pub fn head_with(
         account_id: account.try_into().unwrap(),
         signing_pk: d.1.clone(),
         ik: [7; 32],
+        capabilities: vec![],
     };
     let creds: Vec<Credential> = control
         .iter()

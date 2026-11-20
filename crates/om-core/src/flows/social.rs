@@ -99,6 +99,18 @@ pub(super) fn apply_reaction(
     present: bool,
     clock: Hlc,
 ) -> bool {
+    apply_reaction_asset(msgs, target, mine, key, present, clock, None)
+}
+
+fn apply_reaction_asset(
+    msgs: &mut [Msg],
+    target: &str,
+    mine: bool,
+    key: &str,
+    present: bool,
+    clock: Hlc,
+    asset: Option<&V>,
+) -> bool {
     let Some(m) = msgs
         .iter_mut()
         .find(|m| m.id == target && !m.lane && !m.deleted)
@@ -114,6 +126,7 @@ pub(super) fn apply_reaction(
         ReactionRec {
             mine,
             key: key.to_string(),
+            asset: asset.map(|v| hex(&cbor::encode(v)).into()),
             present,
             clock_ms: clock.physical_ms,
             clock_logical: clock.logical,
@@ -153,6 +166,7 @@ pub(super) fn apply_edit_delete(
     if ev.kind == events::K_DELETE {
         m.deleted = true;
         m.text.clear();
+        m.social.inline_assets.clear();
         m.social.reactions.clear();
         return true;
     }
@@ -163,7 +177,7 @@ pub(super) fn apply_edit_delete(
         .body
         .get(1)
         .ok()
-        .and_then(events::plain_text)
+        .and_then(events::message_text)
         .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
     else {
         return false;
@@ -171,6 +185,10 @@ pub(super) fn apply_edit_delete(
     if text.trim().is_empty() && m.attachments.is_empty() {
         return true; // nothing left to show: no effect (the author deletes instead)
     }
+    let Some(assets) = crate::expressive::inline_assets(ev.body.opt(1)) else {
+        return false;
+    };
+    m.social.inline_assets = assets;
     m.text = text;
     m.clock_ms = ev.clock.physical_ms;
     m.clock_logical = ev.clock.logical;
@@ -236,7 +254,7 @@ impl AppState {
             events::K_EDIT => ev
                 .body
                 .opt(1)
-                .and_then(events::plain_text)
+                .and_then(events::message_text)
                 .is_some_and(|text| text.chars().count() <= MAX_MESSAGE_CHARS),
             events::K_REACTION => read_reaction(ev).is_some(),
             _ => true,
@@ -281,10 +299,22 @@ impl AppState {
     }
 }
 
-fn apply_direct_mutation(rel: &mut Relationship, ev: &events::Event, mine: bool) -> bool {
+pub(super) fn apply_direct_mutation(
+    rel: &mut Relationship,
+    ev: &events::Event,
+    mine: bool,
+) -> bool {
     if ev.kind == events::K_REACTION {
         if let Some((target, key, present)) = read_reaction(ev) {
-            apply_reaction(&mut rel.messages, &target, mine, &key, present, ev.clock);
+            apply_reaction_asset(
+                &mut rel.messages,
+                &target,
+                mine,
+                &key,
+                present,
+                ev.clock,
+                ev.body.opt(3),
+            );
         }
         true
     } else {
@@ -404,7 +434,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// One of our own messages that an edit or delete may name (see [`Self::event_target`]).
-    fn own_target(&self, conv: &str, message_id: &str) -> Option<[u8; 16]> {
+    pub(super) fn own_target(&self, conv: &str, message_id: &str) -> Option<[u8; 16]> {
         let rel = self.st.app.relationships.get(conv)?;
         rel.messages
             .iter()
@@ -454,6 +484,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .get_mut(conv)
             .and_then(|r| r.messages.iter_mut().find(|m| m.id == message_id))
         {
+            m.social.inline_assets.clear();
             m.text = text.to_string();
             m.clock_ms = clock.physical_ms;
             m.clock_logical = clock.logical;
@@ -496,13 +527,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         {
             m.deleted = true;
             m.text.clear();
+            m.social.inline_assets.clear();
             m.social.reactions.clear();
         }
         Ok(())
     }
 
     /// Whether adding our present reaction `key` would make more than `MAX_REACTIONS_SHOWN` of ours present on the message.
-    fn own_reaction_would_exceed(&self, conv: &str, message_id: &str, key: &str) -> bool {
+    pub(super) fn own_reaction_would_exceed(
+        &self,
+        conv: &str,
+        message_id: &str,
+        key: &str,
+    ) -> bool {
         let Some(m) = self
             .st
             .app
@@ -599,6 +636,7 @@ mod register_tests {
                 |r| r.key == format!("k{k}"),
                 rec_order,
                 ReactionRec {
+                    asset: None,
                     mine: true,
                     key: format!("k{k}"),
                     present,
@@ -671,6 +709,7 @@ mod register_tests {
                 |r| r.key == format!("k{k}"),
                 rec_order,
                 ReactionRec {
+                    asset: None,
                     mine: true,
                     key: format!("k{k}"),
                     present,
@@ -705,6 +744,7 @@ mod register_tests {
                 |r| r.key == format!("k{k}"),
                 rec_order,
                 ReactionRec {
+                    asset: None,
                     mine: true,
                     key: format!("k{k}"),
                     present: true,

@@ -26,6 +26,7 @@ fn drive<T>(
         rng,
         now_ms,
         calls_enabled: false,
+        expressive_enabled: false,
         changed: vec![],
         open_profiles: &open,
         offers: &mut offers,

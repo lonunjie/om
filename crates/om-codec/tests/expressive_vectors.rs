@@ -784,3 +784,81 @@ fn held_keys_are_refused() {
         assert_eq!(reg.check("ContentPackRelease", &encode(&Value::Map(m)), false).map(|_: Value| ()), Err("unknown_field"), "release key {key}");
     }
 }
+
+#[test]
+fn scoped_expressive_grammar_keeps_other_inline_sites_at_w0() {
+    let doc = corpus();
+    let bytes = |section: &str, id: &str| {
+        let row = doc[section].as_array().unwrap().iter().find(|row| row["id"] == id).unwrap();
+        expand_hex(&row["hex"])
+    };
+    let loose = Registry::load_w1_expressive();
+    let scoped = Registry::load_w1_expressive_scoped();
+    let create = bytes("vectors", "ConversationEvent/create-inline-custom-emoji");
+    let event = scoped.check("ConversationEvent", &create, false).unwrap();
+    let rich = event.get(11).unwrap().get(0).unwrap().clone();
+    let inline = array(array(rich.get(1))[0].get(1))
+        .iter().find(|node| node.get(0) == Some(&Value::Uint(4))).unwrap().clone();
+
+    fn set(value: &mut Value, key: u64, replacement: Value) {
+        let Value::Map(fields) = value else { panic!("expected map") };
+        if let Some((_, value)) = fields.iter_mut().find(|(k, _)| *k == Value::Uint(key)) {
+            *value = replacement;
+        } else {
+            fields.push((Value::Uint(key), replacement));
+        }
+    }
+
+    let w0: J = serde_json::from_reader(GzDecoder::new(
+        &include_bytes!("../../../verification/vectors/v005-w0-object-vectors.json.gz")[..],
+    )).unwrap();
+    let row = w0["vectors"].as_array().unwrap().iter()
+        .find(|row| row["id"] == "MessageRequestPayload/minimal").unwrap();
+    let mut greeting = from_diag(&row["body_value"]);
+    assert!(scoped.check_body("MessageRequestPayload", &encode(&greeting)).is_ok());
+    set(&mut greeting, 6, rich.clone());
+    assert_eq!(
+        scoped.check_body("MessageRequestPayload", &encode(&greeting)),
+        Err("value_range"),
+    );
+
+    let entry = |key, value| (Value::Uint(key), value);
+    let option = |id, label: &str| Value::Map(vec![
+        entry(0, Value::Uint(id)),
+        entry(1, Value::Text(label.into())),
+    ]);
+    let poll = Value::Map(vec![
+        entry(0, rich.clone()),
+        entry(1, Value::Array(vec![option(0, "Yes"), option(1, "No")])),
+        entry(2, Value::Uint(1)),
+        entry(4, Value::Uint(1)),
+    ]);
+    assert_eq!(scoped.check_struct("PollCreate", &encode(&poll), 65536), Err("value_range"));
+    let mut poll_event = event.clone();
+    set(&mut poll_event, 8, Value::Uint(8));
+    set(&mut poll_event, 11, poll);
+    assert_eq!(scoped.check_body("ConversationEvent", &encode(&poll_event)), Err("value_range"));
+
+    for (shape, value) in [("Inline", inline.clone()), ("RichText", rich.clone())] {
+        assert!(loose.check_struct(shape, &encode(&value), 65536).is_ok());
+        assert_eq!(scoped.check_struct(shape, &encode(&value), 65536), Err("value_range"));
+    }
+
+    let layer = Value::Map(vec![
+        entry(0, Value::Uint(2)),
+        entry(3, Value::Text("https://example.invalid".into())),
+        entry(4, Value::Array(vec![inline])),
+    ]);
+    let mut nested = rich;
+    set(&mut nested, 1, Value::Array(vec![Value::Map(vec![
+        entry(0, Value::Uint(1)),
+        entry(1, Value::Array(vec![layer])),
+    ])]));
+    let mut edit = event;
+    set(&mut edit, 8, Value::Uint(2));
+    set(&mut edit, 11, Value::Map(vec![
+        entry(0, Value::Bytes(vec![1; 16])),
+        entry(1, nested),
+    ]));
+    assert!(scoped.check_body("ConversationEvent", &encode(&edit)).is_ok());
+}

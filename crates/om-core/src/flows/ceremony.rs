@@ -950,6 +950,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             account_id: head.account_id,
             signing_pk: hb(&req.signing_pk).map_err(|_| Invalid)?,
             ik: h32(&req.ik).map_err(|_| Invalid)?,
+            capabilities: vec![],
         };
         let known = head
             .control
@@ -1638,6 +1639,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             account_id: head.account_id,
             signing_pk: dev.signer.public(),
             ik: dev.ik(),
+            capabilities: dev.capabilities.clone(),
         };
         if !head.messaging.contains(&dev.device_id)
             || head.quarantined.contains(&dev.device_id)
@@ -2728,6 +2730,7 @@ mod tests {
             rng: &mut rng,
             now_ms: 1_790_000_000_000,
             calls_enabled: false,
+            expressive_enabled: false,
             changed: vec![],
             open_profiles: &open,
             offers: &mut offers,

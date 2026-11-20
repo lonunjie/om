@@ -106,6 +106,7 @@ pub struct Core<R: RngCore + CryptoRng> {
     /// What the BlobStore advertised; memory only (the host supplies it again at start).
     blob_limits: Option<BlobLimits>,
     calls_enabled: bool,
+    expressive_enabled: bool,
     recovery_place: Option<crate::recovery_record::RecoveryPlace>,
     /// Direct offers being served, by (profile, BlobID hex). Memory only: they hold the sealed object, which is rebuilt
     /// from the person's file after a restart (`arm_direct_offer`); what must survive is `AppState.direct_offers`.
@@ -168,6 +169,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             offers: vec![],
             blob_limits: None,
             calls_enabled: false,
+            expressive_enabled: false,
             recovery_place: None,
             direct_senders: BTreeMap::new(),
             direct_fetches: BTreeMap::new(),
@@ -1068,6 +1070,175 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ))
     }
 
+    /// Prepare a send from a confirmed installed pack item. The pack bytes are authenticated
+    /// before a fresh conversation blob is sealed. Selecting shared mode is explicit per asset.
+    pub fn prepare_expressive(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+        item: &str,
+        ciphertext: &[u8],
+        policy: crate::expressive::BlobPolicy,
+    ) -> Result<(Result<PreparedAttachment, crate::attach::AttachError>, Step), CoreError> {
+        use crate::attach::{AttachError, Meta};
+        use crate::expressive::{BlobPolicy, Opened};
+        let slot = self.slot(ctx)?;
+        if !self.expressive_enabled {
+            return Ok((Err(AttachError::Unsupported), Step::default()));
+        }
+        let asset = slot
+            .state
+            .expressive_packs
+            .release(pack)
+            .and_then(|release| release.item(item).cloned());
+        let Some(asset) = asset else {
+            return Ok((Err(AttachError::NotFound), Step::default()));
+        };
+        let (plaintext, facts) = match asset.open(ciphertext) {
+            Ok(Opened::Renderable { plaintext, facts }) => {
+                (zeroize::Zeroizing::new(plaintext), facts)
+            }
+            Ok(Opened::Placeholder { .. }) => {
+                return Ok((Err(AttachError::Invalid), Step::default()));
+            }
+            Err(err) => return Ok((Err(err), Step::default())),
+        };
+        let mut presentation = asset.presentation;
+        // A fresh encryption changes the manifest's identity tuple (ADR-0252 rule 7).
+        presentation.pack_ref = None;
+        presentation.shared_blob = policy == BlobPolicy::SharedBlob;
+        let meta = Meta {
+            media_type: "image/webp".into(),
+            width: Some(facts.width),
+            height: Some(facts.height),
+            duration_ms: facts.duration_ms.map(u64::from),
+            filename: None,
+        };
+        let (result, commit) = self.txn(&ctx.profile_id, |tx| {
+            let result = tx.prepare_attachment(tx.blob_limits, &plaintext, meta);
+            if let Ok(prepared) = &result {
+                let record = tx
+                    .st
+                    .app
+                    .prepared
+                    .get_mut(&prepared.blob_id)
+                    .ok_or(CoreError::CorruptState("prepared expressive asset"))?;
+                record.expressive = Some(presentation);
+            }
+            Ok(result)
+        })?;
+        Ok((
+            result,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
+    fn expressive_asset(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        source: crate::expressive::Source<'_>,
+    ) -> Option<crate::expressive::AssetRef> {
+        use crate::expressive::{AssetRef, Source};
+        let app = &self.slot(ctx).ok()?.state.app;
+        let m = app
+            .relationships
+            .values()
+            .flat_map(|r| r.messages.iter())
+            .chain(app.relationship_history.values().flatten())
+            .find(|m| m.id == message_id && !m.deleted && !m.lane)?;
+        let stored = match source {
+            Source::Attachment(index) => {
+                let attachment = crate::flows::rec_ref(m.attachments.get(index)?)?;
+                let ext =
+                    crate::crypto::cbor::decode(&crate::crypto::unhex(m.ext.as_deref()?).ok()?)
+                        .ok()?;
+                return crate::expressive::from_extension(&ext, index, attachment);
+            }
+            Source::Inline(index) => m.social.inline_assets.get(index)?,
+            Source::Reaction { key, mine } => m
+                .social
+                .reactions
+                .iter()
+                .find(|r| r.key == key && r.mine == mine && r.present)?
+                .asset
+                .as_ref()?,
+        };
+        let bytes = zeroize::Zeroizing::new(crate::crypto::unhex(stored).ok()?);
+        AssetRef::parse(&bytes).ok()
+    }
+
+    pub fn expressive_presentation(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        source: crate::expressive::Source<'_>,
+    ) -> Option<crate::expressive::Presentation> {
+        if !self.expressive_enabled {
+            return None;
+        }
+        self.expressive_asset(ctx, message_id, source)
+            .map(|asset| asset.presentation)
+    }
+
+    /// Attribution is computed from an installed release with a matching immutable item.
+    pub fn expressive_attribution(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        source: crate::expressive::Source<'_>,
+    ) -> Option<crate::expressive::PackView> {
+        if !self.expressive_enabled {
+            return None;
+        }
+        let asset = self.expressive_asset(ctx, message_id, source)?;
+        let pack = asset.presentation.pack_ref.as_ref()?.pack_id;
+        let packs = &self.slot(ctx).ok()?.state.expressive_packs;
+        packs
+            .release(pack)?
+            .attributes(&asset)
+            .then(|| packs.view(pack))
+            .flatten()
+    }
+
+    pub fn expressive_fetch(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        source: crate::expressive::Source<'_>,
+    ) -> Result<NetCall, crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        if !self.expressive_enabled {
+            return Err(AttachError::Unsupported);
+        }
+        let asset = self
+            .expressive_asset(ctx, message_id, source)
+            .ok_or(AttachError::NotFound)?;
+        if asset.presentation.media_profile_id != crate::expressive::WEBP {
+            return Err(AttachError::Unsupported);
+        }
+        Self::fetch_attachment_ref(asset.attachment)
+    }
+
+    pub fn open_expressive(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        source: crate::expressive::Source<'_>,
+        ciphertext: &[u8],
+    ) -> Result<crate::expressive::Opened, crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        if !self.expressive_enabled {
+            return Err(AttachError::Unsupported);
+        }
+        self.expressive_asset(ctx, message_id, source)
+            .ok_or(AttachError::NotFound)?
+            .open(ciphertext)
+    }
+
     /// The ciphertext of a prepared or outgoing attachment again, from its plaintext (sealing is deterministic under the
     /// persisted key), so a host that lost its staged bytes needs only the original file. Refuses plaintext that does not
     /// hash to the committed digest.
@@ -1127,8 +1298,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
         message_id: &str,
         index: usize,
     ) -> Result<NetCall, crate::attach::AttachError> {
+        Self::fetch_attachment_ref(self.attachment_rec(ctx, message_id, index)?)
+    }
+
+    fn fetch_attachment_ref(
+        r: crate::attach::AttachmentRef,
+    ) -> Result<NetCall, crate::attach::AttachError> {
         use crate::attach::{AttachError, TAG_LEN};
-        let r = self.attachment_rec(ctx, message_id, index)?;
         if r.plaintext_size > crate::attach::HARD_MAX_PLAINTEXT {
             return Err(AttachError::TooLarge {
                 max: crate::attach::HARD_MAX_PLAINTEXT,
@@ -1156,7 +1332,21 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ciphertext: &[u8],
     ) -> Result<OpenedAttachment, crate::attach::AttachError> {
         let r = self.attachment_rec(ctx, message_id, index)?;
-        let plaintext = r.open(ciphertext)?;
+        let plaintext = if self.expressive_enabled
+            && let Some(asset) = self.expressive_asset(
+                ctx,
+                message_id,
+                crate::expressive::Source::Attachment(index),
+            ) {
+            match asset.open(ciphertext)? {
+                crate::expressive::Opened::Renderable { plaintext, .. } => plaintext,
+                crate::expressive::Opened::Placeholder { .. } => {
+                    return Err(crate::attach::AttachError::Unsupported);
+                }
+            }
+        } else {
+            r.open(ciphertext)?
+        };
         Ok(OpenedAttachment {
             plaintext,
             media_type: r.media_type,
@@ -1690,6 +1880,15 @@ impl<R: RngCore + CryptoRng> Core<R> {
         profile: &str,
         f: impl FnOnce(&mut Tx<'_, R>) -> Result<T, CoreError>,
     ) -> Result<(T, Option<Commit>), CoreError> {
+        self.txn_inner(profile, f, false)
+    }
+
+    fn txn_inner<T>(
+        &mut self,
+        profile: &str,
+        f: impl FnOnce(&mut Tx<'_, R>) -> Result<T, CoreError>,
+        packs_only: bool,
+    ) -> Result<(T, Option<Commit>), CoreError> {
         if self.staged.is_some() {
             return Err(CoreError::Busy);
         }
@@ -1705,6 +1904,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 rng: &mut self.rng,
                 now_ms: self.clock.now_ms(),
                 calls_enabled: self.calls_enabled,
+                expressive_enabled: self.expressive_enabled,
                 changed: vec![],
                 open_profiles: &open,
                 offers: &mut self.offers,
@@ -1713,13 +1913,23 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 recovery_place: self.recovery_place.clone(),
             };
             let v = f(&mut tx)?;
-            tx.expire_controller_change();
-            tx.maintain_recovery_record();
-            tx.maintain_relays();
-            tx.maintain_calls();
+            if !packs_only {
+                tx.expire_controller_change();
+                tx.maintain_recovery_record();
+                tx.maintain_relays();
+                tx.maintain_calls();
+            }
             (v, tx.changed)
         };
-        let records = next.encode()?;
+        let records = if packs_only {
+            // The reference host applies writes individually. A pack-only transaction
+            // changes exactly one record and cannot publish unrelated maintenance.
+            let mut records = slot.committed.clone();
+            next.encode_pack_record(&mut records)?;
+            records
+        } else {
+            next.encode()?
+        };
         let writes = diff(&slot.committed, &records);
         if writes.is_empty() {
             // Nothing durable changed (for example an idempotent retry): visible immediately, nothing to release.
@@ -1806,6 +2016,59 @@ impl<R: RngCore + CryptoRng> Core<R> {
             commit,
             handle: Some(handle),
         })
+    }
+
+    /// The expressive-media driver opts in per Core instance. Existing credentials keep their
+    /// advertised capabilities until the normal account-control path reissues them.
+    pub fn enable_expressive_media(&mut self) {
+        self.expressive_enabled = true;
+    }
+
+    pub fn install_content_pack(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        input: crate::expressive::Install<'_>,
+    ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
+        self.slot(ctx)?;
+        self.txn_inner(&ctx.profile_id, |tx| {
+            Ok(if tx.expressive_enabled {
+                tx.st.expressive_packs.install(input)
+            } else {
+                Err("expressive_disabled")
+            })
+        }, true)
+    }
+
+    pub fn content_pack(
+        &self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+    ) -> Result<Option<crate::expressive::PackView>, CoreError> {
+        let slot = self.slot(ctx)?;
+        Ok(slot.state.expressive_packs.view(pack))
+    }
+
+    pub fn remove_content_pack(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+    ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
+        self.slot(ctx)?;
+        self.txn_inner(&ctx.profile_id, |tx| {
+            Ok(tx.st.expressive_packs.remove(pack))
+        }, true)
+    }
+
+    pub fn evict_content_pack_blob(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+        blob: [u8; 32],
+    ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
+        self.slot(ctx)?;
+        self.txn_inner(&ctx.profile_id, |tx| {
+            Ok(tx.st.expressive_packs.evict(pack, blob))
+        }, true)
     }
 
     /// The media driver opts in per Core instance. The reference app does not enable it.

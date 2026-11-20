@@ -25,9 +25,19 @@ struct Pair {
 }
 
 fn active_pair() -> Pair {
+    active_pair_with_expressive(false, false)
+}
+
+fn active_pair_with_expressive(alice_enabled: bool, bob_enabled: bool) -> Pair {
     let net = LoopbackNetwork::default();
     let mut alice = Runtime::new("alice", &net);
     let mut bob = Runtime::new("bob", &net);
+    if alice_enabled {
+        alice.core.enable_expressive_media();
+    }
+    if bob_enabled {
+        bob.core.enable_expressive_media();
+    }
     let a = common::create_profile(&mut alice, "p-a", "Alice");
     let b = common::create_profile(&mut bob, "p-b", "Bob");
     alice.dispatch(&a, "inv", IntentBody::CreateInvite);
@@ -1008,4 +1018,803 @@ fn a_card_whose_fallback_does_not_match_its_point_is_not_drawn() {
         assert!(parts(it).3.is_none());
     }
     let _ = EXT_LOCATION;
+}
+
+// ---------------------------------------------------------------------------------------------- W1 expressive media
+
+use om_core::expressive::{
+    self as expressive, AssetRef, BlobPolicy, CachePolicy, Install, Kind, Opened, Presentation,
+    Release, SendFrom, Source, Target,
+};
+use om_core::host::Step;
+
+const PACK: [u8; 32] = [0x72; 32];
+const WEBP_HEADER: &[u8] = b"RIFF\x12\0\0\0WEBPVP8L\x06\0\0\0\x2f\0\0\0\0\0";
+
+fn expressive_manifest(kind: Kind) -> (Vec<u8>, Vec<u8>) {
+    let blob_id = [12; 32];
+    let key = [23; 32];
+    let loop_bytes = expressive_animation();
+    let (plaintext, duration_ms) = if kind == Kind::LoopAnimation {
+        (loop_bytes.as_slice(), Some(68))
+    } else {
+        (WEBP_HEADER, None)
+    };
+    let ct = om_core::attach::seal(&key, &blob_id, plaintext);
+    let asset = AssetRef {
+        attachment: AttachmentRef {
+            blob_id,
+            key,
+            media_type: "image/webp".into(),
+            plaintext_size: plaintext.len() as u64,
+            ciphertext_digest: om_core::attach::ciphertext_digest(&ct),
+            locations: vec![],
+            filename: None,
+            read_cap: None,
+            width: Some(1),
+            height: Some(1),
+            duration_ms,
+        },
+        presentation: Presentation::webp(kind, "Accessible label".into(), Some("Fallback".into())),
+    };
+    let manifest = cbor::encode(&V::M(vec![
+        (0, V::U(45)),
+        (1, V::U(1)),
+        (2, V::B(PACK.to_vec())),
+        (3, V::U(1)),
+        (5, V::T("Local pack".into())),
+        (7, V::A(vec![V::U(4)])),
+        (
+            8,
+            V::A(vec![V::M(vec![
+                (0, V::T("item".into())),
+                (1, V::U(kind as u64)),
+                (2, asset.value()),
+                (5, V::T("Item label".into())),
+            ])]),
+        ),
+        (9, V::M(vec![])),
+    ]));
+    (manifest, ct)
+}
+
+fn expressive_prepare(
+    p: &mut Pair,
+    kind: Kind,
+    policy: BlobPolicy,
+) -> (PreparedAttachment, Vec<u8>) {
+    let (bytes, ct) = expressive_manifest(kind);
+    let id = Release::parse(&bytes).unwrap().id();
+    let (ok, commit) = p
+        .alice
+        .core
+        .install_content_pack(
+            &p.a,
+            Install {
+                release: &bytes,
+                expected_release: id,
+                confirmed_release: id,
+                control: None,
+                policy: CachePolicy::Lazy,
+                favourites: &[],
+                cached: &[],
+            },
+        )
+        .unwrap();
+    ok.unwrap();
+    assert!(p.alice.settle(&Step {
+        commit,
+        handle: None
+    }));
+    let (prepared, step) = p
+        .alice
+        .core
+        .prepare_expressive(&p.a, PACK, "item", &ct, policy)
+        .unwrap();
+    assert!(p.alice.settle(&step));
+    let prepared = prepared.unwrap();
+    p.net.stage_blob(
+        &unhex(&prepared.blob_id).unwrap(),
+        prepared.ciphertext.clone(),
+    );
+    (prepared, ct)
+}
+
+fn expressive_send(p: &mut Pair, op: &str, target: Target, blob: &PreparedAttachment) {
+    p.alice.dispatch(
+        &p.a,
+        op,
+        IntentBody::SendExpressive {
+            conversation_id: p.a_conv.clone(),
+            target,
+            asset: SendFrom::Prepared {
+                blob_id: blob.blob_id.clone(),
+            },
+        },
+    );
+    assert_eq!(
+        p.alice.outcome(&p.a, op),
+        Some(OutcomeClass::PendingNetwork)
+    );
+}
+
+#[test]
+fn expressive_sticker_survives_pack_removal_and_restart_with_same_blob() {
+    let mut p = active_pair_with_expressive(true, true);
+    let (first, pack_ct) = expressive_prepare(&mut p, Kind::Sticker, BlobPolicy::Fresh);
+    let (second, _) = expressive_prepare(&mut p, Kind::Sticker, BlobPolicy::Fresh);
+    assert_ne!(first.blob_id, second.blob_id);
+    assert_ne!(first.ciphertext, second.ciphertext);
+    expressive_send(&mut p, "s1", Target::Attachment, &first);
+    expressive_send(&mut p, "s2", Target::Attachment, &second);
+    let st = app(&p.alice, &p.a);
+    let messages = st["relationships"][&p.a_conv]["messages"]
+        .as_array()
+        .unwrap();
+    let keys: Vec<_> = messages
+        .iter()
+        .filter_map(|m| {
+            let r = unhex(m["attachments"][0]["reference"].as_str()?).ok()?;
+            Some(
+                AttachmentRef::from_v(&cbor::decode(&r).unwrap())
+                    .unwrap()
+                    .key,
+            )
+        })
+        .collect();
+    assert_eq!(keys.len(), 2);
+    assert_ne!(keys[0], keys[1]);
+    let (ok, commit) = p.alice.core.remove_content_pack(&p.a, PACK).unwrap();
+    ok.unwrap();
+    assert!(p.alice.settle(&Step {
+        commit,
+        handle: None
+    }));
+    assert!(p.alice.core.content_pack(&p.a, PACK).unwrap().is_none());
+    p.a = p.alice.restart().remove(0);
+    p.alice.core.enable_expressive_media();
+    assert!(p.alice.core.content_pack(&p.a, PACK).unwrap().is_none());
+    assert_ne!(pack_ct, first.ciphertext);
+    settle(&mut p);
+    assert_eq!(p.net.blob_put_count(), 2);
+    assert!(p.bob.core.content_pack(&p.b, PACK).unwrap().is_none());
+    let items = view(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(items.len(), 2);
+    let (id, text, atts, _) = parts(&items[0]);
+    assert_eq!(text, "Fallback");
+    assert_eq!(atts[0].blob_id, first.blob_id);
+    assert_eq!(
+        p.bob
+            .core
+            .expressive_presentation(&p.b, id, Source::Attachment(0))
+            .unwrap()
+            .alt_text,
+        "Accessible label"
+    );
+    assert!(matches!(
+        p.bob.core.open_expressive(&p.b, id, Source::Attachment(0), &first.ciphertext),
+        Ok(Opened::Renderable { plaintext, .. }) if plaintext == WEBP_HEADER,
+    ));
+    let mut tampered = first.ciphertext;
+    tampered[0] ^= 1;
+    assert_eq!(
+        p.bob
+            .core
+            .open_expressive(&p.b, id, Source::Attachment(0), &tampered),
+        Err(AttachError::IntegrityFailure),
+    );
+}
+
+#[test]
+fn expressive_w0_device_gets_fallback_and_no_w1_slot() {
+    for bob_supports_media in [false, true] {
+        let mut p = active_pair_with_expressive(true, bob_supports_media);
+        if bob_supports_media {
+            // The primary receiver understands W1. Its second, ACS-committed device is W0
+            // and has no route yet, so checking only reachable or primary devices would fail.
+            let (legacy, step) = p.bob.core.debug_link_messaging_device(&p.b).unwrap();
+            assert!(p.bob.settle(&step));
+            settle(&mut p);
+            let alice = app(&p.alice, &p.a);
+            let credentials: Vec<_> = alice["relationships"][&p.a_conv]["peerCredentials"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|raw| {
+                    om_core::crypto::binding::Credential::from_body(
+                        &unhex(raw.as_str().unwrap()).unwrap(),
+                    )
+                    .unwrap()
+                })
+                .collect();
+            assert!(
+                credentials
+                    .iter()
+                    .any(|c| hex(&c.device_id) == legacy && c.capabilities.is_empty())
+            );
+            assert!(
+                credentials
+                    .iter()
+                    .any(|c| c.capabilities.iter().any(|s| s == expressive::INLINE))
+            );
+        }
+        let (emoji, _) = expressive_prepare(&mut p, Kind::CustomEmoji, BlobPolicy::Fresh);
+        expressive_send(&mut p, "inline", Target::Inline, &emoji);
+        settle(&mut p);
+        let items = view(&p.bob, &p.b, &p.b_conv);
+        let (id, text, atts, _) = parts(&items[0]);
+        assert_eq!(text, "Fallback");
+        assert!(atts.is_empty());
+        assert!(
+            p.bob
+                .core
+                .expressive_presentation(&p.b, id, Source::Inline(0))
+                .is_none()
+        );
+        assert_eq!(p.net.blob_put_count(), 0);
+    }
+}
+
+#[test]
+fn expressive_inline_edit_and_reaction_follow_normal_mutation_registers() {
+    let mut p = active_pair_with_expressive(true, true);
+    let (emoji, _) = expressive_prepare(&mut p, Kind::CustomEmoji, BlobPolicy::Fresh);
+    expressive_send(&mut p, "inline", Target::Inline, &emoji);
+    settle(&mut p);
+    let items = view(&p.bob, &p.b, &p.b_conv);
+    let (id, text, atts, _) = parts(&items[0]);
+    let id = id.to_owned();
+    assert_eq!(text, "Fallback");
+    assert!(atts.is_empty());
+    assert!(matches!(
+        p.bob
+            .core
+            .open_expressive(&p.b, &id, Source::Inline(0), &emoji.ciphertext),
+        Ok(Opened::Renderable { .. })
+    ));
+
+    let (edit, _) = expressive_prepare(&mut p, Kind::CustomEmoji, BlobPolicy::Fresh);
+    expressive_send(
+        &mut p,
+        "edit",
+        Target::Edit {
+            message_id: id.clone(),
+        },
+        &edit,
+    );
+    settle(&mut p);
+    assert!(matches!(
+        p.bob
+            .core
+            .open_expressive(&p.b, &id, Source::Inline(0), &edit.ciphertext),
+        Ok(Opened::Renderable { .. })
+    ));
+    assert_eq!(
+        p.bob
+            .core
+            .open_expressive(&p.b, &id, Source::Inline(0), &emoji.ciphertext),
+        Err(AttachError::IntegrityFailure)
+    );
+
+    let (reaction, _) = expressive_prepare(&mut p, Kind::CustomEmoji, BlobPolicy::Fresh);
+    let key = "🙂".to_string();
+    expressive_send(
+        &mut p,
+        "reaction",
+        Target::Reaction {
+            message_id: id.clone(),
+            key: key.clone(),
+        },
+        &reaction,
+    );
+    settle(&mut p);
+    let source = Source::Reaction {
+        key: &key,
+        mine: false,
+    };
+    assert!(matches!(
+        p.bob
+            .core
+            .open_expressive(&p.b, &id, source.clone(), &reaction.ciphertext),
+        Ok(Opened::Renderable { .. })
+    ));
+    p.alice.dispatch(
+        &p.a,
+        "remove-reaction",
+        IntentBody::SetReaction {
+            conversation_id: p.a_conv.clone(),
+            message_id: id.clone(),
+            reaction: key.clone(),
+            present: false,
+        },
+    );
+    settle(&mut p);
+    assert!(
+        p.bob
+            .core
+            .expressive_presentation(&p.b, &id, source)
+            .is_none()
+    );
+    assert_eq!(view(&p.bob, &p.b, &p.b_conv).len(), 1);
+}
+
+#[test]
+fn expressive_shared_blob_is_explicit_and_reuses_the_blob() {
+    let mut p = active_pair_with_expressive(true, true);
+    assert_eq!(BlobPolicy::default(), BlobPolicy::Fresh);
+    assert!(BlobPolicy::Fresh.metadata_exposure().is_none());
+    let exposure = BlobPolicy::SharedBlob.metadata_exposure().unwrap();
+    assert!(
+        exposure.contains("BlobStore")
+            && exposure.contains("Recipients")
+            && exposure.contains("link conversations")
+    );
+    let (first, _) = expressive_prepare(&mut p, Kind::Sticker, BlobPolicy::SharedBlob);
+    expressive_send(&mut p, "first", Target::Attachment, &first);
+    settle(&mut p);
+    let sent = view(&p.alice, &p.a, &p.a_conv);
+    let (id, _, _, _) = parts(&sent[0]);
+    p.alice.dispatch(
+        &p.a,
+        "reuse",
+        IntentBody::SendExpressive {
+            conversation_id: p.a_conv.clone(),
+            target: Target::Attachment,
+            asset: SendFrom::Shared {
+                conversation_id: p.a_conv.clone(),
+                message_id: id.into(),
+            },
+        },
+    );
+    settle(&mut p);
+    let items = view(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(items.len(), 2);
+    assert_eq!(p.net.blob_put_count(), 1);
+    for item in &items {
+        let (id, _, atts, _) = parts(item);
+        assert_eq!(atts[0].blob_id, first.blob_id);
+        assert!(
+            p.bob
+                .core
+                .expressive_presentation(&p.b, id, Source::Attachment(0))
+                .unwrap()
+                .shared_blob
+        );
+    }
+}
+
+#[test]
+fn expressive_unknown_profile_is_inert_and_unknown_kind_follows_the_wire_ruling() {
+    let mut p = active_pair_with_expressive(true, true);
+    let au = author(&p);
+    let r = some_ref("image/webp", None);
+    let ext = ext_entry(
+        expressive::EXTENSION,
+        false,
+        V::M(vec![
+            (0, V::U(0)),
+            (1, V::U(1)),
+            (2, V::T("future.profile".into())),
+            (3, V::T("Future alt".into())),
+        ]),
+    );
+    let bytes = create_event(
+        &au,
+        63,
+        1_790_000_000_100,
+        Some("fallback"),
+        vec![r.to_v()],
+        Some(ext),
+    );
+    alice_sends(&mut p, &bytes);
+    let items = view(&p.bob, &p.b, &p.b_conv);
+    let (id, _, _, _) = parts(&items[0]);
+    assert_eq!(
+        p.bob
+            .core
+            .open_expressive(&p.b, id, Source::Attachment(0), &[]),
+        Ok(Opened::Placeholder {
+            alt_text: "Future alt".into()
+        })
+    );
+    assert_eq!(
+        p.bob.core.expressive_fetch(&p.b, id, Source::Attachment(0)),
+        Err(AttachError::Unsupported)
+    );
+
+    let mut fields = match r.to_v() {
+        V::M(m) => m,
+        _ => unreachable!(),
+    };
+    fields.extend([
+        (7, V::U(1)),
+        (8, V::U(1)),
+        (11, V::U(5)),
+        (12, V::T(expressive::WEBP.into())),
+        (13, V::T("Alt".into())),
+    ]);
+    let reaction = Header {
+        event_id: [64; 16],
+        conversation_id: au.canon,
+        author_account: au.acct,
+        author_device: au.dev,
+        clock: Hlc {
+            physical_ms: 1_790_000_000_101,
+            logical: 0,
+        },
+        kind: events::K_REACTION,
+        body: V::M(vec![
+            (0, V::B(vec![63; 16])),
+            (1, V::T("🙂".into())),
+            (2, V::Bool(true)),
+            (3, V::M(fields)),
+        ]),
+    }
+    .encode_full(None, Some(V::A(vec![V::T(expressive::REACTION.into())])));
+    assert_eq!(
+        expressive::decode_event(&reaction, true).unwrap_err(),
+        "value_range"
+    );
+    alice_sends(&mut p, &reaction);
+    assert!(
+        p.bob
+            .core
+            .expressive_presentation(
+                &p.b,
+                id,
+                Source::Reaction {
+                    key: "🙂",
+                    mine: false
+                }
+            )
+            .is_none()
+    );
+}
+
+#[test]
+fn expressive_pack_activation_is_atomic_at_the_host_write() {
+    use om_core::crypto::sig::{self, DeviceSigner, ROLE_CONTROLLER};
+
+    let mut p = active_pair_with_expressive(true, false);
+    let (bytes, ciphertext) = expressive_manifest(Kind::Sticker);
+    let first = Release::parse(&bytes).unwrap().id();
+    let signer = DeviceSigner {
+        ed_seed: [3; 32],
+        mldsa_seed: [4; 32],
+    };
+    let key = signer.public();
+    let key_id = &sig::ds_hash(
+        "OM-CONTENT-PACK-CONTROLLER-KEY-ID-v1",
+        &cbor::encode(&V::A(vec![V::U(1), V::B(key.clone())])),
+    )[..16];
+    let control = |id, version, previous| {
+        let mut fields = vec![
+            (0, V::U(46)),
+            (1, V::U(1)),
+            (2, V::B(PACK.to_vec())),
+            (3, V::U(version)),
+            (
+                5,
+                V::A(vec![V::M(vec![
+                    (0, V::B(key_id.to_vec())),
+                    (1, V::U(1)),
+                    (2, V::B(key.clone())),
+                ])]),
+            ),
+            (6, V::U(1)),
+            (7, sig::digest(&id)),
+            (8, V::U(version)),
+        ];
+        if let Some(parent) = previous {
+            fields.push((4, sig::digest(&parent)));
+        }
+        let body = cbor::encode(&V::M(fields));
+        let msg = sig::ds_sig(
+            "OM-CONTENT-PACK-CONTROL-SIG-v1",
+            1,
+            ROLE_CONTROLLER,
+            key_id,
+            &body,
+        );
+        let signed = sig::envelope(
+            body.clone(),
+            vec![sig::signature_entry(
+                key_id,
+                1,
+                ROLE_CONTROLLER,
+                signer.sign_with(&msg, [5; 32]),
+            )],
+        );
+        let hash = sig::ds_hash("OM-CONTENT-PACK-CONTROL-HASH-v1", &body);
+        (signed, hash)
+    };
+    let (genesis, hash) = control(first, 1, None);
+    let cached = [expressive::CachedBlob {
+        blob_id: [12; 32],
+        ciphertext: &ciphertext,
+    }];
+    fn input<'a>(
+        release: &'a [u8],
+        id: [u8; 32],
+        control: Option<&'a [u8]>,
+        cached: &'a [expressive::CachedBlob<'a>],
+    ) -> Install<'a> {
+        Install {
+            release,
+            expected_release: id,
+            confirmed_release: id,
+            control,
+            policy: CachePolicy::Full,
+            favourites: &[],
+            cached,
+        }
+    }
+    let out = p
+        .alice
+        .core
+        .install_content_pack(&p.a, input(&bytes, first, Some(&genesis), &cached))
+        .unwrap();
+    out.0.unwrap();
+    assert!(p.alice.settle(&Step {
+        commit: out.1,
+        handle: None
+    }));
+    let pinned = p.alice.core.content_pack(&p.a, PACK).unwrap().unwrap();
+    assert_eq!(pinned.signed_by, [<[u8; 16]>::try_from(key_id).unwrap()]);
+    assert_eq!(pinned.cached_blobs, 1);
+
+    let V::M(fields) = cbor::decode(&bytes).unwrap() else {
+        unreachable!()
+    };
+    let successor = |seq, previous| {
+        let mut fields = fields.clone();
+        fields.iter_mut().find(|(k, _)| *k == 3).unwrap().1 = V::U(seq);
+        fields.iter_mut().find(|(k, _)| *k == 5).unwrap().1 = V::T("Next release".into());
+        fields.push((4, sig::digest(&previous)));
+        cbor::encode(&V::M(fields))
+    };
+    let next = successor(2, first);
+    let second = Release::parse(&next).unwrap().id();
+    let (signed, _) = control(second, 2, Some(hash));
+
+    let refusal = p
+        .alice
+        .core
+        .install_content_pack(&p.a, input(&next, second, None, &cached))
+        .unwrap();
+    assert_eq!(refusal.0, Err("updates_frozen"));
+    assert!(refusal.1.is_none());
+
+    for (invalid, reason) in [
+        (successor(3, first), "sequence_skip"),
+        (successor(2, [7; 32]), "previous_release_mismatch"),
+    ] {
+        let id = Release::parse(&invalid).unwrap().id();
+        let bad = p
+            .alice
+            .core
+            .install_content_pack(&p.a, input(&invalid, id, Some(&signed), &cached))
+            .unwrap();
+        assert_eq!(bad.0, Err(reason));
+        assert!(bad.1.is_none());
+    }
+
+    // Kill after staging, then refuse the lone atomic pack write, then restart after success.
+    let step = |rt: &mut Runtime, ctx: &ProfileExecutionContext| {
+        let (result, commit) = rt
+            .core
+            .install_content_pack(ctx, input(&next, second, Some(&signed), &cached))
+            .unwrap();
+        result.unwrap();
+        let commit = commit.unwrap();
+        assert_eq!(commit.writes.len(), 1);
+        assert_eq!(commit.writes[0].key, "expressive-packs");
+        Step {
+            commit: Some(commit),
+            handle: None,
+        }
+    };
+    let _uncommitted = step(&mut p.alice, &p.a);
+    assert_eq!(
+        p.alice.core.content_pack(&p.a, PACK).unwrap().as_ref(),
+        Some(&pinned)
+    );
+    p.a = p.alice.restart().remove(0);
+    p.alice.core.enable_expressive_media();
+    assert_eq!(
+        p.alice
+            .core
+            .content_pack(&p.a, PACK)
+            .unwrap()
+            .unwrap()
+            .release_id,
+        first
+    );
+
+    let write = step(&mut p.alice, &p.a);
+    p.alice.store.fail_next_commit();
+    assert!(!p.alice.settle(&write));
+    assert_eq!(
+        p.alice
+            .core
+            .content_pack(&p.a, PACK)
+            .unwrap()
+            .unwrap()
+            .release_id,
+        first
+    );
+    p.a = p.alice.restart().remove(0);
+    p.alice.core.enable_expressive_media();
+    assert_eq!(
+        p.alice
+            .core
+            .content_pack(&p.a, PACK)
+            .unwrap()
+            .unwrap()
+            .release_id,
+        first
+    );
+
+    let write = step(&mut p.alice, &p.a);
+    assert!(p.alice.settle(&write));
+    let retry = p
+        .alice
+        .core
+        .install_content_pack(&p.a, input(&next, second, Some(&signed), &cached))
+        .unwrap();
+    assert_eq!(retry, (Ok(()), None));
+    p.a = p.alice.restart().remove(0);
+    assert_eq!(
+        p.alice
+            .core
+            .content_pack(&p.a, PACK)
+            .unwrap()
+            .unwrap()
+            .release_id,
+        second
+    );
+    assert!(p.bob.core.content_pack(&p.b, PACK).unwrap().is_none());
+}
+
+#[test]
+fn expressive_install_requires_confirmation_and_rejects_blobs_outside_the_pack() {
+    let mut p = active_pair_with_expressive(true, false);
+    let (bytes, ct) = expressive_manifest(Kind::Sticker);
+    let release_id = Release::parse(&bytes).unwrap().id();
+    let outside = [expressive::CachedBlob {
+        blob_id: [99; 32],
+        ciphertext: &ct,
+    }];
+    let matching = [expressive::CachedBlob {
+        blob_id: [12; 32],
+        ciphertext: &ct,
+    }];
+    let favourites = ["item".into()];
+    let install = |confirmed, cached, policy| Install {
+        release: &bytes,
+        expected_release: release_id,
+        confirmed_release: confirmed,
+        control: None,
+        policy,
+        favourites: &favourites,
+        cached,
+    };
+    for (confirmed, cache, policy, reason) in [
+        (
+            [0; 32],
+            &matching[..],
+            CachePolicy::Full,
+            "confirmation_required",
+        ),
+        (
+            release_id,
+            &outside[..],
+            CachePolicy::Lazy,
+            "blob_outside_pack_or_policy",
+        ),
+        (
+            release_id,
+            &[][..],
+            CachePolicy::FavouritesOnly,
+            "cache_incomplete",
+        ),
+    ] {
+        let (result, commit) = p
+            .alice
+            .core
+            .install_content_pack(&p.a, install(confirmed, cache, policy))
+            .unwrap();
+        assert_eq!(result, Err(reason));
+        assert!(commit.is_none());
+    }
+    let (result, commit) = p
+        .alice
+        .core
+        .install_content_pack(
+            &p.a,
+            install(release_id, &matching, CachePolicy::FavouritesOnly),
+        )
+        .unwrap();
+    result.unwrap();
+    assert!(p.alice.settle(&Step {
+        commit,
+        handle: None
+    }));
+    let installed = p.alice.core.content_pack(&p.a, PACK).unwrap().unwrap();
+    assert_eq!(installed.cached_blobs, 1);
+    assert!(installed.favourites.contains("item"));
+    let other = p.alice.open("p-other");
+    assert!(p.alice.core.content_pack(&other, PACK).unwrap().is_none());
+    let (result, commit) = p
+        .alice
+        .core
+        .evict_content_pack_blob(&p.a, PACK, [12; 32])
+        .unwrap();
+    result.unwrap();
+    assert!(p.alice.settle(&Step {
+        commit,
+        handle: None
+    }));
+    assert_eq!(
+        p.alice
+            .core
+            .content_pack(&p.a, PACK)
+            .unwrap()
+            .unwrap()
+            .cached_blobs,
+        0
+    );
+
+    let (result, commit) = p
+        .bob
+        .core
+        .install_content_pack(
+            &p.b,
+            install(release_id, &matching, CachePolicy::FavouritesOnly),
+        )
+        .unwrap();
+    assert_eq!(result, Err("expressive_disabled"));
+    assert!(commit.is_none());
+}
+
+fn expressive_animation() -> Vec<u8> {
+    let mut bytes =
+        b"RIFF\0\0\0\0WEBPVP8X\x0a\0\0\0\x02\0\0\0\0\0\0\0\0\0ANIM\x06\0\0\0\0\0\0\0\0\0".to_vec();
+    for _ in 0..2 {
+        bytes.extend_from_slice(b"ANMF\x1e\0\0\0");
+        let mut frame = [0; 16];
+        frame[12] = 34;
+        bytes.extend_from_slice(&frame);
+        bytes.extend_from_slice(&WEBP_HEADER[12..]);
+    }
+    let size = bytes.len() as u32 - 8;
+    bytes[4..8].copy_from_slice(&size.to_le_bytes());
+    bytes
+}
+
+#[test]
+fn expressive_loop_is_duration_bound_on_the_normal_blob_path() {
+    let mut p = active_pair_with_expressive(true, true);
+    let (animation, _) = expressive_prepare(&mut p, Kind::LoopAnimation, BlobPolicy::Fresh);
+    expressive_send(&mut p, "loop", Target::Attachment, &animation);
+    settle(&mut p);
+    let items = view(&p.bob, &p.b, &p.b_conv);
+    let (id, _, _, _) = parts(&items[0]);
+    let result = p
+        .bob
+        .core
+        .open_expressive(&p.b, id, Source::Attachment(0), &animation.ciphertext);
+    assert!(
+        matches!(result, Ok(Opened::Renderable { facts, .. }) if facts.duration_ms == Some(68))
+    );
+
+    let (pack, ciphertext) = expressive_manifest(Kind::LoopAnimation);
+    let mut asset = Release::parse(&pack).unwrap().item("item").unwrap().clone();
+    asset.attachment.duration_ms = Some(69);
+    assert_eq!(
+        asset.open(&ciphertext),
+        Ok(Opened::Placeholder {
+            alt_text: "Accessible label".into()
+        })
+    );
 }

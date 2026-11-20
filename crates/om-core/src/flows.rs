@@ -26,6 +26,7 @@ pub(crate) use calls::eligible_call_device;
 mod blobs;
 mod ceremony;
 pub(crate) mod controller_change;
+mod expressive;
 mod group_lane;
 mod multi;
 mod owed;
@@ -256,6 +257,7 @@ pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub rng: &'a mut R,
     pub now_ms: u64,
     pub calls_enabled: bool,
+    pub expressive_enabled: bool,
     pub changed: Vec<OperationId>,
     /// Profiles currently open (SwitchIdentityProfile target check).
     pub open_profiles: &'a [String],
@@ -896,6 +898,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     mentions,
                 );
             }
+            IntentBody::SendExpressive {
+                conversation_id,
+                target,
+                asset,
+            } => {
+                return self.send_expressive(op, conversation_id, target, asset);
+            }
             IntentBody::SendAttachments {
                 conversation_id,
                 draft,
@@ -1179,6 +1188,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let now_s = self.now_s();
         let mut device = crate::crypto::store::Device::new(self.rng);
+        if self.expressive_enabled {
+            device.capabilities = crate::expressive::device_capabilities();
+        }
         device.bundle_expires_at = now_s + BUNDLE_TTL_S;
         device.rotation_at = now_s;
         let up = device.generate_one_time(ONE_TIME_KEYS, ONE_TIME_KEYS, self.rng);
@@ -4446,13 +4458,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         true
     }
 
-    /// An authenticated inner payload that is a `ConversationEvent`: W0-valid, in this conversation, authored by the
-    /// pinned peer endpoint, deduplicated by EventID, and applied as a state transition.
+    /// Validate authenticated conversation bytes against the enabled grammar, check authorship and
+    /// conversation binding, then apply the event through the existing deduplication and reducers.
     fn on_event(&mut self, conv: &str, bytes: &[u8], sender: [u8; 16], sibling: bool) -> bool {
-        if registry().check("ConversationEvent", bytes, false).is_err() {
-            return false;
-        }
-        let Some(ev) = events::parse(bytes) else {
+        let Ok(ev) = crate::expressive::decode_event(bytes, self.expressive_enabled) else {
             return false;
         };
         if sibling {
@@ -4525,6 +4534,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     social: Social {
                         reply_to: parts.reply_to,
                         mentions: parts.mentions,
+                        inline_assets: parts.inline_assets,
                         ..Social::default()
                     },
                 });

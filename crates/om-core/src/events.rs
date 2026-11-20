@@ -74,14 +74,31 @@ pub fn rich_text(text: &str) -> V {
 /// Plain text of a RichTextV1 value. Only semantic data is read: links and mentions contribute their label text and
 /// nothing is ever interpreted as markup. Blocks are joined with newlines.
 pub fn plain_text(rt: &V) -> Option<String> {
-    fn inlines(v: &V, out: &mut String, depth: u32) -> Option<()> {
+    plain_text_with_emoji(rt, false)
+}
+
+pub(crate) fn message_text(rt: &V) -> Option<String> {
+    plain_text_with_emoji(rt, true)
+}
+
+fn plain_text_with_emoji(rt: &V, emoji: bool) -> Option<String> {
+    fn inlines(v: &V, out: &mut String, depth: u32, emoji: bool) -> Option<()> {
         if depth > 6 {
             return None;
         }
         for i in v.a().ok()? {
             match i.get(0).ok()?.u().ok()? {
                 1 => out.push_str(i.get(1).ok()?.t().ok()?),
-                2 | 3 => inlines(i.get(4).ok()?, out, depth + 1)?,
+                2 | 3 => inlines(i.get(4).ok()?, out, depth + 1, emoji)?,
+                4 if emoji => {
+                    let asset = i.get(6).ok()?;
+                    let label = if asset.opt(12)?.t().ok()? == crate::expressive::WEBP {
+                        i.get(1).ok()?
+                    } else {
+                        asset.get(13).ok()?
+                    };
+                    out.push_str(label.t().ok()?);
+                }
                 _ => return None,
             }
         }
@@ -94,7 +111,7 @@ pub fn plain_text(rt: &V) -> Option<String> {
     for b in rt.get(1).ok()?.a().ok()? {
         let mut s = String::new();
         match b.get(0).ok()?.u().ok()? {
-            1 | 2 => inlines(b.get(1).ok()?, &mut s, 0)?,
+            1 | 2 => inlines(b.get(1).ok()?, &mut s, 0, emoji)?,
             3 => s.push_str(b.get(2).ok()?.t().ok()?),
             _ => return None,
         }
@@ -285,6 +302,15 @@ pub fn mention_spans(body: &V) -> Vec<MentionSpan> {
         for i in v.a().ok()? {
             match i.get(0).ok()?.u().ok()? {
                 1 => *pos += i.get(1).ok()?.t().ok()?.chars().count(),
+                4 => {
+                    let asset = i.get(6).ok()?;
+                    let label = if asset.opt(12)?.t().ok()? == crate::expressive::WEBP {
+                        i.get(1).ok()?
+                    } else {
+                        asset.get(13).ok()?
+                    };
+                    *pos += label.t().ok()?.chars().count();
+                }
                 2 => walk(i.get(4).ok()?, pos, out, true)?,
                 3 => {
                     if in_link {
@@ -605,7 +631,14 @@ impl DanglingMutations {
                 .bytes
                 .as_deref()
                 .and_then(|b| crate::crypto::unhex(b).ok())
-                .and_then(|bytes| parse(&bytes))
+                .and_then(|bytes| {
+                    if room {
+                        parse(&bytes)
+                    } else {
+                        // Only previously authenticated, capability-checked mutations enter this journal.
+                        crate::expressive::decode_event(&bytes, true).ok()
+                    }
+                })
             {
                 ready.push((ev, entry.auth));
             }
@@ -625,8 +658,12 @@ pub(crate) fn parse_group_lane(bytes: &[u8], capability: &str) -> Option<Event> 
     parse_with(bytes, Some(capability))
 }
 
-fn parse_with(bytes: &[u8], capability: Option<&str>) -> Option<Event> {
+pub(crate) fn parse_with(bytes: &[u8], capability: Option<&str>) -> Option<Event> {
     let v = cbor::decode(bytes).ok()?;
+    parse_value(&v, bytes, capability)
+}
+
+pub(crate) fn parse_value(v: &V, bytes: &[u8], capability: Option<&str>) -> Option<Event> {
     if v.get(0).ok()?.u().ok()? != OBJECT_TYPE || v.get(2).ok()?.u().ok()? != PROTOCOL_VERSION {
         return None;
     }

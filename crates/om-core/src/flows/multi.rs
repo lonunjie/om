@@ -1535,6 +1535,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             lane: false,
             social: Social {
                 reply_to: parts.reply_to,
+                inline_assets: parts.inline_assets,
                 ..Social::default()
             },
         });

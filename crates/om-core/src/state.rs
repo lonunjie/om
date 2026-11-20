@@ -15,9 +15,10 @@ use crate::route::{RelayEntry, RelaySet};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// A profile persists as ONE record, so a single key/value put makes a whole transition atomic: the ratchet,
-/// ledger and conversation state can never be stored out of step (the host store has no multi-key transaction).
+/// The ratchet, ledger and conversation state share one record so a single key/value write
+/// keeps them atomic. Local pack activation independently writes its own record.
 pub const REC_STATE: &str = "state";
+pub(crate) const REC_EXPRESSIVE_PACKS: &str = "expressive-packs";
 pub const APP_VERSION: u32 = 5;
 
 pub type Hex = String;
@@ -275,6 +276,10 @@ pub struct Msg {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Social {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) expressive_send: Option<crate::expressive::Pending>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) inline_assets: Vec<SecretHex>,
     /// `reply_to` of the create: the EventID (hex) of a message in the same conversation (EVENT_MODEL `message.create`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reply_to: Option<Hex>,
@@ -303,6 +308,8 @@ pub struct MentionRec {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactionRec {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) asset: Option<SecretHex>,
     /// Whether the actor is us (any of our devices) rather than the other person.
     pub mine: bool,
     pub key: String,
@@ -386,6 +393,8 @@ pub struct DirectOfferRec {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreparedBlob {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) expressive: Option<crate::expressive::Presentation>,
     pub rec: AttachRec,
     pub created_ms: u64,
 }
@@ -2025,6 +2034,8 @@ pub struct DeviceMeta {
 
 #[derive(Clone, Debug)]
 pub struct ProfileState {
+    /// Pack inventory has its own DeviceVault record and stays outside account state.
+    pub(crate) expressive_packs: crate::expressive::Packs,
     pub(crate) calls: crate::calls::Calls,
     pub generation: String,
     pub device: Option<Device>,
@@ -2034,6 +2045,7 @@ pub struct ProfileState {
 impl ProfileState {
     pub fn empty(generation: String) -> Self {
         ProfileState {
+            expressive_packs: Default::default(),
             calls: crate::calls::Calls::default(),
             generation,
             device: None,
@@ -2054,7 +2066,23 @@ impl ProfileState {
         let app =
             serde_json::to_vec(&self.app).map_err(|_| CoreError::CorruptState("encode app"))?;
         let bytes = cbor::encode(&V::M(vec![(0, device), (1, V::B(app))]));
-        Ok(BTreeMap::from([(REC_STATE.to_string(), bytes)]))
+        let mut records = BTreeMap::from([(REC_STATE.to_string(), bytes)]);
+        self.encode_pack_record(&mut records)?;
+        Ok(records)
+    }
+
+    pub(crate) fn encode_pack_record(
+        &self,
+        records: &mut BTreeMap<String, Vec<u8>>,
+    ) -> Result<(), CoreError> {
+        if self.expressive_packs.is_empty() {
+            records.remove(REC_EXPRESSIVE_PACKS);
+        } else {
+            let packs = serde_json::to_vec(&self.expressive_packs)
+                .map_err(|_| CoreError::CorruptState("encode expressive packs"))?;
+            records.insert(REC_EXPRESSIVE_PACKS.into(), packs);
+        }
+        Ok(())
     }
 
     pub fn decode(generation: String, records: &[Record]) -> Result<Self, CoreError> {
@@ -2063,6 +2091,11 @@ impl ProfileState {
         for r in records {
             if !seen.insert(r.key.as_str()) {
                 return Err(CoreError::CorruptState("duplicate record"));
+            }
+            if r.key == REC_EXPRESSIVE_PACKS {
+                st.expressive_packs = serde_json::from_slice(&r.value)
+                    .map_err(|_| CoreError::CorruptState("expressive packs"))?;
+                continue;
             }
             if r.key != REC_STATE {
                 continue; // unknown records belong to a newer client; preserved by the host, ignored here

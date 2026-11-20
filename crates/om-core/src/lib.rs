@@ -24,6 +24,7 @@ pub mod crypto;
 pub mod direct;
 pub mod engine;
 pub mod events;
+pub mod expressive;
 mod flows;
 pub mod groups;
 pub mod host;

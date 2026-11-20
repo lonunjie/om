@@ -1908,6 +1908,34 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/expressive/asset.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/expressive/mod.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/expressive/pack.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/expressive/webp.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1946,6 +1974,13 @@
       "path": "crates/om-core/src/flows/controller_change.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/flows/expressive.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
@@ -2366,6 +2401,13 @@
       "path": "crates/om-core/tests/direct_transfer.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/expressive_harness.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
@@ -13465,6 +13507,13 @@
       "authority": "verification_execution_handoff"
     },
     {
+      "path": "verification/EXPRESSIVE_NOTES.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
       "path": "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
@@ -14082,6 +14131,13 @@
     },
     {
       "path": "verification/prototypes/expressive-wire/gen_expressive_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/hostile_inputs.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

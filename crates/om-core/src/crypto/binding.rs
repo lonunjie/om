@@ -44,11 +44,12 @@ pub struct Credential {
     pub account_id: [u8; 32],
     pub signing_pk: Vec<u8>,
     pub ik: [u8; 32],
+    pub capabilities: Vec<String>,
 }
 
 impl Credential {
     pub fn body(&self) -> Vec<u8> {
-        cbor::encode(&V::M(vec![
+        let mut fields = vec![
             (0, V::U(7)),
             (1, V::U(1)),
             (2, V::B(self.device_id.to_vec())),
@@ -57,7 +58,14 @@ impl Credential {
             (5, V::B(self.signing_pk.clone())),
             (6, V::B(self.ik.to_vec())),
             (7, V::U(1)),
-        ]))
+        ];
+        if !self.capabilities.is_empty() {
+            fields.push((
+                8,
+                V::A(self.capabilities.iter().cloned().map(V::T).collect()),
+            ));
+        }
+        cbor::encode(&V::M(fields))
     }
     pub fn from_body(b: &[u8]) -> Result<Self, Error> {
         let v = cbor::decode(b)?;
@@ -77,11 +85,34 @@ impl Credential {
             account_id: v.get(3)?.b32()?,
             signing_pk: v.get(5)?.b()?.to_vec(),
             ik: ik.try_into().unwrap(),
+            capabilities: credential_capabilities(v.opt(8))?,
         })
     }
     pub fn hash(&self) -> [u8; 32] {
         ds_hash(LBL_CRED_HASH, &self.body())
     }
+}
+
+pub(crate) fn credential_capabilities(v: Option<&V>) -> Result<Vec<String>, Error> {
+    let Some(v) = v else { return Ok(Vec::new()) };
+    let entries = v.a()?;
+    if !(1..=32).contains(&entries.len()) {
+        return Err(Error::Binding("credential capabilities"));
+    }
+    let mut caps = Vec::with_capacity(entries.len());
+    for value in entries {
+        let cap = value.t()?;
+        if cap.is_empty()
+            || cap.len() > 64
+            || caps
+                .last()
+                .is_some_and(|prev: &String| (prev.len(), prev.as_str()) >= (cap.len(), cap))
+        {
+            return Err(Error::Binding("credential capabilities"));
+        }
+        caps.push(cap.to_owned());
+    }
+    Ok(caps)
 }
 
 /// The subset of AccountControlState (type 1) the binding check reads. Sets are encoded sorted by

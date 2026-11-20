@@ -36,6 +36,7 @@ pub(super) struct CreateParts {
     pub text: String,
     pub attachments: Vec<AttachRec>,
     pub ext: Option<Hex>,
+    pub inline_assets: Vec<SecretHex>,
     /// `reply_to` as the hex EventID, when present and well-formed (16 bytes). Whether it names a message of this
     /// conversation is decided when the timeline is read, never here.
     pub reply_to: Option<Hex>,
@@ -49,7 +50,7 @@ pub(super) fn read_create(ev: &events::Event) -> Option<CreateParts> {
     let content = match ev.body.opt(0) {
         None => None,
         Some(rt) => {
-            Some(events::plain_text(rt).filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)?)
+            Some(events::message_text(rt).filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)?)
         }
     };
     let mut attachments: Vec<AttachRec> = vec![];
@@ -78,6 +79,7 @@ pub(super) fn read_create(ev: &events::Event) -> Option<CreateParts> {
         text: content.unwrap_or_default(),
         attachments,
         ext: ev.extensions.as_ref().map(|x| hex(&cbor::encode(x))),
+        inline_assets: crate::expressive::inline_assets(ev.body.opt(0))?,
         reply_to: ev
             .body
             .opt(2)
@@ -138,6 +140,12 @@ pub(crate) fn attachment_views(
 ) -> Vec<AttachmentView> {
     m.attachments
         .iter()
+        .filter(|_| {
+            m.social
+                .expressive_send
+                .as_ref()
+                .is_none_or(|send| send.target.slot().is_none())
+        })
         .enumerate()
         .filter_map(|(i, rec)| {
             let r = rec_ref(rec)?;
@@ -179,7 +187,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     // ------------------------------------------------------------------------------------------ preparation
 
     /// Does the store have room for `extra` more ciphertext bytes (and one more object) beyond what we already put there?
-    fn blob_budget_ok(&self, limits: &BlobLimits, extra_bytes: u64, extra_count: u32) -> bool {
+    pub(super) fn blob_budget_ok(
+        &self,
+        limits: &BlobLimits,
+        extra_bytes: u64,
+        extra_count: u32,
+    ) -> bool {
         let now = self.now_ms;
         let (mut bytes, mut count) = (0u64, 0u32);
         for r in self.st.app.relationships.values() {
@@ -203,7 +216,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// The typed refusal for an object of `plaintext_len` bytes, before anything is sealed or sent.
-    fn check_blob_size(
+    pub(super) fn check_blob_size(
         &self,
         limits: Option<BlobLimits>,
         plaintext_len: u64,
@@ -265,6 +278,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.st.app.prepared.insert(
             id.clone(),
             PreparedBlob {
+                expressive: None,
                 rec: AttachRec {
                     blob_id: id.clone(),
                     reference: hex(&cbor::encode(&r.to_v())).into(),
@@ -343,6 +357,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.st.app.prepared.insert(
             id.clone(),
             PreparedBlob {
+                expressive: None,
                 rec: AttachRec {
                     blob_id: id.clone(),
                     reference: hex(&cbor::encode(&r.to_v())).into(),
@@ -918,27 +933,47 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .as_deref()
             .and_then(|e| unhex(e).ok())
             .and_then(|e| cbor::decode(&e).ok());
-        let payload = refs.map(|refs| {
-            events::Header {
+        let pending = m.social.expressive_send.as_ref();
+        let capable = pending.is_some_and(|p| self.expressive_recipients(rel, p.target.slot()));
+        let clock = Hlc {
+            physical_ms: m.clock_ms,
+            logical: m.clock_logical,
+        };
+        let payload = refs.and_then(|refs| {
+            let mut body = events::message_create_body_with(
+                (!m.text.is_empty()).then_some(m.text.as_str()),
+                refs,
+            );
+            let mut kind = events::K_CREATE;
+            let mut ext = ext;
+            let mut cap = None;
+            if let Some(p) = pending {
+                let asset = crate::expressive::AssetRef::new(
+                    rec_ref(m.attachments.first()?)?,
+                    p.presentation.clone(),
+                )
+                .ok()?;
+                if p.target.slot().is_some() {
+                    (kind, body) = p.body(capable.then_some(&asset))?;
+                    cap = p.target.slot().filter(|_| capable);
+                } else if capable {
+                    ext = Some(p.presentation.extension(0));
+                }
+            }
+            let payload = events::Header {
                 event_id,
                 conversation_id: canon,
                 author_account: account,
                 author_device: device_id,
-                clock: Hlc {
-                    physical_ms: m.clock_ms,
-                    logical: m.clock_logical,
-                },
-                kind: events::K_CREATE,
-                body: events::message_create_body_with(
-                    (!m.text.is_empty()).then_some(m.text.as_str()),
-                    refs,
-                ),
+                clock,
+                kind,
+                body: body.clone(),
             }
-            .encode_with(ext)
+            .encode_full(ext.clone(), cap.map(|c| V::A(vec![V::T(c.into())])));
+            crate::expressive::decode_event(&payload, self.expressive_enabled).ok()?;
+            Some((payload, kind, body, ext))
         });
-        let Some(payload) =
-            payload.filter(|p| registry().check("ConversationEvent", p, false).is_ok())
-        else {
+        let Some((payload, kind, body, ext)) = payload else {
             let op = m.operation_id.clone().unwrap_or_default();
             self.set_outcome(
                 &op,
@@ -965,6 +1000,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         {
             slot.digest = hex(&crypto::sha256(&[&payload]));
             slot.queued_event = Some(hex(&payload));
+            slot.ext = ext.as_ref().map(|v| hex(&cbor::encode(v)));
+            if kind == events::K_CREATE {
+                slot.social.inline_assets = crate::expressive::inline_assets(body.opt(0))
+                    .ok_or(CoreError::CorruptState("expressive inline assets"))?;
+            }
+        }
+        if kind == events::K_EDIT || kind == events::K_REACTION {
+            self.apply_expressive_mutation(conv, kind, body, clock);
         }
         if state == RelState::Active {
             self.release_queued(conv)?;

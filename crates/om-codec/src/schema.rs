@@ -165,6 +165,15 @@ impl Registry {
     /// does for the prototype codecs. A kind-to-struct pair that names an existing kind with a different struct is an error.
     pub fn load_w1() -> Registry {
         let mut f: J = serde_json::from_str(FIELDS_JSON).unwrap();
+        Self::apply_event_bodies(&mut f);
+        Self::from_json(
+            f,
+            serde_json::from_str(TYPES_JSON).unwrap(),
+            serde_json::from_str(PROFILE_JSON).unwrap(),
+        )
+    }
+
+    fn apply_event_bodies(f: &mut J) {
         let ov: J = serde_json::from_str(W1_EVENT_BODIES_JSON).unwrap();
         for (target, table) in ov["dispatch"].as_object().unwrap() {
             let (st, field) = target.split_once('.').unwrap();
@@ -193,11 +202,6 @@ impl Registry {
                 }
             }
         }
-        Self::from_json(
-            f,
-            serde_json::from_str(TYPES_JSON).unwrap(),
-            serde_json::from_str(PROFILE_JSON).unwrap(),
-        )
     }
 
     /// The registry an `expressive_media` decoder uses (ADR-0252): the W0 numeric-fields registry with the additive slot
@@ -206,6 +210,55 @@ impl Registry {
     /// production decode path uses it (the feature is behind a capability flag until the V-012 release evidence exists).
     pub fn load_w1_expressive() -> Registry {
         let mut f: J = serde_json::from_str(FIELDS_JSON).unwrap();
+        Self::apply_expressive_slots(&mut f);
+        Self::from_json(
+            f,
+            serde_json::from_str(TYPES_JSON).unwrap(),
+            serde_json::from_str(PROFILE_JSON).unwrap(),
+        )
+    }
+
+    /// Product W1 grammar. The frozen overlay supplies the slot schemas; expressive.cddl supplies
+    /// their scope. Keep the baseline RichText graph for polls, greetings and standalone Inline.
+    pub fn load_w1_expressive_scoped() -> Registry {
+        let mut f: J = serde_json::from_str(FIELDS_JSON).unwrap();
+        Self::apply_event_bodies(&mut f);
+        let baseline_inline = f["structs"]["Inline"].clone();
+        Self::apply_expressive_slots(&mut f);
+        let structs = f["structs"].as_object_mut().unwrap();
+        for (name, field, replacement) in [
+            ("RichText", "blocks", "BlockX"),
+            ("BlockInlines", "inlines", "InlineX"),
+            ("InlineLink", "label", "InlineX"),
+            ("InlineMention", "label", "InlineX"),
+        ] {
+            let mut shape = structs[name].clone();
+            let fields = shape["fields"].as_array_mut().unwrap();
+            let field = fields.iter_mut().find(|f| f["name"] == field).unwrap();
+            field["type"]["array"]["ref"] = replacement.into();
+            structs.insert(format!("{name}X"), shape);
+        }
+        let mut block = structs["Block"].clone();
+        block["union"]["variants"]["1"] = "BlockInlinesX".into();
+        block["union"]["variants"]["2"] = "BlockInlinesX".into();
+        structs.insert("BlockX".into(), block);
+        let mut inline = structs.insert("Inline".into(), baseline_inline).unwrap();
+        inline["union"]["variants"]["2"] = "InlineLinkX".into();
+        inline["union"]["variants"]["3"] = "InlineMentionX".into();
+        structs.insert("InlineX".into(), inline);
+        for (name, key) in [("MessageCreate", 0), ("MessageEdit", 1)] {
+            let fields = structs.get_mut(name).unwrap()["fields"].as_array_mut().unwrap();
+            let content = fields.iter_mut().find(|f| f["key"] == key).unwrap();
+            content["type"]["ref"] = "RichTextX".into();
+        }
+        Self::from_json(
+            f,
+            serde_json::from_str(TYPES_JSON).unwrap(),
+            serde_json::from_str(PROFILE_JSON).unwrap(),
+        )
+    }
+
+    fn apply_expressive_slots(f: &mut J) {
         let ov: J = serde_json::from_str(W1_EXPRESSIVE_SLOTS_JSON).unwrap();
         for (st, add) in ov["struct_fields"].as_object().unwrap() {
             let fields = f["structs"][st]["fields"].as_array_mut().unwrap();
@@ -235,11 +288,6 @@ impl Registry {
                 waves.remove(v);
             }
         }
-        Self::from_json(
-            f,
-            serde_json::from_str(TYPES_JSON).unwrap(),
-            serde_json::from_str(PROFILE_JSON).unwrap(),
-        )
     }
 
     fn from_json(f: J, t: J, p: J) -> Registry {
@@ -451,6 +499,24 @@ impl Registry {
             lenient: false,
         }
         .body(v.value(), t)?;
+        Ok(inspect(v.value()))
+    }
+
+    /// Inspect a canonical struct whose byte strings may contain attachment keys.
+    pub fn inspect_sensitive_struct<T>(
+        &self,
+        name: &str,
+        bytes: &[u8],
+        max_bytes: usize,
+        inspect: impl FnOnce(&Value) -> T,
+    ) -> Result<T, Class> {
+        if !self.structs.contains_key(name) {
+            return Err("unknown_type");
+        }
+        let mut lim = self.lim;
+        lim.max_string = lim.max_string.max(max_bytes as u64);
+        let v = crate::cbor::decode_guarded(bytes, lim, max_bytes, true)?;
+        Cx { r: self, lenient: false }.strukt(v.value(), name, None)?;
         Ok(inspect(v.value()))
     }
 

@@ -269,6 +269,11 @@ pub enum IntentBody {
         reaction: String,
         present: bool,
     },
+    SendExpressive {
+        conversation_id: String,
+        target: crate::expressive::Target,
+        asset: crate::expressive::SendFrom,
+    },
     /// A message whose content is attachments the host prepared with `Core::prepare_attachment` (optionally with text).
     /// The objects are uploaded first and the message goes out only once every one is stored.
     SendAttachments {
@@ -535,6 +540,7 @@ impl IntentBody {
             IntentBody::SetReaction { .. } => "SetReaction",
             IntentBody::EditMessage { .. } => "EditMessage",
             IntentBody::DeleteMessage { .. } => "DeleteMessage",
+            IntentBody::SendExpressive { .. } => "SendExpressive",
             IntentBody::SendAttachments { .. } => "SendAttachments",
             IntentBody::SendAttachmentsDirect { .. } => "SendAttachmentsDirect",
             IntentBody::WithdrawDirectOffer { .. } => "WithdrawDirectOffer",
