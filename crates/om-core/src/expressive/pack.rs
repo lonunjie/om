@@ -13,6 +13,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use zeroize::Zeroizing;
 
+mod file;
+
+pub use file::PACK_FILE_MAX;
+pub(crate) use file::ReviewedPack;
+
 const RELEASE_HASH: &str = "OM-CONTENT-PACK-RELEASE-HASH-v1";
 const CONTROL_HASH: &str = "OM-CONTENT-PACK-CONTROL-HASH-v1";
 const CONTROL_SIG: &str = "OM-CONTENT-PACK-CONTROL-SIG-v1";
@@ -110,6 +115,15 @@ impl Release {
     }
     pub fn item(&self, item_id: &str) -> Option<&AssetRef> {
         self.items.get(item_id)
+    }
+
+    fn declared_size(&self) -> u128 {
+        let mut distinct = BTreeSet::new();
+        self.items
+            .values()
+            .filter(|a| distinct.insert(a.attachment.blob_id))
+            .map(|a| u128::from(a.attachment.plaintext_size))
+            .sum()
     }
 
     fn follows(&self, parent_id: [u8; 32], parent_sequence: u32) -> Result<(), Error> {
@@ -330,6 +344,7 @@ fn serialize_release_id<S: serde::Serializer>(
 pub struct PickerItem {
     item_id: String,
     blob_id: String,
+    ciphertext_digest: String,
     kind: &'static str,
     label: String,
     alt_text: String,
@@ -354,7 +369,7 @@ pub enum PickerChange {
     Recent,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackPreview {
     pack_id: String,
@@ -519,13 +534,7 @@ impl Packs {
         let string = |value: Option<&V>| value.and_then(|v| v.t().ok()).map(str::to_owned);
         let provenance = wire(body.get(9))?;
         let licensing = body.opt(10);
-        let mut unique = BTreeSet::new();
-        let size = release
-            .items
-            .values()
-            .filter(|asset| unique.insert(asset.attachment.blob_id))
-            .map(|asset| u128::from(asset.attachment.plaintext_size))
-            .sum::<u128>();
+        let size = release.declared_size();
         Ok(PackPreview {
             pack_id: hex(&release.pack_id),
             release_id: hex(&release.id),
@@ -626,6 +635,7 @@ impl Packs {
                 .map(|(item_id, asset)| PickerItem {
                     item_id: item_id.clone(),
                     blob_id: hex(&asset.attachment.blob_id),
+                    ciphertext_digest: hex(&asset.attachment.ciphertext_digest),
                     kind: asset.presentation.kind.as_str(),
                     label: release.labels[item_id].clone(),
                     alt_text: asset.presentation.alt_text.clone(),
@@ -635,6 +645,35 @@ impl Packs {
                 })
                 .collect(),
         })
+    }
+
+    pub(crate) fn cache_digests(&self) -> BTreeSet<String> {
+        self.0
+            .values()
+            .flat_map(|p| {
+                self.release(p.pack_id)
+                    .into_iter()
+                    .flat_map(|r| r.items.into_values())
+                    .filter(|a| p.cached.contains(&a.attachment.blob_id))
+                    .map(|a| hex(&a.attachment.ciphertext_digest))
+            })
+            .collect()
+    }
+
+    pub(crate) fn cached_asset(
+        &self,
+        pack: [u8; 32],
+        release: [u8; 32],
+        item: &str,
+    ) -> Option<AssetRef> {
+        let p = self.0.get(&hex(&pack))?;
+        if p.release_id != release {
+            return None;
+        }
+        let asset = self.release(pack)?.items.remove(item)?;
+        p.cached
+            .contains(&asset.attachment.blob_id)
+            .then_some(asset)
     }
 
     pub(crate) fn update_picker(

@@ -228,6 +228,51 @@ enum Command {
         ciphertext: String,
         observed: Option<media::DecodeFacts>,
     },
+    #[cfg(feature = "expressive-media")]
+    PackFileAppend {
+        ctx: ProfileExecutionContext,
+        offset: usize,
+        bytes: String,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackFileReview {
+        ctx: ProfileExecutionContext,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackInstallBegin {
+        ctx: ProfileExecutionContext,
+        ticket: u64,
+        release_id: String,
+        control_digest: Option<String>,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackInstallStage {
+        ctx: ProfileExecutionContext,
+        ticket: u64,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackInstallCommit {
+        ctx: ProfileExecutionContext,
+        ticket: u64,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackInstallAbort {
+        ctx: ProfileExecutionContext,
+        ticket: Option<u64>,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackCacheDigests {
+        ctx: ProfileExecutionContext,
+    },
+    #[cfg(feature = "expressive-media")]
+    PackCacheOpen {
+        ctx: ProfileExecutionContext,
+        pack_id: String,
+        release_id: String,
+        item_id: String,
+        ciphertext: String,
+        observed: Option<media::DecodeFacts>,
+    },
     Outcome {
         ctx: ProfileExecutionContext,
         operation_id: String,
@@ -1216,6 +1261,98 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 &expressive_ciphertext(&ciphertext)?,
                 observed.as_ref()
             ))),
+            #[cfg(feature = "expressive-media")]
+            Command::PackFileAppend { ctx, offset, bytes } => {
+                let bytes = bounded_hex(&bytes, 4 << 20)?;
+                Ok(match self.core()?.append_pack_file(&ctx, offset, &bytes)? {
+                    Ok(()) => json!({ "accepted": true }),
+                    Err(reason) => json!({ "refused": reason }),
+                })
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::PackFileReview { ctx } => {
+                Ok(match self.core()?.review_uploaded_pack_file(&ctx)? {
+                    Ok((ticket, preview)) => json!({ "ticket": ticket, "preview": preview }),
+                    Err(reason) => json!({ "refused": reason }),
+                })
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::PackInstallBegin {
+                ctx,
+                ticket,
+                release_id,
+                control_digest,
+            } => Ok(
+                match self.core()?.begin_pack_install(
+                    &ctx,
+                    ticket,
+                    &release_id,
+                    control_digest.as_deref(),
+                )? {
+                    Ok(count) => json!({ "count": count }),
+                    Err(reason) => json!({ "refused": reason }),
+                },
+            ),
+            #[cfg(feature = "expressive-media")]
+            Command::PackInstallStage { ctx, ticket } => {
+                Ok(match self.core()?.stage_pack_blob(&ctx, ticket)? {
+                    Ok((digest, ciphertext)) => json!({
+                        "digest": om_core::crypto::hex(&digest), "ciphertext": om_core::crypto::hex(&ciphertext)
+                    }),
+                    Err(reason) => json!({ "refused": reason }),
+                })
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::PackInstallCommit { ctx, ticket } => {
+                let (out, commit) = self.core()?.commit_pack_install(&ctx, ticket)?;
+                Ok(match out {
+                    Ok(()) => json!({ "accepted": true, "commit": commit }),
+                    Err(reason) => json!({ "refused": reason }),
+                })
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::PackInstallAbort { ctx, ticket } => {
+                self.core()?.abort_pack_install(&ctx, ticket)?;
+                Ok(Value::Null)
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::PackCacheDigests { ctx } => {
+                let core = self.core()?;
+                Ok(json!({
+                    "digests": core.pack_cache_digests(&ctx)?,
+                    "inventory": core.pack_inventory_digest(&ctx)?,
+                }))
+            }
+            #[cfg(feature = "expressive-media")]
+            Command::PackCacheOpen {
+                ctx,
+                pack_id,
+                release_id,
+                item_id,
+                ciphertext,
+                observed,
+            } => {
+                let opened = self.core()?.open_cached_pack_asset(
+                    &ctx,
+                    id32(&pack_id)?,
+                    id32(&release_id)?,
+                    &item_id,
+                    &expressive_ciphertext(&ciphertext)?,
+                );
+                Ok(match opened {
+                    Some((p, media::Opened::Renderable { plaintext, facts })) => {
+                        if let Some(observed) = observed {
+                            json!(facts.matches_decode(&observed))
+                        } else {
+                            json!({ "state": "renderable", "plaintext": om_core::crypto::hex(&plaintext),
+                                "facts": facts, "kind": p.kind.as_str(), "mediaProfileId": p.media_profile_id,
+                                "altText": p.alt_text })
+                        }
+                    }
+                    Some((p, _)) => json!({ "state": "placeholder", "altText": p.alt_text }),
+                    None => Value::Null,
+                })
+            }
             Command::Outcome { ctx, operation_id } => {
                 Ok(enc(&self.core()?.outcome(&ctx, &operation_id)?))
             }

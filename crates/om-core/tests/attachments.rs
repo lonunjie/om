@@ -1912,3 +1912,131 @@ fn expressive_loop_is_duration_bound_on_the_normal_blob_path() {
         })
     );
 }
+
+#[test]
+fn portable_pack_install_kill_points_preserve_the_active_inventory() {
+    let vectors: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../verification/vectors/pack-file-vectors.json"
+    ))
+    .unwrap();
+    let vector =
+        |i: usize| om_core::crypto::unhex(vectors["vectors"][i]["hex"].as_str().unwrap()).unwrap();
+    let genesis = vector(0);
+    let update = vector(1);
+    let pack = [0x44; 32];
+    let mut p = active_pair_with_expressive(true, false);
+    assert_eq!(
+        p.bob.core.review_pack_file(&p.b, &genesis).unwrap().err(),
+        Some("expressive_disabled"),
+    );
+
+    let begin = |rt: &mut Runtime, ctx: &ProfileExecutionContext, bytes: &[u8]| {
+        let (ticket, preview) = rt.core.review_pack_file(ctx, bytes).unwrap().unwrap();
+        assert_eq!(
+            rt.core
+                .begin_pack_install(
+                    ctx,
+                    ticket,
+                    &preview.release_id,
+                    preview.control_digest.as_deref()
+                )
+                .unwrap(),
+            Ok(1),
+        );
+        ticket
+    };
+    let stage = |rt: &mut Runtime, ctx: &ProfileExecutionContext, ticket| {
+        let (digest, bytes) = rt.core.stage_pack_blob(ctx, ticket).unwrap().unwrap();
+        assert_eq!(digest, om_core::attach::ciphertext_digest(&bytes));
+        digest
+    };
+    let finish = |rt: &mut Runtime, ctx: &ProfileExecutionContext, ticket| {
+        let (out, commit) = rt.core.commit_pack_install(ctx, ticket).unwrap();
+        out.unwrap();
+        let commit = commit.unwrap();
+        assert_eq!(commit.writes.len(), 1);
+        assert_eq!(commit.writes[0].key, "expressive-packs");
+        Step {
+            commit: Some(commit),
+            handle: None,
+        }
+    };
+    let ticket = begin(&mut p.alice, &p.a, &genesis);
+    let original_digest = stage(&mut p.alice, &p.a, ticket);
+    let write = finish(&mut p.alice, &p.a, ticket);
+    assert!(p.alice.settle(&write));
+    let before = p.alice.core.content_pack(&p.a, pack).unwrap().unwrap();
+
+    let ticket = begin(&mut p.alice, &p.a, &update);
+    assert_eq!(
+        p.alice.core.commit_pack_install(&p.a, ticket).unwrap(),
+        (Err("pack_stage_incomplete"), None)
+    );
+    for after_stage in [false, true] {
+        let old = p.a.clone();
+        let ticket = begin(&mut p.alice, &p.a, &update);
+        if after_stage {
+            assert_ne!(stage(&mut p.alice, &p.a, ticket), original_digest);
+        }
+        p.a = p.alice.restart().remove(0);
+        p.alice.core.enable_expressive_media();
+        assert!(p.alice.core.stage_pack_blob(&old, ticket).is_err());
+        assert!(
+            p.alice
+                .core
+                .commit_pack_install(&p.a, ticket)
+                .unwrap()
+                .0
+                .is_err()
+        );
+        assert_eq!(
+            p.alice.core.content_pack(&p.a, pack).unwrap().as_ref(),
+            Some(&before)
+        );
+    }
+
+    let ticket = begin(&mut p.alice, &p.a, &update);
+    stage(&mut p.alice, &p.a, ticket);
+    let _unwritten = finish(&mut p.alice, &p.a, ticket);
+    assert_eq!(
+        p.alice.core.content_pack(&p.a, pack).unwrap().as_ref(),
+        Some(&before)
+    );
+    p.a = p.alice.restart().remove(0);
+    p.alice.core.enable_expressive_media();
+    assert_eq!(
+        p.alice.core.content_pack(&p.a, pack).unwrap().as_ref(),
+        Some(&before)
+    );
+
+    let ticket = begin(&mut p.alice, &p.a, &update);
+    stage(&mut p.alice, &p.a, ticket);
+    let write = finish(&mut p.alice, &p.a, ticket);
+    p.alice.store.fail_next_commit();
+    assert!(!p.alice.settle(&write));
+    assert_eq!(
+        p.alice.core.content_pack(&p.a, pack).unwrap().as_ref(),
+        Some(&before)
+    );
+
+    let ticket = begin(&mut p.alice, &p.a, &update);
+    let new_digest = stage(&mut p.alice, &p.a, ticket);
+    let write = finish(&mut p.alice, &p.a, ticket);
+    assert!(p.alice.settle(&write));
+    p.a = p.alice.restart().remove(0);
+    p.alice.core.enable_expressive_media();
+    assert_ne!(
+        p.alice
+            .core
+            .content_pack(&p.a, pack)
+            .unwrap()
+            .unwrap()
+            .release_id,
+        before.release_id
+    );
+    assert_eq!(
+        p.alice.core.pack_cache_digests(&p.a).unwrap(),
+        [om_core::crypto::hex(&new_digest)].into()
+    );
+    assert!(p.bob.core.content_pack(&p.b, pack).unwrap().is_none());
+}

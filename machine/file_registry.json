@@ -620,6 +620,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/expressive-pack.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/expressive.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -1944,6 +1951,20 @@
     },
     {
       "path": "crates/om-core/src/expressive/pack.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/expressive/pack/file.rs",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/expressive/pack/file/tests.rs",
       "class": "product_code",
       "domain": "expressive_media_content_packs",
       "license": "MPL-2.0",
@@ -14312,6 +14333,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/expressive-wire/gen_pack_file_vectors.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/expressive-wire/hostile_inputs.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -17428,6 +17456,13 @@
     },
     {
       "path": "verification/vectors/owner-recovery-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/pack-file-vectors.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

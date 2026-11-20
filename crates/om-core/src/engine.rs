@@ -72,6 +72,8 @@ fn note_removals(app: &mut AppState, r: &GroupReply, now_s: u64) {
 
 struct Slot {
     room_offers: Vec<RoomRouteOffer>,
+    pack_upload: zeroize::Zeroizing<Vec<u8>>,
+    pack_review: Option<(u64, crate::expressive::ReviewedPack)>,
     state: ProfileState,
     /// Exactly what the host has durably stored for this profile.
     committed: BTreeMap<String, Vec<u8>>,
@@ -99,6 +101,7 @@ pub struct Core<R: RngCore + CryptoRng> {
     boot: String,
     next_generation: u64,
     next_commit: u64,
+    next_pack_review: u64,
     staged: Option<Staged>,
     /// Routes the host's provider adapter allocated for mailboxes Core has not created yet. Memory only: an offer is
     /// worthless without the install secret the adapter holds, so nothing is lost by dropping them at restart.
@@ -165,6 +168,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             boot: crate::crypto::hex(&b),
             next_generation: 1,
             next_commit: 1,
+            next_pack_review: 1,
             staged: None,
             offers: vec![],
             blob_limits: None,
@@ -1830,6 +1834,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 state,
                 committed,
                 room_offers: vec![],
+                pack_upload: Default::default(),
+                pack_review: None,
             },
         );
         Ok(ProfileExecutionContext {
@@ -2030,13 +2036,219 @@ impl<R: RngCore + CryptoRng> Core<R> {
         input: crate::expressive::Install<'_>,
     ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
         self.slot(ctx)?;
-        self.txn_inner(&ctx.profile_id, |tx| {
-            Ok(if tx.expressive_enabled {
-                tx.st.expressive_packs.install(input)
-            } else {
-                Err("expressive_disabled")
-            })
-        }, true)
+        self.txn_inner(
+            &ctx.profile_id,
+            |tx| {
+                Ok(if tx.expressive_enabled {
+                    tx.st.expressive_packs.install(input)
+                } else {
+                    Err("expressive_disabled")
+                })
+            },
+            true,
+        )
+    }
+
+    /// Transport chunks only. Completing the upload validates the entire file without a store write.
+    pub fn append_pack_file(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        offset: usize,
+        bytes: &[u8],
+    ) -> Result<Result<(), crate::expressive::Error>, CoreError> {
+        self.slot(ctx)?;
+        if !self.expressive_enabled {
+            return Ok(Err("expressive_disabled"));
+        }
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context");
+        if offset == 0 {
+            slot.pack_upload = Default::default();
+        }
+        if slot.pack_upload.len() != offset {
+            return Ok(Err("pack_file_shape"));
+        }
+        if bytes.len() > crate::expressive::PACK_FILE_MAX.saturating_sub(offset) {
+            slot.pack_upload = Default::default();
+            return Ok(Err("size_limit"));
+        }
+        slot.pack_upload.extend_from_slice(bytes);
+        Ok(Ok(()))
+    }
+
+    pub fn review_uploaded_pack_file(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Result<(u64, crate::expressive::PackPreview), crate::expressive::Error>, CoreError>
+    {
+        self.slot(ctx)?;
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context");
+        let bytes = std::mem::take(&mut slot.pack_upload);
+        self.review_pack_file(ctx, &bytes)
+    }
+
+    pub fn review_pack_file(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        bytes: &[u8],
+    ) -> Result<Result<(u64, crate::expressive::PackPreview), crate::expressive::Error>, CoreError>
+    {
+        let slot = self.slot(ctx)?;
+        if !self.expressive_enabled {
+            return Ok(Err("expressive_disabled"));
+        }
+        let review = match slot.state.expressive_packs.review_file(bytes) {
+            Ok(review) => review,
+            Err(reason) => return Ok(Err(reason)),
+        };
+        let preview = review.preview.clone();
+        let ticket = self.next_pack_review;
+        self.next_pack_review += 1;
+        self.profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context")
+            .pack_review = Some((ticket, review));
+        Ok(Ok((ticket, preview)))
+    }
+
+    pub fn begin_pack_install(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        ticket: u64,
+        release_id: &str,
+        control_digest: Option<&str>,
+    ) -> Result<Result<usize, crate::expressive::Error>, CoreError> {
+        self.slot(ctx)?;
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context");
+        let Some((id, review)) = &mut slot.pack_review else {
+            return Ok(Err("confirmation_required"));
+        };
+        if *id != ticket {
+            return Ok(Err("confirmation_required"));
+        }
+        Ok(review.begin(&slot.state.expressive_packs, release_id, control_digest))
+    }
+
+    /// Issue one validated digest and ciphertext for the host's profile-local cache write.
+    pub fn stage_pack_blob(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        ticket: u64,
+    ) -> Result<Result<([u8; 32], Vec<u8>), crate::expressive::Error>, CoreError> {
+        self.slot(ctx)?;
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context");
+        Ok(match &mut slot.pack_review {
+            Some((id, review)) if *id == ticket => review.stage(),
+            _ => Err("confirmation_required"),
+        })
+    }
+
+    /// Report success only after every issued cache write has succeeded. The active
+    /// pack inventory changes at the existing one-record durability boundary.
+    pub fn commit_pack_install(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        ticket: u64,
+    ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
+        self.slot(ctx)?;
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context");
+        if !slot
+            .pack_review
+            .as_ref()
+            .is_some_and(|(id, _)| *id == ticket)
+        {
+            return Ok((Err("confirmation_required"), None));
+        }
+        let (_, review) = slot.pack_review.take().expect("checked ticket");
+        self.txn_inner(
+            &ctx.profile_id,
+            |tx| Ok(review.activate(&mut tx.st.expressive_packs)),
+            true,
+        )
+    }
+
+    pub fn abort_pack_install(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        ticket: Option<u64>,
+    ) -> Result<(), CoreError> {
+        self.slot(ctx)?;
+        let slot = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("checked context");
+        if ticket.is_none() {
+            slot.pack_upload = Default::default();
+        }
+        if slot
+            .pack_review
+            .as_ref()
+            .is_some_and(|(id, _)| Some(*id) == ticket)
+        {
+            slot.pack_review = None;
+        }
+        Ok(())
+    }
+
+    pub fn pack_cache_digests(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<std::collections::BTreeSet<String>, CoreError> {
+        let slot = self.slot(ctx)?;
+        Ok(if self.expressive_enabled {
+            slot.state.expressive_packs.cache_digests()
+        } else {
+            Default::default()
+        })
+    }
+
+    pub fn pack_inventory_digest(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Option<String>, CoreError> {
+        let slot = self.slot(ctx)?;
+        Ok(slot.committed.get(crate::state::REC_EXPRESSIVE_PACKS)
+            .map(|record| crate::crypto::hex(&crate::crypto::sha256(&[record]))))
+    }
+
+    pub fn open_cached_pack_asset(
+        &self,
+        ctx: &ProfileExecutionContext,
+        pack: [u8; 32],
+        release: [u8; 32],
+        item: &str,
+        ciphertext: &[u8],
+    ) -> Option<(crate::expressive::Presentation, crate::expressive::Opened)> {
+        if !self.expressive_enabled {
+            return None;
+        }
+        let asset = self
+            .slot(ctx)
+            .ok()?
+            .state
+            .expressive_packs
+            .cached_asset(pack, release, item)?;
+        let opened =
+            asset
+                .open(ciphertext)
+                .unwrap_or_else(|_| crate::expressive::Opened::Placeholder {
+                    alt_text: asset.presentation.alt_text.clone(),
+                });
+        Some((asset.presentation, opened))
     }
 
     pub fn content_pack(
