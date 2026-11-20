@@ -6178,6 +6178,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-11-20-expressive-slice4.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/2026-11-20-review-8-import.md",
       "class": "report",
       "domain": "architecture_process",
@@ -10630,6 +10637,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-platform-api/src/platform/expressive.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-platform-api/src/platform/families.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -12201,6 +12215,48 @@
       "path": "packages/om-web-platform/src/env.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/budget.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/decoder.worker.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/driver.test.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/driver.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/native.test.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/native.ts",
+      "class": "product_code",
+      "domain": "expressive_media_content_packs",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },

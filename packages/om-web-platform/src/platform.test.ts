@@ -4,6 +4,9 @@ import type { CapabilityState } from "@om/platform-api";
 import type { RegistrationLike, WebEnv } from "./env";
 import { createWebPlatform } from "./platform";
 
+const { decodeExpressiveAsset } = vi.hoisted(() => ({ decodeExpressiveAsset: vi.fn() }));
+vi.mock("./expressive/driver", () => ({ decodeExpressiveAsset }));
+
 const spies = () => ({
   requestPermission: vi.fn(() => Promise.resolve("granted" as const)),
   getUserMedia: vi.fn(() => Promise.resolve({ getTracks: () => [] })),
@@ -61,6 +64,30 @@ describe("UI-02: missing APIs", () => {
     expect(c.state).toBe("partial");
     if (c.state === "unavailable") throw new Error("expected api");
     expect(await c.api.write("secret", { sensitive: true })).toBe("sensitive_unsupported");
+  });
+  it("keeps expressive media off by default", () => {
+    expect(platform.capabilities().families.expressiveMedia).toEqual({ state: "unavailable", detail: "feature_disabled" });
+    expect(platform.expressiveMedia()).toEqual({ state: "unavailable", detail: "feature_disabled" });
+  });
+  it("probes without invoking the decoder and applies system Reduced Motion at decode", async () => {
+    vi.stubGlobal("Worker", vi.fn());
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true })));
+    try {
+      const enabled = createWebPlatform({}, { expressiveMedia: true });
+      expect(enabled.capabilities().families.expressiveMedia.state).toBe("partial");
+      const capability = enabled.expressiveMedia();
+      if (capability.state === "unavailable") throw new Error("expected decoder capability");
+      expect(decodeExpressiveAsset).not.toHaveBeenCalled();
+      const asset = {
+        kind: "sticker" as const, mediaProfileId: "om.expressive.webp-v1", bytes: new Uint8Array(26),
+        facts: { width: 1, height: 1, frames: 1, durationMs: null, encodedSize: 26, totalPixels: 1 },
+      };
+      decodeExpressiveAsset.mockRejectedValueOnce(new Error("decoder unavailable"));
+      expect(await capability.api.decode(asset, { reducedMotion: false })).toEqual({ state: "fallback", reason: "unavailable" });
+      expect(decodeExpressiveAsset).toHaveBeenCalledExactlyOnceWith(asset, true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

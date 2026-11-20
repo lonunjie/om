@@ -14,6 +14,8 @@ describe("production CSP (UW-0)", () => {
   it("requires Trusted Types for script sinks", () => {
     expect(CSP["require-trusted-types-for"]).toBe("'script'");
     expect(cspHeader()).toContain("trusted-types om-bundle");
+    expect(CSP["trusted-types"]?.split(" ")).toContain("om-expressive-worker");
+    expect(CSP["worker-src"]).toBe("'self'");
   });
   it("the Pages _headers file carries the same policy", () => {
     expect(headersFile()).toContain(SECURITY_HEADERS["Content-Security-Policy"]);

@@ -121,7 +121,7 @@ function currentPosition(env: WebEnv): Promise<LocationFix | "denied" | "unavail
 
 type Builders = { [K in FamilyName]: (env: WebEnv) => Capability<FamilyApis[K]> };
 
-const builders: Builders = {
+const builders: Omit<Builders, "expressiveMedia"> = {
   secureStorage: (env) =>
     env.indexedDB !== undefined && env.crypto?.subtle !== undefined
       ? partial({ protection: "devicevault_wrapped" }, "not_at_rest_sealed_by_os")
@@ -293,10 +293,25 @@ const builders: Builders = {
 };
 
 /** Capabilities are decided by feature probes on `env`; never by user agent. Probing is side-effect free. */
-export function createWebPlatform(env: WebEnv = browserEnv()): PlatformAdapter {
-  const get = <K extends FamilyName>(k: K): Capability<FamilyApis[K]> => builders[k](env);
+export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonly expressiveMedia?: boolean } = {}): PlatformAdapter {
+  const expressiveMedia = (): Capability<FamilyApis["expressiveMedia"]> => {
+    if (options.expressiveMedia !== true) return unavailable("feature_disabled");
+    if (typeof Worker !== "function") return unavailable("no_media_worker");
+    return partial({
+      async decode(asset, { reducedMotion }) {
+        try {
+          const { decodeExpressiveAsset } = await import("./expressive/driver");
+          const systemReducedMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+          return await decodeExpressiveAsset(asset, reducedMotion || systemReducedMotion);
+        } catch {
+          return { state: "fallback", reason: "unavailable" };
+        }
+      },
+    }, "decoder_support_checked_in_worker");
+  };
+  const get = <K extends Exclude<FamilyName, "expressiveMedia">>(k: K): Capability<FamilyApis[K]> => builders[k](env);
   const entry = (k: FamilyName): CapabilityEntry => {
-    const c = get(k);
+    const c = k === "expressiveMedia" ? expressiveMedia() : get(k);
     return c.detail === undefined ? { state: c.state } : { state: c.state, detail: c.detail };
   };
   const capabilities = (): CapabilityReport => {
@@ -331,5 +346,6 @@ export function createWebPlatform(env: WebEnv = browserEnv()): PlatformAdapter {
     windowSystem: () => get("windowSystem"),
     haptics: () => get("haptics"),
     externalTransport: () => get("externalTransport"),
+    expressiveMedia,
   };
 }

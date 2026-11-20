@@ -1,4 +1,5 @@
 import type { LocalDiscoveryMode } from "./capability";
+import type { ExpressiveMediaApi } from "./expressive";
 // Capability families and their deliberately tiny method surfaces. No DOM types.
 export type PermissionState = "granted" | "denied" | "prompt";
 
@@ -84,6 +85,7 @@ export interface FamilyApis {
   windowSystem: WindowSystemApi;
   haptics: HapticsApi;
   externalTransport: ExternalTransportApi;
+  expressiveMedia: ExpressiveMediaApi;
 }
 
 export type FamilyName = keyof FamilyApis;
@@ -93,4 +95,5 @@ export const FAMILY_NAMES = [
   "openExternal", "files", "camera", "microphone", "location", "contactsLocal", "clipboard",
   "secureSurface", "backupExclusion", "inputPrivacy", "notificationRemoval", "localDiscovery",
   "callSystemIntegration", "networkHints", "windowSystem", "haptics", "externalTransport",
+  "expressiveMedia",
 ] as const satisfies readonly FamilyName[];
