@@ -2928,6 +2928,16 @@
       "amends": [],
       "index_title": "Reject public request-to-successor digest linkage; sheet-only needs_evidence is permanent (accepted 2026-11-20; supersedes ADR-0243)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0250",
+      "title": "Authorize engineering scope `expressive_media` (W1), by explicit operator instruction",
+      "status": "**Proposed**, awaiting the operator's explicit instruction. Authorizing an engineering scope is a decision of the operator, not a review res",
+      "date": "2026-11-20",
+      "path": "decisions/ADR-0250-authorize-expressive-media-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `expressive_media` (W1), by explicit operator instruction (PROPOSED 2026-11-20, awaiting the operator)",
+      "amended_by": []
     }
   ]
 }

@@ -256,3 +256,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0247 — Independent sheet custody of the exact signed checkpoint envelope (accepted by delegation 2026-11-20, enablement gated)](ADR-0247-owner-sheet-exact-envelope-pin.md)
 - [ADR-0248 — Policy-absent head in an explicit new RecoveryRecord lineage (accepted by delegation 2026-11-20, enablement gated)](ADR-0248-policy-absent-recovery-record-head.md)
 - [ADR-0249 — Reject public request-to-successor digest linkage; sheet-only needs_evidence is permanent (accepted 2026-11-20; supersedes ADR-0243)](ADR-0249-reject-public-recovery-request-correlation.md)
+- [ADR-0250 — Authorize engineering scope `expressive_media` (W1), by explicit operator instruction (PROPOSED 2026-11-20, awaiting the operator)](ADR-0250-authorize-expressive-media-engineering.md)

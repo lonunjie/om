@@ -4421,6 +4421,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0250-authorize-expressive-media-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -6060,6 +6067,13 @@
     },
     {
       "path": "docs/reports/2026-11-18-calls-build-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-20-expressive-media-build-plan.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
