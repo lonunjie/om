@@ -4,7 +4,7 @@ import {
   asConversationId, asDeviceId, asGroupId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
-  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, GroupRoomSetting, MessageId, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
+  ConfirmationToken, CoreIntent, CoreQuery, ExpressivePackIntent, GroupIntent, GroupRoomSetting, MessageId, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
 } from "@om/platform-api";
 
 export type PresentationOp =
@@ -21,6 +21,7 @@ export type ActionResult =
   | { readonly status: "intent"; readonly intent: CoreIntent }
   /** A typed step of the groups path (`client.groups.do`), not a CoreIntent: it has no OperationId, the step itself is durable. Direct (user-gesture) origin only. */
   | { readonly status: "group"; readonly intent: GroupIntent }
+  | { readonly status: "expressive"; readonly intent: ExpressivePackIntent }
   | { readonly status: "presentation"; readonly op: PresentationOp; readonly query?: CoreQuery }
   | { readonly status: "platform"; readonly request: PlatformRequest }
   | { readonly status: "needs_confirmation"; readonly actionId: string }
@@ -64,6 +65,7 @@ type Rec = Readonly<Record<string, unknown>>;
 type Built = { readonly intent: (ctx: ProfileExecutionContext, op: OperationId, confirmation: ConfirmationToken) => CoreIntent }
   | { readonly presentation: PresentationOp; readonly query?: CoreQuery }
   | { readonly group: GroupIntent }
+  | { readonly expressive: ExpressivePackIntent }
   | { readonly platform: PlatformRequest };
 interface Spec { readonly destructive: boolean; readonly parse: (p: Rec, ctx: ProfileExecutionContext) => Built | null }
 
@@ -131,7 +133,61 @@ const callSdp = (value: unknown): value is readonly number[] =>
   Array.from(value).every((byte: unknown) => typeof byte === "number" && Number.isInteger(byte) && byte >= 0 && byte <= 255);
 const mediaFlags = (value: unknown): value is number => value === 0 || value === 1 || value === 2 || value === 3;
 
+const packDigest = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+
+function expressiveSend(p: Rec, reaction: boolean): Built | null {
+  const conversationId = id(p["conversationId"]);
+  const blobId = id(p["blobId"]);
+  const messageId = id(p["messageId"]);
+  const key = p["key"];
+  if (!conversationId || !blobId) return null;
+  if (reaction) {
+    if (messageId === null || typeof key !== "string" || !validReactionKey(key) ||
+        !exactly(p, ["conversationId", "blobId", "messageId", "key"])) return null;
+    return { intent: (ctx, operationId) => ({
+      kind: "SendExpressive", ctx, operationId, conversationId: asConversationId(conversationId),
+      asset: { source: "prepared", blobId }, target: { Reaction: { message_id: asMessageId(messageId), key } },
+    }) };
+  }
+  if (!exactly(p, ["conversationId", "blobId"])) return null;
+  return { intent: (ctx, operationId) => ({
+    kind: "SendExpressive", ctx, operationId, conversationId: asConversationId(conversationId),
+    asset: { source: "prepared", blobId }, target: "Attachment",
+  }) };
+}
+
 const SPECS: Readonly<Record<string, Spec>> = {
+  "send-sticker": { destructive: false, parse: (p) => expressiveSend(p, false) },
+  "set-custom-reaction": { destructive: false, parse: (p) => expressiveSend(p, true) },
+  "set-expressive-favourite": { destructive: false, parse: (p) => {
+    const { packId, releaseId, itemId, present } = p;
+    if (!packDigest(packId) || !packDigest(releaseId) || typeof itemId !== "string" || itemId.length === 0 ||
+        Array.from(itemId).length > 128 || typeof present !== "boolean" || !exactly(p, ["packId", "releaseId", "itemId", "present"])) return null;
+    return { expressive: { kind: "update_picker", packId, releaseId, itemId, change: { kind: "favourite", present } } };
+  } },
+  "remove-expressive-pack": { destructive: false, parse: (p) => {
+    const { packId } = p;
+    return packDigest(packId) && exactly(p, ["packId"]) ? { expressive: { kind: "remove_pack", packId } } : null;
+  } },
+  "install-expressive-pack": { destructive: false, parse: (p) => {
+    const { input, releaseId, controlDigest, cached } = p;
+    if (!isRec(input) || !(input["release"] instanceof Uint8Array) ||
+        !(input["control"] === undefined || input["control"] instanceof Uint8Array) ||
+        !exactly(input, ["release", "control"]) || !packDigest(releaseId) ||
+        !(controlDigest === null || packDigest(controlDigest)) || !Array.isArray(cached) ||
+        cached.length > 512 || !exactly(p, ["input", "releaseId", "controlDigest", "cached"])) return null;
+    const blobs: { blobId: string; ciphertext: Uint8Array }[] = [];
+    for (const value of cached as unknown[]) {
+      if (!isRec(value) || !packDigest(value["blobId"]) || !(value["ciphertext"] instanceof Uint8Array) ||
+          !exactly(value, ["blobId", "ciphertext"])) return null;
+      blobs.push({ blobId: value["blobId"], ciphertext: value["ciphertext"] });
+    }
+    return { expressive: {
+      kind: "install_pack",
+      input: { release: input["release"], ...(input["control"] === undefined ? {} : { control: input["control"] }) },
+      confirmation: { releaseId, controlDigest }, policy: "Lazy", favourites: [], cached: blobs,
+    } };
+  } },
   "start-call": { destructive: false, parse: (p) => {
     const target = id(p["target"]);
     const media = oneOf(p["media"], ["audio", "video"]);
@@ -587,6 +643,11 @@ export function createActionRegistry(options: RegistryOptions = {}): ActionRegis
       if ("presentation" in built) return built.query ? { status: "presentation", op: built.presentation, query: built.query } : { status: "presentation", op: built.presentation };
       if ("platform" in built) return { status: "platform", request: built.platform };
       if ("group" in built) return req.origin === "direct" ? { status: "group", intent: built.group } : { status: "rejected", code: "suggestion_cannot_confirm" };
+      if ("expressive" in built || req.actionId === "send-sticker" || req.actionId === "set-custom-reaction") {
+        if (req.origin !== "direct") return { status: "rejected", code: "suggestion_cannot_confirm" };
+        if (req.confirmation !== undefined) return { status: "rejected", code: "invalid_confirmation" };
+        if ("expressive" in built) return { status: "expressive", intent: built.expressive };
+      }
       let token: ConfirmationToken | undefined;
       if (spec.destructive) {
         if (req.origin === "suggestion") return req.confirmation ? { status: "rejected", code: "suggestion_cannot_confirm" } : { status: "needs_confirmation", actionId: req.actionId };

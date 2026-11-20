@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { MessageId, ReactionView, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
@@ -45,20 +46,21 @@ export function ReplyChip({ copy, who, outgoing, preview, busy, onCancel }: { re
 }
 
 /** The React control of one message and, while open, the short set to choose from. Escape closes the picker and nothing else. */
-export function ReactionControl({ copy, gist, open, onToggle, onClose, onPick, isMine }: {
+export function ReactionControl({ copy, gist, open, onToggle, onClose, onPick, isMine, custom }: {
   readonly copy: ConversationCopy["react"]; readonly gist: string; readonly open: boolean;
-  readonly onToggle: () => void; readonly onClose: () => void; readonly onPick: (key: string, present: boolean) => void; readonly isMine: (key: string) => boolean;
+  readonly onToggle: () => void; readonly onClose: () => void; readonly onPick: (key: string, present: boolean) => void; readonly isMine: (key: string) => boolean; readonly custom?: ReactNode;
 }) {
   return (
     <span className="om-react" onKeyDown={(e) => { if (e.key === "Escape" && open) { e.stopPropagation(); onClose(); } }}>
       <IconButton className="om-conv-view__reply" label={`${copy.action}: ${gist}`} icon={<Icon name="smile" size={18} />} aria-expanded={open} onClick={onToggle} />
       {open ? (
-        <div role="group" aria-label={copy.picker} className="om-react__picker">
+        <div role="group" aria-label={copy.picker} className="om-react__picker" data-expressive={custom == null ? undefined : ""}>
           {DEFAULT_REACTIONS.map((key) => (
             <button key={key} type="button" className="om-react__choice" aria-label={copy.set(key)} onClick={() => { onPick(key, !isMine(key)); }}>
               <span aria-hidden="true">{key}</span>
             </button>
           ))}
+          {custom}
         </div>
       ) : null}
     </span>
@@ -66,7 +68,11 @@ export function ReactionControl({ copy, gist, open, onToggle, onClose, onPick, i
 }
 
 /** The reactions under a message: a chip per key; a tap adds your reaction, or removes it when it is yours. */
-export function ReactionChips({ copy, reactions, onPick }: { readonly copy: ConversationCopy["react"]; readonly reactions: readonly ReactionView[]; readonly onPick?: (key: string, present: boolean) => void }) {
+export function ReactionChips({ copy, reactions, onPick, expressive }: {
+  readonly copy: ConversationCopy["react"]; readonly reactions: readonly ReactionView[];
+  readonly onPick?: (key: string, present: boolean) => void;
+  readonly expressive?: ((reaction: ReactionView) => ReactNode) | undefined;
+}) {
   if (reactions.length === 0) return null;
   return (
     <ul className="om-react__chips" aria-label={copy.list}>
@@ -82,6 +88,7 @@ export function ReactionChips({ copy, reactions, onPick }: { readonly copy: Conv
               <span aria-hidden="true">{r.key}{r.count > 1 ? ` ${String(r.count)}` : ""}</span>
             </button>
           )}
+          {expressive?.(r)}
         </li>
       ))}
     </ul>

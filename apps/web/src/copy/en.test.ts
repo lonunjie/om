@@ -1,7 +1,7 @@
 import type { AccountControlStateCode, DeviceCautionCode, DeviceRole, DeviceStateCode, LastSeenClass, LinkOfferState, LinkRequestState, RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestState, RecoveryScope } from "@om/platform-api";
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
-import { appStrings, backupCopy, conversationCopy, deviceScannerCopy, groupsCopy, landingCopy, devicesCopy, homeCopy, joinCopy, onboardingCopy, protectionCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
+import { appStrings, backupCopy, conversationCopy, deviceScannerCopy, expressiveCopy, groupsCopy, landingCopy, devicesCopy, homeCopy, joinCopy, onboardingCopy, protectionCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
 
 /** Every leaf must be a non-empty string; functions are called with sample arguments. */
 function leaves(v: unknown, path: string, out: [string, string][]): void {
@@ -47,7 +47,7 @@ const SCOPES = keys<RecoveryScope>({ identity: true, history: true, provider: tr
 describe("English copy catalog", () => {
   it("has a non-empty string for every key of every copy type", () => {
     const entries = [...all("conversation", conversationCopy), ...all("onboarding", onboardingCopy), ...all("shell", shellLabels), ...all("switcher", switcherLabels), ...all("app", appStrings), ...all("landing", landingCopy), ...all("scanner", scannerCopy), ...all("unlock", unlockCopy),
-      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("join", joinCopy), ...all("recovery", recoveryCopy), ...all("home", homeCopy), ...all("backup", backupCopy), ...all("groups", groupsCopy)];
+      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("join", joinCopy), ...all("recovery", recoveryCopy), ...all("home", homeCopy), ...all("backup", backupCopy), ...all("groups", groupsCopy), ...all("expressive", expressiveCopy)];
     expect(entries.length).toBeGreaterThan(200);
     expect(entries.filter(([, s]) => s.trim() === "").map(([p]) => p)).toEqual([]);
   });
@@ -91,7 +91,7 @@ describe("English copy catalog", () => {
   const NAMING_ALLOWED = ["o.relay.cloudflare.", "h.advanced.add.relay.cloudflare."];
   const PROVIDER_NAMES = /\b(?:Google|Apple|Microsoft|Cloudflare|WebAuthn|PRF|IndexedDB)\b/;
   const MACHINE_CODES = /\b[a-z]+_[a-z_]+\b/;
-  const people = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", joinCopy), ...all("r", recoveryCopy), ...all("b", backupCopy), ...all("h", homeCopy), ...all("g", groupsCopy)];
+  const people = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", joinCopy), ...all("r", recoveryCopy), ...all("b", backupCopy), ...all("h", homeCopy), ...all("g", groupsCopy), ...all("e", expressiveCopy)];
   it("shows no provider names or raw machine codes to people", () => {
     const text = people.filter(([path]) => !NAMING_ALLOWED.some((a) => path.startsWith(a))).map(([, s]) => s).join("\n");
     expect(text).not.toMatch(PROVIDER_NAMES);
@@ -178,4 +178,10 @@ describe("English copy catalog", () => {
     expect(appStrings.settingsProtection).toBe("Protection");
     expect(appStrings.settingsRows.protection.length).toBeGreaterThan(10);
   });
+});
+
+it("uses plain expressive-media copy and limits provenance to signer evidence", () => {
+  const strings = all("expressive", expressiveCopy).map(([, value]) => value).join("\n");
+  expect(strings).not.toMatch(/\b(?:codec|blob|signature|webp|verified|official|licensed)\b/i);
+  expect(expressiveCopy.signedBy).toBe("Signed by");
 });

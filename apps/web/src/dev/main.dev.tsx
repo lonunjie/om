@@ -6,6 +6,7 @@ import { createHarness } from "@om/core-harness";
 import { browserVaultEnv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import { Text } from "@om/ui";
 import { appStrings } from "../copy/en";
+import { devExpressiveHost, expressiveFixture, inlineMessage } from "./expressiveFixture";
 import { DevApp } from "./DevApp";
 
 const PENDING = asProfileId("pending-me");
@@ -21,11 +22,13 @@ export function mountDev(root: HTMLElement): void {
     return;
   }
   // The harness bundle is built in production mode, so its own PROD guard is satisfied explicitly after the check above.
-  const harness = createHarness({ env: { PROD: false } });
+  const expressiveMedia = new URLSearchParams(globalThis.location.search).has("expressive");
+  const harness = createHarness({ env: { PROD: false }, expressiveMedia });
   harness.seedProfile({ profileId: PENDING, label: "Me" });
   harness.seedProfile({
     profileId: WORK,
     label: "Work",
+    ...(expressiveMedia ? { expressivePacks: [expressiveFixture] } : {}),
     conversations: [
       {
         id: asConversationId("c-ana"), personId: asPersonId("p-ana"), displayName: "Ana Reyes",
@@ -33,6 +36,7 @@ export function mountDev(root: HTMLElement): void {
           { text: "Did the budget review move to Thursday?", direction: "incoming" },
           { text: "Yes, Thursday at 10.", direction: "outgoing" },
           { text: "Great, I will bring the draft.", direction: "incoming" },
+          ...(expressiveMedia ? [inlineMessage] : []),
         ],
       },
       // ADR-0190: two contacts getting their account back on a new device. Maria's wait is running (default Recommended); Tomas's is over and
@@ -84,9 +88,14 @@ export function mountDev(root: HTMLElement): void {
   // e2e tests (and a person trying the screens) answer and send as the others through this handle.
   harness.groups.simulateInvite(harness.contextFor(WORK), asConversationId("c-ana"), "Book club");
   (globalThis as { __omDevGroups?: unknown }).__omDevGroups = { sim: harness.groups, ctx: () => harness.contextFor(WORK) };
+  const platform = createWebPlatform(undefined, { expressiveMedia });
+  const decoder = platform.expressiveMedia();
+  const expressiveHost = expressiveMedia ? {
+    ...devExpressiveHost(harness, WORK), ...(decoder.state === "unavailable" ? {} : { decoder: decoder.api }),
+  } : undefined;
   r.render(
     <StrictMode>
-      <DevApp harness={harness} vault={createWebDeviceVault(vaultEnv)} platform={createWebPlatform()} pendingProfileId={PENDING} onboarded={[WORK]} />
+      <DevApp harness={harness} vault={createWebDeviceVault(vaultEnv)} platform={platform} {...(expressiveHost === undefined ? {} : { expressiveHost })} pendingProfileId={PENDING} onboarded={[WORK]} />
     </StrictMode>,
   );
 }

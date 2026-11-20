@@ -14,6 +14,9 @@ import { shownName } from "./shownName";
 import { PatternAvatar } from "../groups/PatternAvatar";
 import type { SameName } from "../groups/sameName";
 import { contactsLine, type SameNameCopy } from "./nameCues";
+import { ExpressiveAsset } from "../expressive/Asset";
+import { ExpressivePickerSheet } from "../expressive/Picker";
+import type { ExpressiveSurface } from "../expressive/host";
 import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
@@ -44,6 +47,7 @@ export interface ConversationViewProps {
   readonly recoveryCopy?: RecoveryContactCopy;
   /** Supplies the RichTextV1 document (untrusted) for an item; defaults to its plain text as paragraphs. */
   readonly richTextFor?: (item: ConversationTimelineItem) => unknown;
+  readonly expressive?: ExpressiveSurface | undefined;
   /** Slot below the timeline, normally the Composer. */
   readonly footer?: ReactNode;
   readonly callActions?: ((contact: ConversationSummary) => ReactNode) | undefined;
@@ -77,11 +81,13 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
 /** A short spoken name for a message, so "Reply" says which one. */
 const messageGist = (item: ConversationTimelineItem, copy: ConversationCopy): string => gistOf(item.text, copy.reply.attachment);
 
-export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, callActions, callNotices, onBack, focusMessageId, sameName, sameNameCopy, onReply, replyingTo }: ConversationViewProps) {
+export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, expressive: surface, footer, callActions, callNotices, onBack, focusMessageId, sameName, sameNameCopy, onReply, replyingTo }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
+  const expressive = services.client.expressive?.available() === true ? surface : undefined;
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
   const [contactOpen, setContactOpen] = useState(false);
+  const [customReaction, setCustomReaction] = useState<MessageId | null>(null);
   const [picking, setPicking] = useState<MessageId | null>(null);
   const [reactFailed, setReactFailed] = useState(false);
   const [editing, setEditing] = useState<{ readonly id: MessageId; readonly text: string } | null>(null);
@@ -214,18 +220,22 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                 <li key={item.messageId} id={`om-msg-${item.messageId}`} className="om-conv-view__item" data-found={marked === item.messageId ? "true" : undefined} data-direction={item.direction} data-joined={joinsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
                   <VisuallyHidden>{outgoing ? copy.view.outgoing : copy.view.incoming}</VisuallyHidden>
                   <div className="om-conv-view__row">
-                  <div className="om-conv-view__bubble" data-state={delivery?.kind}>
+                  <div className="om-conv-view__bubble" data-state={delivery?.kind} data-expressive-only={expressive !== undefined && item.reply === undefined && item.attachments?.length === 1 && item.attachments[0]?.mediaType === "image/webp" ? "" : undefined}>
                     {item.reply === undefined ? null : <Quote reply={item.reply} name={shownName(view.summary)} copy={copy.reply} onJump={jumpTo} />}
                     {editable && editing?.id === item.messageId ? (
                       <EditForm copy={copy.change} text={editing.text} onChange={(next) => { setEditing({ id: item.messageId, text: next }); }} onSave={() => { change("edit-message", item.messageId, editing.text, copy.change.editFailed); }} onCancel={() => { setEditing(null); }} />
-                    ) : <RichText doc={(richTextFor ?? ((i) => (i.mentions === undefined || i.mentions.length === 0 ? plainTextToRichText(i.text) : textWithMentions(i.text, i.mentions))))(item)} copy={copy.richText} />}
-                    <MessageAttachments services={services} item={item} copy={copy.attachments} />
+                    ) : <RichText doc={richTextFor?.(item) ?? (item.mentions === undefined || item.mentions.length === 0 ? plainTextToRichText(item.text) : textWithMentions(item.text, item.mentions))} copy={copy.richText}
+                      emoji={expressive === undefined ? undefined : (index, fallback, interactive) => <ExpressiveAsset interactive={interactive} key={`${item.text}:${String(index)}`} services={services} surface={expressive} messageId={item.messageId} source={{ kind: "inline", index }} size="inline" fallback={<bdi>{fallback}</bdi>} />}
+                    />}
+                    <MessageAttachments services={services} item={item} copy={copy.attachments}
+                      renderWebp={expressive === undefined ? undefined : (index, fallback) => <ExpressiveAsset services={services} surface={expressive} messageId={item.messageId} source={{ kind: "attachment", index }} size="message" fallback={fallback} revision={item.attachments?.find((attachment) => attachment.index === index)?.state} />} />
                   </div>
                   {!editable || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
                     <ReactionControl
                       copy={copy.react} gist={messageGist(item, copy)} open={picking === item.messageId}
                       onToggle={() => { setPicking((p) => (p === item.messageId ? null : item.messageId)); }} onClose={() => { setPicking(null); }}
                       onPick={(key, present) => { react(item.messageId, key, present); }} isMine={(key) => item.reactions?.some((r) => r.key === key && r.mine) ?? false}
+                      custom={expressive === undefined ? null : <Button variant="quiet" aria-haspopup="dialog" onClick={() => { setCustomReaction(item.messageId); }}>{expressive.copy.reactions}</Button>}
                     />
                   )}
                   {outgoing && editable && (delivery?.kind === "sent" || delivery?.kind === "delivered") ? (
@@ -243,7 +253,12 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                   )}
                   </div>
                   {editable && deleting === item.messageId ? <DeleteConfirm copy={copy.change} onConfirm={() => { change("delete-message", item.messageId, null, copy.change.deleteFailed); }} onCancel={() => { setDeleting(null); }} /> : null}
-                  <ReactionChips copy={copy.react} reactions={item.reactions ?? []} {...(editable ? { onPick: (key, present) => { react(item.messageId, key, present); } } : {})} />
+                  <ReactionChips copy={copy.react} reactions={item.reactions ?? []} expressive={expressive === undefined ? undefined : (reaction) => (
+                    <>
+                      {reaction.mine ? <ExpressiveAsset key="mine" services={services} surface={expressive} messageId={item.messageId} source={{ kind: "reaction", key: reaction.key, mine: true }} size="inline" /> : null}
+                      {reaction.count > (reaction.mine ? 1 : 0) ? <ExpressiveAsset key="other" services={services} surface={expressive} messageId={item.messageId} source={{ kind: "reaction", key: reaction.key, mine: false }} size="inline" /> : null}
+                    </>
+                  )} {...(editable ? { onPick: (key, present) => { react(item.messageId, key, present); } } : {})} />
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">
                       <time dateTime={new Date(item.sentAt).toISOString()}>{copy.view.formatTime(item.sentAt)}</time>
@@ -264,6 +279,9 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
       </div>
       {footer}
       {contactOpen ? <ContactDetail services={services} summary={view.summary} ownAccount={view.ownAccount} copy={copy.contact} onClose={() => { setContactOpen(false); }} /> : null}
+      {expressive !== undefined && customReaction !== null && view.summary.relationship === "active" && view.timeline.some((item) => item.messageId === customReaction && item.readOnly !== true)
+        ? <ExpressivePickerSheet services={services} surface={expressive} conversationId={conversationId} reactionTo={customReaction} onClose={() => { setCustomReaction(null); }} />
+        : null}
     </section>
   );
 }

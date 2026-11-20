@@ -1,17 +1,17 @@
 import type { CallMediaProvider } from "@om/provider-http";
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
-  AlertsScreen, CallTimelineNotice, useAlertsRefresh, AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
+  AlertsScreen, CallTimelineNotice, useAlertsRefresh, AppShell, Avatar, Button, Composer, ExpressivePickerControl, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, scoreEntry, useProfiles, useConversationDigests, shownName, contactCollisions, introductionCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import { useScheduledSender } from "@om/ui";
-import type { AlertsServices, ComposerCapture, ReplyTarget, ScheduleControl, ScheduledItem, SearchStore, StagedItem } from "@om/ui";
-import { appStrings as t, callCopy, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, alertsCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
+import type { AlertsServices, ComposerCapture, ExpressiveHost, ReplyTarget, ScheduleControl, ScheduledItem, SearchStore, StagedItem } from "@om/ui";
+import { appStrings as t, callCopy, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, protectionCopy, alertsCopy, recoveryCopy, reconnectCopy, approveRecoveryCopy, replaceRecoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy, expressiveCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -64,6 +64,8 @@ export interface ShellProps {
   readonly capture?: ComposerCapture;
   /** Extra content under the Devices screen (dev harness only). */
   readonly devicesExtra?: ReactNode;
+  readonly expressiveHost?: ExpressiveHost | undefined;
+  readonly richTextFor?: ComponentProps<typeof ConversationView>["richTextFor"];
   /** Offers "Add identity" next to the profile switcher when provided. */
   readonly onAddProfile?: () => void;
   /** Settings > Your Home, when the host can configure its Home (the production entry; not the dev harness). */
@@ -93,12 +95,14 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, callDriver, callMedia, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, callDriver, callMedia, groupsSetup, capture, devicesExtra, expressiveHost, richTextFor, onAddProfile, home, lock, backup, alerts, draftSync, searchStore, safetyCode, invite, incoming }: ShellProps) {
   useAlertsRefresh(services, alerts); // renews the Home's registration at start when alerts are on (ADR-0210)
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
   const { profiles } = useProfiles();
+  const expressive = expressiveHost !== undefined && services.client.expressive?.available() === true
+    ? { ...expressiveHost, copy: expressiveCopy } : undefined;
   const calls = useCallSurface(services, callDriver, callMedia);
   const mode = useLayoutMode();
   // A replacement safety code (ADR-0205) being shown from Settings > Recovery; nothing changes until the person confirms it is saved.
@@ -474,6 +478,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
                 {settings === "devices" ? (
                   <>
                     <DevicesScreen services={services} copy={devicesCopy} showNotices={false} scanQr={inviteScan.scanQr} recoveryPaused={{ ...replaceRecoveryCopy, open: () => { go({ kind: "settings", page: "recovery" }); } }} renderQr={(payload) => <QrCode payload={payload} />} />
+                    {expressive === undefined ? null : <Text as="p">{expressive.copy.perDevice}</Text>}
                     {devicesExtra}
                   </>
                 ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} {...(invite === undefined ? {} : { copyText })} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />
@@ -571,7 +576,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
               focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined}
             />
           ) : (
-            <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats}
+            <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats} expressive={expressive} {...(richTextFor === undefined ? {} : { richTextFor })}
               callActions={calls === undefined ? undefined : (contact) => contact.allowCalls === undefined ? null : (
                 <div className="om-call__controls">
                   <IconButton label={callCopy.audio} icon={<Icon name="phone" />} onClick={() => { calls.start(contact, "audio"); }} />
@@ -603,7 +608,11 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
             {...(capture === undefined ? {} : { capture })} staged={staged.get(selected) ?? NO_STAGED}
             onStagedChange={(next) => { setStaged((m) => new Map(m).set(selected, next)); }}
             replyTo={replies.get(selected) ?? null} onCancelReply={() => { setReplies((m) => { const n = new Map(m); n.delete(selected); return n; }); }}
-            trailing={<OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />}
+            trailing={<>
+              {expressive !== undefined && list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "active")
+                ? <ExpressivePickerControl services={services} surface={expressive} conversationId={selected} /> : null}
+              <OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />
+            </>}
           />
         )}
       />

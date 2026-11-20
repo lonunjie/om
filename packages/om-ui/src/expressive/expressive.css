@@ -1,0 +1,69 @@
+.om-expressive-picker,
+.om-expressive-asset {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.om-expressive-picker__items {
+  display: grid;
+  gap: var(--om-space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.om-expressive-picker__items > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--om-space-2);
+  min-inline-size: 0;
+}
+
+.om-expressive-picker .om-button {
+  white-space: normal;
+}
+
+.om-expressive-asset {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--om-space-1);
+  max-inline-size: 100%;
+  isolation: isolate;
+  vertical-align: middle;
+}
+
+.om-expressive-asset canvas {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.om-expressive-asset[data-size="message"] canvas {
+  max-inline-size: min(100%, calc(4 * var(--om-space-7)));
+  max-block-size: calc(4 * var(--om-space-7));
+}
+
+.om-expressive-asset[data-size="inline"] canvas {
+  inline-size: var(--om-text-md-line);
+  block-size: var(--om-text-md-line);
+}
+
+.om-conv-view__item .om-conv-view__bubble[data-expressive-only]:not([data-state="rejected"]):has(.om-expressive-asset) {
+  background: transparent;
+  color: var(--om-color-text-primary);
+  box-shadow: none;
+}
+
+
+.om-react__picker[data-expressive] {
+  display: grid;
+  grid-template-columns: repeat(3, var(--om-target-min));
+}
+
+.om-react__picker[data-expressive] > .om-button {
+  grid-column: 1 / -1;
+  white-space: normal;
+}

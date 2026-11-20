@@ -4,7 +4,7 @@ import type { DeviceVault, ProfileExecutionContext, ProfileId } from "@om/platfo
 import { HARNESS_MARKER, type Harness } from "@om/core-harness";
 import {
   Button, DeviceNotices, OnboardingFlow, ProfileProvider, Text, ThemeProvider, createActionRegistry, createMemoryKeyValue, createProfileScopedState, useActiveProfile, useCaptureContext,
-  type ActionRegistry, type OnboardingPlatform,
+  type ActionRegistry, type ExpressiveHost, type OnboardingPlatform,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { Landing } from "../landing/Landing";
@@ -13,10 +13,12 @@ import { Shell } from "../core/Shell";
 import type { GroupsSetup } from "../core/GroupsGate";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
+import { expressiveRichText } from "./expressiveFixture";
 import "./dev.css";
 
 export interface DevAppProps {
   readonly harness: Harness;
+  readonly expressiveHost?: ExpressiveHost;
   readonly vault: DeviceVault;
   readonly platform: OnboardingPlatform;
   readonly pendingProfileId: ProfileId;
@@ -24,7 +26,7 @@ export interface DevAppProps {
   readonly onboarded: readonly ProfileId[];
 }
 
-export function DevApp({ harness, vault, platform, pendingProfileId, onboarded }: DevAppProps) {
+export function DevApp({ harness, vault, platform, pendingProfileId, onboarded, expressiveHost }: DevAppProps) {
   const registry = useMemo(() => createActionRegistry(), []);
   const store = useMemo(() => createProfileScopedState(createMemoryKeyValue()), []); // in memory only: nothing persisted
   return (
@@ -32,16 +34,16 @@ export function DevApp({ harness, vault, platform, pendingProfileId, onboarded }
       <div className="om-app">
       <div className="om-dev-banner" role="note">DEV HARNESS — NOT PRODUCTION ({HARNESS_MARKER})</div>
       <ProfileProvider client={harness} contexts={harness} store={store} initialProfileId={pendingProfileId}>
-        <Gate harness={harness} registry={registry} vault={vault} platform={platform} initiallyOnboarded={onboarded} />
+        <Gate harness={harness} registry={registry} vault={vault} platform={platform} initiallyOnboarded={onboarded} expressiveHost={expressiveHost} />
       </ProfileProvider>
       </div>
     </ThemeProvider>
   );
 }
 
-interface GateProps { readonly harness: Harness; readonly registry: ActionRegistry; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly initiallyOnboarded: readonly ProfileId[] }
+interface GateProps { readonly harness: Harness; readonly expressiveHost: ExpressiveHost | undefined; readonly registry: ActionRegistry; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly initiallyOnboarded: readonly ProfileId[] }
 
-function Gate({ harness, registry, vault, platform, initiallyOnboarded }: GateProps) {
+function Gate({ harness, registry, vault, platform, initiallyOnboarded, expressiveHost }: GateProps) {
   const active = useActiveProfile();
   const capture = useCaptureContext();
   const [done, setDone] = useState<ReadonlySet<ProfileId>>(() => new Set(initiallyOnboarded));
@@ -65,7 +67,7 @@ function Gate({ harness, registry, vault, platform, initiallyOnboarded }: GatePr
       </>
     );
   }
-  return <><DeviceNotices services={{ client: harness, registry, ctx }} copy={devicesCopy} /><Shell key={activeId} services={{ client: harness, registry, ctx }} groupsSetup={devGroupsSetup(harness)} devicesExtra={<DevNewDevice harness={harness} />} /></>;
+  return <><DeviceNotices services={{ client: harness, registry, ctx }} copy={devicesCopy} /><Shell key={activeId} services={{ client: harness, registry, ctx }} groupsSetup={devGroupsSetup(harness)} expressiveHost={expressiveHost} {...(expressiveHost === undefined ? {} : { richTextFor: expressiveRichText })} devicesExtra={<DevNewDevice harness={harness} />} /></>;
 }
 
 /** DEV ONLY: stands in for the screen of a second, NEW device (deviation D24) so "Add a device" can be tried in one browser. */

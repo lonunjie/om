@@ -8,6 +8,7 @@
 // they hold is bound to the instance, D67). A device that has used groups starts on the groups module from then on.
 import { createCoreRuntime, instantiateCore, type Provider, type WasmCoreClient } from "@om/core-wasm";
 import type { DeviceVault, ProfileId } from "@om/platform-api";
+import type { ExpressiveHost } from "@om/ui";
 import { createEncryptedKv } from "@om/web-platform";
 import baseUrl from "@om/core-wasm/om_wasm.wasm?url";
 import { loadVerifiedModule, parseModuleTable, type ModuleFailure, type ModuleKind, type ModuleSource, type ModuleTable } from "../update/modules";
@@ -53,7 +54,9 @@ export async function prepareGroups(): Promise<{ readonly ok: true } | { readonl
   return { ok: true };
 }
 
-export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number | (() => number) }): Promise<WasmCoreClient> {
+export type WebCoreClient = WasmCoreClient & { readonly describeExpressive?: ExpressiveHost["describe"] };
+
+export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number | (() => number) }): Promise<WebCoreClient> {
   let bytes: ArrayBuffer | undefined;
   let groups = false;
   if (groupsInUse()) {
@@ -69,7 +72,7 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
     bytes = b.value;
   }
   const core = await instantiateCore(bytes);
-  return createCoreRuntime({
+  const runtime = await createCoreRuntime({
     core,
     provider: opts.provider,
     storage: (profileId: ProfileId) => createEncryptedKv(opts.vault, { indexedDB: opts.indexedDB }, profileId),
@@ -77,6 +80,17 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
     home: { tier: "none", observers: ["no_third_party"], migrationAvailable: false, clientOriginChoice: ["default_origin"] },
     pollMs: opts.pollMs,
     calls: import.meta.env.VITE_OM_CALLS === "1",
+    expressiveMedia: import.meta.env.VITE_OM_EXPRESSIVE_MEDIA === "1",
     ...(groups ? { groupDriver: {} } : {}),
   });
+  if (!runtime.expressive.available()) return runtime;
+  // The existing bridge exposes a local plan query. Keep the plan inside the host and
+  // do not perform its provider call here. The visible Open control uses CoreClient.decode.
+  const describeExpressive: ExpressiveHost["describe"] = (ctx, messageId, source) => Promise.resolve().then(() => {
+    const result = core.call({ cmd: "expressive_query", ctx, query: { kind: "fetch", messageId, source } }) as {
+      readonly altText: string; readonly call?: unknown;
+    } | null;
+    return result === null ? null : { altText: result.altText, canOpen: result.call !== undefined };
+  });
+  return Object.assign(runtime, { describeExpressive });
 }

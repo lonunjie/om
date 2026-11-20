@@ -2,8 +2,7 @@
 // unlock, the connected shell and an identity switcher. The provider is injected: production passes none and the
 // shell says so; the e2e build passes a clearly-named loopback. Nothing here knows what the provider is.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { asOperationId, asProfileId, webInviteLink, type DeviceVault, type EncryptedKv, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
-import { type WasmCoreClient } from "@om/core-wasm";
+import { asOperationId, asProfileId, webInviteLink, type DeviceVault, type EncryptedKv, type ProfileExecutionContext, type ProfileId, type PlatformAdapter } from "@om/platform-api";
 import { browserVaultEnv, createEncryptedKv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
   DeviceNotices, OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState, createSearchStore,
@@ -17,7 +16,7 @@ import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, recove
 import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
-import { prepareGroups, rememberOpenNewGroup, startCore } from "./loadCore";
+import { prepareGroups, rememberOpenNewGroup, startCore, type WebCoreClient } from "./loadCore";
 import type { GroupsSetup } from "./GroupsGate";
 import { relayJustConnected } from "./relaySetup";
 import type { HomeHost } from "./homeSettings";
@@ -51,13 +50,13 @@ export interface RealAppProps {
 }
 
 interface Ready {
-  readonly rt: WasmCoreClient;
+  readonly rt: WebCoreClient;
   readonly vault: DeviceVault;
   readonly registry: ProfileRegistry;
   readonly drafts: DraftStore;
   /** The identity's encrypted store under the search-index subkey (ADR-0208). */
   readonly searchKv: (profileId: ProfileId) => EncryptedKv;
-  readonly platform: OnboardingPlatform;
+  readonly platform: OnboardingPlatform & Pick<PlatformAdapter, "expressiveMedia">;
   readonly capture: ComposerCapture;
   readonly known: readonly ProfileId[];
 }
@@ -73,7 +72,7 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
   const [boot, setBoot] = useState<Boot>({ k: "loading" });
   useEffect(() => {
     const life = { live: true };
-    let rt: WasmCoreClient | undefined;
+    let rt: WebCoreClient | undefined;
     let unbusy: (() => void) | undefined;
     void (async () => {
       const env = browserVaultEnv("OM");
@@ -86,7 +85,7 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
         const searchKv = (id: ProfileId): EncryptedKv => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id, "search-index");
         rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace() });
         const known = await registry.list();
-        const platform = createWebPlatform();
+        const platform = createWebPlatform(undefined, { expressiveMedia: rt.expressive.available() });
         if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, searchKv, platform, capture: composerCapture(platform), known });
         else { unbusy(); rt.dispose(); }
       } catch {
@@ -127,7 +126,7 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly callMedia: CallMediaProvider | undefined; readonly home?: HomeHost; readonly alerts?: (profileCount: () => number) => AlertsServices | undefined; readonly relaySetup?: RelaySetupServices }
+interface ProfilesProps { readonly rt: WebCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform & Pick<PlatformAdapter, "expressiveMedia">; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly callMedia: CallMediaProvider | undefined; readonly home?: HomeHost; readonly alerts?: (profileCount: () => number) => AlertsServices | undefined; readonly relaySetup?: RelaySetupServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
 function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, known: initial, connected, callMedia, home, alerts, relaySetup }: ProfilesProps) {
@@ -244,12 +243,17 @@ function Profiles({ rt, vault, registry, drafts, searchKv, platform, capture, kn
 interface ConnectedProps {
   readonly callMedia: CallMediaProvider | undefined;
   readonly alerts?: AlertsServices;
-  readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
+  readonly rt: WebCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly searchKv: (profileId: ProfileId) => EncryptedKv; readonly platform: OnboardingPlatform & Pick<PlatformAdapter, "expressiveMedia">; readonly capture: ComposerCapture; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
   readonly lockOpen: () => Promise<void>; readonly idle: IdleMinutes; readonly setIdle: (minutes: IdleMinutes) => void;
 }
 
 function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: composerTools, onAddProfile, home, alerts, lockOpen, idle, setIdle }: ConnectedProps) {
   const registry = useMemo(() => createActionRegistry(), []);
+  const expressiveHost = useMemo(() => {
+    if (rt.describeExpressive === undefined) return undefined;
+    const capability = platform.expressiveMedia();
+    return { describe: rt.describeExpressive, ...(capability.state === "unavailable" ? {} : { decoder: capability.api }) };
+  }, [rt, platform]);
   // Without the groups module on this device, the first use fetches and verifies it and restarts the app onto it (ADR-0187).
   const groupsSetup = useMemo<GroupsSetup | undefined>(() => (rt.groups.available() ? undefined : {
     enable: async ({ newGroup }) => {
@@ -299,7 +303,7 @@ function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: 
     <>
     <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={`${activeId}:${ctx.generation}`} services={settingsServices} callDriver={rt.calls} callMedia={callMedia} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} {...(alerts === undefined ? {} : { alerts })} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={`${activeId}:${ctx.generation}`} services={settingsServices} expressiveHost={expressiveHost} callDriver={rt.calls} callMedia={callMedia} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} {...(alerts === undefined ? {} : { alerts })} draftSync={draftSync} searchStore={searchStore} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />
@@ -307,7 +311,7 @@ function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: 
   );
 }
 
-interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly allowJoin: boolean; readonly onJoinRestart: () => void; readonly onRecoveryRestart: () => void; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
+interface OnboardProps { readonly onCancel: () => void; readonly rt: WebCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly allowJoin: boolean; readonly onJoinRestart: () => void; readonly onRecoveryRestart: () => void; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
 
 function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart, onRecoveryRestart, relaySetup, onDone, onCancel }: OnboardProps) {
   const { scanQr, dialog } = useQrScanner(scannerCopy);

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { AttachmentRefusal, AttachmentView, ConversationTimelineItem, LocationCardView, MessageId } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
@@ -166,16 +167,23 @@ export function LocationCard({ card, copy }: { readonly card: LocationCardView; 
 }
 
 /** Everything a message carries besides its text. The text is always shown too (a card never replaces it). */
-export function MessageAttachments({ services, item, copy }: { readonly services: ConversationServices; readonly item: ConversationTimelineItem; readonly copy: AttachmentCopy }) {
+export function MessageAttachments({ services, item, copy, renderWebp }: {
+  readonly services: ConversationServices; readonly item: ConversationTimelineItem; readonly copy: AttachmentCopy;
+  readonly renderWebp?: ((index: number, fallback: ReactNode) => ReactNode) | undefined;
+}) {
   const files = item.attachments ?? [];
   const voice = item.presentation?.voiceNote;
   const card = item.presentation?.locationCard;
   if (files.length === 0 && card === undefined) return null;
   return (
     <div className="om-attachments">
-      {files.map((a) => (voice?.attachmentIndex === a.index
-        ? <VoiceNote key={a.index} services={services} messageId={item.messageId} a={a} waveform={voice.waveform} copy={copy} />
-        : <FileChip key={a.index} services={services} messageId={item.messageId} a={a} copy={copy} />))}
+      {files.map((a) => {
+        if (voice?.attachmentIndex === a.index) return <VoiceNote key={a.index} services={services} messageId={item.messageId} a={a} waveform={voice.waveform} copy={copy} />;
+        const file = <FileChip services={services} messageId={item.messageId} a={a} copy={copy} />;
+        return a.mediaType === "image/webp" && renderWebp !== undefined
+          ? <Fragment key={a.blobId}>{renderWebp(a.index, file)}</Fragment>
+          : <FileChip key={a.index} services={services} messageId={item.messageId} a={a} copy={copy} />;
+      })}
       {card === undefined ? null : <LocationCard card={card} copy={copy} />}
     </div>
   );

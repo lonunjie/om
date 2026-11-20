@@ -11,6 +11,7 @@ export type RichInline =
   | { readonly type: "code"; readonly text: string }
   | { readonly type: "link"; readonly destination: string; readonly children: readonly RichInline[] }
   | { readonly type: "mention"; readonly personId?: string; readonly label: string }
+  | { readonly type: "custom_emoji"; readonly index: number; readonly fallbackText: string }
   | { readonly type: "attachment"; readonly name?: string };
 export type RichBlock =
   | { readonly type: "paragraph"; readonly children: readonly RichInline[] }
@@ -41,18 +42,18 @@ type Rec = Readonly<Record<string, unknown>>;
 const isRec = (v: unknown): v is Rec => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
-interface Budget { nodes: number }
+interface Budget { nodes: number; readonly emoji?: (index: number, fallback: string, interactive: boolean) => ReactNode }
 
-function renderNodes(v: unknown, depth: number, copy: ConversationCopy["richText"], b: Budget): ReactNode {
+function renderNodes(v: unknown, depth: number, copy: ConversationCopy["richText"], b: Budget, interactive = true): ReactNode {
   if (!Array.isArray(v)) return null;
-  return (v as readonly unknown[]).map((n, i) => <Fragment key={i}>{renderNode(n, depth, copy, b)}</Fragment>);
+  return (v as readonly unknown[]).map((n, i) => <Fragment key={i}>{renderNode(n, depth, copy, b, interactive)}</Fragment>);
 }
 
-function renderNode(node: unknown, depth: number, copy: ConversationCopy["richText"], budget: Budget): ReactNode {
+function renderNode(node: unknown, depth: number, copy: ConversationCopy["richText"], budget: Budget, interactive: boolean): ReactNode {
   if (depth > MAX_DEPTH || ++budget.nodes > MAX_NODES) return <span className="om-richtext__truncated">{copy.truncated}</span>;
   if (typeof node === "string") return node;
   if (!isRec(node)) return null;
-  const kids = (): ReactNode => renderNodes(node["children"], depth + 1, copy, budget);
+  const kids = (allowControls = interactive): ReactNode => renderNodes(node["children"], depth + 1, copy, budget, allowControls);
   switch (node["type"]) {
     case "text": return str(node["text"]);
     case "paragraph": return <p className="om-richtext__p">{kids()}</p>;
@@ -63,13 +64,19 @@ function renderNode(node: unknown, depth: number, copy: ConversationCopy["richTe
       const me = node["me"] === true;
       return <span className="om-richtext__mention" {...(me ? { "data-me": "true" } : {})}>@{str(node["label"])}{me ? <VisuallyHidden> {copy.mentionsYou}</VisuallyHidden> : null}</span>;
     }
+    case "custom_emoji": {
+      const index = node["index"];
+      const fallback = str(node["fallbackText"]) || copy.unsupported;
+      return typeof index === "number" && Number.isSafeInteger(index) && index >= 0 && budget.emoji !== undefined
+        ? budget.emoji(index, fallback, interactive) : <bdi>{fallback}</bdi>;
+    }
     case "attachment": return <span className="om-richtext__attachment" data-inert="true">{copy.attachment}{str(node["name"]) === "" ? "" : ` ${str(node["name"])}`}</span>;
     case "link": {
       const dest = safeDestination(node["destination"]);
       if (dest === null) return <span className="om-richtext__unsafe-link">{kids()} <span>{copy.unsafeLink}</span></span>;
       return (
         <span className="om-richtext__link">
-          <a href={dest} rel="noopener noreferrer" target="_blank" referrerPolicy="no-referrer">{kids()}<VisuallyHidden> {copy.opensExternally}</VisuallyHidden></a>
+          <a href={dest} rel="noopener noreferrer" target="_blank" referrerPolicy="no-referrer">{kids(false)}<VisuallyHidden> {copy.opensExternally}</VisuallyHidden></a>
           {" "}<span className="om-richtext__destination">({dest})</span>
         </span>
       );
@@ -77,7 +84,7 @@ function renderNode(node: unknown, depth: number, copy: ConversationCopy["richTe
     case "list": {
       const items = Array.isArray(node["items"]) ? (node["items"] as readonly unknown[]) : [];
       const Tag = node["ordered"] === true ? "ol" : "ul";
-      return <Tag className="om-richtext__list">{items.map((it, i) => <li key={i}>{renderNodes(it, depth + 1, copy, budget)}</li>)}</Tag>;
+      return <Tag className="om-richtext__list">{items.map((it, i) => <li key={i}>{renderNodes(it, depth + 1, copy, budget, interactive)}</li>)}</Tag>;
     }
     default: {
       // Unknown node: show its text if it has any; never throw, never interpret.
@@ -88,9 +95,13 @@ function renderNode(node: unknown, depth: number, copy: ConversationCopy["richTe
 }
 
 /** Renders untrusted RichTextV1 as React elements. Malformed or hostile input degrades to inert text. */
-export function RichText({ doc, copy }: { readonly doc: unknown; readonly copy: ConversationCopy["richText"] }): ReactNode {
+export function RichText({ doc, copy, emoji }: {
+  readonly doc: unknown;
+  readonly copy: ConversationCopy["richText"];
+  readonly emoji?: Budget["emoji"];
+}): ReactNode {
   const blocks = isRec(doc) && Array.isArray(doc["blocks"]) ? (doc["blocks"] as readonly unknown[]) : null;
-  const budget: Budget = { nodes: 0 };
+  const budget: Budget = { nodes: 0, ...(emoji === undefined ? {} : { emoji }) };
   if (blocks === null) return <span className="om-richtext__unknown">{copy.unsupported}</span>;
   return <div className="om-richtext">{renderNodes(blocks, 0, copy, budget)}</div>;
 }
