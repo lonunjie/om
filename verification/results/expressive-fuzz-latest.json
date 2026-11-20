@@ -1,0 +1,104 @@
+{
+  "adr": "ADR-0251",
+  "budget_cpu_hours_total_adr_targets": 0.04,
+  "budget_met": false,
+  "commit": "c2c21415c3a14cf87ba8f0e7fafe473224df80ec",
+  "counted_cpu_hours": 0.0,
+  "counted_engine": "libfuzzer",
+  "generated": "2026-11-20T14:48:37Z",
+  "note": "Hours recorded by engines other than libfuzzer are smoke evidence and are not counted.",
+  "schema": "om-expressive-fuzz-summary-v1",
+  "targets": {
+    "asset_ref": {
+      "adr_target": "b_asset_ref_and_event_decoders",
+      "budget_cpu_hours": 0.005,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 18.254412174224854,
+          "executions": 5669240,
+          "last_run": "2026-11-20T14:46:29Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    },
+    "control_state": {
+      "adr_target": "d_content_pack_control_state_and_lineage",
+      "budget_cpu_hours": 0.01,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 36.22351264953613,
+          "executions": 1654898,
+          "last_run": "2026-11-20T14:48:00Z",
+          "slices": 2,
+          "state": "complete"
+        }
+      }
+    },
+    "event": {
+      "adr_target": "b_asset_ref_and_event_decoders",
+      "budget_cpu_hours": 0.005,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 18.166310787200928,
+          "executions": 1241313,
+          "last_run": "2026-11-20T14:46:47Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    },
+    "facts": {
+      "adr_target": "a_webp_walker_and_budget",
+      "budget_cpu_hours": 0.005,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 18.1699378490448,
+          "executions": 3212827,
+          "last_run": "2026-11-20T14:46:11Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    },
+    "pack_file": {
+      "adr_target": "e_pack_file_codec",
+      "budget_cpu_hours": 0.01,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 36.69532513618469,
+          "executions": 5508139,
+          "last_run": "2026-11-20T14:48:37Z",
+          "slices": 2,
+          "state": "complete"
+        }
+      }
+    },
+    "release": {
+      "adr_target": "c_content_pack_release",
+      "budget_cpu_hours": 0.01,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 36.34083604812622,
+          "executions": 1723365,
+          "last_run": "2026-11-20T14:47:23Z",
+          "slices": 2,
+          "state": "complete"
+        }
+      }
+    },
+    "webp": {
+      "adr_target": "a_webp_walker_and_budget",
+      "budget_cpu_hours": 0.005,
+      "engines": {
+        "mutate": {
+          "cpu_seconds": 18.092459201812744,
+          "executions": 6343042,
+          "last_run": "2026-11-20T14:45:52Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    }
+  }
+}

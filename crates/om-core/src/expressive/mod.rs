@@ -2,6 +2,8 @@
 //! W1 expressive media. Wire parsing and media validation are independent of pack availability.
 
 mod asset;
+#[cfg(feature = "fuzz-entry")]
+pub mod fuzz_entry;
 mod pack;
 mod webp;
 

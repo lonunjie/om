@@ -1,0 +1,69 @@
+[package]
+name = "om-expressive-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "MPL-2.0"
+publish = false
+description = "V-012 verification harness: libFuzzer targets over the expressive-media parsers (ADR-0251). Not product code."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+om-core = { path = "../../../crates/om-core", features = ["fuzz-entry"] }
+
+# Standalone evidence crate with its own lockfile, outside the engineering workspace.
+[workspace]
+
+[profile.release]
+debug = true
+
+[[bin]]
+name = "webp"
+path = "fuzz_targets/webp.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "facts"
+path = "fuzz_targets/facts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "asset_ref"
+path = "fuzz_targets/asset_ref.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "event"
+path = "fuzz_targets/event.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "release"
+path = "fuzz_targets/release.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "control_state"
+path = "fuzz_targets/control_state.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pack_file"
+path = "fuzz_targets/pack_file.rs"
+test = false
+doc = false
+bench = false

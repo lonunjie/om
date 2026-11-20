@@ -16,6 +16,8 @@ default = []
 insecure-test-rng = ["dep:rand_chacha"]
 # In-memory loopback transport/store for tests only. NEVER in a production build.
 test-loopback = ["insecure-test-rng"]
+# Byte-slice entry points for external fuzzers over the expressive-media parsers (V-012). NEVER in a production build.
+fuzz-entry = []
 # Marker a production build sets; combining it with a test-only feature is a compile error (R-072).
 production = []
 # The real MLS engine for ordinary groups: stock OpenMLS 0.9.0 behind `GroupCrypto` (groups/openmls.rs).
@@ -53,6 +55,6 @@ openmls = { version = "=0.9.0", optional = true, features = ["fork-resolution", 
 
 [dev-dependencies]
 # Test builds enable the test-only providers (never reachable from a normal or wasm build).
-om-core = { path = ".", features = ["insecure-test-rng", "test-loopback"] }
+om-core = { path = ".", features = ["insecure-test-rng", "test-loopback", "fuzz-entry"] }
 proptest = { version = "1", default-features = false, features = ["std"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }

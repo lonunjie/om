@@ -9,10 +9,14 @@
 
 #[cfg(all(
     feature = "production",
-    any(feature = "insecure-test-rng", feature = "test-loopback")
+    any(
+        feature = "insecure-test-rng",
+        feature = "test-loopback",
+        feature = "fuzz-entry"
+    )
 ))]
 compile_error!(
-    "R-072: a `production` build must not include the insecure test RNG or the loopback test provider"
+    "R-072: a `production` build must not include the insecure test RNG, the loopback test provider or the fuzz entry points"
 );
 
 pub mod api;
