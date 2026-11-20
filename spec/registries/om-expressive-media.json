@@ -1,0 +1,69 @@
+{
+  "status": "Status: frozen for W1 (ADR-0252). Assigned IDs and numbers are immutable; a change is a new ID (ADR-0165, C-43, C-44).",
+  "registry": "om-expressive-media",
+  "registry_version": 1,
+  "wave": "W1",
+  "scope": "expressive_media",
+  "rules": [
+    "A media profile ID is the value of ExpressiveAssetRef.media_profile_id. An ID this registry does not list is wire-valid and the asset renders as its inert placeholder with alt_text (EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md, security invariant 5).",
+    "A resource profile bounds an asset's declared and container facts. The resource profile of an asset follows from its kind (kind_resource_profile); a reaction_asset uses the stricter custom-emoji.v1 (ADR-0252 rule 3).",
+    "Every figure is the design ceiling or the ADR-0251 budget; nothing here lowers a ceiling the design states. A change that rejects more is a new profile or budget ID; one that admits more needs an ADR because it changes fallback validity (C-44).",
+    "Capability IDs are carried in DeviceCredential key 8 (capabilities, a set of text strings of at most 64 bytes). A sender emits a reserved W1 slot only when every recipient device advertises both the slot capability and the media profile of the asset (ADR-0128 rule 18). The two slot capabilities are also the required_capabilities entry of an event that uses the slot.",
+    "Text limits are in Unicode scalar values where the design states characters; the wire bound is four times that in bytes. Text is never normalized."
+  ],
+  "media_profiles": [
+    {
+      "id": "om.expressive.webp-v1",
+      "media_type": "image/webp",
+      "animated": "optional",
+      "alpha": true,
+      "audio": false,
+      "scripts": false,
+      "capability_id": "om.expressive.webp-v1",
+      "source": "EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md, Media kinds are semantic; codec is a profile"
+    }
+  ],
+  "resource_profiles": [
+    {"id": "sticker.v1", "max_canvas": 512, "max_encoded_bytes": 1048576, "max_duration_ms": 3000, "max_fps": 30, "animated": "optional"},
+    {"id": "custom-emoji.v1", "max_canvas": 256, "max_encoded_bytes": 524288, "max_duration_ms": 3000, "max_fps": 30, "animated": "optional"},
+    {"id": "loop-animation.v1", "max_canvas": 1024, "max_encoded_bytes": 6291456, "max_duration_ms": 10000, "max_fps": 30, "animated": "required"}
+  ],
+  "kind_resource_profile": {
+    "sticker": "sticker.v1",
+    "custom_emoji": "custom-emoji.v1",
+    "reaction_asset": "custom-emoji.v1",
+    "loop_animation": "loop-animation.v1"
+  },
+  "budget": {
+    "id": "om.expressive.budget-v1",
+    "source": "ADR-0251 section 2",
+    "profiles": {
+      "sticker.v1": {"max_frames": 90, "max_pixels_per_frame": 262144, "max_total_pixels": 23592960},
+      "custom-emoji.v1": {"max_frames": 90, "max_pixels_per_frame": 65536, "max_total_pixels": 5898240},
+      "loop-animation.v1": {"max_frames": 300, "max_pixels_per_frame": 1048576, "max_total_pixels": 314572800}
+    },
+    "resident_decode_ceiling_bytes": 67108864,
+    "decode_time_limit_ms": 5000,
+    "multiplication_limit": 4294967295
+  },
+  "text_limits_scalar_values": {
+    "alt_text": 512,
+    "fallback_text": 128,
+    "item_id": 128,
+    "title": 256,
+    "description": 4096,
+    "accessibility_label": 512,
+    "keyword": 64,
+    "emoji_association": 32,
+    "reaction_key_bytes": 64
+  },
+  "capabilities": [
+    {"id": "om.expressive.webp-v1", "meaning": "renders the media profile om.expressive.webp-v1", "kind": "media_profile"},
+    {"id": "om.expressive.inline-emoji.v1", "meaning": "understands inline type 4 (custom_emoji) in RichText", "kind": "slot", "slot": "inline_type_4"},
+    {"id": "om.expressive.reaction-asset.v1", "meaning": "understands ReactionSet key 3 (reaction_asset)", "kind": "slot", "slot": "reaction_set_key_3"}
+  ],
+  "limits": {
+    "pack_items_max": 512,
+    "controllers_max": 16
+  }
+}

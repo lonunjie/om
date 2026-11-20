@@ -646,6 +646,33 @@
       "max_bytes": 32768,
       "source": "ADR-0218 (CDDL: spec/cddl/call.cddl); unsigned: it travels only as the plaintext of a message sealed in an established one-to-one session, so the session authenticates the sender (ADR-0132 rule 2, CALLS_AND_REALTIME_MEDIA.md signalling)",
       "logical_schema": "spec/protocol/call-session.logical.schema.json"
+    },
+    {
+      "type_id": 45,
+      "name": "ContentPackRelease",
+      "wave": "W1",
+      "scope": "expressive_media",
+      "signed": null,
+      "hash": "OM-CONTENT-PACK-RELEASE-HASH-v1",
+      "max_bytes": 2097152,
+      "source": "ADR-0252 (CDDL: spec/cddl/expressive.cddl); unsigned immutable manifest identified by its hash; authenticity comes from the ContentPackControlState that endorses its release_id",
+      "logical_schema": "spec/protocol/content-pack.logical.schema.json"
+    },
+    {
+      "type_id": 46,
+      "name": "ContentPackControlState",
+      "wave": "W1",
+      "scope": "expressive_media",
+      "signed": {
+        "label": "OM-CONTENT-PACK-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-CONTENT-PACK-CONTROL-HASH-v1",
+      "max_bytes": 131072,
+      "source": "ADR-0252 (CDDL: spec/cddl/expressive.cddl); hash-chained, authorized by a threshold of the previous state's pack controllers",
+      "logical_schema": null
     }
   ]
 }

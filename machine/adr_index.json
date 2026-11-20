@@ -2948,6 +2948,26 @@
       "amends": [],
       "index_title": "Expressive-media fuzz CPU-hour budget and decoded-pixel and frame budgets (accepted by delegation 2026-11-20, additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0252",
+      "title": "Expressive-media wire freeze (W1) and the constructions the design leaves to engineering",
+      "status": "Accepted by delegation (2026-11-20), additive, accepted-gated for the wire it freezes. It amends no audited text and weakens no cryptographi",
+      "date": "2026-11-20",
+      "path": "decisions/ADR-0252-expressive-media-wire-freeze-and-delegated-constructions.md",
+      "amends": [],
+      "index_title": "Expressive-media wire freeze (W1) and the constructions the design leaves to engineering (accepted by delegation 2026-11-20, additive)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0253",
+      "title": "Expressive-media product boundaries delegated to engineering (Q2, Q7 to Q11)",
+      "status": "Accepted by delegation (2026-11-20), additive. No wire change. It amends no audited text and weakens no cryptographic floor. Every default i",
+      "date": "2026-11-20",
+      "path": "decisions/ADR-0253-expressive-media-delegated-product-boundaries.md",
+      "amends": [],
+      "index_title": "Expressive-media product boundaries delegated to engineering (accepted by delegation 2026-11-20, additive)",
+      "amended_by": []
     }
   ]
 }

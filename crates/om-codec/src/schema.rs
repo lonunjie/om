@@ -14,6 +14,8 @@ pub const TYPES_JSON: &str = include_str!("../../../spec/registries/om-object-ty
 pub const PROFILE_JSON: &str = include_str!("../../../spec/registries/om-cbor-profile.json");
 pub const W1_EVENT_BODIES_JSON: &str =
     include_str!("../../../spec/registries/om-w1-event-bodies.json");
+pub const W1_EXPRESSIVE_SLOTS_JSON: &str =
+    include_str!("../../../spec/registries/om-w1-expressive-slots.json");
 pub const CRYPTO_JSON: &str = include_str!("../../../spec/registries/om-crypto-profiles.json");
 
 #[derive(Debug, Clone)]
@@ -189,6 +191,48 @@ impl Registry {
                     );
                     waves.remove(v);
                 }
+            }
+        }
+        Self::from_json(
+            f,
+            serde_json::from_str(TYPES_JSON).unwrap(),
+            serde_json::from_str(PROFILE_JSON).unwrap(),
+        )
+    }
+
+    /// The registry an `expressive_media` decoder uses (ADR-0252): the W0 numeric-fields registry with the additive slot
+    /// overlay (om-w1-expressive-slots.json) merged in, as `verification/prototypes/expressive-wire/overlay.py` does for
+    /// the prototype codecs. It fills ReactionSet key 3 and RichText inline type 4. Verification evidence only: no
+    /// production decode path uses it (the feature is behind a capability flag until the V-012 release evidence exists).
+    pub fn load_w1_expressive() -> Registry {
+        let mut f: J = serde_json::from_str(FIELDS_JSON).unwrap();
+        let ov: J = serde_json::from_str(W1_EXPRESSIVE_SLOTS_JSON).unwrap();
+        for (st, add) in ov["struct_fields"].as_object().unwrap() {
+            let fields = f["structs"][st]["fields"].as_array_mut().unwrap();
+            for nf in add.as_array().unwrap() {
+                assert!(
+                    !fields.iter().any(|x| x["key"] == nf["key"]),
+                    "overlay field {st}.{} is already assigned",
+                    nf["key"]
+                );
+                fields.push(nf.clone());
+            }
+        }
+        for (un, add) in ov["union_variants"].as_object().unwrap() {
+            let t = f["structs"][un]["union"]["variants"].as_object_mut().unwrap();
+            for (value, name) in add.as_object().unwrap() {
+                if let Some(old) = t.get(value) {
+                    assert_eq!(old, name, "overlay conflicts with {un}[{value}]");
+                }
+                t.insert(value.clone(), name.clone());
+            }
+        }
+        for (e, vals) in ov["enum_values"].as_object().unwrap() {
+            let waves = f["enum_value_waves"][e].as_object_mut().unwrap();
+            for v in vals.as_array().unwrap() {
+                let v = v.as_str().unwrap();
+                assert_eq!(waves.get(v).and_then(|w| w.as_str()), Some("W1"), "{e}[{v}] is not marked W1");
+                waves.remove(v);
             }
         }
         Self::from_json(

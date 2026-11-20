@@ -56,6 +56,9 @@
     },
     "lan_frame_kind": {
       "8": "W1"
+    },
+    "inline_type": {
+      "4": "W1"
     }
   },
   "enums": {
@@ -160,7 +163,8 @@
     "inline_type": {
       "1": "text",
       "2": "link",
-      "3": "mention"
+      "3": "mention",
+      "4": "custom_emoji"
     },
     "text_mark": {
       "1": "bold",
@@ -340,6 +344,18 @@
     },
     "call_media_suite": {
       "1": "sframe_rfc9605_aes128gcm_sha256"
+    },
+    "expressive_kind": {
+      "1": "sticker",
+      "2": "custom_emoji",
+      "3": "reaction_asset",
+      "4": "loop_animation"
+    },
+    "content_pack_kind": {
+      "1": "sticker",
+      "2": "custom_emoji",
+      "3": "reaction",
+      "4": "mixed"
     }
   },
   "structs": {
@@ -8175,6 +8191,715 @@
           "note": "answer and media_update; bit 0 audio, bit 1 video; 0 = nothing sent"
         }
       ]
+    },
+    "ExpressivePackRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "pack_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "note": "ContentPackID: random 256-bit logical identity, opaque (ADR-0252 rule 6)"
+        },
+        {
+          "key": 1,
+          "name": "release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "note": "ContentPackReleaseID = DS-HASH(OM-CONTENT-PACK-RELEASE-HASH-v1) of the canonical ContentPackRelease bytes"
+        },
+        {
+          "key": 2,
+          "name": "item_id",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true,
+          "note": "stable within the pack; at most 128 Unicode scalar values (semantic rule, the wire bound is bytes)"
+        }
+      ]
+    },
+    "ExpressiveAssetRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "blob_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "media_type",
+          "type": {
+            "tstr": [
+              1,
+              127
+            ]
+          },
+          "req": true,
+          "note": "image/webp for om.expressive.webp-v1 (semantic rule)"
+        },
+        {
+          "key": 2,
+          "name": "plaintext_size",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "ciphertext_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "encryption",
+          "type": {
+            "ref": "EncryptionDescriptor"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "locations",
+          "type": {
+            "array": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false,
+          "note": "absent in a ContentPackItem asset (ADR-0252 rule 7)"
+        },
+        {
+          "key": 6,
+          "name": "filename",
+          "type": {
+            "tstr": [
+              1,
+              255
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "width",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true,
+          "note": "required, unlike the W0 attachment-ref"
+        },
+        {
+          "key": 8,
+          "name": "height",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true,
+          "note": "required, unlike the W0 attachment-ref"
+        },
+        {
+          "key": 9,
+          "name": "duration_ms",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": false,
+          "note": "present only for an animated asset; a ceiling per resource profile (semantic rule)"
+        },
+        {
+          "key": 10,
+          "name": "repair_capability",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": false,
+          "note": "absent in a ContentPackItem asset (ADR-0252 rule 7)"
+        },
+        {
+          "key": 11,
+          "name": "kind",
+          "type": {
+            "enum": "expressive_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 12,
+          "name": "media_profile_id",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": true,
+          "note": "registered in om-expressive-media.json; an unknown ID is wire-valid and renders as the inert placeholder"
+        },
+        {
+          "key": 13,
+          "name": "alt_text",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true,
+          "note": "at most 512 Unicode scalar values (semantic rule)"
+        },
+        {
+          "key": 14,
+          "name": "fallback_text",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": false,
+          "note": "at most 128 Unicode scalar values (semantic rule)"
+        },
+        {
+          "key": 15,
+          "name": "pack_ref",
+          "type": {
+            "ref": "ExpressivePackRef"
+          },
+          "req": false,
+          "note": "attribution hint only, never rendering authority; absent in a ContentPackItem asset"
+        },
+        {
+          "key": 16,
+          "name": "shared_blob",
+          "type": {
+            "bool": true
+          },
+          "req": false,
+          "note": "declared shared-blob policy; absent means fresh encryption per send (ADR-0129 rule 10); absent in a ContentPackItem asset"
+        }
+      ]
+    },
+    "InlineCustomEmoji": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "type",
+          "type": {
+            "enum": "inline_type"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "fallback_text",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "custom_emoji_asset",
+          "type": {
+            "ref": "ExpressiveAssetRef"
+          },
+          "req": true
+        }
+      ]
+    },
+    "ExpressiveAssetV1Extension": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "attachment_index",
+          "type": {
+            "uint": [
+              0,
+              31
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "kind",
+          "type": {
+            "enum": "expressive_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "media_profile_id",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "alt_text",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "fallback_text",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "pack_ref",
+          "type": {
+            "ref": "ExpressivePackRef"
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "shared_blob",
+          "type": {
+            "bool": true
+          },
+          "req": false
+        }
+      ]
+    },
+    "ContentPackItem": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "item_id",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "kind",
+          "type": {
+            "enum": "expressive_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "asset",
+          "type": {
+            "ref": "ExpressiveAssetRef"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "emoji_associations",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "keywords",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                256
+              ]
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "accessibility_label",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "ContentPackProvenance": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "creator_display",
+          "type": {
+            "tstr": [
+              1,
+              1024
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 1,
+          "name": "source_urls",
+          "type": {
+            "array": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false,
+          "note": "display only, never a render or fetch source"
+        }
+      ]
+    },
+    "ContentPackLicensing": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "spdx_id",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 1,
+          "name": "license_url",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "license_text_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        }
+      ]
+    },
+    "ContentPackRelease": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "pack_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "release_sequence",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "note": "present exactly when release_sequence is above 1"
+        },
+        {
+          "key": 5,
+          "name": "title",
+          "type": {
+            "tstr": [
+              1,
+              1024
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "description",
+          "type": {
+            "tstr": [
+              1,
+              16384
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "pack_kinds",
+          "type": {
+            "set": {
+              "enum": "content_pack_kind"
+            },
+            "n": [
+              1,
+              4
+            ]
+          },
+          "req": true,
+          "note": "presentation hint only"
+        },
+        {
+          "key": 8,
+          "name": "items",
+          "type": {
+            "array": {
+              "ref": "ContentPackItem"
+            },
+            "n": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "provenance",
+          "type": {
+            "ref": "ContentPackProvenance"
+          },
+          "req": true,
+          "note": "may be an empty map; carries no AccountID (ADR-0252 rule 8)"
+        },
+        {
+          "key": 10,
+          "name": "licensing",
+          "type": {
+            "ref": "ContentPackLicensing"
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "forked_from",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "note": "ContentPackReleaseID of the release this pack was forked from; only with release_sequence 1. Keys 12 to 22 are held and refused; a time field is not frozen"
+        }
+      ]
+    },
+    "PackController": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "key_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "note": "first 16 bytes of the digest of DS-HASH(OM-CONTENT-PACK-CONTROLLER-KEY-ID-v1, OM-CBOR [crypto_profile, public_key])"
+        },
+        {
+          "key": 1,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "ContentPackControlState": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "pack_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "note": "1 exactly when previous_state_hash is absent"
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "note": "OM-CONTENT-PACK-CONTROL-HASH-v1"
+        },
+        {
+          "key": 5,
+          "name": "controllers",
+          "type": {
+            "set": {
+              "ref": "PackController"
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "threshold",
+          "type": {
+            "uint": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "note": "the ContentPackReleaseID this state endorses"
+        },
+        {
+          "key": 8,
+          "name": "release_sequence",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        }
+      ]
     }
   },
   "extensions": [
@@ -8232,6 +8957,17 @@
       "wave": "W0",
       "adr": "ADR-0150; ADR-0151",
       "note": "non-critical V1 list presentation over existing paragraph blocks; a wire-criticality mismatch rejects the containing object, while registered-schema violations and reference/nesting/fallback semantic failures ignore the whole enhancement (ADR-0155); annotations bind only to the carrying event's RichText; no W0 RichText block-type change"
+    },
+    {
+      "name": "om.expressive.asset.v1",
+      "object": "ConversationEvent",
+      "critical": false,
+      "value": {
+        "ref": "ExpressiveAssetV1Extension"
+      },
+      "wave": "W1",
+      "adr": "ADR-0252",
+      "note": "non-critical: marks one attachment of a message.create as an expressive asset (sticker, custom emoji or loop) beside a W0-valid body (ADR-0128 rule 18); a W0 receiver shows an ordinary image attachment; meaningful only on message.create; an index outside the attachment list, a non-image/webp attachment or a schema failure makes the extension unusable and it is ignored, never the event (ADR-0155)"
     }
   ]
 }

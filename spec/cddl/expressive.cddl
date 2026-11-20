@@ -1,0 +1,145 @@
+; OM later-wave W1 expressive-media wire (ADR-0252, 2026-11-20): ExpressiveAssetRef, the two W0 slots reserved for W1
+; (ReactionSet key 3, RichText inline type 4), the non-critical message extension om.expressive.asset.v1, ContentPackRelease
+; (object type 45) and ContentPackControlState (object type 46). Reuses common.cddl and events.cddl.
+; Fields: spec/registries/om-numeric-fields.json; types: om-object-types.json; labels: om-domain-separation.json
+; (OM-CONTENT-PACK-RELEASE-HASH-v1, OM-CONTENT-PACK-CONTROL-SIG-v1, OM-CONTENT-PACK-CONTROL-HASH-v1,
+; OM-CONTENT-PACK-CONTROLLER-KEY-ID-v1); profiles, budgets and capability IDs: om-expressive-media.json;
+; the slot overlay: om-w1-expressive-slots.json.
+; The W1 views below ("-x" rules) are the W0 grammar of events.cddl with the two reserved slots filled. A W0 decoder keeps both
+; reserved and rejects an event that uses either; a sender emits a slot only when every recipient device advertises it
+; (ADR-0128 rule 18, capabilities in om-expressive-media.json).
+; CDDL cannot express: deterministic encoding, set order, the per-object byte bounds, nor the semantic rules below, which Core
+; enforces and which are the semantic fixtures of verification/vectors/expressive-wire-vectors.json.gz:
+;   ExpressiveAssetRef  media_type image/webp when media_profile_id is registered; kind, canvas, plaintext_size and duration_ms
+;                       within the resource profile of the kind (om-expressive-media.json); alt_text at most 512 scalar values,
+;                       fallback_text 128; pack_ref.item_id 128; an unknown media_profile_id is valid and renders as a placeholder
+;   ReactionSet key 3   present is true; kind is reaction_asset or custom_emoji; the event carries
+;                       required_capabilities with om.expressive.reaction-asset.v1
+;   inline type 4       kind is custom_emoji; the event carries required_capabilities with om.expressive.inline-emoji.v1
+;   om.expressive.asset.v1  on message.create only; attachment_index names an attachment whose media_type is image/webp
+;   ContentPackRelease  release_sequence 1 exactly when previous_release_id is absent; forked_from only at release_sequence 1;
+;                       item_id unique; item kind equals asset kind; each asset obeys the ExpressiveAssetRef rules and carries no
+;                       locations (5), repair_capability (10), pack_ref (15) or shared_blob (16); text limits in scalar values
+;   ContentPackControlState  state_version 1 exactly when previous_state_hash is absent; controllers unique by key_id and
+;                       public_key, each key_id derived as om-domain-separation.json says; threshold at most the controller count;
+;                       release_sequence equals the previous or the previous plus one, and equals the previous exactly when
+;                       release_id is unchanged; the signature set is distinct controllers of the previous state (of this state at
+;                       genesis), role controller, at least threshold of them
+
+expressive-kind = 1..4                     ; sticker, custom_emoji, reaction_asset, loop_animation
+content-pack-kind = 1..4                   ; sticker, custom_emoji, reaction, mixed
+
+expressive-pack-ref = {
+  0: bstr .size 32,                        ; pack_id
+  1: digest,                               ; release_id (OM-CONTENT-PACK-RELEASE-HASH-v1)
+  2: tstr .size (1..512),                  ; item_id
+}
+
+ExpressiveAssetRef = {
+  0: blob-id,
+  1: tstr .size (1..127),                  ; media_type
+  2: 1..18446744073709551615,              ; plaintext_size
+  3: digest,                               ; ciphertext_digest (OM-BLOB-CIPHERTEXT-HASH-v1)
+  4: { 0: profile-id, 1: bstr .size 32 },  ; encryption descriptor
+  ? 5: [1*8 tstr .size (1..2048)],         ; locations
+  ? 6: tstr .size (1..255),                ; filename
+  7: 1..65535, 8: 1..65535,                ; width, height
+  ? 9: 1..18446744073709551615,            ; duration_ms
+  ? 10: bstr .size (16..64),               ; repair_capability
+  11: expressive-kind,
+  12: tstr .size (1..64),                  ; media_profile_id
+  13: tstr .size (1..2048),                ; alt_text
+  ? 14: tstr .size (1..512),               ; fallback_text
+  ? 15: expressive-pack-ref,               ; pack_ref
+  ? 16: true,                              ; shared_blob
+}
+
+; slot: RichText inline type 4
+inline-custom-emoji = { 0: 4, 1: tstr .size (1..512), 6: ExpressiveAssetRef }
+inline-x = inline-text / inline-link-x / inline-mention-x / inline-custom-emoji
+inline-link-x = { 0: 2, 3: tstr .size (1..2048), 4: [0*256 inline-x] }
+inline-mention-x = { 0: 3, 4: [0*256 inline-x], 5: principal-ref }
+block-inlines-x = { 0: 1..2, 1: [0*4096 inline-x] }
+block-x = block-inlines-x / block-code
+RichTextX = { 0: 1, 1: [0*4096 block-x] }
+
+; slot: ReactionSet key 3
+ReactionSetX = { 0: event-id, 1: tstr .size (1..64), 2: bool, ? 3: ExpressiveAssetRef }
+
+MessageCreateX = {
+  ? 0: RichTextX,
+  1: [0*32 attachment-ref],
+  ? 2: event-id,
+  ? 3: [1*64 principal-ref],
+  ? 4: 1..18446744073709551615,
+  ? 5: event-id,
+  ? 6: opaque-id16,
+}
+MessageEditX = { 0: event-id, 1: RichTextX }
+event-create-x = { event-common, 8: 1, 11: MessageCreateX }
+event-edit-x = { event-common, 8: 2, 11: MessageEditX }
+event-reaction-x = { event-common, 8: 4, 11: ReactionSetX }
+ConversationEventExpressive = event-create-x / event-edit-x / event-reaction-x
+
+; non-critical value of the key-23 extension "om.expressive.asset.v1" (message.create only), beside a W0-valid attachment-ref
+expressive-asset-v1 = {
+  0: 0..31,                                ; attachment_index
+  1: expressive-kind,
+  2: tstr .size (1..64),                   ; media_profile_id
+  3: tstr .size (1..2048),                 ; alt_text
+  ? 4: tstr .size (1..512),                ; fallback_text
+  ? 5: expressive-pack-ref,
+  ? 6: true,                               ; shared_blob
+}
+
+content-pack-item = {
+  0: tstr .size (1..512),                  ; item_id
+  1: expressive-kind,
+  2: ExpressiveAssetRef,
+  ? 3: [1*32 tstr .size (1..128)],         ; emoji_associations (set)
+  ? 4: [1*32 tstr .size (1..256)],         ; keywords (set)
+  5: tstr .size (1..2048),                 ; accessibility_label
+}
+content-pack-provenance = {
+  ? 0: tstr .size (1..1024),               ; creator_display
+  ? 1: [1*8 tstr .size (1..2048)],         ; source_urls (display only)
+}
+content-pack-licensing = {
+  ? 0: tstr .size (1..128),                ; spdx_id
+  ? 1: tstr .size (1..2048),               ; license_url
+  ? 2: digest,                             ; license_text_hash
+}
+
+; Unsigned immutable manifest. ContentPackReleaseID = DS-HASH(OM-CONTENT-PACK-RELEASE-HASH-v1) of its canonical bytes.
+ContentPackRelease = {
+  0: 45, 1: 1,
+  2: bstr .size 32,                        ; pack_id
+  3: 1..4294967295,                        ; release_sequence
+  ? 4: digest,                             ; previous_release_id
+  5: tstr .size (1..1024),                 ; title
+  ? 6: tstr .size (1..16384),              ; description
+  7: [1*4 content-pack-kind],              ; pack_kinds (set)
+  8: [1*512 content-pack-item],            ; items
+  9: content-pack-provenance,
+  ? 10: content-pack-licensing,
+  ? 11: digest,                            ; forked_from
+  ? 23: extensions,
+}
+
+pack-controller = {
+  0: bstr .size 16,                        ; key_id
+  1: profile-id,
+  2: bstr .size (32..4096),                ; public_key
+}
+signed-ContentPackControlState = { 1: bstr .cbor ContentPackControlState, 2: [1*16 signature] }
+ContentPackControlState = {
+  0: 46, 1: 1,
+  2: bstr .size 32,                        ; pack_id
+  3: 1..4294967295,                        ; state_version
+  ? 4: digest,                             ; previous_state_hash (OM-CONTENT-PACK-CONTROL-HASH-v1)
+  5: [1*16 pack-controller],               ; controllers (set)
+  6: 1..16,                                ; threshold
+  7: digest,                               ; release_id
+  8: 1..4294967295,                        ; release_sequence
+  ? 23: extensions,
+}

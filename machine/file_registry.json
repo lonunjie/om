@@ -1663,6 +1663,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/tests/expressive_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/tests/group_transport_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -4435,6 +4442,20 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0252-expressive-media-wire-freeze-and-delegated-constructions.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0253-expressive-media-delegated-product-boundaries.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -6080,13 +6101,6 @@
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-11-20-expressive-media-build-plan.md",
-      "class": "report",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "working_record_non_normative"
-    },
-    {
       "path": "docs/reports/2026-11-18-home-load-results.md",
       "class": "report",
       "domain": "architecture_process",
@@ -6109,6 +6123,13 @@
     },
     {
       "path": "docs/reports/2026-11-19-independent-review-7-specialist-rulings.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-20-expressive-media-build-plan.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -12331,6 +12352,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "spec/cddl/expressive.cddl",
+      "class": "spec_artifact",
+      "domain": "expressive_media_content_packs",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "spec/cddl/group-transport.cddl",
       "class": "spec_artifact",
       "domain": "groups",
@@ -12842,6 +12870,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "spec/registries/om-expressive-media.json",
+      "class": "spec_artifact",
+      "domain": "expressive_media_content_packs",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "spec/registries/om-home-errors.json",
       "class": "spec_artifact",
       "domain": "provider_deployment_supply_chain",
@@ -12896,6 +12931,13 @@
       "domain": "groups",
       "license": "Apache-2.0",
       "authority": "normative_wire_schema"
+    },
+    {
+      "path": "spec/registries/om-w1-expressive-slots.json",
+      "class": "spec_artifact",
+      "domain": "expressive_media_content_packs",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
     },
     {
       "path": "tests/test_constitution.py",
@@ -13998,6 +14040,69 @@
     },
     {
       "path": "verification/prototypes/direct-receipt/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/.gitignore",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/additive.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/cddl_check_expressive.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/check_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/checks.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/gen_expressive_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/overlay.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-wire/w0_view.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -17050,6 +17155,13 @@
     },
     {
       "path": "verification/vectors/direct-transfer-receipt-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/expressive-wire-vectors.json.gz",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

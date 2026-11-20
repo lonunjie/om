@@ -258,3 +258,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0249 — Reject public request-to-successor digest linkage; sheet-only needs_evidence is permanent (accepted 2026-11-20; supersedes ADR-0243)](ADR-0249-reject-public-recovery-request-correlation.md)
 - [ADR-0250 — Authorize engineering scope `expressive_media` (W1), by explicit operator instruction (accepted by the operator 2026-11-20, explicit instruction)](ADR-0250-authorize-expressive-media-engineering.md)
 - [ADR-0251 — Expressive-media fuzz CPU-hour budget and decoded-pixel and frame budgets (accepted by delegation 2026-11-20, additive)](ADR-0251-expressive-media-fuzz-and-decode-budgets.md)
+- [ADR-0252 — Expressive-media wire freeze (W1) and the constructions the design leaves to engineering (accepted by delegation 2026-11-20, additive)](ADR-0252-expressive-media-wire-freeze-and-delegated-constructions.md)
+- [ADR-0253 — Expressive-media product boundaries delegated to engineering (accepted by delegation 2026-11-20, additive)](ADR-0253-expressive-media-delegated-product-boundaries.md)

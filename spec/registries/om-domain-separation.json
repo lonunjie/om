@@ -830,6 +830,38 @@
       "object": "one-to-one call SFrame base key",
       "wave": "W2",
       "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-RELEASE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContentPackRelease (ContentPackReleaseID, ExpressivePackRef.release_id, previous_release_id, forked_from)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ContentPackControlState (role controller)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContentPackControlState (state hash, previous_state_hash chain)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-CONTROLLER-KEY-ID-v1",
+      "use": "hash",
+      "construction": "DS-HASH over the OM-CBOR array [crypto_profile uint, public_key bstr]; the PackController key_id is the first 16 bytes of the 32-byte digest value",
+      "object": "PackController.key_id (Signature.signer of a ContentPackControlState)",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

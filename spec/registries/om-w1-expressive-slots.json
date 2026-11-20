@@ -1,0 +1,22 @@
+{
+  "status": "Status: frozen for W1 (ADR-0252). Additive overlay; it changes no W0 registry value.",
+  "registry": "om-w1-expressive-slots",
+  "registry_version": 1,
+  "wave": "W1",
+  "rules": [
+    "A W1 expressive_media decoder fills the two W0 slots reserved for it: ReactionSet key 3 (reaction_asset) and RichText inline type 4 (custom_emoji). A W0 decoder ignores this file, keeps both reserved, and therefore rejects an event that uses either, so the frozen W0 corpus is untouched (ADR-0165). A sender emits a slot only when every recipient device advertises it (ADR-0128 rule 18).",
+    "Merge rule: for each entry of 'struct_fields', the listed fields are appended to the named struct's fields; a key that is already a field is an error. For each entry of 'union_variants', the listed variants are added to the named union; a variant that names an existing value with a different struct is an error. 'enum_values' lists the enum values a W1 decoder accepts; the merge removes their later-wave marker, which must be W1. The merge is performed by tools (verification/prototypes/expressive-wire/overlay.py), never by hand.",
+    "The overlay is independent of om-w1-event-bodies.json: the two touch disjoint structs and compose in either order."
+  ],
+  "struct_fields": {
+    "ReactionSet": [
+      {"key": 3, "name": "reaction_asset", "type": {"ref": "ExpressiveAssetRef"}, "req": false, "note": "present only with present = true (ADR-0252 rule 5)"}
+    ]
+  },
+  "union_variants": {
+    "Inline": {"4": "InlineCustomEmoji"}
+  },
+  "enum_values": {
+    "inline_type": ["4"]
+  }
+}
