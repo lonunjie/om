@@ -55,7 +55,8 @@ test("keyboard can send a sticker, add a custom reaction and remove the pack", a
   await expect(stickers).toBeFocused();
   const sticker = log.getByRole("img", { name: "A smiling sticker" });
   await expect(sticker).toBeVisible();
-  const message = log.getByRole("listitem").filter({ has: sticker });
+  // `has` is matched inside each list item, so it must not be scoped to the log again.
+  const message = log.getByRole("listitem").filter({ has: page.getByRole("img", { name: "A smiling sticker" }) });
   await activate(page, message.getByRole("button", { name: /^React:/ }));
   await activate(page, message.getByRole("button", { name: "Custom reactions" }));
   const reactions = page.getByRole("dialog", { name: "Custom reactions" });
