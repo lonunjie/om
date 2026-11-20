@@ -1,6 +1,6 @@
 # ADR-0246 — Certified kit bound must not silently alter frozen type 38
 
-- **Status:** Proposed (2026-11-20), explicit operator, audit-owner and specialist decision required. It touches frozen registry row type 38 and a new type 45, and the certified-kit size and traffic metadata review; nothing is registered, `spec/registries` and CDDL are untouched, and it is not accepted by delegation. Qualifies ADR-0241 (additive pointer there): ADR-0241's 8,192-byte bound stays gated and its positive reproduction of a 4,342-byte kit as a type-38 item must not be relied on until this is decided.
+- **Status:** Accepted by operator delegation (2026-11-20), ENABLEMENT GATED, for the preferred non-mutating ruling only: new private type 45 `CertifiedRecoveryKit` (max 8,192), type 38 stays frozen at 4,096. Basis: the constitution tie-breaker (C-69: fewer irreversible commitments, no change to audited text) and the rule that no ADR amends audited text. Amending type 38 itself is NOT accepted. Nothing is registered: `spec/registries` and CDDL change only when the gate clears (two-independent-codec vectors including hybrid goldens, registry rows, kit-size/traffic metadata review within the existing sealed-delivery bucket, specialist sign-off). Qualifies ADR-0241 (additive pointer there).
 - **Class:** New private object lineage proposal to preserve immutable registered meanings; recovery delivery remains gated.
 - **Answers:** KITS3-03/04, the omitted type-38 registry cap and all private admission paths.
 - **Priority:** High.
