@@ -8,9 +8,9 @@
 - [Expressive media architecture](../architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md), [rich-text and hostile-content security](../architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md), [media asset packs](../ux-design/specs/MEDIA_ASSET_PACKS.md), [logical content-pack schema](../../spec/protocol/content-pack.logical.schema.json), [expressive CDDL](../../spec/cddl/expressive.cddl), and the [W1 expressive slot overlay](../../spec/registries/om-w1-expressive-slots.json).
 - ADR-0089 through ADR-0091, ADR-0181 and ADR-0250 through ADR-0253. Also inspected the event attachment schema, object-type registry and applicable passages of the portable archive architecture and UX brief for a reusable transport or link format.
 
-### Design sources outside the full reading
+### Design sources outside the distribution checkpoint reading
 
-The full gate reading stopped at the slice 6 design question. The constitution originals, including the mapped Privacy, Governance and Authority document, were covered through the digest exception. Full reading was not completed for the following gate sources.
+At that checkpoint, the full gate reading stopped at the slice 6 design question. The constitution originals, including the mapped Privacy, Governance and Authority document, were covered through the digest exception. Full reading was not completed for the following gate sources.
 
 - Client distribution includes PWA Native and Client Distribution Strategy, Client and Extension Architecture, Device Vault Client Host and Migration, ClientHost Update Lifecycle, Notifications and Push, and Plugin and App Extension Architecture.
 - One-to-one cryptography includes Cryptography and Agility, Production Crypto Integration Gate, Async Key Material, One-to-One Session Management, Multi-Device Sync, and Canonical Encoding.
@@ -36,9 +36,9 @@ The confirmed pack installs through staged writes and atomic Core activation. Th
 
 ## Related integration gaps
 
-- **Cache and picker.** Slice 3 records cache membership and validates supplied bytes. The runtime commits the pack inventory, while the real web host currently supplies only the conversation asset description. The picker uses its optional `readCached` hook for send preparation and renders text labels. It still needs profile-local ciphertext storage and a Core-validated preview path. The one-shot Wasm install command has a 16 MiB JSON limit and hex-encodes the inputs, so it cannot carry every valid full pack in one call. Any staged storage integration has to preserve the prior active install on a failed import or write.
+- **Cache and picker.** At the distribution checkpoint, Slice 3 recorded cache membership and validated supplied bytes. The web host supplied conversation asset descriptions. The next slice needed profile-local ciphertext storage, a Core-validated preview path and staged writes that fit the 16 MiB Wasm command envelope.
 - **Inline emoji.** The design permits semantic placement from authenticated `message.create.content` and `message.edit.replacement`. The existing reducer stores flattened text and an ordered asset list. That representation cannot recover positions for older messages or distinguish repeated emoji fallback text from identical ordinary text. ADR-0254 ruling 7 keeps the existing projection and uses fallback text where authenticated placement is unavailable.
-- **Expressive module.** The web loader currently selects base or groups. The separate expressive artifact exists as a build target, and the app checks the runtime capability before exposing the UI. Integration and measurement of the separate artifact remain open.
+- **Expressive module.** At the distribution checkpoint, the web loader selected base or groups. The separate expressive artifact existed as a build target. Its measured size remains open.
 
 At the distribution decision checkpoint, the capability was default-off and the main Wasm size was unchanged.
 
@@ -57,28 +57,38 @@ The existing Playwright case uses a locally seeded pack. The distribution decisi
 
 ## Implementation
 
-**Design sources read.** The slice 6b review read ADR-0251 through ADR-0254, ADR-0090, the constitution digest and C-26, the architecture rules and engineering entry point, the expressive-media build plan and slice 4, 5a and 5b handoffs, and the [Core evidence](../../verification/EXPRESSIVE_NOTES.md). It compared the [canonical encoding rules](../architecture/crypto/CANONICAL_ENCODING.md), [expressive CDDL](../../spec/cddl/expressive.cddl), [common CDDL](../../spec/cddl/common.cddl), and [logical content-pack schema](../../spec/protocol/content-pack.logical.schema.json) with the [slice-3 verifier](../../crates/om-core/src/expressive/pack.rs) and its [atomic update scenario](../../crates/om-core/tests/attachments.rs). It inspected the lineage and fork sections of the expressive-media architecture and the digest and BlobID definitions in the storage architecture.
+**Design sources read.** This pass read ADR-0250 through ADR-0254, the [constitution digest](../constitution/CONSTITUTION_DIGEST.md), the [agent architecture rules](../process/AGENT_ARCHITECTURE_RULES.md), the [engineering entry point](../process/ENGINEER_START_HERE.md), the [canonical encoding rules](../architecture/crypto/CANONICAL_ENCODING.md), the [PWA reference client](../architecture/client/PWA_REFERENCE_CLIENT.md), the [endpoint leakage rules](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md), [profile isolation](../architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md), [privacy profiles](../architecture/ux/SECURITY_PRIVACY_PROFILES.md), the [expressive-media architecture](../architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md), the [storage architecture](../architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md), the [hostile-content boundary](../architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md), the [media asset-pack UX](../ux-design/specs/MEDIA_ASSET_PACKS.md), [expressive CDDL](../../spec/cddl/expressive.cddl), the [Core evidence](../../verification/EXPRESSIVE_NOTES.md) and the slice handoffs. It checked the R-108 requirement and the existing Slice 3 verifier and activation scenario.
 
-**Design sources outside the full reading.** The constitution originals were covered through the digest exception. The product-path gate was enumerated. Full reading of the remaining mapped documents and ADRs stopped at the verification question below. The gate has no mapped code path for this report.
+The product-path gate returned `client_endpoint_distribution`, `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events` and `ux_accessibility_personalization`. The mapped documents and ADRs for those domains have full readings recorded in the [slice 4](2026-11-20-expressive-slice4.md), [slice 5a](2026-11-20-expressive-slice5a.md) and [slice 5b](2026-11-20-expressive-slice5b.md) reports. This pass used those readings for the unchanged mapped sources. ADR-0254 supplies the distribution and lineage decisions added since those passes.
 
-**Open verification rule for portable updates.** ADR-0254 ruling 1 gives a file exactly one target release manifest and an ordered control-state chain. Ruling 2 reuses slice-3 verification. The current verifier requires release sequence 1 on a fresh profile. On a profile with a pin, it checks an update's sequence and `previous_release_id` against the held predecessor. An intermediate control state commits to its release's digest and sequence. Checking that release's `previous_release_id` and any genesis `forked_from` requires the corresponding manifest bytes.
+**Design sources outside this pass's full reading.** The constitution originals were covered through the digest exception. The remaining mapped sources listed in the checkpoint's design sources were read in the slice handoffs. The full pre-release V-012 evidence and the browser capability matrix were outside the current verification scope.
 
-Consider a release-2 file with a valid signed genesis state and a valid signed successor state. A fresh profile has only the release-2 manifest. Should it require the predecessor to be installed first, or can it establish continuity from the signed states and target manifest alone? A third option is to amend the file format to carry the predecessor manifests. The same rule determines whether a file can advance a held pin across intermediate releases. This acceptance rule determines the golden vectors and install tests.
+**Lineage question resolved.** ADR-0254 ruling 2 supplies the missing manifests in key 5. A fresh profile replays the complete predecessor chain through the Slice 3 verifier. A profile with the predecessor pin can verify an ordinary update from that pin. Every supplied predecessor must link in order and match a verified control-state commitment. A file missing the required lineage is refused before staging, with “This pack needs an earlier version” when an earlier version is required.
 
-The slice is at the [build plan stop condition](2026-11-20-expressive-media-build-plan.md#8-stop-conditions-for-every-slice). This pass updates the report only.
+- Core decodes the local canonical container with the existing OM-CBOR codec, checks the two chain counts and aggregate size ceilings, and matches each ciphertext digest to the target manifest. It opens the named ciphertext and validates WebP header facts through the existing budget walker before creating a review. The digest entry uses the OM SHA-256 digest structure.
+- The expressive bridge receives bounded file chunks. Confirmation binds the reviewed release and controller head to a profile-scoped ticket. Begin and stage issue one validated cache write at a time. Core activates the inventory through its existing single-record transaction after all cache writes succeed.
+- The profile vault stores ciphertext by digest. The web host serializes pack mutations and cleanup per profile across tabs and checks the durable inventory before touching the cache. Interrupted or obsolete cache entries are reclaimed against the active inventory. Picker previews use the Slice 4 driver after Core validation and publish frames after Core accepts decoder observations.
+- **Review pack** opens a received pack as an ordinary attachment on request. The review names the sender as the person who sent the file. Choosing or dropping a local `.ompack` enters the same named confirmation. The message path uses ordinary attachment delivery, and the file path uses local bytes. Provenance and license addresses display as inert text. Pack controller authority stays scoped to release continuity.
+- The engineering flag defaults off. An opt-in web build can load the digest-checked expressive artifact. Devices already using the groups artifact keep the groups loader preference. Rulings 5 and 7 retain file-only acquisition and the existing timeline projection.
 
 ## Verification
 
-The commands below verify the baseline. The portable parser corpus, staged-install kill points, new accessibility states, request log, and two-identity scenario remain pending the acceptance rule above.
+Run on the build host unless noted.
 
 | Check | Result |
 | --- | --- |
-| `cargo check --offline -p om-wasm --features expressive-media --tests` | Passed. |
-| `pnpm exec tsc -b apps/web` | Passed. |
-| `pnpm exec eslint apps/web packages/om-ui packages/om-core-wasm packages/om-platform-api packages/om-web-platform packages/om-core-harness` | Passed. |
-| `pnpm --filter @om/web exec vitest run --dir src --maxWorkers 2` | 29 files and 207 tests passed, including existing jsdom/axe and copy checks. |
-| `python3 tools/web_guard.py` and `python3 tools/core_guard.py` | Both reported zero errors. |
-| `python3 tools/om_docs.py fmt` | Zero rewrites and zero unresolved links. |
-| `make check` and `git diff --check` | Passed. |
+| `cargo test --workspace --offline --no-fail-fast` | Every test result line ok, no failures. Includes the container hostile corpus (each listed rejection, exactly-at and one-over limits for 64 KiB overhead, 32 MiB and the chain counts), the golden-vector re-decode test, and the staged-install kill-point test that checks the prior install survives a failed write or commit. |
+| Wasm builds (base, groups, expressive) | Built. |
+| `pnpm repro` in `apps/web` | Reproducible: two clean builds gave identical manifests. |
+| `pnpm check:size-budget` | Base 7455647 raw / 2092642 gzip, groups 9332383 raw / 2700860 gzip, delta +1876736 raw / +608218 gzip (limit +2169546 / +652950). Within budget; the default build is unchanged because the expressive artifact is opt-in. |
+| Vitest `--dir src` | om-ui 458, om-core-wasm 94, om-core-harness 38, om-platform-api 9, om-web-platform 127, apps/web 213 tests, all passed. |
+| `pnpm exec tsc -b apps/web`, ESLint on touched packages | Clean. |
+| `expressive-pack.spec.ts` (chromium, opt-in setup bundle, `OM_EXPRESSIVE_E2E=1`) | Passed on three consecutive runs. Alice sends a pack file as an attachment, Bob reviews it ("File sent by Alice"), installs it, sends a sticker, then updates from a local `.ompack`. The request log shows no third-party request for the message install or the file update. |
+| `python3 tools/om_docs.py fmt`, `make check` (local) | Clean. |
 
-The report update is uncommitted. This pass ran no browsers, Rust tests or Wasm builds.
+Not verified: Firefox and WebKit runs of the new spec, the native decode matrix and a visual layout pass.
+
+## Open questions for the operator
+
+- Link, QR and deep-link acquisition stay unbuilt by ADR-0254 ruling 5; a later ADR would need its own resolver design.
+- Inline emoji placement stays on the existing projection by ruling 7.
