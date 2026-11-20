@@ -4519,6 +4519,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0254-expressive-media-pack-distribution.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -6214,6 +6221,13 @@
     },
     {
       "path": "docs/reports/2026-11-20-expressive-slice5b.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-20-expressive-slice6.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

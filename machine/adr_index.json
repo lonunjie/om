@@ -2968,6 +2968,16 @@
       "amends": [],
       "index_title": "Expressive-media product boundaries delegated to engineering (accepted by delegation 2026-11-20, additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0254",
+      "title": "Expressive-media pack distribution: one portable file, carried as an ordinary attachment (slice 6)",
+      "status": "Accepted by delegation (2026-11-20), additive. No wire change and no change to the frozen W0 or W1 corpora. It amends no audited text and we",
+      "date": "2026-11-20",
+      "path": "decisions/ADR-0254-expressive-media-pack-distribution.md",
+      "amends": [],
+      "index_title": "Expressive-media pack distribution: one portable file, carried as an ordinary attachment (accepted by delegation 2026-11-20, additive)",
+      "amended_by": []
     }
   ]
 }
