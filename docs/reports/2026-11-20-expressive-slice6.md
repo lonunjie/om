@@ -22,27 +22,27 @@ The full gate reading stopped at the slice 6 design question. The constitution o
 
 The mapped ADR set also remains to be read in full. The decisions listed in the preceding section were the additional slice-specific readings.
 
-## Distribution decision required
+## Distribution decision resolved by ADR-0254
 
-Slice 6 is blocked on the interoperable acquisition format. The build plan names all three sources and reuses ordinary OM attachments and blob repair. ADR-0252 freezes the immutable `ContentPackRelease` and the signed `ContentPackControlState` that authorizes it. Its rule 9 bars locations and repair capabilities from release items. Its rule 7 limits the on-message `pack_ref` to attribution, and the `om.expressive.asset.v1` extension describes an individual asset attachment. Neither carries the release and signed lineage needed for installation.
+[ADR-0254](../../decisions/ADR-0254-expressive-media-pack-distribution.md) resolves the distribution decision. It defines one canonical pack file, the validation and size limits, and the sources that may enter the existing named confirmation flow.
 
-| Source | Decision needed |
+| Source | Ruling |
 | --- | --- |
-| Received OM message | What versioned payload identifies a pack offer inside ordinary authenticated attachment carriage? How does it associate the release and signed control-state chain with separately delivered, digest-bound ciphertext and an allowed OM storage or repair route? |
-| Portable file | What versioned container carries the canonical release, control-state chain and ciphertext? The manifest limits bound metadata and individual items. The container also needs aggregate byte and entry limits and a rule for missing, duplicate and unreferenced blobs. |
-| Deep link or QR | What validated payload identifies the pack, binds it to the intended release, and resolves through an allowed OM route without contacting an arbitrary web origin? The current first-contact link exchanges contact-introduction material. The general profile resolver chooses an identity and returns a target string. |
+| Received OM message | An ordinary attachment with media type `application/vnd.om.content-pack` opens **Review pack**. The sender is identified as the person who sent the file. |
+| Portable file | A picked or dropped `.ompack` opens the same review using local bytes. |
+| Deep link or QR | Deferred in W1 under ruling 5. |
 
-Record these choices and their validation rules in an accepted distribution decision before implementing product parsers or adding pack semantics to ordinary messages. The [build plan stop conditions](2026-11-20-expressive-media-build-plan.md#8-stop-conditions-for-every-slice) and ADR-0250 require the design question to be resolved first. The reviewed flow still requires explicit confirmation of the exact pack and a single atomic activation by Core. Maximum Privacy must refuse the link and QR paths before acquisition I/O. A pack controller's authority stays scoped to release continuity.
+The confirmed pack installs through staged writes and atomic Core activation. The profile's blob store holds item ciphertext by digest. Pack controller authority stays scoped to release continuity.
 
 ## Related integration gaps
 
 - **Cache and picker.** Slice 3 records cache membership and validates supplied bytes. The runtime commits the pack inventory, while the real web host currently supplies only the conversation asset description. The picker uses its optional `readCached` hook for send preparation and renders text labels. It still needs profile-local ciphertext storage and a Core-validated preview path. The one-shot Wasm install command has a 16 MiB JSON limit and hex-encodes the inputs, so it cannot carry every valid full pack in one call. Any staged storage integration has to preserve the prior active install on a failed import or write.
-- **Inline emoji.** The design permits semantic placement from authenticated `message.create.content` and `message.edit.replacement`. The existing reducer stores flattened text and an ordered asset list. That representation cannot recover positions for older messages or distinguish repeated emoji fallback text from identical ordinary text. The timeline should keep the existing fallback where the authenticated placement is unavailable. Before changing the projection, confirm how it will retain the accepted placement with the winning revision and how the UI will distinguish a caption from generated fallback text.
+- **Inline emoji.** The design permits semantic placement from authenticated `message.create.content` and `message.edit.replacement`. The existing reducer stores flattened text and an ordered asset list. That representation cannot recover positions for older messages or distinguish repeated emoji fallback text from identical ordinary text. ADR-0254 ruling 7 keeps the existing projection and uses fallback text where authenticated placement is unavailable.
 - **Expressive module.** The web loader currently selects base or groups. The separate expressive artifact exists as a build target, and the app checks the runtime capability before exposing the UI. Integration and measurement of the separate artifact remain open.
 
-Distribution, cache and timeline product code were not changed. The capability remains default-off. There is no main Wasm size delta from this change.
+At the distribution decision checkpoint, the capability was default-off and the main Wasm size was unchanged.
 
-## Verification
+## Distribution decision checkpoint verification
 
 | Check | Result |
 | --- | --- |
@@ -53,4 +53,32 @@ Distribution, cache and timeline product code were not changed. The capability r
 | `python3 tools/om_docs.py fmt` | Zero rewrites and zero unresolved links. |
 | `make check` and `git diff --check` | Passed. |
 
-The new Rust scenarios, malformed-input corpus, request-log and Maximum Privacy coverage, and two-identity Playwright spec await the acquisition contract. The existing Playwright case uses a locally seeded pack and does not exercise delivery between identities. No browser or Cargo/Wasm build was run. The report and its file registry entry are uncommitted.
+The existing Playwright case uses a locally seeded pack. The distribution decision checkpoint recorded baseline checks only.
+
+## Implementation
+
+**Design sources read.** The slice 6b review read ADR-0251 through ADR-0254, ADR-0090, the constitution digest and C-26, the architecture rules and engineering entry point, the expressive-media build plan and slice 4, 5a and 5b handoffs, and the [Core evidence](../../verification/EXPRESSIVE_NOTES.md). It compared the [canonical encoding rules](../architecture/crypto/CANONICAL_ENCODING.md), [expressive CDDL](../../spec/cddl/expressive.cddl), [common CDDL](../../spec/cddl/common.cddl), and [logical content-pack schema](../../spec/protocol/content-pack.logical.schema.json) with the [slice-3 verifier](../../crates/om-core/src/expressive/pack.rs) and its [atomic update scenario](../../crates/om-core/tests/attachments.rs). It inspected the lineage and fork sections of the expressive-media architecture and the digest and BlobID definitions in the storage architecture.
+
+**Design sources outside the full reading.** The constitution originals were covered through the digest exception. The product-path gate was enumerated. Full reading of the remaining mapped documents and ADRs stopped at the verification question below. The gate has no mapped code path for this report.
+
+**Open verification rule for portable updates.** ADR-0254 ruling 1 gives a file exactly one target release manifest and an ordered control-state chain. Ruling 2 reuses slice-3 verification. The current verifier requires release sequence 1 on a fresh profile. On a profile with a pin, it checks an update's sequence and `previous_release_id` against the held predecessor. An intermediate control state commits to its release's digest and sequence. Checking that release's `previous_release_id` and any genesis `forked_from` requires the corresponding manifest bytes.
+
+Consider a release-2 file with a valid signed genesis state and a valid signed successor state. A fresh profile has only the release-2 manifest. Should it require the predecessor to be installed first, or can it establish continuity from the signed states and target manifest alone? A third option is to amend the file format to carry the predecessor manifests. The same rule determines whether a file can advance a held pin across intermediate releases. This acceptance rule determines the golden vectors and install tests.
+
+The slice is at the [build plan stop condition](2026-11-20-expressive-media-build-plan.md#8-stop-conditions-for-every-slice). This pass updates the report only.
+
+## Verification
+
+The commands below verify the baseline. The portable parser corpus, staged-install kill points, new accessibility states, request log, and two-identity scenario remain pending the acceptance rule above.
+
+| Check | Result |
+| --- | --- |
+| `cargo check --offline -p om-wasm --features expressive-media --tests` | Passed. |
+| `pnpm exec tsc -b apps/web` | Passed. |
+| `pnpm exec eslint apps/web packages/om-ui packages/om-core-wasm packages/om-platform-api packages/om-web-platform packages/om-core-harness` | Passed. |
+| `pnpm --filter @om/web exec vitest run --dir src --maxWorkers 2` | 29 files and 207 tests passed, including existing jsdom/axe and copy checks. |
+| `python3 tools/web_guard.py` and `python3 tools/core_guard.py` | Both reported zero errors. |
+| `python3 tools/om_docs.py fmt` | Zero rewrites and zero unresolved links. |
+| `make check` and `git diff --check` | Passed. |
+
+The report update is uncommitted. This pass ran no browsers, Rust tests or Wasm builds.
