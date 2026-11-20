@@ -4379,6 +4379,48 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0244-op3-anchored-parent-historical-credential-checking.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0245-op3-recovery-signed-parent-provenance.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0246-certified-kit-bound-and-frozen-object-registry.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0247-owner-sheet-exact-envelope-pin.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0248-policy-absent-recovery-record-head.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0249-reject-public-recovery-request-correlation.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -6046,6 +6088,13 @@
     },
     {
       "path": "docs/reports/2026-11-19-independent-review-7-specialist-rulings.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-20-review-8-import.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

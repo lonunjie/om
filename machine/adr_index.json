@@ -2862,11 +2862,71 @@
     {
       "id": "ADR-0243",
       "title": "Exact recovery-request identity bound by the recovery-signed successor",
-      "status": "Proposed, needs specialist metadata judgement and operator acceptance (2026-11-19). Not accepted by delegation: it adds a new critical W0 ex",
+      "status": "Rejected, superseded by ADR-0249 (2026-11-20). The public request-digest extension it proposed is not registered and must not be enabled; th",
       "date": "2026-11-19",
       "path": "decisions/ADR-0243-bind-recovery-request-digest-to-successor.md",
       "amends": [],
-      "index_title": "Exact recovery-request identity bound by the recovery-signed successor (proposed, needs specialist metadata judgement and operator acceptance)",
+      "index_title": "Exact recovery-request identity bound by the recovery-signed successor (rejected 2026-11-20, superseded by ADR-0249)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0244",
+      "title": "Operation 3: limits of historical-credential checks under a durable P pin",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-20). The design is accepted as an additive specification. Code may not ship or be enabled ",
+      "date": "",
+      "path": "decisions/ADR-0244-op3-anchored-parent-historical-credential-checking.md",
+      "amends": [],
+      "index_title": "Operation 3: limits of historical-credential checks under a durable P pin (accepted by delegation 2026-11-20, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0245",
+      "title": "Operation 3: a recovery-signed P is not verified by device credentials",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-20). The design is accepted as an additive specification. Code may not ship or be enabled ",
+      "date": "",
+      "path": "decisions/ADR-0245-op3-recovery-signed-parent-provenance.md",
+      "amends": [],
+      "index_title": "Operation 3: a recovery-signed P is not verified by device credentials (accepted by delegation 2026-11-20, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0246",
+      "title": "Certified kit bound must not silently alter frozen type 38",
+      "status": "Proposed (2026-11-20), explicit operator, audit-owner and specialist decision required. It touches frozen registry row type 38 and a new typ",
+      "date": "",
+      "path": "decisions/ADR-0246-certified-kit-bound-and-frozen-object-registry.md",
+      "amends": [],
+      "index_title": "Certified kit bound must not silently alter frozen type 38 (proposed, needs operator, audit-owner and specialist decision)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0247",
+      "title": "Independent sheet custody of the exact signed checkpoint envelope",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-20). The design is accepted as an additive specification. Code may not ship or be enabled ",
+      "date": "",
+      "path": "decisions/ADR-0247-owner-sheet-exact-envelope-pin.md",
+      "amends": [],
+      "index_title": "Independent sheet custody of the exact signed checkpoint envelope (accepted by delegation 2026-11-20, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0248",
+      "title": "Policy-absent head in an explicit new RecoveryRecord lineage",
+      "status": "Accepted by delegation, ENABLEMENT GATED (2026-11-20). The design is accepted as an additive specification. Code may not ship or be enabled ",
+      "date": "",
+      "path": "decisions/ADR-0248-policy-absent-recovery-record-head.md",
+      "amends": [],
+      "index_title": "Policy-absent head in an explicit new RecoveryRecord lineage (accepted by delegation 2026-11-20, enablement gated)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0249",
+      "title": "Metadata judgement: reject public request-to-successor digest linkage",
+      "status": "Accepted (2026-11-20). It rejects the public request-digest extension proposed by ADR-0243 (ADR-0243 is Rejected, superseded by this ADR) an",
+      "date": "",
+      "path": "decisions/ADR-0249-reject-public-recovery-request-correlation.md",
+      "amends": [],
+      "index_title": "Reject public request-to-successor digest linkage; sheet-only needs_evidence is permanent (accepted 2026-11-20; supersedes ADR-0243)",
       "amended_by": []
     }
   ]
