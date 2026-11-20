@@ -19,7 +19,7 @@ from generate_v3 import (
 
 from siv import seal
 
-CERTIFIED_TYPE = 45  # Provisional, ADR-0246.
+CERTIFIED_TYPE = 47  # Provisional, ADR-0246.
 ENVELOPE_PIN = "OM-ACS-SIGNED-ENVELOPE-PIN-v1"  # Provisional, ADR-0247.
 RECORD_AD = "OM-RECOVERY-RECORD-AEAD-AD-v2"  # Provisional, ADR-0248.
 REQUEST_SIG = "OM-RECOVERY-REQUEST-SIG-v1"
@@ -250,8 +250,8 @@ def certified_kit(crypto, anchor_hash, refs):
         "version": {1: 2},
     }
     return {
-        "KITS4-01": {"type38": legacy["kit"], "type45": positive, "hostname": HOST,
-                     "size": 4342, "type38_expected": "refused_before_decode", "type45_expected": "admitted"},
+        "KITS4-01": {"type38": legacy["kit"], "type47": positive, "hostname": HOST,
+                     "size": 4342, "type38_expected": "refused_before_decode", "type47_expected": "admitted"},
         "KITS4-02": {
             "at_cap": delivery(at_cap),
             "over_cap": case_bytes(enc(boundary(8193)), "refused_before_decode"),

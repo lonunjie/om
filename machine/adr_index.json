@@ -2892,11 +2892,11 @@
     {
       "id": "ADR-0246",
       "title": "Certified kit bound must not silently alter frozen type 38",
-      "status": "Accepted by operator delegation (2026-11-20), ENABLEMENT GATED, for the preferred non-mutating ruling only: new private type 45 `CertifiedRe",
+      "status": "Accepted by operator delegation (2026-11-20), ENABLEMENT GATED, for the preferred non-mutating ruling only: new private type 47 `CertifiedRe",
       "date": "",
       "path": "decisions/ADR-0246-certified-kit-bound-and-frozen-object-registry.md",
       "amends": [],
-      "index_title": "Certified kit bound must not silently alter frozen type 38 (accepted by delegation, type 45 lineage, enablement gated)",
+      "index_title": "Certified kit bound must not silently alter frozen type 38 (accepted by delegation, type 47 lineage, enablement gated)",
       "amended_by": []
     },
     {

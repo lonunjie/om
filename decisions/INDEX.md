@@ -252,7 +252,7 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0243 — Exact recovery-request identity bound by the recovery-signed successor (rejected 2026-11-20, superseded by ADR-0249)](ADR-0243-bind-recovery-request-digest-to-successor.md)
 - [ADR-0244 — Operation 3: limits of historical-credential checks under a durable P pin (accepted by delegation 2026-11-20, enablement gated)](ADR-0244-op3-anchored-parent-historical-credential-checking.md)
 - [ADR-0245 — Operation 3: a recovery-signed P is not verified by device credentials (accepted by delegation 2026-11-20, enablement gated)](ADR-0245-op3-recovery-signed-parent-provenance.md)
-- [ADR-0246 — Certified kit bound must not silently alter frozen type 38 (accepted by delegation, type 45 lineage, enablement gated)](ADR-0246-certified-kit-bound-and-frozen-object-registry.md)
+- [ADR-0246 — Certified kit bound must not silently alter frozen type 38 (accepted by delegation, type 47 lineage, enablement gated)](ADR-0246-certified-kit-bound-and-frozen-object-registry.md)
 - [ADR-0247 — Independent sheet custody of the exact signed checkpoint envelope (accepted by delegation 2026-11-20, enablement gated)](ADR-0247-owner-sheet-exact-envelope-pin.md)
 - [ADR-0248 — Policy-absent head in an explicit new RecoveryRecord lineage (accepted by delegation 2026-11-20, enablement gated)](ADR-0248-policy-absent-recovery-record-head.md)
 - [ADR-0249 — Reject public request-to-successor digest linkage; sheet-only needs_evidence is permanent (accepted 2026-11-20; supersedes ADR-0243)](ADR-0249-reject-public-recovery-request-correlation.md)

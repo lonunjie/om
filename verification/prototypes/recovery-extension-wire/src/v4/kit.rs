@@ -10,7 +10,7 @@ use om_core::crypto::{delivery, hpke, rng::system_rng, session::SessionState};
 use om_core::recovery_record::{RecordKeys, RecoveryKit};
 use om_core::recovery_sheet::valid_host;
 
-const CERTIFIED: u64 = 45; // ADR-0246 provisional type, local to the fixture.
+const CERTIFIED: u64 = 47; // ADR-0246 provisional type, local to the fixture.
 const CERTIFIED_CAP: usize = 8192;
 
 fn kit_base(value: &V) -> Option<RecoveryKit> {
@@ -148,7 +148,7 @@ fn check_transfer(v: &Value, kit: &[u8], send: &[u8]) {
 }
 
 #[test]
-fn kits4_01_frozen_registry_refuses_exact_historical_type38_and_type45_fits() {
+fn kits4_01_frozen_registry_refuses_exact_historical_type38_and_type47_fits() {
     let v = vector("KITS4-01");
     let f = Fixture::new();
     let wire = fixture(&f);
@@ -174,8 +174,8 @@ fn kits4_01_frozen_registry_refuses_exact_historical_type38_and_type45_fits() {
         .is_none()
     );
     assert_eq!(v["type38_expected"], "refused_before_decode");
-    assert_eq!(v["type45_expected"], "admitted");
-    check_transfer(&v["type45"], &wire.kit, &wire.send);
+    assert_eq!(v["type47_expected"], "admitted");
+    check_transfer(&v["type47"], &wire.kit, &wire.send);
     let stored = admit(&wire.send, Some(&head), &f.parent, (&ORIGIN, &SELECTED)).unwrap();
     assert_eq!(stored.host.len(), 253);
     assert_eq!(v["hostname"], stored.host);
