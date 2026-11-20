@@ -2,11 +2,20 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { noPasskeys } from "./helpers.ts";
 
+// Firefox does not wrap Tab past the last control: focus leaves the page for the browser's own UI and
+// `document.activeElement` stays put. When Tab stops moving focus, walk back with Shift+Tab instead.
 async function tabTo(page: Page, target: Locator): Promise<void> {
   await expect(target).toBeVisible();
+  const active = () => page.evaluate(() => {
+    const el = document.activeElement;
+    return el === null || el === document.body ? null : Array.prototype.indexOf.call(document.querySelectorAll("*"), el);
+  });
+  let key = "Tab";
   for (let n = 0; n < 100; n++) {
     if (await target.evaluate((el) => el === document.activeElement)) return;
-    await page.keyboard.press("Tab");
+    const before = await active();
+    await page.keyboard.press(key);
+    if (key === "Tab" && before !== null && await active() === before) key = "Shift+Tab";
   }
   await expect(target).toBeFocused();
 }
