@@ -2932,11 +2932,21 @@
     {
       "id": "ADR-0250",
       "title": "Authorize engineering scope `expressive_media` (W1), by explicit operator instruction",
-      "status": "**Proposed**, awaiting the operator's explicit instruction. Authorizing an engineering scope is a decision of the operator, not a review res",
+      "status": "**Accepted** (operator, 2026-11-20, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
       "date": "2026-11-20",
       "path": "decisions/ADR-0250-authorize-expressive-media-engineering.md",
       "amends": [],
-      "index_title": "Authorize engineering scope `expressive_media` (W1), by explicit operator instruction (PROPOSED 2026-11-20, awaiting the operator)",
+      "index_title": "Authorize engineering scope `expressive_media` (W1), by explicit operator instruction (accepted by the operator 2026-11-20, explicit instruction)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0251",
+      "title": "Expressive-media fuzz CPU-hour budget and decoded-pixel and frame budgets",
+      "status": "Accepted by delegation (2026-11-20), additive. The operator delegated the figures that the `expressive_media` build plan left open as Q1 and",
+      "date": "",
+      "path": "decisions/ADR-0251-expressive-media-fuzz-and-decode-budgets.md",
+      "amends": [],
+      "index_title": "Expressive-media fuzz CPU-hour budget and decoded-pixel and frame budgets (accepted by delegation 2026-11-20, additive)",
       "amended_by": []
     }
   ]

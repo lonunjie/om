@@ -3,7 +3,7 @@
 - **Status:** Canonical architecture-process contract
 - **Checkpoint:** 2026-09-25 11:54 PHT
 - **Decisions:** ADR-0108, ADR-0109, ADR-0113, ADR-0134
-- **Engineering:** this document defines *how* an ADR unlocks a scope and unlocks nothing itself. Currently authorized: `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217, V-007 pre-engineering waived for engineering by ADR; release evidence still required).
+- **Engineering:** this document defines *how* an ADR unlocks a scope and unlocks nothing itself. Currently authorized: `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217, V-007 pre-engineering waived for engineering by ADR; release evidence still required), `expressive_media` (ADR-0250, V-012 pre-engineering waived for engineering by ADR; release evidence still required).
 
 ## 1. Problem
 

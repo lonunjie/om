@@ -34,7 +34,7 @@
 | V-009 | `baseline_event_materialization_convergence` | groups | passed | open | evidenced | core_kernel |
 | V-010 | `plugin_sandbox_capability_model` | plugins | open | open | open | — |
 | V-011 | `service_principal_authority_and_automation_model` | services_bots | open | open | evidenced | core_kernel |
-| V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | open | open | open | — |
+| V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | waived_by_adr | open | open | — |
 | V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | open | open | evidenced | core_kernel |
 | V-014 | `portable_archive_interop_and_import_safety` | portability | open | open | evidenced | core_kernel |
 | V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference, local_delivery | passed | open | open | — |
@@ -398,10 +398,10 @@ Mechanically unfinished pre-engineering work:
 Fuzz and cross-implementation test expressive-media resource ceilings, decoder/pixel-frame budgets, ContentPack canonical manifests/signatures/update/fork lineage and malformed metadata/blob references so hostile packs/media fail safely without code execution, unbounded resource use, catalog dependence or signature ambiguity.
 
 - **Scopes blocked:** expressive_media
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_tool, independent_implementation; pre-release independent_tool
 - **Execution class:** `repo_local_fuzz_and_interop`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 
 Pre-engineering criteria:
 

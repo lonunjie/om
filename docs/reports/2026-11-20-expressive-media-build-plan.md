@@ -1,6 +1,6 @@
-# Expressive media build plan (scope `expressive_media`, proposed for authorization by ADR-0250)
+# Expressive media build plan (scope `expressive_media`, authorized by ADR-0250)
 
-Date: 2026-11-20. Status: plan only, no product code written. The scope is **not authorized**; authorization is an operator decision recorded in [`ADR-0250`](../../decisions/ADR-0250-authorize-expressive-media-engineering.md) (Proposed). Nothing below may be built until that ADR is accepted on the operator's explicit instruction.
+Date: 2026-11-20. Status: scope **authorized** on the operator's explicit instruction, 2026-11-20 ([`ADR-0250`](../../decisions/ADR-0250-authorize-expressive-media-engineering.md), Accepted); no product code written yet. Q1 and Q3 are answered by ADR-0251; Q4 and Q5 stay open (see ADR-0251).
 
 ## Design sources read
 
@@ -29,7 +29,7 @@ Unlock rule (section 5 of the unlock contract), checked 2026-11-20:
 
 | # | Condition | State |
 |---|---|---|
-| 1 | Accepted ADR names the scope | **Open: ADR-0250 is Proposed** |
+| 1 | Accepted ADR names the scope | **Met: ADR-0250 accepted 2026-11-20** |
 | 2 | Every gate listing the scope, plus `always_required` (V-017), is passed or waived | V-017 passed. **V-012 `pre_engineering_status` open, independence open.** It is the only gate with `unlock_scopes` containing `expressive_media`. |
 | 3 | No open design-queue item lists the scope | Met (A-001 to A-003 resolved) |
 | 4 | `depends_on` authorized | Met (`core_kernel`) |
@@ -44,7 +44,7 @@ V-012 pre-engineering criteria, all three unmet and no evidence recorded (`crite
 
 Pre-release (never an engineering blocker): shipped parsers under continuous fuzzing. Additionally the scope contract lists "content-pack/media conformance and parser/resource-limit evidence required by its gate" as an integration prerequisite, and the fuzz budget ("agreed CPU-hour budget") is **not yet agreed** (question Q1).
 
-If ADR-0250 is accepted, V-012 pre-engineering is waived for engineering only, as ADR-0217 did for V-007, and the three criteria become compensating controls inside slices 0, 1 and 7 and release obligations.
+ADR-0250 is accepted, so V-012 pre-engineering is waived for engineering only, as ADR-0217 did for V-007, and the three criteria become compensating controls inside slices 0, 1 and 7 and release obligations.
 
 ## 3. Architecture of the build
 
@@ -138,9 +138,9 @@ Per AGENTS.md "Design gate" rule 2, each stays unbuilt until answered; where an 
 
 | # | Question | Why it matters | Who |
 |---|---|---|---|
-| Q1 | What is the "agreed CPU-hour budget" for the fuzz criterion, and which fuzzer and corpus source? | V-012 criterion 1 names a budget nobody has agreed; slice 1 and 7 cannot say done. | Operator |
+| Q1 (answered by ADR-0251) | What is the "agreed CPU-hour budget" for the fuzz criterion, and which fuzzer and corpus source? | V-012 criterion 1 names a budget nobody has agreed; slice 1 and 7 cannot say done. | Operator |
 | Q2 | Which exact WebP parser and decoder libraries are in the verification prototype and the reference runtime? The feasibility note says the work "should begin only after" they are selected. | Criterion 1 is defined over "candidate decoders". Browser-native in the PWA is the design's stated preference; the header walker in Core is a plan choice. | Delegation, reviewed |
-| Q3 | What are the numeric decoded-pixel and frame budgets ("a versioned decoded-pixel/frame budget")? | The design names the budget but gives no figure, so slice 0 cannot freeze it. | Operator or delegation |
+| Q3 (answered by ADR-0251) | What are the numeric decoded-pixel and frame budgets ("a versioned decoded-pixel/frame budget")? | The design names the budget but gives no figure, so slice 0 cannot freeze it. | Operator or delegation |
 | Q4 | How does a device advertise that it understands inline type 4, `ReactionSet` key 3 and each media profile? ADR-0128 rule 18 requires the advertisement but this review found no registered capability ID or carriage. | Slice 2 cannot decide fallback per recipient device without it; ties to the `required_capabilities` and extension key 23 mechanism. | Delegation (new capability ID, additive) |
 | Q5 | Which bytes are signed and under what domain label for `ContentPackRelease` and `ContentPackControlState`? The design says "OM's durable-signature profile" without naming the label or the controller/threshold encoding. | C-47 and V-012 criterion 2 need exact vectors. | Delegation |
 | Q6 | The pack-ref fields: are `pack_id`, `release_id`, `item_id` carried in `ExpressiveAssetRef` as opaque 32-byte values with `item_id` a text string up to 128 characters (as the logical schema suggests)? Does an unverifiable `pack_ref` (release not installed) get displayed at all? | Attribution wording and R-108. | Delegation |
@@ -167,4 +167,4 @@ Stop and write the question here if: the design is silent on something the slice
 
 ## 9. Recommendation
 
-See ADR-0250 and the hand-off message: the scope is safe to authorize on the operator's explicit instruction, with Q1 and Q3 answered before slice 0 freezes numbers.
+ADR-0250 authorized the scope; Q1 and Q3 are answered by ADR-0251 before slice 0 freezes numbers.

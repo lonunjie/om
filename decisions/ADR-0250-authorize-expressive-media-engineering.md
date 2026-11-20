@@ -1,10 +1,10 @@
 # ADR-0250 — Authorize engineering scope `expressive_media` (W1), by explicit operator instruction
 
-- **Status:** **Proposed**, awaiting the operator's explicit instruction. Authorizing an engineering scope is a decision of the operator, not a review result and not a delegation; nothing in this ADR is applied until the operator accepts it.
+- **Status:** **Accepted** (operator, 2026-11-20, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the operator, not a review result and not a delegation. The numbers the plan left open (Q1, Q3) are fixed by ADR-0251, accepted by delegation.
 - **Date:** 2026-11-20
-- **Authorizes (on acceptance):** engineering scope `expressive_media` only. No other scope changes state.
+- **Authorizes:** engineering scope `expressive_media` only. No other scope changes state.
 - **Depends on:** `core_kernel` (ADR-0169), already authorized.
-- **Waives (on acceptance):** the **pre-engineering** phase of gate V-012 (`expressive_media_and_pack_parser_safety`) for engineering purposes only. Its pre-release phase is untouched and stays open.
+- **Waives:** the **pre-engineering** phase of gate V-012 (`expressive_media_and_pack_parser_safety`) for engineering purposes only. Its pre-release phase is untouched and stays open.
 - **Plan:** [`2026-11-20-expressive-media-build-plan.md`](../docs/reports/2026-11-20-expressive-media-build-plan.md)
 
 ## Context
@@ -13,7 +13,7 @@
 
 The unlock contract ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](../docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md)) otherwise requires every gate that lists the scope to have `pre_engineering_status` passed or waived by an ADR. V-012 is the only gate that lists `expressive_media`. Its three pre-engineering criteria are not met and no evidence is recorded: fuzzing of candidate decoders and pack parsers for an agreed CPU-hour budget under the resource ceilings; canonical ContentPack manifest and signature vectors agreeing across two implementations; and the ADR-0156 wire freeze (frozen CDDL, registered fields and labels, two-codec vectors) for `ExpressiveAssetRef`, inline type 4 `custom_emoji` and `ReactionSet` key 3. No `spec/cddl/` file exists for any of it. The operator may choose to authorize engineering now and keep that evidence as a release obligation. This is the same shape as ADR-0217 (V-007), ADR-0170 (V-018) and ADR-0183.
 
-## Decision (on acceptance)
+## Decision
 
 1. **`expressive_media` is authorized**, by explicit operator instruction. Engineers follow [`ENGINEER_START_HERE.md`](../docs/process/ENGINEER_START_HERE.md), the `expressive_media` entry of [`engineering_scope_contracts.json`](../machine/engineering_scope_contracts.json) and the design gate in [`AGENTS.md`](../AGENTS.md).
 2. **What the scope covers.**
@@ -31,7 +31,7 @@ The unlock contract ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](../docs/
 
 ## Applied on acceptance
 
-None of this is applied while the ADR is Proposed. On the operator's explicit acceptance:
+Applied on 2026-11-20 on the operator's explicit acceptance:
 
 - [`machine/repository_contract.json`](../machine/repository_contract.json): `engineering_scopes.expressive_media.authorized = true`, `authorizing_adr = "ADR-0250"`.
 - [`machine/architecture_verification_gates.jsonl`](../machine/architecture_verification_gates.jsonl): V-012 `pre_engineering_status` and `pre_engineering_independence_status` become `waived_by_adr` with a waiver sentence naming this ADR. Its overall `status` stays `open`.
@@ -41,5 +41,4 @@ None of this is applied while the ADR is Proposed. On the operator's explicit ac
 ## Consequences
 
 - The review basis becomes the operator's decision, not independent review. The independent-tool and independent-implementation criteria of V-012 move to the release obligations in point 4.
-- Slice 0 of the plan is design-bound specification work (wire freeze) and is the only thing that may be built first. Plan questions Q1 (fuzz budget) and Q3 (decoded-pixel and frame budget figures) need the operator's answer before slice 0 freezes numbers.
-- If the operator does not accept this ADR, the scope stays locked and nothing in the repository changes.
+- Slice 0 of the plan is design-bound specification work (wire freeze) and is the only thing that may be built first. Plan questions Q1 (fuzz budget) and Q3 (decoded-pixel and frame budget figures) were answered by ADR-0251 (accepted by delegation) before slice 0 freezes numbers.

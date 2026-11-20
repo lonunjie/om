@@ -198,11 +198,12 @@
     },
     "expressive_media": {
       "wave": "W1",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel"
       ],
-      "description": "stickers, animation, content packs"
+      "description": "stickers, animation, content packs",
+      "authorizing_adr": "ADR-0250"
     },
     "calls": {
       "wave": "W2",
