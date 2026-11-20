@@ -8,4 +8,4 @@ export * from "./devices";
 export * from "./attachments";
 export * from "./groups";
 export * from "./privacy";
-export type * from "./expressive";
+export * from "./expressive";

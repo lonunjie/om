@@ -13,10 +13,11 @@ export { GROUPS_WASM_PATH };
 
 /** Vite names an emitted asset `assets/<name>-<hash>.<ext>`; these recognise the two Core modules by name. */
 export const CORE_WASM_PATH = /^assets\/om_wasm-[A-Za-z0-9_-]+\.wasm$/;
+export const EXPRESSIVE_WASM_PATH = /^assets\/om_wasm_expressive-[A-Za-z0-9_-]+\.wasm$/;
 /** Manifest files the service worker does not fetch at install: they are loaded on demand and verified by the page. */
 export const isLazyPath = (path: string): boolean => GROUPS_WASM_PATH.test(path);
 
-export type ModuleKind = "core" | "groups";
+export type ModuleKind = "core" | "groups" | "expressive";
 export interface ModuleDigest {
   readonly sha256: string;
   readonly bytes: number;
@@ -26,6 +27,7 @@ export interface ModuleTable {
   readonly version: string;
   readonly core: ModuleDigest;
   readonly groups: ModuleDigest;
+  readonly expressive?: ModuleDigest;
 }
 
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -35,7 +37,9 @@ const isDigest = (d: unknown): d is ModuleDigest =>
 export const parseModuleTable = (v: unknown): ModuleTable | null => {
   if (typeof v !== "object" || v === null) return null;
   const t = v as Partial<ModuleTable>;
-  return typeof t.version === "string" && t.version !== "" && isDigest(t.core) && isDigest(t.groups) ? { version: t.version, core: t.core, groups: t.groups } : null;
+  if (typeof t.version !== "string" || t.version === "" || !isDigest(t.core) || !isDigest(t.groups)) return null;
+  if (t.expressive !== undefined && !isDigest(t.expressive)) return null;
+  return { version: t.version, core: t.core, groups: t.groups, ...(t.expressive === undefined ? {} : { expressive: t.expressive }) };
 };
 
 export type ModuleFailure =
@@ -64,8 +68,9 @@ const same = (a: ModuleDigest, f: { readonly sha256: string; readonly bytes: num
 export const checkSameRelease = (table: ModuleTable, manifest: BundleManifest, kind: ModuleKind, path: string): ModuleVerdict => {
   if (manifest.version !== table.version) return { ok: false, reason: "version_skew" };
   const at = manifest.files.find((f) => f.path === path);
-  if (!same(table[kind], at)) return { ok: false, reason: "digest_skew" };
-  const other: ModuleKind = kind === "core" ? "groups" : "core";
+  const expected = table[kind];
+  if (expected === undefined || !same(expected, at)) return { ok: false, reason: "digest_skew" };
+  const other = kind === "core" ? "groups" : "core";
   const otherMatch = manifest.files.filter((f) => same(table[other], f) && (other === "core" ? CORE_WASM_PATH : GROUPS_WASM_PATH).test(f.path));
   if (otherMatch.length !== 1) return { ok: false, reason: "digest_skew" };
   return { ok: true, value: undefined };
@@ -94,6 +99,7 @@ export interface ModuleSource {
 export async function loadVerifiedModule(table: ModuleTable | null, kind: ModuleKind, path: string, src: ModuleSource, opts: { readonly release: boolean }): Promise<ModuleVerdict<ArrayBuffer>> {
   if (table === null) return { ok: false, reason: "table_missing" };
   const want = table[kind];
+  if (want === undefined) return { ok: false, reason: "table_missing" };
   try {
     const kept = await src.kept?.get(want.sha256);
     if (kept !== undefined && (await checkBytes(want, kept)).ok) return { ok: true, value: kept };

@@ -12,8 +12,10 @@ const digestOf = (name: string): ModuleDigest | null => {
 };
 
 /** Null when either module has not been built (the loader then refuses: nothing is loaded unverified). `pnpm build` builds both first. */
-export const moduleTable = (version: string): ModuleTable | null => {
+export const moduleTable = (version: string, expressiveEnabled = false): ModuleTable | null => {
   const core = digestOf("om_wasm.wasm");
   const groups = digestOf("om_wasm_groups.wasm");
-  return core === null || groups === null ? null : { version, core, groups };
+  const expressive = expressiveEnabled ? digestOf("om_wasm_expressive.wasm") : null;
+  if (expressiveEnabled && expressive === null) throw new Error("Build the expressive Core artifact before enabling expressive media.");
+  return core === null || groups === null ? null : { version, core, groups, ...(expressive === null ? {} : { expressive }) };
 };

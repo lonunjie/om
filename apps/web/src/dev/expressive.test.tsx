@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHarness, type SeedExpressivePack } from "@om/core-harness";
-import { asConversationId, asOperationId, asPersonId, asProfileId, type ExpressiveMediaApi } from "@om/platform-api";
+import { asConversationId, asOperationId, asPersonId, asProfileId, PACK_FILE_MAX_BYTES, PACK_FILE_MEDIA_TYPE, type ExpressiveMediaApi } from "@om/platform-api";
 import { ConversationView, ExpressivePickerControl, SecurityNotices, ThemeProvider, createActionRegistry, type ExpressiveSurface } from "@om/ui";
 import { conversationCopy, expressiveCopy } from "../copy/en";
 import { devExpressiveHost, expressiveFixture, expressiveRichText, inlineMessage } from "./expressiveFixture";
@@ -14,6 +14,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const profile = asProfileId("work");
 const conversationId = asConversationId("chat");
 const remote = "https://attacker.invalid/spy.webp";
+const packFile = Uint8Array.of(0xa4, 1, 2, 3);
 const literal = `<style>body{display:none}</style><img src="${remote}">`;
 
 const a11y = async (node: Element) => {
@@ -21,16 +22,19 @@ const a11y = async (node: Element) => {
   expect(violations.map((v) => v.id)).toEqual([]);
 };
 
-function setup(enabled = true, hostile = false) {
+function setup(enabled = true, hostile = false, received = false) {
   const fixture: SeedExpressivePack = hostile ? {
     ...expressiveFixture,
     preview: { ...expressiveFixture.preview, description: literal, creatorDisplay: literal, licenseUrl: remote, sourceUrls: [remote] },
   } : expressiveFixture;
   const client = createHarness({ expressiveMedia: enabled });
   const ctx = client.seedProfile({
-    profileId: profile, label: "Work", expressivePacks: [fixture], conversations: [{
+    profileId: profile, label: "Work", expressivePacks: [{ ...fixture, file: packFile }], conversations: [{
       id: conversationId, personId: asPersonId("ana"), displayName: "Ana",
-      messages: [{ text: "Hello", direction: "incoming" }, inlineMessage],
+      messages: [{ text: "Hello", direction: "incoming" }, inlineMessage, ...(received ? [{
+        text: "A pack for you", direction: "incoming" as const,
+        attachments: [{ filename: "faces.ompack", mediaType: PACK_FILE_MEDIA_TYPE, bytes: packFile }],
+      }] : [])],
     }],
   });
   let sequence = 0;
@@ -49,7 +53,9 @@ function setup(enabled = true, hostile = false) {
   vi.stubGlobal("ImageData", function imageData(data: Uint8ClampedArray, width: number, height: number) {
     return { data, width, height };
   });
-  const surface: ExpressiveSurface = { ...devExpressiveHost(client, profile), copy: expressiveCopy, decoder: { decode } };
+  const surface: ExpressiveSurface = { ...devExpressiveHost(client, profile), copy: expressiveCopy, decoder: { decode },
+    files: { pick: () => Promise.resolve([{ name: "faces.ompack", mimeType: "", size: packFile.length, bytes: () => Promise.resolve(packFile.slice()) }]) },
+  };
   return { services, surface, fixture, close, play, pause, draw, decode, nextFrame };
 }
 
@@ -259,5 +265,78 @@ describe("expressive media", () => {
     await a11y(dialog());
     await user.keyboard("{Escape}");
     await waitFor(() => { expect(document.activeElement).toBe(button("Stickers")); });
+  });
+});
+
+describe("pack files", () => {
+  it.each(["message", "picker", "drop"])("reviews and confirms a pack from the %s without requesting its provenance", async (source) => {
+    const { services, surface } = setup(true, true, true);
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    vi.stubGlobal("fetch", fetch);
+    const read = vi.spyOn(services.client.attachments, "open");
+    const installFile = vi.spyOn(services.client.expressive, "do");
+    render(<Screen {...{ services, surface }} />);
+    await screen.findByText("faces.ompack");
+    expect(read).not.toHaveBeenCalled();
+    const user = userEvent.setup();
+    if (source === "message") {
+      await user.click(within(screen.getByRole("log")).getByRole("button", { name: "Review pack" }));
+      expect((await screen.findByText("File sent by")).textContent).toBe("File sent by Ana");
+    } else {
+      await user.click(button("Stickers"));
+      if (source === "picker") await user.click(await screen.findByRole("button", { name: "Choose pack file" }));
+      else {
+        const drop = await screen.findByText("Drop a pack file here.");
+        fireEvent.drop(drop, { dataTransfer: { files: [{
+          name: "faces.ompack", type: "", size: packFile.length,
+          arrayBuffer: () => Promise.resolve(packFile.slice().buffer),
+        }] } });
+      }
+      expect(screen.queryByText("File sent by")).toBeNull();
+    }
+    const confirm = await screen.findByRole("button", { name: "Install Little faces" });
+    expect(installFile).not.toHaveBeenCalled();
+    expect(dialog().querySelector("a, img, iframe")).toBeNull();
+    await a11y(dialog());
+    await user.click(confirm);
+    expect(await screen.findByText(expressiveCopy.installed)).toBeTruthy();
+    await a11y(dialog());
+    expect(read).toHaveBeenCalledTimes(source === "message" ? 1 : 0);
+    expect(fetch).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole("button", { name: "Little faces" }));
+    await user.click(button("Preview Hello smile"));
+    expect(await within(dialog()).findByRole("img", { name: "A smiling sticker" })).toBeTruthy();
+    await a11y(dialog());
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("states size, read, validation, lineage and save failures in plain words", async () => {
+    const { services, surface } = setup();
+    if (surface.files === undefined) throw new Error("file picker unavailable");
+    const pickFile = vi.spyOn(surface.files, "pick");
+    const review = vi.spyOn(services.client.expressive, "reviewPackFile");
+    const bytes = vi.fn(() => Promise.resolve(packFile));
+    render(<Screen {...{ services, surface }} />);
+    const user = await pick();
+    const choose = await screen.findByRole("button", { name: "Choose pack file" });
+    pickFile.mockResolvedValueOnce([{ name: "big.ompack", size: PACK_FILE_MAX_BYTES + 1, mimeType: "", bytes }]);
+    await user.click(choose);
+    expect(await screen.findByText(expressiveCopy.packTooLarge)).toBeTruthy();
+    expect(bytes).not.toHaveBeenCalled();
+    pickFile.mockRejectedValueOnce(new Error("file input"));
+    await user.click(choose);
+    expect(await screen.findByText(expressiveCopy.reviewFailed)).toBeTruthy();
+    review.mockResolvedValueOnce({ refused: "bad_signature" });
+    await user.click(choose);
+    expect(await screen.findByText(expressiveCopy.reviewFailed)).toBeTruthy();
+    review.mockResolvedValueOnce({ refused: "pack_needs_earlier_version" });
+    await user.click(choose);
+    expect(await screen.findByText(expressiveCopy.packNeedsEarlier)).toBeTruthy();
+    await a11y(dialog());
+    await user.click(choose);
+    vi.spyOn(services.client.expressive, "do").mockResolvedValueOnce({ refused: "pack_storage" });
+    await user.click(await screen.findByRole("button", { name: "Install Little faces" }));
+    expect(await screen.findByText(expressiveCopy.installFailed)).toBeTruthy();
+    await a11y(dialog());
   });
 });

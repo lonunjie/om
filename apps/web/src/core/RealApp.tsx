@@ -252,7 +252,7 @@ function Connected({ rt, callMedia, vault, drafts, searchKv, platform, capture: 
   const expressiveHost = useMemo(() => {
     if (rt.describeExpressive === undefined) return undefined;
     const capability = platform.expressiveMedia();
-    return { describe: rt.describeExpressive, ...(capability.state === "unavailable" ? {} : { decoder: capability.api }) };
+    return { describe: rt.describeExpressive, readCached: rt.expressive.readCached.bind(rt.expressive), ...(capability.state === "unavailable" ? {} : { decoder: capability.api }) };
   }, [rt, platform]);
   // Without the groups module on this device, the first use fetches and verifies it and restarts the app onto it (ADR-0187).
   const groupsSetup = useMemo<GroupsSetup | undefined>(() => (rt.groups.available() ? undefined : {

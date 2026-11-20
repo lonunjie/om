@@ -3,6 +3,9 @@ import type { AttachmentPrepareResult } from "./attachments";
 import type { MessageId, ProfileExecutionContext } from "./ids";
 import type { ExpressiveDecodeResult, ExpressiveMediaApi, ValidatedExpressiveAsset } from "../platform/expressive";
 
+export const PACK_FILE_MEDIA_TYPE = "application/vnd.om.content-pack";
+export const PACK_FILE_MAX_BYTES = 32 * 1024 * 1024;
+
 export type ExpressiveSource =
   | { readonly kind: "attachment" | "inline"; readonly index: number }
   | { readonly kind: "reaction"; readonly key: string; readonly mine: boolean };
@@ -37,6 +40,7 @@ export interface ExpressivePicker {
   readonly items: readonly {
     readonly itemId: string;
     readonly blobId: string;
+    readonly ciphertextDigest?: string;
     readonly kind: ValidatedExpressiveAsset["kind"];
     readonly label: string;
     readonly altText: string;
@@ -76,7 +80,12 @@ export interface ExpressivePackPreview extends ExpressivePackConfirmation {
   readonly signedBy: readonly (readonly number[])[];
 }
 
+export type ExpressivePackFileReview =
+  | { readonly ticket: number; readonly preview: ExpressivePackPreview }
+  | { readonly refused: string };
+
 export type ExpressivePackIntent =
+  | { readonly kind: "install_pack_file"; readonly ticket: number; readonly confirmation: ExpressivePackConfirmation }
   | { readonly kind: "install_pack"; readonly input: ExpressivePackInput; readonly confirmation: ExpressivePackConfirmation;
       readonly policy: ExpressiveCachePolicy; readonly favourites: readonly string[];
       /** Ciphertext already present in this profile’s durable cache. */
@@ -107,6 +116,11 @@ export type DecodedExpressive = ExpressivePlaceholder
 /** Core capability for the optional expressive-media host. Pack bytes are supplied by the local cache/import path. */
 export interface ExpressiveApi {
   available(): boolean;
+  reviewPackFile(ctx: ProfileExecutionContext, bytes: Uint8Array): Promise<ExpressivePackFileReview>;
+  discardPackFile(ctx: ProfileExecutionContext, ticket: number): Promise<void>;
+  readCached(ctx: ProfileExecutionContext, digest: string): Promise<Uint8Array | null>;
+  decodeCached(ctx: ProfileExecutionContext, selection: ExpressivePackItem, ciphertext: Uint8Array, decoder: ExpressiveMediaApi,
+    options: { readonly reducedMotion: boolean }): Promise<DecodedExpressive | null>;
   do(ctx: ProfileExecutionContext, intent: ExpressivePackIntent): Promise<{ readonly accepted: true } | { readonly refused: string }>;
   query<Q extends ExpressivePackQuery>(ctx: ProfileExecutionContext, query: Q): Promise<ExpressiveQueryResult[Q["kind"]]>;
   prepare(ctx: ProfileExecutionContext, selection: ExpressivePackItem, ciphertext: Uint8Array): Promise<AttachmentPrepareResult>;

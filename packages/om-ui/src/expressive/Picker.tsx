@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 import { useEffect, useRef, useState } from "react";
-import type { ConversationId, ExpressiveApi, ExpressivePackPreview, ExpressivePicker, ExpressiveQueryResult, MessageId } from "@om/platform-api";
+import { PACK_FILE_MAX_BYTES, PACK_FILE_MEDIA_TYPE } from "@om/platform-api";
+import type { ConversationId, DecodedExpressive, ExpressiveApi, ExpressivePackFileReview, ExpressivePackItem, ExpressivePackPreview, ExpressivePicker, ExpressiveQueryResult, MessageId, PickedFile } from "@om/platform-api";
 import { resolveIntent, settledOutcome, type ConversationServices } from "../conversations/services";
 import { Sheet } from "../shell/layout/Sheet";
 import { Button } from "../shell/primitives/Button";
+import { Canvas } from "./Asset";
 import type { ExpressiveCopy } from "./copy";
 import type { ExpressiveSurface } from "./host";
 import "./expressive.css";
@@ -13,13 +15,14 @@ type Packs = ExpressiveQueryResult["packs"];
 type Panel =
   | { kind: "packs"; packs: Packs }
   | { kind: "items" | "details" | "remove"; picker: ExpressivePicker }
-  | { kind: "review"; preview: ExpressivePackPreview; updating: boolean };
+  | { kind: "review"; preview: ExpressivePackPreview; updating: boolean; file?: { ticket: number; sender?: string } };
 
 interface ControlProps {
   readonly services: ConversationServices;
   readonly surface: ExpressiveSurface;
   readonly conversationId: ConversationId;
   readonly reactionTo?: MessageId;
+  readonly receivedPack?: { readonly messageId: MessageId; readonly index: number; readonly sender: string };
 }
 
 export function ExpressivePickerControl(props: ControlProps) {
@@ -34,7 +37,7 @@ export function ExpressivePickerControl(props: ControlProps) {
 export function ExpressivePickerSheet({ onClose, ...props }: ControlProps & { readonly onClose: () => void }) {
   const api = props.services.client.expressive;
   if (api?.available() !== true) return null;
-  const title = props.reactionTo === undefined ? props.surface.copy.picker : props.surface.copy.reactions;
+  const title = props.receivedPack !== undefined ? props.surface.copy.review : props.reactionTo === undefined ? props.surface.copy.picker : props.surface.copy.reactions;
   return <Sheet title={title} closeLabel={props.surface.copy.close} onClose={onClose}>
     <Picker {...props} api={api} />
   </Sheet>;
@@ -50,10 +53,11 @@ function Provenance({ signedBy, copy }: { readonly signedBy: readonly (readonly 
   </div>;
 }
 
-function PackReview({ preview, copy }: { readonly preview: ExpressivePackPreview; readonly copy: ExpressiveCopy }) {
+function PackReview({ preview, copy, sender }: { readonly preview: ExpressivePackPreview; readonly copy: ExpressiveCopy; readonly sender?: string | undefined }) {
   // Every author-supplied field is inert, direction-isolated text. Source addresses never become links.
   return <>
     <h3 tabIndex={-1} data-expressive-heading><bdi>{preview.title}</bdi></h3>
+    {sender === undefined ? null : <p>{copy.fileSentBy} <bdi>{sender}</bdi></p>}
     {preview.description === null ? null : <p><bdi>{preview.description}</bdi></p>}
     {preview.creatorDisplay === null ? null : <p>{copy.creator} <bdi>{preview.creatorDisplay}</bdi></p>}
     <Provenance signedBy={preview.signedBy} copy={copy} />
@@ -70,13 +74,15 @@ function PackReview({ preview, copy }: { readonly preview: ExpressivePackPreview
 // A profile switch or dismissal can abort while a Core promise is pending.
 const cancelled = (signal: AbortSignal): boolean => signal.aborted;
 
-function Picker({ services, surface, conversationId, reactionTo, api }: ControlProps & { readonly api: ExpressiveApi }) {
+function Picker({ services, surface, conversationId, reactionTo, receivedPack, api }: ControlProps & { readonly api: ExpressiveApi }) {
   const { copy } = surface;
   const { ctx } = services;
   const [panel, setPanel] = useState<Panel | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(false);
+  const [reviewAttempt, setReviewAttempt] = useState(0);
+  const [previewItem, setPreviewItem] = useState<{ selection: ExpressivePackItem; item: PickerItem } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const life = useRef<AbortController | null>(null);
   const locked = useRef(false);
@@ -86,12 +92,30 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
   useEffect(() => {
     const job = new AbortController();
     life.current = job;
-    void api.query(ctx, { kind: "packs" }).then(
-      (packs) => { if (!job.signal.aborted) setPanel({ kind: "packs", packs }); },
-      () => { if (!job.signal.aborted) setStatus(copy.loadFailed); },
-    );
+    void (async () => {
+      try {
+        const packs = await api.query(ctx, { kind: "packs" });
+        if (cancelled(job.signal)) return;
+        if (receivedPack === undefined) { setPanel({ kind: "packs", packs }); return; }
+        const opened = await services.client.attachments?.open(ctx, receivedPack.messageId, receivedPack.index);
+        if (cancelled(job.signal)) return;
+        if (!opened?.ok || opened.mediaType !== PACK_FILE_MEDIA_TYPE) { setStatus(copy.reviewFailed); return; }
+        const reviewed = await api.reviewPackFile(ctx, opened.bytes);
+        if (cancelled(job.signal)) {
+          if ("ticket" in reviewed) void api.discardPackFile(ctx, reviewed.ticket).catch(() => undefined);
+          return;
+        }
+        if ("refused" in reviewed) { setStatus(packRefusal(copy, reviewed.refused)); return; }
+        setPanel(filePanel(reviewed, packs, receivedPack.sender));
+      } catch { if (!cancelled(job.signal)) setStatus(receivedPack === undefined ? copy.loadFailed : copy.reviewFailed); }
+    })();
     return () => { job.abort(); };
-  }, [api, ctx, copy.loadFailed]);
+  }, [api, ctx, copy, receivedPack, reviewAttempt, services.client.attachments]);
+
+  const ticket = panel?.kind === "review" ? panel.file?.ticket : undefined;
+  useEffect(() => () => {
+    if (ticket !== undefined) void api.discardPackFile(ctx, ticket).catch(() => undefined);
+  }, [api, ctx, ticket]);
 
   useEffect(() => {
     root.current?.querySelector<HTMLElement>("[data-expressive-heading]")?.focus({ preventScroll: true });
@@ -125,6 +149,7 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
     run(copy.loading, copy.loadFailed, async (signal) => {
       const packs = await readPacks();
       if (cancelled(signal)) return;
+      setPreviewItem(null);
       setPanel({ kind: "packs", packs });
       setStatus("");
     });
@@ -150,7 +175,7 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
       const key = reactKey(item);
       if (pending || (reactionTo !== undefined && key === null)) return;
       const selected = selection(picker, item);
-      const bytes = await surface.readCached?.(ctx, item.blobId);
+      const bytes = await surface.readCached?.(ctx, item.ciphertextDigest ?? item.blobId);
       if (cancelled(signal)) return;
       if (bytes == null) { setStatus(copy.missingItem); return; }
       const prepared = await api.prepare(ctx, selected, bytes);
@@ -215,6 +240,9 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
                 title={item.altText}>
                 <bdi>{(reactionTo === undefined ? copy.send : copy.react)(item.label)}</bdi>
               </Button>
+              {!available || surface.decoder === undefined ? null : <Button variant="quiet" onClick={() => {
+                setPreviewItem({ selection: selection(picker, item), item });
+              }}><bdi>{copy.previewItem(item.label)}</bdi></Button>}
               <Button variant="quiet" disabled={busy} onClick={() => {
                 run(copy.loading, copy.favouriteFailed, async (signal) => {
                   if (!await mutate("set-expressive-favourite", { ...selection(picker, item), present: !item.favourite })) throw new Error("favourite refused");
@@ -231,8 +259,27 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
           })}</ul>
         </section>
       ))}
+      {previewItem === null ? null : <CachedPreview key={previewItem.item.itemId}
+        {...previewItem} {...{ services, surface, api }} />}
     </>;
   };
+
+  async function reviewLocal(file: PickedFile | undefined, packs: Packs, signal: AbortSignal) {
+    if (cancelled(signal)) return;
+    if (file === undefined) { setStatus(""); return; }
+    if (!file.name.toLowerCase().endsWith(".ompack")) { setStatus(copy.choosePackFile); return; }
+    if (file.size > PACK_FILE_MAX_BYTES) { setStatus(copy.packTooLarge); return; }
+    const bytes = await file.bytes();
+    if (cancelled(signal)) return;
+    const result = await api.reviewPackFile(ctx, bytes);
+    if (cancelled(signal)) {
+      if ("ticket" in result) void api.discardPackFile(ctx, result.ticket).catch(() => undefined);
+      return;
+    }
+    if ("refused" in result) { setStatus(packRefusal(copy, result.refused)); return; }
+    setPanel(filePanel(result, packs));
+    setStatus("");
+  }
 
   const review = surface.review;
   return (
@@ -243,6 +290,24 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
         {panel.packs.length === 0 ? <p>{copy.empty}</p> : <ul className="om-expressive-picker__items">{panel.packs.map(([id, pack]) => (
           <li key={id}><Button disabled={busy} onClick={() => { openPack(id); }}><bdi>{pack.title}</bdi></Button></li>
         ))}</ul>}
+        {reactionTo !== undefined ? null : <div className="om-expressive-picker__import"
+          onDragOver={(event) => { event.preventDefault(); }}
+          onDrop={(event) => {
+            event.preventDefault();
+            const [file] = Array.from(event.dataTransfer.files);
+            if (event.dataTransfer.files.length !== 1 || file === undefined) { if (!busy) setStatus(copy.choosePackFile); return; }
+            run(copy.loading, copy.reviewFailed, (signal) => reviewLocal({
+              name: file.name, size: file.size, mimeType: file.type, bytes: async () => new Uint8Array(await file.arrayBuffer()),
+            }, panel.packs, signal));
+          }}>
+          {surface.files === undefined ? null : <Button disabled={busy} onClick={() => {
+            run(copy.loading, copy.reviewFailed, async (signal) => {
+              const picked = await surface.files?.pick({ accept: [".ompack"], multiple: false });
+              await reviewLocal(picked?.[0], panel.packs, signal);
+            });
+          }}>{copy.importFile}</Button>}
+          <p>{copy.dropFile}</p>
+        </div>}
         {review === undefined ? null : <Button disabled={busy} onClick={() => {
           run(copy.loading, copy.reviewFailed, async (signal) => {
             const result = await api.query(ctx, { kind: "preview_pack", input: review.input });
@@ -280,12 +345,25 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
           }}><bdi>{copy.remove(panel.picker.pack.title)}</bdi></Button>
         </>}
       </> : null}
-      {panel?.kind === "review" && review !== undefined ? <>
+      {panel?.kind === "review" ? <>
         <Button variant="quiet" disabled={busy} onClick={back}>{copy.back}</Button>
-        <PackReview preview={panel.preview} copy={copy} />
+        <PackReview preview={panel.preview} copy={copy} sender={panel.file?.sender} />
         <Button disabled={busy} variant="primary" onClick={() => {
           run(copy.installing, copy.installFailed, async (signal) => {
-            if (!await mutate("install-expressive-pack", {
+            if (panel.file !== undefined) {
+              const resolved = services.registry.resolve({ actionId: "install-expressive-pack", ctx, origin: "direct", params: {
+                ticket: panel.file.ticket, releaseId: panel.preview.releaseId, controlDigest: panel.preview.controlDigest,
+              } });
+              if (resolved.status !== "expressive") throw new Error("install refused");
+              const result = await api.do(ctx, resolved.intent);
+              if ("refused" in result) {
+                if (!cancelled(signal)) {
+                  setPanel(null);
+                  setStatus(packRefusal(copy, result.refused, true));
+                }
+                return;
+              }
+            } else if (review === undefined || !await mutate("install-expressive-pack", {
               input: review.input, releaseId: panel.preview.releaseId, controlDigest: panel.preview.controlDigest, cached: review.cached ?? [],
             })) throw new Error("install refused");
             if (cancelled(signal)) return;
@@ -298,7 +376,55 @@ function Picker({ services, surface, conversationId, reactionTo, api }: ControlP
           });
         }}><bdi>{(panel.updating ? copy.update : copy.install)(panel.preview.title)}</bdi></Button>
       </> : null}
-      {panel === null && status !== "" && !busy ? <Button onClick={back}>{copy.retry}</Button> : null}
+      {panel === null && status !== "" && !busy ? <Button onClick={() => {
+        if (receivedPack === undefined) back();
+        else { setStatus(""); setReviewAttempt((n) => n + 1); }
+      }}>{copy.retry}</Button> : null}
     </div>
   );
+}
+
+function packRefusal(copy: ExpressiveCopy, reason: string, saving = false): string {
+  switch (reason) {
+    case "pack_needs_earlier_version": return copy.packNeedsEarlier;
+    case "size_limit": return copy.packTooLarge;
+    case "confirmation_required": return copy.packChanged;
+    default: return saving ? copy.installFailed : copy.reviewFailed;
+  }
+}
+
+function filePanel(
+  review: Extract<ExpressivePackFileReview, { ticket: number }>, packs: Packs, sender?: string,
+): Extract<Panel, { kind: "review" }> {
+  const { preview, ticket } = review;
+  const current = packs.find(([id]) => id === preview.packId)?.[1];
+  return { kind: "review", preview, updating: current !== undefined && current.releaseId !== preview.releaseId,
+    file: { ticket, ...(sender === undefined ? {} : { sender }) } };
+}
+
+function CachedPreview({ services, surface, api, selection, item }: {
+  readonly services: ConversationServices; readonly surface: ExpressiveSurface;
+  readonly api: ExpressiveApi; readonly selection: ExpressivePackItem; readonly item: PickerItem;
+}) {
+  const { ctx } = services;
+  const { copy, readCached, decoder } = surface;
+  const [result, setResult] = useState<DecodedExpressive | null | undefined>(undefined);
+  useEffect(() => {
+    const job = new AbortController();
+    let accepted: DecodedExpressive | null = null;
+    setResult(undefined);
+    void (async () => {
+      const bytes = await readCached?.(ctx, item.ciphertextDigest ?? item.blobId);
+      if (cancelled(job.signal)) return;
+      accepted = bytes == null || decoder === undefined ? null
+        : await api.decodeCached(ctx, selection, bytes, decoder, { reducedMotion: true });
+      if (!cancelled(job.signal)) setResult(accepted);
+      else if (accepted?.state === "decoded") accepted.playback?.close();
+    })().catch(() => { if (!cancelled(job.signal)) setResult(null); });
+    return () => { job.abort(); if (accepted?.state === "decoded") accepted.playback?.close(); };
+  }, [api, ctx, decoder, readCached, selection, item]);
+  if (result?.state === "decoded") return <span className="om-expressive-asset" data-size="message">
+    <Canvas decoded={result} manual controls={false} copy={copy} onFailure={() => { setResult(null); }} />
+  </span>;
+  return <p role="status">{result === undefined ? copy.loading : copy.unavailable} <bdi>{item.altText}</bdi></p>;
 }

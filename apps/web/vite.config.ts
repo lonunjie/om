@@ -54,10 +54,10 @@ function localRelayCsp(): Record<string, string> {
   return { "Content-Security-Policy": cspHeader().replace("connect-src 'self' https: wss:", `connect-src 'self' https: wss: ${extra}`) };
 }
 
-const config: UserConfig = {
-  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev, modules: moduleTable(version) })],
+const config = (expressive: boolean): UserConfig => ({
+  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev, modules: moduleTable(version, expressive) })],
   // __OM_WASM_MODULES__: the digests of the two Core modules, compiled into the bundle (covered by the manifest signature; see src/update/modules.ts).
-  define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_VERSION__: JSON.stringify(version), __OM_WASM_MODULES__: JSON.stringify(moduleTable(version)) },
+  define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_VERSION__: JSON.stringify(version), __OM_WASM_MODULES__: JSON.stringify(moduleTable(version, expressive)) },
   build: {
     target: "es2023",
     sourcemap: false,
@@ -65,7 +65,7 @@ const config: UserConfig = {
     assetsInlineLimit: 0,
   },
   preview: { headers: { ...SECURITY_HEADERS, ...localRelayCsp() } },
-};
+});
 
 // R-072 / audit H1: the bundle content is chosen by these flags (src/main.tsx). A production-mode build that sets one
 // without the explicit dev-bundle switch would ship a harness or the in-page TEST loopback provider as if it were
@@ -77,7 +77,9 @@ const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LO
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), "VITE_OM_"), ...process.env };
-  const set = TEST_FLAGS.filter((k) => (env[k] ?? "") !== "");
+  const expressive = env["VITE_OM_EXPRESSIVE_MEDIA"] === "1";
+  const set: string[] = TEST_FLAGS.filter((k) => (env[k] ?? "") !== "");
+  if (expressive) set.push("VITE_OM_EXPRESSIVE_MEDIA");
   if (mode === "production" && set.length > 0 && !dev) {
     throw new Error(
       `refusing a production build with ${set.join(", ")} set and OM_BUNDLE_DEV unset: that would ship a test build as the product (R-072)`,
@@ -88,5 +90,5 @@ export default defineConfig(({ mode }) => {
   if (process.env["OM_RELEASE_BUILD"] === "1" && !dev && !isRootPinned()) {
     throw new Error("refusing a release build: the offline ROOT public key is not pinned yet (key ceremony pending, see deploy/KEY-CEREMONY.md; set ROOT_KEYS in src/update/release-key.ts)");
   }
-  return config;
+  return config(expressive);
 });

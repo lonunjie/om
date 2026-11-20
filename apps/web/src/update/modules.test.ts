@@ -70,6 +70,20 @@ describe("version skew between the base Core and the groups module", () => {
 });
 
 describe("loadVerifiedModule (the digest check before anything is instantiated)", () => {
+  it("requires the opt-in expressive digest and checks the bytes before loading", async () => {
+    const { table } = await fixture();
+    const path = "assets/om_wasm_expressive-LittleFaces.wasm";
+    const bytes = enc("expressive Core");
+    const log: string[] = [];
+    const source = served({ [path]: bytes }, log);
+    expect(await loadVerifiedModule(table, "expressive", path, source, { release: false })).toEqual({ ok: false, reason: "table_missing" });
+    expect(log).toEqual([]);
+    const enabled = { ...table, expressive: { sha256: await sha256Hex(bytes), bytes: bytes.length } };
+    expect(parseModuleTable(enabled)).toEqual(enabled);
+    expect(await loadVerifiedModule(enabled, "expressive", path, source, { release: false })).toEqual({ ok: true, value: ab(bytes) });
+    expect(await loadVerifiedModule(enabled, "expressive", path, served({ [path]: enc("wrong Core") }), { release: false })).toMatchObject({ ok: false });
+  });
+
   it("returns the bytes of a module that matches the table and the manifest, and keeps them", async () => {
     const { table, manifest } = await fixture();
     const kept = new Map<string, ArrayBuffer>();

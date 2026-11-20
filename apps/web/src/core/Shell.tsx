@@ -102,7 +102,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
   const me = useActiveProfile();
   const { profiles } = useProfiles();
   const expressive = expressiveHost !== undefined && services.client.expressive?.available() === true
-    ? { ...expressiveHost, copy: expressiveCopy } : undefined;
+    ? { ...expressiveHost, ...(capture?.files === undefined ? {} : { files: capture.files }), copy: expressiveCopy } : undefined;
   const calls = useCallSurface(services, callDriver, callMedia);
   const mode = useLayoutMode();
   // A replacement safety code (ADR-0205) being shown from Settings > Recovery; nothing changes until the person confirms it is saved.

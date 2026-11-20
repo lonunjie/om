@@ -8,6 +8,7 @@ import type {
 
 export interface SeedExpressivePack {
   readonly input: ExpressivePackInput;
+  readonly file?: Uint8Array;
   readonly preview: ExpressivePackPreview;
   readonly items: readonly {
     readonly itemId: string;
@@ -39,6 +40,7 @@ export function createExpressiveSim(options: {
     readonly cached: Set<string>;
   }
   interface ProfileState {
+    review?: { ticket: number; fixture: SeedExpressivePack };
     fixtures: readonly SeedExpressivePack[];
     packs: Map<string, HeldPack>;
     prepared: Map<string, SeedExpressivePack["items"][number]>;
@@ -62,12 +64,75 @@ export function createExpressiveSim(options: {
   const fixtureFor = (ctx: ProfileExecutionContext, input: ExpressivePackInput) =>
     state(ctx).fixtures.find((f) => equalBytes(f.input.release, input.release) && equalBytes(f.input.control, input.control));
 
+  let nextReview = 1;
   const api: ExpressiveApi = {
     available: () => options.enabled,
+    reviewPackFile: (ctx, bytes) => options.settle(() => {
+      if (!options.enabled) return { refused: "expressive_disabled" };
+      const held = state(ctx);
+      const fixture = held.fixtures.find((f) => equalBytes(f.file, bytes));
+      if (fixture === undefined) return { refused: "pack_file_format" };
+      const ticket = nextReview++;
+      held.review = { ticket, fixture };
+      return { ticket, preview: fixture.preview };
+    }),
+    discardPackFile: (ctx, ticket) => options.settle(() => {
+      const held = state(ctx);
+      if (held.review?.ticket === ticket) delete held.review;
+    }),
+    readCached: (ctx, digest) => options.settle(() => {
+      if (!options.enabled) return null;
+      for (const pack of state(ctx).packs.values()) {
+        if (!pack.cached.has(digest)) continue;
+        const item = pack.fixture.items.find((item) => item.blobId === digest);
+        if (item !== undefined) return item.asset.asset.bytes.slice();
+      }
+      return null;
+    }),
+    async decodeCached(ctx, selection, ciphertext, decoder, decodeOptions) {
+      const find = () => {
+        if (!options.enabled) return undefined;
+        const pack = state(ctx).packs.get(selection.packId);
+        if (pack?.fixture.preview.releaseId !== selection.releaseId) return undefined;
+        const item = pack.fixture.items.find((item) => item.itemId === selection.itemId);
+        return item !== undefined && pack.cached.has(item.blobId) ? item.asset : undefined;
+      };
+      const opened = find();
+      if (opened === undefined) return null;
+      const placeholder = { state: "placeholder" as const, altText: opened.altText };
+      if (!equalBytes(opened.asset.bytes, ciphertext)) return placeholder;
+      try {
+        const result = await decoder.decode({ ...opened.asset, bytes: opened.asset.bytes.slice() }, decodeOptions);
+        if (result.state !== "decoded") return placeholder;
+        const { width, height, frames } = opened.asset.facts;
+        if (find() !== opened || result.facts.width !== width || result.facts.height !== height ||
+            (result.facts.frameCount !== null && result.facts.frameCount !== frames)) {
+          result.playback?.close();
+          return placeholder;
+        }
+        return { ...result, altText: opened.altText };
+      } catch { return placeholder; }
+    },
     do: (ctx, intent) => options.settle(() => {
       const held = state(ctx);
       if (!options.enabled) return { refused: "expressive_disabled" };
       switch (intent.kind) {
+        case "install_pack_file": {
+          const { ticket, confirmation } = intent;
+          const review = held.review;
+          if (review?.ticket !== ticket) return { refused: "confirmation_required" };
+          delete held.review;
+          const { fixture } = review;
+          const { packId, releaseId, controlDigest } = fixture.preview;
+          if (releaseId !== confirmation.releaseId || controlDigest !== confirmation.controlDigest) return { refused: "confirmation_required" };
+          const prior = held.packs.get(packId);
+          const same = prior?.fixture.preview.releaseId === releaseId;
+          held.packs.set(packId, {
+            fixture, policy: "Full", cached: new Set(fixture.items.map((item) => item.blobId)),
+            favourites: same ? prior.favourites : new Set(), recents: same ? prior.recents : new Set(),
+          });
+          return { accepted: true };
+        }
         case "install_pack": {
           const fixture = fixtureFor(ctx, intent.input);
           if (fixture === undefined) return { refused: "invalid" };

@@ -38,6 +38,14 @@ export interface ExpressiveCopy {
   readonly removeFailed: string;
   readonly removed: string;
   readonly review: string;
+  readonly importFile: string;
+  readonly dropFile: string;
+  readonly choosePackFile: string;
+  readonly packTooLarge: string;
+  readonly packNeedsEarlier: string;
+  readonly packChanged: string;
+  readonly fileSentBy: string;
+  readonly previewItem: (label: string) => string;
   readonly reviewFailed: string;
   readonly install: (pack: string) => string;
   readonly update: (pack: string) => string;

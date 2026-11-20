@@ -1,10 +1,10 @@
 // The async driver around the sans-IO Core: persists every Commit through the profile's EncryptedKv BEFORE telling
 // Core it may release anything, performs the persisted network outbox through a Provider (exact retry, same
 // identity), polls mailboxes, and fans changes out to observers and subscribers.
-import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
+import { captureProfileContext, isTerminalOutcome, PACK_FILE_MAX_BYTES } from "@om/platform-api";
 import type {
   CallRoute, CallView, AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, DecodedExpressive, ExpressiveApi, ExpressivePackInput, ExpressivePackQuery, ExpressiveQueryResult, ExpressiveSource, OpenedExpressive, ValidatedExpressiveAsset, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  CoreClient, CoreIntent, CoreQuery, DecodedExpressive, ExpressiveApi, ExpressivePackInput, ExpressivePackIntent, ExpressivePackQuery, ExpressiveQueryResult, ExpressiveSource, OpenedExpressive, ValidatedExpressiveAsset, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupRejoinView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, RecoveryStatusView, Unsubscribe,
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
@@ -22,6 +22,9 @@ import type { FrameSend, GroupCarriageStatus, GroupCore, GroupDriver, GroupOutIt
 const KEY_PREFIX = "core/";
 /** Sealed attachment bytes waiting for their upload, in the profile's encrypted store (never under `core/`, which is Core's own records). */
 const STAGE_PREFIX = "stage/";
+const PACK_CACHE_PREFIX = "pack-cache/";
+const PACK_INVENTORY_KEY = KEY_PREFIX + "expressive-packs";
+const PACK_FILE_CHUNK = 4 * 1024 * 1024;
 /** How long an advertised-limits answer is trusted before the Home is asked again. */
 const LIMITS_TTL_MS = 5 * 60_000;
 /** Between recovery ticks while a recovery waits. Days-long waits need no finer credit, and a throttled background tab can still keep up. */
@@ -39,6 +42,8 @@ export interface CoreRuntimeOptions {
   readonly calls?: boolean;
   /** Engineering opt-in, paired with the expressive-media Wasm artifact. Public builds omit it. */
   readonly expressiveMedia?: boolean;
+  /** Hosts sharing one vault between sessions serialize pack writes and cleanup per profile. */
+  readonly lockPackCache?: <T>(profileId: ProfileId, work: () => Promise<T>) => Promise<T>;
   readonly callNowMs?: () => number;
   /** Delay before retrying a network operation that was unavailable (default 2000 ms). */
   readonly retryMs?: number;
@@ -644,17 +649,149 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     return { opened: { state: "renderable", altText, asset: { mediaProfileId, kind, facts, bytes: fromHex(plaintext) } }, ciphertext: got.bytes };
   }
 
+  const packExclusive = <T>(ctx: ProfileExecutionContext, work: () => Promise<T>) =>
+    exclusive(() => opts.lockPackCache?.(ctx.profileId, work) ?? work());
+
+  async function activePackDigests(ctx: ProfileExecutionContext): Promise<readonly string[] | null> {
+    const view = core.call({ cmd: "pack_cache_digests", ctx }) as { digests: string[]; inventory: string | null };
+    const stored = await opts.storage(ctx.profileId).get(PACK_INVENTORY_KEY);
+    if (!stored.ok) throw new CoreStorageError("could not read pack inventory");
+    const digest = stored.value === undefined ? null
+      : toHex(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new Uint8Array(stored.value))));
+    return view.inventory === digest ? view.digests : null;
+  }
+
+  /** Reclaim unreferenced writes after interruption, replacement or removal. Active
+   * inventory is Core's single committed record, so shared digests stay held. */
+  async function prunePackCache(ctx: ProfileExecutionContext): Promise<void> {
+    try {
+      const digests = await activePackDigests(ctx);
+      if (digests === null) return;
+      const live = new Set(digests);
+      const kv = opts.storage(ctx.profileId);
+      const listed = await kv.list();
+      if (!listed.ok) return;
+      for (const key of listed.keys) {
+        if (key.startsWith(PACK_CACHE_PREFIX) && !live.has(key.slice(PACK_CACHE_PREFIX.length))) await kv.delete(key);
+      }
+    } catch { /* interrupted cleanup is retried when the profile opens */ }
+  }
+
+  function discardPack(ctx: ProfileExecutionContext, ticket: number | null): void {
+    try { core.call({ cmd: "pack_install_abort", ctx, ticket }); }
+    catch { /* a closed profile has already discarded its pending data */ }
+  }
+
+  async function decodeOpened(
+    answer: ExpressiveOpenJson | null, decoder: Parameters<ExpressiveApi["decode"]>[3],
+    options: Parameters<ExpressiveApi["decode"]>[4],
+    verify: (facts: Extract<DecodedExpressive, { state: "decoded" }>["facts"]) => boolean,
+  ): Promise<DecodedExpressive | null> {
+    if (answer?.state !== "renderable") return answer;
+    const { plaintext, mediaProfileId, kind, facts, altText } = answer;
+    const bytes = fromHex(plaintext);
+    const placeholder = { state: "placeholder" as const, altText };
+    try {
+      const result = await decoder.decode({ bytes, mediaProfileId, kind, facts }, options);
+      if (result.state !== "decoded") return placeholder;
+      let accepted = false;
+      try {
+        accepted = verify(result.facts);
+        return accepted ? { ...result, altText } : placeholder;
+      } finally {
+        if (!accepted) result.playback?.close();
+      }
+    } catch { return placeholder; }
+    finally { bytes.fill(0); }
+  }
+
+  function installReviewedPack(
+    ctx: ProfileExecutionContext, { ticket, confirmation }: Extract<ExpressivePackIntent, { kind: "install_pack_file" }>,
+  ): ReturnType<ExpressiveApi["do"]> {
+    const reviewed = { ...confirmation };
+    return packExclusive(ctx, async () => {
+      if (!expressiveEnabled) return { refused: "expressive_disabled" };
+      try {
+        if (await activePackDigests(ctx) === null) return { refused: "confirmation_required" };
+        const begin = core.call({ cmd: "pack_install_begin", ctx, ticket, ...reviewed }) as { count: number } | { refused: string };
+        if ("refused" in begin) return begin;
+        const kv = opts.storage(ctx.profileId);
+        for (let i = 0; i < begin.count; i++) {
+          const next = core.call({ cmd: "pack_install_stage", ctx, ticket }) as { digest: string; ciphertext: string } | { refused: string };
+          if ("refused" in next) return next;
+          if (!(await kv.put(PACK_CACHE_PREFIX + next.digest, fromHex(next.ciphertext))).ok) return { refused: "pack_storage" };
+        }
+        const final = core.call({ cmd: "pack_install_commit", ctx, ticket }) as { accepted: true; commit: Commit | null } | { refused: string };
+        if ("refused" in final) return final;
+        await commit(final.commit, ctx);
+        return { accepted: true };
+      } catch (error) {
+        if (error instanceof CoreCallError && error.code === "profile_access") return { refused: "confirmation_required" };
+        return { refused: "pack_storage" };
+      } finally {
+        discardPack(ctx, ticket);
+        await prunePackCache(ctx);
+      }
+    });
+  }
+
   const expressive: ExpressiveApi = {
     available: () => expressiveEnabled,
+    reviewPackFile(inputCtx, bytes) {
+      const ctx = ctxOf(inputCtx);
+      if (!expressiveEnabled) return Promise.resolve({ refused: "expressive_disabled" });
+      if (bytes.length > PACK_FILE_MAX_BYTES) return Promise.resolve({ refused: "size_limit" });
+      // Snapshot the person's input before entering the runtime queue.
+      const file = bytes.slice();
+      return exclusive(() => {
+        try {
+          for (let offset = 0; offset < file.length; offset += PACK_FILE_CHUNK) {
+            const r = core.call({ cmd: "pack_file_append", ctx, offset, bytes: toHex(file.subarray(offset, offset + PACK_FILE_CHUNK)) }) as { refused?: string };
+            if (r.refused !== undefined) return Promise.resolve({ refused: r.refused });
+          }
+          return Promise.resolve(core.call({ cmd: "pack_file_review", ctx }) as Awaited<ReturnType<ExpressiveApi["reviewPackFile"]>>);
+        } finally {
+          file.fill(0);
+          discardPack(ctx, null);
+        }
+      });
+    },
+    discardPackFile(inputCtx, ticket) {
+      const ctx = ctxOf(inputCtx);
+      return exclusive(() => {
+        if (expressiveEnabled) discardPack(ctx, ticket);
+        return Promise.resolve();
+      });
+    },
+    readCached(inputCtx, digest) {
+      const ctx = ctxOf(inputCtx);
+      return packExclusive(ctx, async () => {
+        if (!expressiveEnabled || !/^[a-f0-9]{64}$/.test(digest)) return null;
+        const live = await activePackDigests(ctx);
+        if (live === null || !live.includes(digest)) return null;
+        const r = await opts.storage(ctx.profileId).get(PACK_CACHE_PREFIX + digest);
+        const current = core.call({ cmd: "context_for", profileId: ctx.profileId }) as ProfileExecutionContext;
+        return current.generation === ctx.generation && r.ok ? r.value ?? null : null;
+      });
+    },
+    decodeCached(inputCtx, selection, ciphertext, decoder, options) {
+      if (!expressiveEnabled) return Promise.resolve(null);
+      const ctx = ctxOf(inputCtx);
+      const request = { cmd: "pack_cache_open", ctx, ...selection, ciphertext: toHex(ciphertext) };
+      const answer = core.call(request) as ExpressiveOpenJson | null;
+      return decodeOpened(answer, decoder, options, (observed) => core.call({ ...request, observed }) === true);
+    },
     do(inputCtx, intent) {
       const ctx = ctxOf(inputCtx);
-      return exclusive(async () => {
+      if (intent.kind === "install_pack_file") return installReviewedPack(ctx, intent);
+      return packExclusive(ctx, async () => {
         if (!expressiveEnabled) return { refused: "expressive_disabled" };
         if (intent.kind === "install_pack") {
           const { input, cached } = intent;
           const total = cached.reduce((size, blob) => size + blob.ciphertext.length, input.release.length + (input.control?.length ?? 0));
           if (total >= MAX_WASM_COMMAND_BYTES / 2) return { refused: "size_limit" };
         }
+        if (await activePackDigests(ctx) === null) return { refused: "confirmation_required" };
         const command = intent.kind !== "install_pack" ? intent : {
           kind: intent.kind, input: packInput(intent.input), releaseId: intent.confirmation.releaseId,
           controlDigest: intent.confirmation.controlDigest, policy: intent.policy, favourites: intent.favourites,
@@ -670,6 +807,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         await commit(r.commit ?? null, ctx);
         if (r.refused !== undefined) return { refused: r.refused };
         if (r.accepted !== true) throw new CoreCallError("internal", "expressive intent returned no result");
+        if (intent.kind === "remove_pack" || intent.kind === "update_picker" && intent.change.kind === "favourite" && !intent.change.present) await prunePackCache(ctx);
         return { accepted: true };
       });
     },
@@ -726,8 +864,15 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     expressive,
     get directDriver() { return directDriver; },
     async openProfile(profileId) {
-      const records = await readRecords(profileId);
-      const ctx = await exclusive(() => Promise.resolve(core.call({ cmd: "open_profile", profileId, records }) as ProfileExecutionContext));
+      const ctx = await exclusive(() => {
+        const open = async () => {
+          const records = await readRecords(profileId);
+          const opened = core.call({ cmd: "open_profile", profileId, records }) as ProfileExecutionContext;
+          if (expressiveEnabled) await prunePackCache(opened);
+          return opened;
+        };
+        return (expressiveEnabled ? opts.lockPackCache?.(profileId, open) : undefined) ?? open();
+      });
       emitQueries(profileId);
       openProfiles.add(profileId);
       directDriver?.start(ctxOf(ctx)); // reachable for direct offers while the profile is open

@@ -101,7 +101,7 @@ function AssetFrame({ api, ctx, surface, messageId, source, size, description, i
   </span>;
 }
 
-function Canvas({ decoded, manual, controls, copy, onFailure }: {
+export function Canvas({ decoded, manual, controls, copy, onFailure }: {
   readonly decoded: Decoded;
   readonly manual: boolean;
   readonly controls: boolean;

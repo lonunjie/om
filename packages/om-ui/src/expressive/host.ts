@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import type {
-  ExpressiveMediaApi, ExpressivePackInput, ExpressiveSource, MessageId, ProfileExecutionContext,
+  FilesApi, ExpressiveMediaApi, ExpressivePackInput, ExpressiveSource, MessageId, ProfileExecutionContext,
 } from "@om/platform-api";
 import type { ExpressiveCopy } from "./copy";
 
@@ -18,6 +18,7 @@ export interface ExpressiveReview {
 
 /** Host I/O over the captured profile. A pack never supplies a renderer, route, or style. */
 export interface ExpressiveHost {
+  readonly files?: FilesApi;
   readonly decoder?: ExpressiveMediaApi;
   readonly describe: (ctx: ProfileExecutionContext, messageId: MessageId, source: ExpressiveSource) => Promise<ExpressiveDescription | null>;
   readonly readCached?: (ctx: ProfileExecutionContext, blobId: string) => Promise<Uint8Array | null>;

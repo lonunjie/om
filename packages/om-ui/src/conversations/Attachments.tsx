@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { PACK_FILE_MEDIA_TYPE } from "@om/platform-api";
 import type { AttachmentRefusal, AttachmentView, ConversationTimelineItem, LocationCardView, MessageId } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
@@ -167,8 +168,9 @@ export function LocationCard({ card, copy }: { readonly card: LocationCardView; 
 }
 
 /** Everything a message carries besides its text. The text is always shown too (a card never replaces it). */
-export function MessageAttachments({ services, item, copy, renderWebp }: {
+export function MessageAttachments({ services, item, copy, renderWebp, reviewPack }: {
   readonly services: ConversationServices; readonly item: ConversationTimelineItem; readonly copy: AttachmentCopy;
+  readonly reviewPack?: { readonly label: string; readonly open: (index: number) => void } | undefined;
   readonly renderWebp?: ((index: number, fallback: ReactNode) => ReactNode) | undefined;
 }) {
   const files = item.attachments ?? [];
@@ -179,10 +181,16 @@ export function MessageAttachments({ services, item, copy, renderWebp }: {
     <div className="om-attachments">
       {files.map((a) => {
         if (voice?.attachmentIndex === a.index) return <VoiceNote key={a.index} services={services} messageId={item.messageId} a={a} waveform={voice.waveform} copy={copy} />;
-        const file = <FileChip services={services} messageId={item.messageId} a={a} copy={copy} />;
-        return a.mediaType === "image/webp" && renderWebp !== undefined
-          ? <Fragment key={a.blobId}>{renderWebp(a.index, file)}</Fragment>
-          : <FileChip key={a.index} services={services} messageId={item.messageId} a={a} copy={copy} />;
+        const file = <FileChip key={a.index} services={services} messageId={item.messageId} a={a} copy={copy} />;
+        if (a.mediaType === "image/webp" && renderWebp !== undefined) {
+          return <Fragment key={a.blobId}>{renderWebp(a.index, file)}</Fragment>;
+        }
+        if (a.mediaType === PACK_FILE_MEDIA_TYPE && a.state === "remote" && reviewPack !== undefined) {
+          return <Fragment key={a.index}>{file}
+            <Button variant="quiet" aria-haspopup="dialog" onClick={() => { reviewPack.open(a.index); }}>{reviewPack.label}</Button>
+          </Fragment>;
+        }
+        return file;
       })}
       {card === undefined ? null : <LocationCard card={card} copy={copy} />}
     </div>

@@ -97,6 +97,11 @@ describe("English copy catalog", () => {
     expect(text).not.toMatch(PROVIDER_NAMES);
     expect(text).not.toMatch(MACHINE_CODES);
   });
+  it("describes pack file problems without internal vocabulary", () => {
+    const { choosePackFile, packTooLarge, packNeedsEarlier, packChanged, reviewFailed, installFailed } = expressiveCopy;
+    expect([choosePackFile, packTooLarge, packNeedsEarlier, packChanged, reviewFailed, installFailed].join(" "))
+      .not.toMatch(/\b(?:cbor|codec|blob|signature|ciphertext|digest|schema|manifest)\b/i);
+  });
   it("the one exception: the delivery-service setup names Cloudflare, and no other vendor, in its own group", () => {
     const allowed = people.filter(([path]) => NAMING_ALLOWED.some((a) => path.startsWith(a)));
     expect(allowed.length).toBeGreaterThan(0);

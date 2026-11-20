@@ -1,3 +1,4 @@
+import { PACK_FILE_MEDIA_TYPE } from "@om/platform-api";
 import { ScheduleForm, ScheduledList } from "./Schedule";
 import type { ScheduleControl } from "./Schedule";
 import { useMentions } from "./MentionPicker";
@@ -157,7 +158,9 @@ export function Composer({ services, conversationId, copy, peerName, peerAccount
     let refused: string | null = null;
     for (const f of picked) {
       if (next.length >= MAX_STAGED) break;
+      const isPack = services.client.expressive?.available() === true && (f.mimeType === PACK_FILE_MEDIA_TYPE || f.name.toLowerCase().endsWith(".ompack"));
       if (tooBig(f.size)) {
+        if (isPack) { refused = att.tooBig(maxFile()); continue; }
         // Core says whether a file this big may still go straight to them; we only offer it where this host can do that.
         const plan: AttachmentPlanView | null = await services.client.query({ kind: "PlanAttachment", ctx: services.ctx, size: f.size }).catch(() => null);
         if (!alive()) return;
@@ -174,7 +177,7 @@ export function Composer({ services, conversationId, copy, peerName, peerAccount
       try {
         const bytes = await f.bytes();
         if (!alive()) return;
-        next.push({ id: `s${String(++stagedSeq)}`, kind: "file", name: safeFileName(f.name, att.file), mediaType: f.mimeType === "" ? "application/octet-stream" : f.mimeType, size: bytes.length, bytes });
+        next.push({ id: `s${String(++stagedSeq)}`, kind: "file", name: safeFileName(f.name, att.file), mediaType: isPack ? PACK_FILE_MEDIA_TYPE : f.mimeType || "application/octet-stream", size: bytes.length, bytes });
       } catch { refused = att.refusal({ error: "unavailable" }); }
     }
     setItems(next);

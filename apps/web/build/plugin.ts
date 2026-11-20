@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
 import { MANIFEST_PATH } from "../src/update/manifest.ts";
-import { CORE_WASM_PATH, GROUPS_WASM_PATH, checkSameRelease, type ModuleTable } from "../src/update/modules.ts";
+import { CORE_WASM_PATH, EXPRESSIVE_WASM_PATH, GROUPS_WASM_PATH, checkSameRelease, type ModuleTable } from "../src/update/modules.ts";
 import { buildManifest, serializeManifest } from "./manifest.ts";
 
 const walk = (dir: string): string[] =>
@@ -35,8 +35,10 @@ export const bundleManifestPlugin = (opts: { version: string; dev: boolean; modu
       const manifest = await buildManifest({ files, version: opts.version, gitCommit: gitCommit(), dev: opts.dev });
       // Build-time proof that the two Core modules in this bundle are the two the bundle's own code carries digests for (D66), and that the groups module is lazy.
       if (opts.modules === null) throw new Error("om-bundle-manifest: om_wasm.wasm and om_wasm_groups.wasm must both be built before the web build (pnpm build does this)");
-      for (const [kind, re] of [["core", CORE_WASM_PATH], ["groups", GROUPS_WASM_PATH]] as const) {
+      const variants = [["core", CORE_WASM_PATH], ["groups", GROUPS_WASM_PATH], ["expressive", EXPRESSIVE_WASM_PATH]] as const;
+      for (const [kind, re] of variants) {
         const at = manifest.files.filter((f) => re.test(f.path));
+        if (kind === "expressive" && opts.modules.expressive === undefined && at.length === 0) continue;
         if (at.length !== 1 || at[0] === undefined) throw new Error(`om-bundle-manifest: expected exactly one ${kind} module in the bundle, found ${String(at.length)}`);
         const v = checkSameRelease(opts.modules, manifest, kind, at[0].path);
         if (!v.ok) throw new Error(`om-bundle-manifest: the ${kind} module in the bundle does not match the digest compiled into it (${v.reason})`);

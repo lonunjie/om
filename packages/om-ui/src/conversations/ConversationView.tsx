@@ -88,6 +88,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
   const [, rerender] = useState(0);
   const [contactOpen, setContactOpen] = useState(false);
   const [customReaction, setCustomReaction] = useState<MessageId | null>(null);
+  const [receivedPack, setReceivedPack] = useState<{ messageId: MessageId; index: number; sender: string } | null>(null);
   const [picking, setPicking] = useState<MessageId | null>(null);
   const [reactFailed, setReactFailed] = useState(false);
   const [editing, setEditing] = useState<{ readonly id: MessageId; readonly text: string } | null>(null);
@@ -228,6 +229,11 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                       emoji={expressive === undefined ? undefined : (index, fallback, interactive) => <ExpressiveAsset interactive={interactive} key={`${item.text}:${String(index)}`} services={services} surface={expressive} messageId={item.messageId} source={{ kind: "inline", index }} size="inline" fallback={<bdi>{fallback}</bdi>} />}
                     />}
                     <MessageAttachments services={services} item={item} copy={copy.attachments}
+                      reviewPack={expressive === undefined || outgoing || services.client.attachments === undefined ? undefined : {
+                        label: expressive.copy.review, open: (index) => {
+                          setReceivedPack({ messageId: item.messageId, index, sender: shownName(view.summary) });
+                        },
+                      }}
                       renderWebp={expressive === undefined ? undefined : (index, fallback) => <ExpressiveAsset services={services} surface={expressive} messageId={item.messageId} source={{ kind: "attachment", index }} size="message" fallback={fallback} revision={item.attachments?.find((attachment) => attachment.index === index)?.state} />} />
                   </div>
                   {!editable || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
@@ -279,6 +285,9 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
       </div>
       {footer}
       {contactOpen ? <ContactDetail services={services} summary={view.summary} ownAccount={view.ownAccount} copy={copy.contact} onClose={() => { setContactOpen(false); }} /> : null}
+      {expressive !== undefined && receivedPack !== null && view.timeline.some((item) => item.messageId === receivedPack.messageId && item.direction === "incoming")
+        ? <ExpressivePickerSheet services={services} surface={expressive} conversationId={conversationId} receivedPack={receivedPack}
+            onClose={() => { setReceivedPack(null); }} /> : null}
       {expressive !== undefined && customReaction !== null && view.summary.relationship === "active" && view.timeline.some((item) => item.messageId === customReaction && item.readOnly !== true)
         ? <ExpressivePickerSheet services={services} surface={expressive} conversationId={conversationId} reactionTo={customReaction} onClose={() => { setCustomReaction(null); }} />
         : null}

@@ -170,11 +170,15 @@ const SPECS: Readonly<Record<string, Spec>> = {
     return packDigest(packId) && exactly(p, ["packId"]) ? { expressive: { kind: "remove_pack", packId } } : null;
   } },
   "install-expressive-pack": { destructive: false, parse: (p) => {
-    const { input, releaseId, controlDigest, cached } = p;
+    const { input, releaseId, controlDigest, cached, ticket } = p;
+    if (!packDigest(releaseId) || !(controlDigest === null || packDigest(controlDigest))) return null;
+    if (typeof ticket === "number" && Number.isSafeInteger(ticket) && ticket > 0
+        && exactly(p, ["ticket", "releaseId", "controlDigest"])) {
+      return { expressive: { kind: "install_pack_file", ticket, confirmation: { releaseId, controlDigest } } };
+    }
     if (!isRec(input) || !(input["release"] instanceof Uint8Array) ||
         !(input["control"] === undefined || input["control"] instanceof Uint8Array) ||
-        !exactly(input, ["release", "control"]) || !packDigest(releaseId) ||
-        !(controlDigest === null || packDigest(controlDigest)) || !Array.isArray(cached) ||
+        !exactly(input, ["release", "control"]) || !Array.isArray(cached) ||
         cached.length > 512 || !exactly(p, ["input", "releaseId", "controlDigest", "cached"])) return null;
     const blobs: { blobId: string; ciphertext: Uint8Array }[] = [];
     for (const value of cached as unknown[]) {

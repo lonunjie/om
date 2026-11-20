@@ -59,11 +59,22 @@ export type WebCoreClient = WasmCoreClient & { readonly describeExpressive?: Exp
 export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number | (() => number) }): Promise<WebCoreClient> {
   let bytes: ArrayBuffer | undefined;
   let groups = false;
+  let expressiveMedia = false;
   if (groupsInUse()) {
     // A device that has used groups starts on the groups module. If it cannot be verified now (offline and not kept, or a changed release), the base module
     // starts instead and groups are offered again on demand: chats keep working, nothing unverified is loaded.
     const g = await loadVerifiedModule(table(), "groups", pathOf(await moduleUrl("groups")), source(), { release: true });
     if (g.ok) { bytes = g.value; groups = true; }
+  }
+  if (bytes === undefined && import.meta.env.VITE_OM_EXPRESSIVE_MEDIA === "1") {
+    const artifact = "../../../../packages/om-core-wasm/dist/om_wasm_expressive.wasm";
+    const modules = import.meta.glob<string>("../../../../packages/om-core-wasm/dist/om_wasm_expressive.wasm", { query: "?url", import: "default" });
+    const url = await modules[artifact]?.();
+    if (url === undefined) throw new Error("expressive Core artifact unavailable");
+    const e = await loadVerifiedModule(table(), "expressive", pathOf(url), source(), { release: false });
+    if (!e.ok) throw new Error(`expressive Core module refused (${e.reason})`);
+    bytes = e.value;
+    expressiveMedia = true;
   }
   if (bytes === undefined) {
     // Offline-safe: the base module is checked against the digest compiled into this code, without asking the network for the manifest.
@@ -80,7 +91,10 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
     home: { tier: "none", observers: ["no_third_party"], migrationAvailable: false, clientOriginChoice: ["default_origin"] },
     pollMs: opts.pollMs,
     calls: import.meta.env.VITE_OM_CALLS === "1",
-    expressiveMedia: import.meta.env.VITE_OM_EXPRESSIVE_MEDIA === "1",
+    expressiveMedia,
+    ...(expressiveMedia ? {
+      lockPackCache: (id, work) => globalThis.navigator.locks.request(`om-pack-cache:${id}`, work),
+    } : {}),
     ...(groups ? { groupDriver: {} } : {}),
   });
   if (!runtime.expressive.available()) return runtime;
