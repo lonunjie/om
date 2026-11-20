@@ -43,7 +43,7 @@ fn admit_certified(
     })
 }
 
-fn boundary_kit(original: &V, size: usize, critical: bool) -> Vec<u8> {
+pub(super) fn boundary_kit(original: &V, size: usize, critical: bool) -> Vec<u8> {
     let id = "3af5254d-9ecb-46b4-867d-4226aab2edaa";
     let id = if critical {
         format!("om.critical.private.{id}.fixture")
@@ -62,7 +62,7 @@ fn boundary_kit(original: &V, size: usize, critical: bool) -> Vec<u8> {
     encode_extension(size - overhead)
 }
 
-fn repack(send: &V, kit: &[u8]) -> Vec<u8> {
+pub(super) fn repack(send: &V, kit: &[u8]) -> Vec<u8> {
     let send = with_field(send, 9, Some(bytes(kit)));
     encode(&with_field(&send, 8, Some(bytes(transfer_digest(&send)))))
 }

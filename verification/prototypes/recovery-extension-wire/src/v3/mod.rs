@@ -4,6 +4,8 @@
 mod controller;
 mod kit;
 mod record;
+#[path = "../v4/mod.rs"]
+mod v4;
 
 use super::{golden as v2, *};
 use om_core::control::verify_successor;

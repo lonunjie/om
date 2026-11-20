@@ -26,7 +26,7 @@ fn committed(state: &Acs, device: &[u8; 16]) -> Option<CredentialRef> {
     state.credentials.iter().copied().find(|(d, _)| d == device)
 }
 
-fn sorted_union(f: &Rotated) -> Vec<Credential> {
+pub(super) fn sorted_union(f: &Rotated) -> Vec<Credential> {
     let mut bodies = vec![
         f.previous_origin.clone(),
         f.ceremony.origin.clone(),
@@ -38,13 +38,13 @@ fn sorted_union(f: &Rotated) -> Vec<Credential> {
 
 // The inputs describe authority already established by the receiver. The
 // proposed envelope and its credentials cannot create any of these inputs.
-enum Authority<'a> {
+pub(super) enum Authority<'a> {
     DurableParent(&'a [u8]),
     VerifiedPredecessor(&'a Acs),
     Untrusted,
 }
 
-fn check_preflight(
+pub(super) fn check_preflight(
     authority: Authority<'_>,
     forked_or_stale: bool,
     id: &[u8; 32],
@@ -167,7 +167,7 @@ fn check_preflight(
         .then_some(child)
 }
 
-fn preflight(proposal: &[u8], id: &[u8; 32], key: &DeviceSigner) -> Vec<u8> {
+pub(super) fn preflight(proposal: &[u8], id: &[u8; 32], key: &DeviceSigner) -> Vec<u8> {
     let proof = key.sign_with(&preflight_input(id, proposal), [15; 32]);
     encode(&array([V::U(3), bytes(proposal), bytes(proof)]))
 }

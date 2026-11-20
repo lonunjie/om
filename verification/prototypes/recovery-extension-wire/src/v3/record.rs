@@ -13,7 +13,7 @@ use om_core::recovery_sheet::OwnerCheckpoint;
 use std::collections::BTreeSet;
 
 #[derive(Debug, PartialEq, Eq)]
-enum Outcome {
+pub(super) enum Outcome {
     VerifiedOrdinaryPrefix,
     NeedsEvidence,
     IntegrityFailure,
@@ -39,7 +39,11 @@ fn policy_body(raw: &[u8]) -> Option<RecoveryPolicy> {
 
 // Each supplied run must be a valid entry in the expected sequence. A
 // well-formed strict subsequence indicates missing evidence.
-fn policy_runs(evidence: &V, states: &[Acs]) -> Result<Vec<Option<Vec<u8>>>, Outcome> {
+fn policy_runs(
+    evidence: &V,
+    states: &[Acs],
+    policy_absence: bool,
+) -> Result<Vec<Option<Vec<u8>>>, Outcome> {
     use Outcome::*;
     let hashes: Vec<_> = states.iter().map(Acs::hash).collect();
     let expected: Vec<_> = states
@@ -72,10 +76,20 @@ fn policy_runs(evidence: &V, states: &[Acs]) -> Result<Vec<Option<Vec<u8>>>, Out
         runs.insert(expected[n].0, raw.to_vec());
         next_position = n + 1;
     }
-    let head_raw = required_bytes(evidence, 3).ok_or(IntegrityFailure)?;
-    if states.last().and_then(|s| s.recovery_commitment)
-        != Some(policy_body(head_raw).ok_or(IntegrityFailure)?.hash())
-    {
+    let head_raw = match evidence.opt(3) {
+        Some(V::B(raw)) => Some(raw.as_slice()),
+        Some(V::Null) if policy_absence => None,
+        None if policy_absence => return Err(NeedsEvidence),
+        _ => return Err(IntegrityFailure),
+    };
+    let head_commitment = head_raw
+        .map(|raw| {
+            policy_body(raw)
+                .map(|policy| policy.hash())
+                .ok_or(IntegrityFailure)
+        })
+        .transpose()?;
+    if states.last().and_then(|s| s.recovery_commitment) != head_commitment {
         return Err(IntegrityFailure);
     }
     if runs.len() != expected.len() {
@@ -91,7 +105,7 @@ fn policy_runs(evidence: &V, states: &[Acs]) -> Result<Vec<Option<Vec<u8>>>, Out
         }
         history.push(current.clone());
     }
-    if current.as_deref() != Some(head_raw) {
+    if current.as_deref() != head_raw {
         return Err(IntegrityFailure);
     }
     Ok(history)
@@ -103,12 +117,27 @@ fn classify(
     plaintext: usize,
     historical: Option<(&Acs, &[Vec<u8>])>,
 ) -> Outcome {
+    classify_window(pin, evidence, plaintext, historical, false)
+}
+
+pub(super) fn classify_v2(pin: OwnerCheckpoint, evidence: &V, plaintext: usize) -> Outcome {
+    classify_window(Some(pin), evidence, plaintext, None, true)
+}
+
+fn classify_window(
+    pin: Option<OwnerCheckpoint>,
+    evidence: &V,
+    plaintext: usize,
+    historical: Option<(&Acs, &[Vec<u8>])>,
+    policy_absence: bool,
+) -> Outcome {
     use Outcome::*;
     fn check(
         pin: Option<OwnerCheckpoint>,
         evidence: &V,
         plaintext: usize,
         historical: Option<(&Acs, &[Vec<u8>])>,
+        policy_absence: bool,
     ) -> Result<Outcome, Outcome> {
         if !inside_limits(evidence, plaintext)
             || evidence
@@ -170,7 +199,7 @@ fn classify(
         if supplied != needed {
             return Err(NeedsEvidence);
         }
-        let policies = policy_runs(evidence, &states)?;
+        let policies = policy_runs(evidence, &states, policy_absence)?;
         let dossiers = optional_array(evidence, 5).ok_or(IntegrityFailure)?;
         let mut previous_dossier = None;
         for dossier in dossiers {
@@ -199,6 +228,9 @@ fn classify(
                 return Err(IntegrityFailure);
             }
             if has_recovery_signature(raws[i]) {
+                if policy_absence && parent.recovery_commitment.is_none() {
+                    return Err(IntegrityFailure);
+                }
                 let dossier = dossiers
                     .iter()
                     .find(|entry| required_bytes(entry, 0) == Some(child.hash().as_slice()))
@@ -231,7 +263,7 @@ fn classify(
         }
         Ok(VerifiedOrdinaryPrefix)
     }
-    check(pin, evidence, plaintext, historical).unwrap_or_else(|outcome| outcome)
+    check(pin, evidence, plaintext, historical, policy_absence).unwrap_or_else(|outcome| outcome)
 }
 
 fn run_at(state: &Acs, policy: &RecoveryPolicy) -> V {
@@ -567,7 +599,7 @@ fn rk2b_03_legacy_recovery_link_stays_needs_evidence() {
     }
 }
 
-fn maximum_window(f: &Fixture) -> (OwnerCheckpoint, Acs, V) {
+pub(super) fn maximum_window(f: &Fixture) -> (OwnerCheckpoint, Acs, V) {
     let mut state = f.parent.clone();
     state.control.remove(&SELECTED);
     state.credentials.retain(|(id, _)| id == &ORIGIN);

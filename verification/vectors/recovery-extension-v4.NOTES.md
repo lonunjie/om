@@ -1,0 +1,25 @@
+# Recovery extension v4 verification notes
+
+## Design sources read
+
+Read ADR-0236 through ADR-0249 in full, the architecture agent rules and contract, the constitution digest and project philosophy, and the v1 recovery-sheet specification. Checked the applicable parts of ADR-0199, the common and RecoveryRecord CDDL, the frozen object registry through its codec, and the existing Python and Rust recovery fixtures. The full product-domain design maps, transport implementations and earlier ADRs outside those listed were not read in full. The design gate returned no mapped code paths for this offline work.
+
+## Evidence and open gates
+
+All keys, nonces and capabilities in the corpus are synthetic. Python independently encodes CBOR, hashes, sheets and the AES-256-GCM-SIV record envelope. It calls the existing raw fixture helper for Ed25519/ML-DSA-65 signatures and public keys. Rust independently rebuilds the bytes and verifies signatures and admission with the existing W0 primitives. The implementations share the hybrid-signature primitive, as in v3. Size-only specimens use the exact encoded length and SHA-256 when the fixture can reconstruct the input.
+
+- **CC3C-01–04 (ADR-0244).** The receipt cases model provenance from an integrity-protected local slot. The ADR leaves the local storage format and protection scheme open. The vectors check the receipt's binding to the accepted P and Q and reject preflight-originated evidence. A durable P suffices for the fallback without a historical membership claim. The anchored fixture accepts a structurally valid wrong or omitted old credential while checking the current proofs. This exercises one permitted admission policy.
+- **CC3D-01–04 (ADR-0245).** W0 recovery completion creates a sole-controller P and revokes Q's controllers. Operation 3 requires two distinct, eligible controllers committed by that same P. The corpus demonstrates an exact durable P pin and successful historical recovery verification, including the Q-method signature and Q-controller co-signature. A positive P→C op-3 vote using that exact recovery-signed P is blocked by controller eligibility. A later ordinary promotion would change the signed parent. Key 11 is a provisional private carrier for bytes. The corpus exercises an over-budget carrier without claiming successful operation-3 admission. The nonce-substitution test requires pre-existing verifier-local request identity. When original linkage is unavailable, the case refuses. ADR-0249 supersedes ADR-0243, so the corpus includes no public request-digest extension or positive sheet-only recovery classification.
+- **KITS4-01–04 (ADR-0246).** The exact 4,342-byte type-38 specimen exercises the frozen registry's pre-decode rejection. Type 45 is provisional. The fixture enforces its type and size locally, validates the shared fields and verifies the unchanged place certificate against the independently committed policy. An existing noncritical, opaque key-23 extension gives a semantically inert 8,192-byte specimen under the proposal. The 8,193-byte specimen fails the offline size check before inner decoding. Kit issuance, vault commit, restart and ACK debt use a fixture state model. The sibling loopback measures the 16,384-byte sealed-delivery bucket and the exact persisted kit byte counts. Product entry-point coverage, backup/log exclusion, actual vault overhead, network envelope limits and a traffic metadata review remain outside this evidence.
+- **RK2D-01–04 (ADR-0247).** The private envelope-pin label and v3 layout are provisional. The QR fixture is the encoded QR payload. Issuance and restart exercise an atomic custody model. The extra signature on the rotated checkpoint is cryptographically valid. W0 self-rotation requires the rotating controller's vote alone, so the two-entry envelope is a substitution specimen. Valid alternate signing randomness is tested separately on a fully authorized checkpoint.
+- **RK2E-01–04 (ADR-0248).** The v2 associated-data label is provisional. The tuple follows ADR-0199's versioned construction with the final item set to record version `2`. After policy removal, the sample retains the last observed historical epoch in the outer plaintext metadata. The policy-free synthetic lineage uses epoch zero. Those values are fixture metadata. Eligibility to write a new record remains a separate local check. The maximum window and freshness checks model read-only verification, restart and monotonic floors. Product persistence, negotiation, migration and specialist approval remain gated.
+
+The corpus is offline verification evidence for the defined cases. It does not authorize emission or establish product conformance.
+
+## Regeneration
+
+```sh
+cargo build --offline --locked --manifest-path verification/prototypes/recovery-extension-wire/Cargo.toml --bin fixture-crypto
+python3 verification/prototypes/recovery-extension-wire/generate_v4.py verification/prototypes/recovery-extension-wire/target/debug/fixture-crypto > verification/vectors/recovery-extension-v4.json
+cargo test --offline --locked --manifest-path verification/prototypes/recovery-extension-wire/Cargo.toml
+```

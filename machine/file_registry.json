@@ -14088,6 +14088,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/recovery-extension-wire/generate_v4.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/recovery-extension-wire/src/bin/fixture-crypto.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -14166,6 +14173,41 @@
     },
     {
       "path": "verification/prototypes/recovery-extension-wire/src/v3/record.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-extension-wire/src/v4/controller.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-extension-wire/src/v4/kit.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-extension-wire/src/v4/mod.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-extension-wire/src/v4/record.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-extension-wire/src/v4/sheet.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -17050,6 +17092,20 @@
     },
     {
       "path": "verification/vectors/recovery-extension-v3.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/recovery-extension-v4.NOTES.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/vectors/recovery-extension-v4.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

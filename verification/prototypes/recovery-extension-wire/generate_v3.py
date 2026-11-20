@@ -28,9 +28,11 @@ def hex_fields(**fields):
 def acs(generation, previous, commitment, controllers, refs, *, rotated=False, messaging=(), revoked=()):
     fields = {
         0: 1, 1: 1, 2: b(ACCOUNT), 3: generation, 5: [b(d) for d in controllers],
-        9: mapping(k0=1), 10: digest(commitment), 11: 1,
+        9: mapping(k0=1), 11: 1,
         13: [mapping(k0=b(d), k1=digest(h)) for d, h in refs],
     }
+    if commitment is not None:
+        fields[10] = digest(commitment)
     if previous is not None:
         fields[4] = digest(previous)
     if messaging:
@@ -236,7 +238,7 @@ def record_vectors(crypto, checkpoint, checkpoint_signed, policies, creds, refs)
     }
 
 
-def maximal_record(crypto, origin):
+def maximal_record(crypto, origin, *, version=1):
     """A full signed window with a maximum-size, exact historical credential union."""
     pk = b(crypto.public(TARGET_KEY))
     ik = b(crypto.agreement_public(bytes([0x93]) * 32))
@@ -273,7 +275,7 @@ def maximal_record(crypto, origin):
         k3=b(current), k4=[b(state) for state in states[:56]], k6=runs,
     )
     plain = mapping(
-        k0=36, k1=1, k2=65 << 20, k3=65, k4=mapping(k0=65, k1=digest(previous)), k5=evidence,
+        k0=36, k1=version, k2=65 << 20, k3=65, k4=mapping(k0=65, k1=digest(previous)), k5=evidence,
         k6=mapping(k0=[mapping(k0="home.example", k2=b(SCOPE))]), k7=mapping(k0=[]),
     )
     cap = 1048000
