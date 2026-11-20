@@ -42,7 +42,7 @@ export function ExpressivePickerSheet({ onClose, ...props }: ControlProps & { re
 
 function Provenance({ signedBy, copy }: { readonly signedBy: readonly (readonly number[])[]; readonly copy: ExpressiveCopy }) {
   if (signedBy.length === 0) return <p>{copy.unsigned}</p>;
-  return <div>{copy.signedBy}
+  return <div><span>{copy.signedBy}</span>
     <ul>{signedBy.map((id) => {
       const evidence = id.map((byte) => byte.toString(16).padStart(2, "0")).join("");
       return <li key={evidence}><bdi>{evidence}</bdi></li>;
