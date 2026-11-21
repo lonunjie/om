@@ -1112,6 +1112,7 @@ fn room_attachment_uses_the_committed_membership_when_the_upload_finishes() {
         let (attachment_id, attachment) = message.attachment_view.as_ref().unwrap();
         assert_eq!(message.text, "Wave");
         assert_eq!(attachment.media_type, "image/webp");
+        assert_eq!(message.expressive_fallback, message.outgoing && !expressive);
         assert_eq!(
             p.rt.core
                 .expressive_presentation(&p.ctx, attachment_id, Source::Attachment(0))
@@ -1168,6 +1169,7 @@ fn room_attachment_uses_the_committed_membership_when_the_upload_finishes() {
         ExpressiveTarget::Attachment,
     );
     finish_send(&mut ps, "both-capable", &[1]);
+    check_last(&mut ps[0], true, Kind::Sticker);
     check_last(&mut ps[1], true, Kind::Sticker);
 
     let relationship_id = ps[0].rels[&2].clone();
@@ -1191,6 +1193,7 @@ fn room_attachment_uses_the_committed_membership_when_the_upload_finishes() {
     drain(&mut ps, 0);
     assert_eq!(ps[2].groups(), 1);
     finish_send(&mut ps, "join-during-upload", &[1, 2]);
+    check_last(&mut ps[0], false, Kind::Sticker);
     check_last(&mut ps[1], false, Kind::Sticker);
     ps[2].rt.core.enable_expressive_media();
     check_last(&mut ps[2], false, Kind::Sticker);

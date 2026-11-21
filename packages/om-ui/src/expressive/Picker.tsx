@@ -20,9 +20,11 @@ type Panel =
 interface ControlProps {
   readonly services: ConversationServices;
   readonly surface: ExpressiveSurface;
-  readonly conversationId: ConversationId;
+  readonly conversationId?: ConversationId;
   readonly reactionTo?: MessageId;
   readonly receivedPack?: { readonly messageId: MessageId; readonly index: number; readonly sender: string };
+  readonly localPack?: PickedFile;
+  readonly onSent?: () => void;
 }
 
 export function ExpressivePickerControl(props: ControlProps) {
@@ -37,10 +39,64 @@ export function ExpressivePickerControl(props: ControlProps) {
 export function ExpressivePickerSheet({ onClose, ...props }: ControlProps & { readonly onClose: () => void }) {
   const api = props.services.client.expressive;
   if (api?.available() !== true) return null;
-  const title = props.receivedPack !== undefined ? props.surface.copy.review : props.reactionTo === undefined ? props.surface.copy.picker : props.surface.copy.reactions;
+  const title = props.receivedPack !== undefined || props.localPack !== undefined ? props.surface.copy.review : props.reactionTo === undefined ? props.surface.copy.picker : props.surface.copy.reactions;
   return <Sheet title={title} closeLabel={props.surface.copy.close} onClose={onClose}>
     <Picker {...props} api={api} />
   </Sheet>;
+}
+
+/** A host file can be reviewed without opening a conversation or staging a send. */
+export function ExpressivePackImport({ services, surface }: Pick<ControlProps, "services" | "surface">) {
+  const [file, setFile] = useState<PickedFile | null>(null);
+  const [status, setStatus] = useState("");
+  if (services.client.expressive?.available() !== true) return null;
+  return <>
+    <PackFileChooser surface={surface} disabled={file !== null} onError={setStatus} onFile={(next) => {
+      setStatus("");
+      setFile(next);
+    }} />
+    <p role="status">{status}</p>
+    {file === null ? null : <ExpressivePickerSheet services={services} surface={surface} localPack={file} onClose={() => { setFile(null); }} />}
+  </>;
+}
+
+function PackFileChooser({ surface, disabled, onFile, onError }: {
+  readonly surface: ExpressiveSurface;
+  readonly disabled: boolean;
+  readonly onFile: (file: PickedFile) => void;
+  readonly onError: (status: string) => void;
+}) {
+  const { copy, files } = surface;
+  const picking = useRef(false);
+  const mounted = useRef(false);
+  const region = useRef<HTMLDivElement>(null);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  return <div ref={region} className="om-expressive-picker__import" onDragOver={(event) => {
+    if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+  }} onDrop={(event) => {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    if (disabled || picking.current) return;
+    const [file] = Array.from(event.dataTransfer.files);
+    if (event.dataTransfer.files.length !== 1 || file === undefined) { onError(copy.choosePackFile); return; }
+    region.current?.querySelector("button")?.focus();
+    onFile({ name: file.name, size: file.size, mimeType: file.type, bytes: async () => new Uint8Array(await file.arrayBuffer()) });
+  }}>
+    {files === undefined ? null : <Button disabled={disabled} aria-haspopup="dialog" onClick={(event) => {
+      if (picking.current) return;
+      event.currentTarget.focus();
+      picking.current = true;
+      void files.pick({ accept: [".ompack"], multiple: false }).then((picked) => {
+        if (!mounted.current) return;
+        const [file] = picked;
+        if (picked.length > 1) onError(copy.choosePackFile);
+        else if (file !== undefined) onFile(file);
+      }).catch(() => {
+        if (mounted.current) onError(copy.reviewFailed);
+      }).finally(() => { picking.current = false; });
+    }}>{copy.importFile}</Button>}
+    <p>{copy.dropFile}</p>
+  </div>;
 }
 
 function Provenance({ signedBy, copy }: { readonly signedBy: readonly (readonly number[])[]; readonly copy: ExpressiveCopy }) {
@@ -74,7 +130,7 @@ function PackReview({ preview, copy, sender }: { readonly preview: ExpressivePac
 // A profile switch or dismissal can abort while a Core promise is pending.
 const cancelled = (signal: AbortSignal): boolean => signal.aborted;
 
-function Picker({ services, surface, conversationId, reactionTo, receivedPack, api }: ControlProps & { readonly api: ExpressiveApi }) {
+function Picker({ services, surface, conversationId, reactionTo, receivedPack, localPack, onSent, api }: ControlProps & { readonly api: ExpressiveApi }) {
   const { copy } = surface;
   const { ctx } = services;
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -98,6 +154,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
       try {
         const packs = await api.query(ctx, { kind: "packs" });
         if (cancelled(job.signal)) return;
+        if (localPack !== undefined) { await reviewLocal(localPack, packs, job.signal); return; }
         if (receivedPack === undefined) { setPanel({ kind: "packs", packs }); return; }
         const opened = await services.client.attachments?.open(ctx, receivedPack.messageId, receivedPack.index);
         if (cancelled(job.signal)) return;
@@ -109,10 +166,10 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
         }
         if ("refused" in reviewed) { setStatus(packRefusal(copy, reviewed.refused)); return; }
         setPanel(filePanel(reviewed, packs, receivedPack.sender));
-      } catch { if (!cancelled(job.signal)) setStatus(receivedPack === undefined ? copy.loadFailed : copy.reviewFailed); }
+      } catch { if (!cancelled(job.signal)) setStatus(receivedPack === undefined && localPack === undefined ? copy.loadFailed : copy.reviewFailed); }
     })();
     return () => { job.abort(); };
-  }, [api, ctx, copy, receivedPack, reviewAttempt, services.client.attachments]);
+  }, [api, ctx, copy, receivedPack, localPack, reviewAttempt, services.client.attachments]);
 
   const ticket = panel?.kind === "review" ? panel.file?.ticket : undefined;
   useEffect(() => () => {
@@ -173,6 +230,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
   };
 
   const useItem = (picker: ExpressivePicker, item: PickerItem) => {
+    if (conversationId === undefined) return;
     const failure = reactionTo === undefined ? copy.sendFailed : copy.reactionFailed;
     run(reactionTo === undefined ? copy.sending : copy.reacting, failure, async (signal) => {
       const key = reactKey(item);
@@ -202,7 +260,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
         if (outcome?.kind === "Rejected") { setPending(false); setStatus(failure); }
         if (outcome?.kind === "NeedsUserAction") setStatus(copy.needsAction[outcome.action]);
         if (outcome?.kind === "PendingAuthorization") setStatus(copy.approval);
-        if (outcome?.kind === "Committed") { setPending(false); setStatus(reactionTo === undefined ? copy.sent : copy.reacted); }
+        if (outcome?.kind === "Committed") { setPending(false); setStatus(reactionTo === undefined ? copy.sent : copy.reacted); onSent?.(); }
       }
       if (outcome?.kind !== "Committed") return;
       try {
@@ -280,13 +338,13 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
     </>;
   };
 
-  async function reviewLocal(file: PickedFile | undefined, packs: Packs, signal: AbortSignal) {
+  async function reviewLocal(file: PickedFile, packs: Packs, signal: AbortSignal) {
     if (cancelled(signal)) return;
-    if (file === undefined) { setStatus(""); return; }
     if (!file.name.toLowerCase().endsWith(".ompack")) { setStatus(copy.choosePackFile); return; }
     if (file.size > PACK_FILE_MAX_BYTES) { setStatus(copy.packTooLarge); return; }
     const bytes = await file.bytes();
     if (cancelled(signal)) return;
+    if (bytes.length > PACK_FILE_MAX_BYTES) { setStatus(copy.packTooLarge); return; }
     const result = await api.reviewPackFile(ctx, bytes);
     if (cancelled(signal)) {
       if ("ticket" in result) void api.discardPackFile(ctx, result.ticket).catch(() => undefined);
@@ -306,24 +364,8 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
         {panel.packs.length === 0 ? <p>{copy.empty}</p> : <ul className="om-expressive-picker__items">{panel.packs.map(([id, pack]) => (
           <li key={id}><Button disabled={busy} onClick={() => { openPack(id); }}><bdi>{pack.title}</bdi></Button></li>
         ))}</ul>}
-        {reactionTo !== undefined ? null : <div className="om-expressive-picker__import"
-          onDragOver={(event) => { event.preventDefault(); }}
-          onDrop={(event) => {
-            event.preventDefault();
-            const [file] = Array.from(event.dataTransfer.files);
-            if (event.dataTransfer.files.length !== 1 || file === undefined) { if (!busy) setStatus(copy.choosePackFile); return; }
-            run(copy.loading, copy.reviewFailed, (signal) => reviewLocal({
-              name: file.name, size: file.size, mimeType: file.type, bytes: async () => new Uint8Array(await file.arrayBuffer()),
-            }, panel.packs, signal));
-          }}>
-          {surface.files === undefined ? null : <Button disabled={busy} onClick={() => {
-            run(copy.loading, copy.reviewFailed, async (signal) => {
-              const picked = await surface.files?.pick({ accept: [".ompack"], multiple: false });
-              await reviewLocal(picked?.[0], panel.packs, signal);
-            });
-          }}>{copy.importFile}</Button>}
-          <p>{copy.dropFile}</p>
-        </div>}
+        {reactionTo !== undefined ? null : <PackFileChooser surface={surface} disabled={busy} onError={setStatus}
+          onFile={(file) => { run(copy.loading, copy.reviewFailed, (signal) => reviewLocal(file, panel.packs, signal)); }} />}
         {review === undefined ? null : <Button disabled={busy} onClick={() => {
           run(copy.loading, copy.reviewFailed, async (signal) => {
             const result = await api.query(ctx, { kind: "preview_pack", input: review.input });
@@ -335,7 +377,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
           });
         }}>{copy.review}</Button>}
       </> : null}
-      {panel?.kind === "items" ? showItems(panel.picker) : null}
+      {panel?.kind === "items" && conversationId !== undefined ? showItems(panel.picker) : null}
       {panel?.kind === "details" || panel?.kind === "remove" ? <>
         <Button variant="quiet" disabled={busy} onClick={() => { setPanel({ kind: "items", picker: panel.picker }); setStatus(""); }}>{copy.back}</Button>
         <h3 data-expressive-heading tabIndex={-1}><bdi>{panel.kind === "remove" ? copy.removeQuestion(panel.picker.pack.title) : panel.picker.pack.title}</bdi></h3>
@@ -362,7 +404,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
         </>}
       </> : null}
       {panel?.kind === "review" ? <>
-        <Button variant="quiet" disabled={busy} onClick={back}>{copy.back}</Button>
+        {localPack === undefined && conversationId !== undefined ? <Button variant="quiet" disabled={busy} onClick={back}>{copy.back}</Button> : null}
         <PackReview preview={panel.preview} copy={copy} sender={panel.file?.sender} />
         <Button disabled={busy} variant="primary" onClick={() => {
           run(copy.installing, copy.installFailed, async (signal) => {
@@ -387,13 +429,13 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
             setStatus(copy.installed);
             const packs = await readPacks().catch(() => null);
             if (cancelled(signal)) return;
-            if (packs !== null) setPanel({ kind: "packs", packs });
-            else setStatus(`${copy.installed} ${copy.loadFailed}`);
+            if (packs !== null && conversationId !== undefined) setPanel({ kind: "packs", packs });
+            else if (packs === null) setStatus(`${copy.installed} ${copy.loadFailed}`);
           });
         }}><bdi>{(panel.updating ? copy.update : copy.install)(panel.preview.title)}</bdi></Button>
       </> : null}
-      {panel === null && status !== "" && !busy ? <Button onClick={() => {
-        if (receivedPack === undefined) back();
+      {panel === null && status !== "" && status !== copy.installed && !busy ? <Button onClick={() => {
+        if (receivedPack === undefined && localPack === undefined) back();
         else { setStatus(""); setReviewAttempt((n) => n + 1); }
       }}>{copy.retry}</Button> : null}
     </div>

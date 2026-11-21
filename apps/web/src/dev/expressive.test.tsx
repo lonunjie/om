@@ -4,9 +4,10 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHarness, type SeedExpressivePack } from "@om/core-harness";
-import { asConversationId, asOperationId, asPersonId, asProfileId, PACK_FILE_MAX_BYTES, PACK_FILE_MEDIA_TYPE, type ExpressiveMediaApi } from "@om/platform-api";
-import { ConversationView, ExpressivePickerControl, SecurityNotices, ThemeProvider, createActionRegistry, type ExpressiveSurface } from "@om/ui";
-import { conversationCopy, expressiveCopy } from "../copy/en";
+import { asConversationId, asMessageId, asOperationId, asPersonId, asProfileId, PACK_FILE_MAX_BYTES, PACK_FILE_MEDIA_TYPE, type ExpressiveMediaApi, type GroupMessageView } from "@om/platform-api";
+import { ConversationView, ExpressivePickerControl, GroupChat, GroupComposer, ProfileProvider, SecurityNotices, ThemeProvider, createActionRegistry, createMemoryKeyValue, createProfileScopedState, type ExpressiveSurface } from "@om/ui";
+import { conversationCopy, expressiveCopy, groupsCopy } from "../copy/en";
+import { Shell } from "../core/Shell";
 import { devExpressiveHost, expressiveFixture, expressiveRichText, inlineMessage } from "./expressiveFixture";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -61,6 +62,18 @@ function setup(enabled = true, hostile = false, received = false) {
 
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
 const dialog = () => screen.getByRole("dialog");
+async function readyRoom({ client, ctx }: ReturnType<typeof setup>["services"]) {
+  const created = await client.groups.do(ctx, { kind: "create", name: "Planning", relationshipIds: [] });
+  const room = created.ok && created.events.find((event) => event.kind === "created");
+  if (!room) throw new Error("test Room unavailable");
+  const get = client.groups.get.bind(client.groups);
+  vi.spyOn(client.groups, "get").mockImplementation((...args) => {
+    const detail = get(...args);
+    return detail === null ? null : { ...detail, canUpload: true };
+  });
+  return room.conversationId;
+}
+
 const pick = async () => {
   const user = userEvent.setup();
   await user.click(button("Stickers"));
@@ -294,6 +307,54 @@ describe("expressive media", () => {
 });
 
 describe("pack files", () => {
+  it.each(["picker", "drop"])("reviews a host %s file before allowing the staged install", async (source) => {
+    window.history.replaceState(null, "", "/");
+    const { services, surface, fixture } = setup();
+    const { client, ctx } = services;
+    const installFile = vi.spyOn(client.expressive, "do");
+    const discard = vi.spyOn(client.expressive, "discardPackFile");
+    const store = createProfileScopedState(createMemoryKeyValue());
+    render(<ProfileProvider client={client} contexts={client} store={store} initialProfileId={profile}>
+      <Shell services={services} expressiveHost={surface} />
+    </ProfileProvider>);
+    const user = userEvent.setup();
+    const choose = screen.getByRole("button", { name: expressiveCopy.importFile });
+    const open = async () => {
+      if (source === "picker") await user.click(choose);
+      else fireEvent.drop(screen.getByText(expressiveCopy.dropFile), { dataTransfer: { types: ["Files"], files: [{
+        name: "faces.ompack", type: PACK_FILE_MEDIA_TYPE, size: packFile.length,
+        arrayBuffer: () => Promise.resolve(packFile.slice().buffer),
+      }] } });
+      const review = within(await screen.findByRole("dialog", { name: expressiveCopy.review }));
+      expect(await review.findByRole("heading", { name: fixture.preview.title })).toBe(document.activeElement);
+      expect(review.getByText(expressiveCopy.signedBy)).toBeTruthy();
+      expect(review.getByText(/2 items/).textContent).toContain(expressiveCopy.size(fixture.preview.size));
+      expect(review.queryByRole("checkbox", { name: expressiveCopy.allowUploadReuse })).toBeNull();
+      return review.getByRole("button", { name: expressiveCopy.install(fixture.preview.title) });
+    };
+
+    await open();
+    await a11y(dialog());
+    expect(installFile).not.toHaveBeenCalled();
+    expect(await client.expressive.query(ctx, { kind: "packs" })).toEqual([]);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(choose);
+    expect(discard).toHaveBeenCalledTimes(1);
+    expect(await client.expressive.query(ctx, { kind: "packs" })).toEqual([]);
+
+    const refused = await open();
+    installFile.mockResolvedValueOnce({ refused: "confirmation_required" });
+    await user.click(refused);
+    expect(await screen.findByText(expressiveCopy.packChanged)).toBeTruthy();
+    expect(await client.expressive.query(ctx, { kind: "packs" })).toEqual([]);
+    await user.keyboard("{Escape}");
+
+    await user.click(await open());
+    expect(await screen.findByText(expressiveCopy.installed)).toBeTruthy();
+    expect(await client.expressive.query(ctx, { kind: "packs" })).toHaveLength(1);
+  });
+
   it.each(["message", "picker", "drop"])("reviews and confirms a pack from the %s without requesting its provenance", async (source) => {
     const { services, surface } = setup(true, true, true);
     const fetch = vi.fn<typeof globalThis.fetch>();
@@ -312,7 +373,7 @@ describe("pack files", () => {
       if (source === "picker") await user.click(await screen.findByRole("button", { name: "Choose pack file" }));
       else {
         const drop = await screen.findByText("Drop a pack file here.");
-        fireEvent.drop(drop, { dataTransfer: { files: [{
+        fireEvent.drop(drop, { dataTransfer: { types: ["Files"], files: [{
           name: "faces.ompack", type: "", size: packFile.length,
           arrayBuffer: () => Promise.resolve(packFile.slice().buffer),
         }] } });
@@ -363,5 +424,89 @@ describe("pack files", () => {
     await user.click(await screen.findByRole("button", { name: "Install Little faces" }));
     expect(await screen.findByText(expressiveCopy.installFailed)).toBeTruthy();
     await a11y(dialog());
+  });
+});
+
+describe("Room expressive media", () => {
+  it.each([false, true])("uses the Room id when sending and renders Core's fallback choice (%s)", async (fallback) => {
+    const { services, surface, decode } = setup();
+    const { client, ctx } = services;
+    const groupId = await readyRoom(services);
+    const messageId = asMessageId(`room/${groupId}/sticker`);
+    const messages: GroupMessageView[] = [];
+    vi.spyOn(client.groups, "messages").mockImplementation(() => messages);
+    const dispatch = vi.spyOn(client, "dispatch").mockImplementation((intent) => {
+      messages.push({ id: "sticker", text: "🙂", outgoing: true, senderAccount: "me", senderDevice: "device", atMs: 500, epoch: 1,
+        attachmentMessageId: messageId, attachments: [{ index: 0, blobId: "blob", mediaType: "image/webp", size: 15, state: "stored_for_later" }],
+        ...(fallback ? { expressiveFallback: true } : {}),
+      });
+      return Promise.resolve({ operationId: intent.operationId, profileId: ctx.profileId });
+    });
+    vi.spyOn(client, "observe").mockImplementation((_ctx, _op, listener) => { listener({ kind: "Committed" }); return () => undefined; });
+    const query = vi.fn<ExpressiveSurface["describe"]>(() => Promise.resolve({ altText: "A smiling sticker", canOpen: true }));
+    const decoded = vi.spyOn(client.expressive, "decode").mockResolvedValue({ state: "placeholder", altText: "A smiling sticker" });
+    const roomSurface = { ...surface, describe: query };
+    const props = { services, groupId, copy: groupsCopy, attachmentCopy: conversationCopy.attachments, expressive: roomSurface };
+    const renderRoom = (refreshKey: number) => <ThemeProvider motion="reduced">
+      <GroupChat {...props} refreshKey={refreshKey} chats={[]} onLeft={() => undefined} />
+      <GroupComposer {...props} draft="Keep my draft" onDraftChange={() => undefined} />
+    </ThemeProvider>;
+    const view = render(renderRoom(0));
+    const user = await pick();
+    await install(user);
+    await user.click(button("Send Hello smile"));
+    expect(await screen.findByText(expressiveCopy.sent)).toBeTruthy();
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ kind: "SendExpressive", conversationId: groupId, target: "Attachment" }));
+    await user.keyboard("{Escape}");
+    view.rerender(renderRoom(1));
+    const log = within(screen.getByRole("log", { name: "Group messages" }));
+    expect(log.getByText("🙂")).toBeTruthy();
+    expect(screen.getByRole<HTMLTextAreaElement>("textbox", { name: groupsCopy.chat.composerLabel }).value).toBe("Keep my draft");
+    if (fallback) {
+      expect(log.getByText(expressiveCopy.roomFallback)).toBeTruthy();
+      expect(query).not.toHaveBeenCalled();
+    } else {
+      expect(log.queryByText(expressiveCopy.roomFallback)).toBeNull();
+      await user.click(await log.findByRole("button", { name: expressiveCopy.show }));
+      expect(decoded).toHaveBeenCalledWith(ctx, messageId, { kind: "attachment", index: 0 }, { decode }, { reducedMotion: true });
+    }
+    await a11y(screen.getByRole("log", { name: "Group messages" }));
+  });
+
+  it("stages a pack as an ordinary Room attachment until the composer sends it", async () => {
+    const { services, surface } = setup();
+    const { client, ctx } = services;
+    const groupId = await readyRoom(services);
+    const blobId = "bc".repeat(32);
+    const prepare = vi.spyOn(client.attachments, "prepare").mockResolvedValue({ ok: true, blobId });
+    const dispatch = vi.spyOn(client, "dispatch")
+      .mockRejectedValueOnce(new Error("lost acknowledgement"))
+      .mockImplementation((intent) => Promise.resolve({ operationId: intent.operationId, profileId: ctx.profileId }));
+    vi.spyOn(client, "observe").mockImplementation((_ctx, _op, listener) => { listener({ kind: "Committed" }); return () => undefined; });
+    const review = vi.spyOn(client.expressive, "reviewPackFile");
+    const onSent = vi.fn();
+    render(<GroupComposer {...{ services, groupId, onSent }} copy={groupsCopy} expressive={surface} attachmentCopy={conversationCopy.attachments}
+      draft="A pack to share" onDraftChange={() => undefined} />);
+    const user = userEvent.setup();
+    await user.click(button(expressiveCopy.attachPack));
+    const tray = await screen.findByRole("list", { name: conversationCopy.attachments.tray });
+    expect(within(tray).getByText("faces.ompack")).toBeTruthy();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+    const send = screen.getByRole<HTMLButtonElement>("button", { name: groupsCopy.chat.send });
+    await user.click(send);
+    expect(await screen.findByText(expressiveCopy.roomWaiting)).toBeTruthy();
+    await waitFor(() => { expect(send.disabled).toBe(false); });
+    await user.click(send);
+    await waitFor(() => { expect(onSent).toHaveBeenCalledOnce(); });
+    expect(prepare).toHaveBeenCalledWith(ctx, packFile, { filename: "faces.ompack", mediaType: PACK_FILE_MEDIA_TYPE });
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      kind: "SendAttachments", conversationId: groupId, draft: { text: "A pack to share" }, attachments: [{ blobId }],
+    }));
+    expect(dispatch.mock.calls[1]).toEqual(dispatch.mock.calls[0]);
+    expect(review).not.toHaveBeenCalled();
+    expect(await client.expressive.query(ctx, { kind: "packs" })).toEqual([]);
   });
 });

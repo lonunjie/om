@@ -1,6 +1,8 @@
 // Keyboard-only flow on the opt-in loopback harness. The dev entry supplies local fixture bytes.
+import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { noPasskeys } from "./helpers.ts";
+import { GROUPS_APP, closeAll, createGroup, firstLink, hears, joinByLink, joinGroup, openGroup, readyGroups, roomLog, say, startLockedPerson, type Person } from "./groups-live-people.ts";
 
 // Firefox does not wrap Tab past the last control: focus leaves the page for the browser's own UI and
 // `document.activeElement` stays put. When Tab stops moving focus, walk back with Shift+Tab instead.
@@ -84,4 +86,93 @@ test("keyboard can send a sticker, add a custom reaction and remove the pack", a
   await expect(picker.getByText("Pack removed from this device.")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sticker).toBeVisible();
+});
+
+test.describe("Room attachments on the opt-in Core", () => {
+  test.skip(process.env["OM_EXPRESSIVE_E2E"] !== "1", "Uses the expressive relay bundle");
+  test.setTimeout(240_000);
+  const everyone: Person[] = [];
+  test.afterEach(async () => { await closeAll(everyone.splice(0)); });
+
+  for (const recipient of ["expressive", "plain"] as const) {
+    test(`a Room sticker with recipient mode ${recipient}`, async ({ browser }) => {
+      // Files need a Home that holds them: the locked Home, reached through the first-run setup bundle. A Home without the blob
+      // spool makes Core refuse the upload (no_blob_store), by design.
+      const alice = await startLockedPerson(browser, "Alice");
+      everyone.push(alice);
+      await alice.page.emulateMedia({ reducedMotion: "reduce" });
+      const invite = new URL(await firstLink(alice));
+      let bob: Person;
+      if (recipient === "expressive") {
+        bob = await startLockedPerson(browser, "Bob");
+        everyone.push(bob);
+        await bob.page.getByText("Have an invite?").click();
+        await bob.page.getByLabel("Invitation link").fill(invite.href);
+        await bob.page.getByRole("button", { name: "Accept invitation" }).click();
+        await expect(bob.page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 60_000 });
+        const request = alice.page.getByRole("region", { name: "Message request" }).filter({ hasText: "Bob" });
+        await expect(request).toBeVisible({ timeout: 60_000 });
+        await request.getByRole("button", { name: "Accept", exact: true }).click();
+        await expect(alice.page.getByRole("option", { name: /Bob/ })).toBeVisible({ timeout: 60_000 });
+      } else {
+        bob = await joinByLink(browser, "Bob", `${GROUPS_APP}/${invite.hash}`, alice);
+        everyone.push(bob);
+      }
+      await bob.page.emulateMedia({ reducedMotion: "reduce" });
+      if (recipient === "plain") await readyGroups(bob);
+
+      const vectors = JSON.parse(readFileSync(new URL("../../../verification/vectors/pack-file-vectors.json", import.meta.url), "utf8")) as {
+        vectors: { id: string; hex: string }[];
+      };
+      const genesis = vectors.vectors.find(({ id }) => id === "genesis");
+      if (genesis === undefined) throw new Error("pack fixture unavailable");
+      const packBytes = [...Buffer.from(genesis.hex, "hex")];
+      const dropped = await alice.page.evaluateHandle((bytes) => {
+        const data = new DataTransfer();
+        data.items.add(new File([Uint8Array.from(bytes)], "faces.ompack"));
+        return data;
+      }, packBytes);
+      const dropTarget = alice.page.getByText("Drop a pack file here.", { exact: true });
+      await dropTarget.dispatchEvent("drop", { dataTransfer: dropped });
+      const review = alice.page.getByRole("dialog", { name: "Review pack" });
+      await expect(review.getByRole("heading", { name: "Little faces" })).toBeFocused();
+      await expect(review.getByText("Signed by", { exact: true })).toBeVisible();
+      await alice.page.keyboard.press("Escape");
+      await expect(review).toBeHidden();
+      await expect(alice.page.getByRole("button", { name: "Choose pack file" })).toBeFocused();
+      await dropTarget.dispatchEvent("drop", { dataTransfer: dropped });
+      await review.getByRole("button", { name: "Install Little faces" }).click();
+      await expect(review.getByText("Pack saved on this device.")).toBeVisible();
+      await review.getByRole("button", { name: "Close", exact: true }).click();
+      await dropped.dispose();
+
+      await createGroup(alice, "Sticker group", ["Bob"]);
+      await joinGroup(bob, "Sticker group", "Alice");
+      await openGroup(alice, "Sticker group");
+      await say(bob, "Ready for a sticker");
+      await hears(alice, "Ready for a sticker");
+      const draft = alice.page.getByRole("textbox", { name: "Message the group" });
+      await draft.fill("A separate draft");
+      const stickers = alice.page.getByRole("button", { name: "Stickers", exact: true });
+      await activate(alice.page, stickers);
+      const picker = alice.page.getByRole("dialog", { name: "Stickers" });
+      await activate(alice.page, picker.getByRole("button", { name: "Little faces" }));
+      await expect(picker.getByRole("checkbox", { name: "Allow reuse of this upload" })).not.toBeChecked();
+      await activate(alice.page, picker.getByRole("button", { name: "Send Hello smile" }));
+      await expect(picker.getByText("Sticker sent.")).toBeVisible();
+      await alice.page.keyboard.press("Escape");
+      await expect(stickers).toBeFocused();
+      await expect(draft).toHaveValue("A separate draft");
+      await hears(bob, "🙂");
+      const fallback = roomLog(alice).getByText("Sent as an image with text.");
+      if (recipient === "plain") {
+        await expect(fallback).toBeVisible();
+        await expect(roomLog(bob).getByRole("button", { name: /^Download/ })).toBeVisible();
+      } else {
+        await expect(fallback).toHaveCount(0);
+        await roomLog(bob).getByRole("button", { name: "Show image" }).click();
+        await expect(roomLog(bob).getByRole("img", { name: "A smiling sticker" })).toBeVisible();
+      }
+    });
+  }
 });

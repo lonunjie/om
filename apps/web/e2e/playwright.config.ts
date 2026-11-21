@@ -38,7 +38,7 @@ export default defineConfig({
     // The real Core (om_wasm.wasm) with the in-page TEST loopback provider; never a production build.
     { command: "pnpm exec vite preview --outDir dist-core-e2e --port 4176 --strictPort", cwd: "..", url: CORE, reuseExistingServer: true },
     // The real Core, with the groups module fetched on demand (ADR-0187) and the real group carriage over the local reference Home; a dev-marked bundle only because the local Home needs the loopback flags.
-    { command: "pnpm exec vite preview --outDir dist-groups-e2e --port 4180 --strictPort", cwd: "..", url: GROUPS_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },
+    { command: "pnpm exec vite preview --outDir dist-groups-e2e --port 4180 --strictPort", cwd: "..", url: GROUPS_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: `${RELAY} ${LOCKED_RELAY}` } },
     // The plain production build (`pnpm build`: no test flag, no dev marking): starts on the verified base Core module and never fetches the groups module at first load.
     { command: "pnpm exec vite preview --outDir dist --port 4181 --strictPort", cwd: "..", url: PROD_APP, reuseExistingServer: true },
     // The real Core in the production entry, connected to the local reference Home (the Worker bundle in workerd).
@@ -49,7 +49,7 @@ export default defineConfig({
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8789", cwd: "..", url: `${LOCKED_RELAY}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH } },
     // ... and a second locked Home, which is where the backup delivery service is added (apps/web/e2e/backup-service.spec.ts).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8790", cwd: "..", url: `${LOCKED_RELAY_2}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH_2 } },
-    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: `${LOCKED_RELAY} ${LOCKED_RELAY_2} http://home.localhost:8789` } },
+    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: `${LOCKED_RELAY} ${LOCKED_RELAY_2} http://home.localhost:8789 ${RELAY}` } },
     ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true, env: { ...(/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(process.env["OM_LIVE_RELAY_URL"] ?? "") ? { OM_E2E_CONNECT_SRC: process.env["OM_LIVE_RELAY_URL"] ?? "" } : {}) } }] : []),
   ],
   projects: [

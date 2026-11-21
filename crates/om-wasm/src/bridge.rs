@@ -1002,6 +1002,9 @@ fn group_message_json(m: &om_core::groups::flow::GroupMsg) -> Value {
         v["attachmentMessageId"] = json!(id);
         v["attachments"] = json!([attachment]);
     }
+    if m.expressive_fallback {
+        v["expressiveFallback"] = json!(true);
+    }
     if let Some(p) = &m.poll_view {
         let mut poll = json!({
             "options": p.options.iter().map(|(id, label, count)| match count {

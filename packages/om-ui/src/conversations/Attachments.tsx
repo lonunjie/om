@@ -169,7 +169,7 @@ export function LocationCard({ card, copy }: { readonly card: LocationCardView; 
 
 /** Everything a message carries besides its text. The text is always shown too (a card never replaces it). */
 export function MessageAttachments({ services, item, copy, renderWebp, reviewPack }: {
-  readonly services: ConversationServices; readonly item: ConversationTimelineItem; readonly copy: AttachmentCopy;
+  readonly services: ConversationServices; readonly item: Pick<ConversationTimelineItem, "attachments" | "messageId" | "presentation">; readonly copy: AttachmentCopy;
   readonly reviewPack?: { readonly label: string; readonly open: (index: number) => void } | undefined;
   readonly renderWebp?: ((index: number, fallback: ReactNode) => ReactNode) | undefined;
 }) {

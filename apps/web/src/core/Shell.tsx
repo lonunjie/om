@@ -4,7 +4,7 @@ import type { CallMediaProvider } from "@om/provider-http";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
-  AlertsScreen, CallTimelineNotice, useAlertsRefresh, AppShell, Avatar, Button, Composer, ExpressivePickerControl, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
+  AlertsScreen, CallTimelineNotice, useAlertsRefresh, AppShell, Avatar, Button, Composer, ExpressivePackImport, ExpressivePickerControl, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, scoreEntry, useProfiles, useConversationDigests, shownName, contactCollisions, introductionCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, ReconnectContacts, RecoveryKeyStep, useLiveQuery, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
@@ -513,6 +513,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
                 {invite !== undefined && !emptyInviteFirst ? <Button variant="quiet" onClick={() => { openNew("share"); }}><Icon name="plus" size={20} />{t.newConversation.action}</Button> : null}
               </span>
             </header>
+            {expressive === undefined ? null : <div className="om-page"><ExpressivePackImport services={services} surface={expressive} /></div>}
             <HeldGroupInvites
               copy={groupsCopy} chats={list.status === "ready" ? list.value : []} groupsReady={groups.available || groupsSetup === undefined}
               held={heldGroups.held} onOpen={() => { setGroupsGateOpen("invitation"); }} onAcknowledge={heldGroups.acknowledge}
@@ -570,6 +571,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
           selected === null ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="chat" size={72} /></span></div> : selectedIsGroup(selected) ? (
             <GroupChat
               key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} chats={list.status === "ready" ? list.value : []}
+              expressive={expressive} attachmentCopy={conversationCopy.attachments}
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
               rejoinReviews={groups.rejoin.reviews.filter((r) => r.conversationId === asGroupId(selected))}
               onReply={(target) => { setReplies((m) => new Map(m).set(selected, target)); }} replyingTo={replies.get(selected)?.messageId ?? null}
@@ -596,6 +598,7 @@ export function Shell({ services, callDriver, callMedia, groupsSetup, capture, d
         composerZone={selected !== null && selectedIsGroup(selected) ? (
           <GroupComposer
             key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} draft={drafts.get(selected) ?? ""}
+            expressive={expressive} attachmentCopy={conversationCopy.attachments}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
             onSent={() => { setGroupTick((n) => n + 1); groups.refresh(); }}
             replyTo={replies.get(selected) ?? null} onCancelReply={() => { setReplies((m) => { const n = new Map(m); n.delete(selected); return n; }); }}

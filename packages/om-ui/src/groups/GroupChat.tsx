@@ -6,8 +6,8 @@ import type { MentionCandidate } from "../conversations/mentions";
 import { useMemo } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { asMessageId } from "@om/platform-api";
-import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView, GroupRejoinReviewView, MessageId, ReplyView } from "@om/platform-api";
+import { asConversationId, asMessageId, PACK_FILE_MAX_BYTES, PACK_FILE_MEDIA_TYPE } from "@om/platform-api";
+import type { ConversationSummary, CoreIntent, GroupId, GroupMessageView, GroupNoticeView, GroupRejoinReviewView, MessageId, PickedFile, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -15,7 +15,12 @@ import { Text } from "../shell/primitives/Text";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import { Sheet } from "../shell/layout/Sheet";
 import { Avatar } from "../conversations/Avatar";
-import type { ConversationServices } from "../conversations/services";
+import { resolveIntent, settledOutcome, type ConversationServices } from "../conversations/services";
+import { MessageAttachments, safeFileName } from "../conversations/Attachments";
+import type { AttachmentCopy } from "../conversations/copy";
+import { ExpressiveAsset } from "../expressive/Asset";
+import { ExpressivePickerControl, ExpressivePickerSheet } from "../expressive/Picker";
+import type { ExpressiveSurface } from "../expressive/host";
 import type { ReplyTarget } from "../conversations/ConversationView";
 import { DeleteConfirm, EditForm, Quote, ReactionChips, ReactionControl, ReplyChip, gistOf } from "../conversations/chatContext";
 import type { GroupsCopy } from "./copy";
@@ -29,6 +34,7 @@ import "../conversations/conversations.css";
 import "./groups.css";
 
 const RUN_GAP_MS = 5 * 60 * 1000;
+const cancelled = (signal: AbortSignal): boolean => signal.aborted;
 
 export interface GroupChatProps {
   readonly services: ConversationServices;
@@ -52,6 +58,8 @@ export interface GroupChatProps {
   readonly onReply?: (target: ReplyTarget) => void;
   /** The message a reply is being written to, marked in the timeline. */
   readonly replyingTo?: MessageId | null;
+  readonly expressive?: ExpressiveSurface | undefined;
+  readonly attachmentCopy?: AttachmentCopy;
 }
 
 type Entry = { readonly kind: "message"; readonly m: GroupMessageView } | { readonly kind: "notice"; readonly n: GroupNoticeView };
@@ -64,7 +72,7 @@ function timeline(messages: readonly GroupMessageView[], notices: readonly Group
 }
 
 /** A group is an ordinary conversation with more people: the same header, bubbles and rhythm as a chat, plus who said it and a people sheet. */
-export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, rejoinReviews = [], onReply, replyingTo, focusMessageId }: GroupChatProps) {
+export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, rejoinReviews = [], onReply, replyingTo, focusMessageId, expressive, attachmentCopy }: GroupChatProps) {
   const c = copy.chat;
   const api = groupApiOf(services);
   const [bump, setBump] = useState(0);
@@ -78,6 +86,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   const [deleting, setDeleting] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [marked, setMarked] = useState<string | null>(null);
+  const [receivedPack, setReceivedPack] = useState<{ messageId: MessageId; index: number; sender: string } | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const count = messages.length + notices.length;
   useEffect(() => {
@@ -153,6 +162,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
               const direction = m.outgoing ? "outgoing" : "incoming";
               const mine = names.isYou(m.senderAccount);
               const gist = gistOf(m.text, c.reply.attachment);
+              const attachmentMessageId = m.attachmentMessageId;
               const original = m.replyTo === undefined ? undefined : messages.find((x) => x.id === m.replyTo);
               const reply: ReplyView | undefined = m.replyTo === undefined ? undefined
                 : original === undefined ? { messageId: asMessageId(m.replyTo), available: false }
@@ -167,7 +177,18 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
                       {editing?.id === m.id
                         ? <EditForm copy={c.change} text={editing.text} onChange={(next) => { setEditing({ id: m.id, text: next }); }} onSave={() => { act("group-edit-message", { messageId: m.id, text: editing.text }, c.change.editFailed, () => { setEditing(null); }); }} onCancel={() => { setEditing(null); }} />
                         : m.poll !== undefined ? <PollCard question={m.text} poll={m.poll} copy={copy.poll} busy={false} onVote={(optionIds) => { act("group-vote-poll", { pollId: m.id, optionIds }, copy.poll.failed); }} onClose={() => { act("group-close-poll", { pollId: m.id }, copy.poll.failed); }} />
-                        : <div className="om-group-text"><RichText doc={textWithMentions(m.text, (m.mentions ?? []).map((x) => ({ ...x, me: names.isYou(x.account) })))} copy={copy.richText} /></div>}
+                        : m.text === "" ? null : <div className="om-group-text"><RichText doc={textWithMentions(m.text, (m.mentions ?? []).map((x) => ({ ...x, me: names.isYou(x.account) })))} copy={copy.richText} /></div>}
+                      {attachmentMessageId === undefined || m.attachments === undefined || attachmentCopy === undefined ? null : (
+                        <MessageAttachments services={services} item={{ messageId: attachmentMessageId, attachments: m.attachments }} copy={attachmentCopy}
+                          renderWebp={expressive === undefined || m.expressiveFallback === true ? undefined : (index, fallback) => (
+                            <ExpressiveAsset services={services} surface={expressive} messageId={attachmentMessageId} source={{ kind: "attachment", index }} size="message" fallback={fallback} />
+                          )}
+                          reviewPack={expressive === undefined || m.outgoing || services.client.attachments === undefined ? undefined : {
+                            label: expressive.copy.review,
+                            open: (index) => { setReceivedPack({ messageId: attachmentMessageId, index, sender: senderLabel(m.senderAccount) }); },
+                          }} />
+                      )}
+                      {expressive !== undefined && m.expressiveFallback === true ? <Text as="p" size="sm" tone="secondary">{expressive.copy.roomFallback}</Text> : null}
                     </div>
                     {!detail.canSend ? null : (
                       <ReactionControl
@@ -184,7 +205,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
                     {onReply === undefined || !detail.canSend ? null : (
                       <IconButton
                         className="om-conv-view__reply" label={`${c.reply.action}: ${gist}`} icon={<Icon name="reply" size={18} />} aria-pressed={replyingTo === m.id}
-                        onClick={() => { onReply({ messageId: asMessageId(m.id), preview: Array.from(m.text).slice(0, 140).join(""), hasAttachment: false, outgoing: mine, who: senderLabel(m.senderAccount) }); }}
+                        onClick={() => { onReply({ messageId: asMessageId(m.id), preview: Array.from(m.text).slice(0, 140).join(""), hasAttachment: (m.attachments?.length ?? 0) > 0, outgoing: mine, who: senderLabel(m.senderAccount) }); }}
                       />
                     )}
                   </div>
@@ -208,6 +229,8 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
       )}
       {detail.canSend ? null : <p className="om-group-paused" role="status">{c.paused}</p>}
       {footer}
+      {expressive !== undefined && receivedPack !== null && messages.some((m) => m.attachmentMessageId === receivedPack.messageId && !m.outgoing)
+        ? <ExpressivePickerSheet services={services} surface={expressive} receivedPack={receivedPack} onClose={() => { setReceivedPack(null); }} /> : null}
       <p className="om-visually-hidden" role="status">{said}</p>
       {sheet === "people" ? (
         <Sheet title={copy.members.title(group)} closeLabel={copy.members.close} onClose={() => { setSheet(null); }}>
@@ -256,12 +279,14 @@ export interface GroupComposerProps {
   readonly replyTo?: ReplyTarget | null;
   /** Ends the reply (the cancel control, Escape, or after a send). */
   readonly onCancelReply?: () => void;
+  readonly expressive?: ExpressiveSurface | undefined;
+  readonly attachmentCopy?: AttachmentCopy;
 }
 
 const enterSends = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
 /** Text only: the same pill as a chat's. The draft stays until the step went through; a refusal is said and the words stay. */
-export function GroupComposer({ services, copy, groupId, draft, onDraftChange, trailing, onSent, replyTo, onCancelReply }: GroupComposerProps) {
+export function GroupComposer({ services, copy, groupId, draft, onDraftChange, trailing, onSent, replyTo, onCancelReply, expressive, attachmentCopy }: GroupComposerProps) {
   const c = copy.chat;
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -270,6 +295,20 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
   const input = useRef<HTMLTextAreaElement>(null);
   // Who can be mentioned: the people in the Room now, other than the person using this device, by the names the people list shows (ADR-0222).
   const { detail } = useGroupChat(services, groupId, 0);
+  const conversationId = asConversationId(groupId);
+  const media = detail?.canUpload === true && services.client.expressive?.available() === true ? expressive : undefined;
+  const files = media?.files;
+  const attachments = services.client.attachments;
+  const [pack, setPack] = useState<PickedFile | null>(null);
+  const [pickingPack, setPickingPack] = useState(false);
+  const [packPending, setPackPending] = useState(false);
+  const packIntent = useRef<{ readonly intent: CoreIntent; readonly text: string } | null>(null);
+  const lifetime = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const job = new AbortController();
+    lifetime.current = job;
+    return () => { job.abort(); };
+  }, [services.ctx, groupId]);
   const names = usePeopleNames(detail);
   const candidates = useMemo<readonly MentionCandidate[]>(
     () => (detail?.people ?? []).filter((p) => p.status === "member" && !p.you).map((p) => ({ id: p.account, name: names.nameOf(p.account) ?? copy.members.someone(names.unnamedNumber(p.account)) })),
@@ -277,9 +316,67 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
   );
   const mentions = useMentions({ candidates, copy: copy.mentions, draft, onDraftChange, input });
   const [pollOpen, setPollOpen] = useState(false);
+  const pickPack = async (): Promise<void> => {
+    const signal = lifetime.current?.signal;
+    if (files === undefined || media === undefined || signal === undefined || cancelled(signal) || pickingPack) return;
+    setPickingPack(true);
+    setNotice(null);
+    try {
+      const picked = await files.pick({ accept: [".ompack"], multiple: false });
+      const [file] = picked;
+      if (cancelled(signal) || file === undefined) return;
+      if (picked.length !== 1 || !file.name.toLowerCase().endsWith(".ompack")) { setNotice(media.copy.choosePackFile); return; }
+      if (file.size > PACK_FILE_MAX_BYTES) { setNotice(media.copy.packTooLarge); return; }
+      setPack(file);
+    } catch { if (!cancelled(signal)) setNotice(c.sendFailed); }
+    finally { if (!cancelled(signal)) setPickingPack(false); }
+  };
+  const sendPack = async (file: PickedFile, text: string) => {
+    const signal = lifetime.current?.signal;
+    if (media === undefined || attachments === undefined || attachmentCopy === undefined || replyTo || signal === undefined || cancelled(signal)) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      let send = packIntent.current;
+      if (send === null) {
+        const bytes = await file.bytes();
+        if (cancelled(signal)) return;
+        if (bytes.length > PACK_FILE_MAX_BYTES) { setNotice(media.copy.packTooLarge); return; }
+        const prepared = await attachments.prepare(services.ctx, bytes, { filename: safeFileName(file.name, attachmentCopy.file), mediaType: PACK_FILE_MEDIA_TYPE });
+        if (cancelled(signal)) return;
+        if (!prepared.ok) { setNotice(attachmentCopy.refusal(prepared.refusal)); return; }
+        const resolved = resolveIntent(services, "send-attachments", { conversationId, text, attachments: [{ blobId: prepared.blobId }] });
+        if (resolved.status !== "intent") { setNotice(c.sendFailed); return; }
+        send = { intent: resolved.intent, text };
+        packIntent.current = send;
+      }
+      setPackPending(true);
+      setNotice(media.copy.roomWaiting);
+      const handle = await services.client.dispatch(send.intent);
+      const outcome = await settledOutcome(services, handle.operationId, { signal });
+      if (cancelled(signal)) return;
+      if (outcome.kind === "Committed") {
+        setPack(null);
+        if (draftRef.current === send.text) { onDraftChange(""); mentions.reset(); }
+        setNotice(null);
+        onSent?.();
+      } else if (outcome.kind === "Rejected") {
+        setNotice(c.sendFailed);
+      } else {
+        if (outcome.kind === "NeedsUserAction") setNotice(media.copy.needsAction[outcome.action]);
+        if (outcome.kind === "PendingAuthorization") setNotice(media.copy.approval);
+        return;
+      }
+      packIntent.current = null;
+      setPackPending(false);
+    } catch { if (!cancelled(signal)) setNotice(packIntent.current === null ? c.sendFailed : media.copy.roomWaiting); }
+    finally { if (!cancelled(signal)) setBusy(false); }
+  };
   const submit = async (): Promise<void> => {
     const text = draftRef.current;
-    if (busy || text.trim() === "") return;
+    if (busy || pickingPack) return;
+    if (pack !== null) { await sendPack(pack, text); return; }
+    if (text.trim() === "") return;
     setBusy(true);
     setNotice(null);
     const ranges = mentions.ranges(text);
@@ -297,19 +394,33 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
   };
+  const packName = pack === null || attachmentCopy === undefined ? null : safeFileName(pack.name, attachmentCopy.file);
   return (
     <>
     <form className="om-composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
       {replyTo ? <ReplyChip copy={c.reply} who={replyTo.who ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
+      {pack === null || attachmentCopy === undefined || packName === null ? null : (
+        <ul className="om-staged" aria-label={attachmentCopy.tray}>
+          <li className="om-staged__item">
+            <bdi className="om-staged__name">{packName}</bdi>
+            <span className="om-staged__size">{attachmentCopy.size(pack.size)}</span>
+            <IconButton label={attachmentCopy.removeStaged(packName)} icon={<Icon name="close" />} disabled={busy || packPending} onClick={() => { setPack(null); setNotice(null); }} />
+          </li>
+        </ul>
+      )}
       <IconButton label={copy.poll.create} icon={<Icon name="check" />} disabled={busy} onClick={() => { setPollOpen(true); }} />
+      {files === undefined || attachments === undefined || media === undefined || attachmentCopy === undefined || replyTo || pack !== null ? null : (
+        <IconButton label={media.copy.attachPack} icon={<Icon name="file" />} disabled={busy || pickingPack} onClick={() => { void pickPack(); }} />
+      )}
       {mentions.picker}
       <textarea
         ref={input} className="om-composer__input" aria-label={c.composerLabel} placeholder={c.placeholder} rows={1} value={draft}
-        spellCheck={false} autoComplete="off" autoCorrect="off" onChange={mentions.onChange} onSelect={mentions.onSelect} onKeyDown={onKeyDown} {...mentions.inputProps}
+        spellCheck={false} autoComplete="off" autoCorrect="off" readOnly={packPending} onChange={mentions.onChange} onSelect={mentions.onSelect} onKeyDown={onKeyDown} {...mentions.inputProps}
       />
+      {media === undefined || busy ? null : <ExpressivePickerControl services={services} surface={media} conversationId={conversationId} {...(onSent === undefined ? {} : { onSent })} />}
       {trailing}
-      <IconButton type="submit" className="om-composer__send" data-variant="primary" label={c.send} icon={<Icon name="send" />} disabled={busy || draft.trim() === ""} />
-      {notice === null ? null : <p className="om-composer__notice" role="alert">{notice}</p>}
+      <IconButton type="submit" className="om-composer__send" data-variant="primary" label={c.send} icon={<Icon name="send" />} disabled={busy || pickingPack || (pack === null ? draft.trim() === "" : media === undefined || !!replyTo)} />
+      {notice === null ? null : <p className="om-composer__notice" role="status">{notice}</p>}
     </form>
         {pollOpen ? (
           <Sheet title={copy.poll.title} closeLabel={copy.poll.cancel} onClose={() => { setPollOpen(false); }}>

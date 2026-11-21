@@ -157,6 +157,8 @@ export interface GroupDetailView {
   readonly former: readonly GroupFormerView[];
   /** False while a Commit is unmerged or this person is leaving. */
   readonly canSend: boolean;
+  /** The committed Room state permits posting attachments. Missing on older Core builds. */
+  readonly canUpload?: boolean;
   readonly protection: GroupProtectionView;
 }
 export interface GroupInviteView {
@@ -221,6 +223,8 @@ export interface GroupMessageView {
   /** Room-scoped id for the attachment API. */
   readonly attachmentMessageId?: MessageId;
   readonly attachments?: readonly AttachmentView[];
+  /** The local expressive send committed as a plain image and text. */
+  readonly expressiveFallback?: true;
   /** The id of the message this one answers. Whether it is still here is read from the messages the viewer holds. */
   readonly replyTo?: string;
   /** An accepted edit replaced the text. */

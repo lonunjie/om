@@ -2,10 +2,13 @@
 // module), all over the real carriage on the local reference Home (the Worker bundle in workerd). Nothing here reads Core's state: a person
 // does only what a person can do on screen. The only thing passed between contexts is the invite link a person would send in any chat app.
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { noPasskeys, reopen, walkSetup } from "./helpers.ts";
+import { E2E_ADMISSION_SECRET, LOCKED_RELAY } from "./admission-fixture.ts";
+import { chooseOwnRelay, noPasskeys, reopen, walkSetup } from "./helpers.ts";
 
 export const GROUPS_APP = "http://localhost:4180";
 export const RELAY = "http://127.0.0.1:8788";
+/** The setup bundle: no Home of its own, so a person picks one (the locked Home, which offers the blob spool that attachments need). */
+export const SETUP_APP = "http://localhost:4179";
 
 export interface Person {
   readonly name: string;
@@ -21,27 +24,52 @@ function watch(name: string, page: Page, context: BrowserContext): Person {
   const wire: Person["wire"][number][] = [];
   const wasm: string[] = [];
   page.on("request", (r) => {
-    if (r.url().startsWith(RELAY)) wire.push({ url: r.url(), method: r.method(), body: r.postDataBuffer(), at: Date.now() });
+    if (r.url().startsWith(RELAY) || r.url().startsWith(LOCKED_RELAY)) wire.push({ url: r.url(), method: r.method(), body: r.postDataBuffer(), at: Date.now() });
     if (r.url().endsWith(".wasm")) wasm.push(r.url());
   });
   return { name, page, context, wire, wasm };
 }
 
-async function newPage(browser: Browser): Promise<{ page: Page; context: BrowserContext }> {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, baseURL: GROUPS_APP });
+async function newPage(browser: Browser, baseURL = GROUPS_APP): Promise<{ page: Page; context: BrowserContext }> {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, baseURL });
   const page = await context.newPage();
   await noPasskeys(page);
   return { page, context };
 }
 
 /** A first-time person with no contacts, on the invite screen (their own link is one tap away). */
-export async function startPerson(browser: Browser, name: string): Promise<Person> {
-  const { page, context } = await newPage(browser);
+export async function startPerson(browser: Browser, name: string, baseURL = GROUPS_APP): Promise<Person> {
+  const { page, context } = await newPage(browser, baseURL);
   const p = watch(name, page, context);
   await page.goto("/");
   await page.getByRole("button", { name: "Get started" }).first().click();
   await walkSetup(page, { stopAt: "invite", name });
   await expect(page.getByText("E2E LOCAL RELAY, NOT PRODUCTION")).toBeVisible();
+  return p;
+}
+
+/** A first-time person on the first-run setup bundle with their own locked Home (the one Home that holds files), on the invite screen. */
+export async function startLockedPerson(browser: Browser, name: string): Promise<Person> {
+  const { page, context } = await newPage(browser, SETUP_APP);
+  const p = watch(name, page, context);
+  await page.goto("/");
+  await page.evaluate((hex) => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open("om-provider-secrets", 1);
+    open.onupgradeneeded = () => { open.result.createObjectStore("secrets"); };
+    open.onerror = () => { reject(new Error("seed failed")); };
+    open.onsuccess = () => {
+      const tx = open.result.transaction("secrets", "readwrite");
+      tx.objectStore("secrets").put(Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16)), "admission-pending-v1");
+      tx.oncomplete = () => { open.result.close(); resolve(); };
+      tx.onerror = () => { open.result.close(); reject(new Error("seed failed")); };
+    };
+  }), E2E_ADMISSION_SECRET.toString("hex"));
+  await page.getByRole("button", { name: "Get started" }).click();
+  await chooseOwnRelay(page);
+  await page.getByLabel("Address of your delivery service").fill(LOCKED_RELAY);
+  await page.getByRole("button", { name: "Check and continue" }).click();
+  await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 });
+  await walkSetup(page, { stopAt: "invite", name });
   return p;
 }
 

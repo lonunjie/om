@@ -21,7 +21,8 @@ const expressive = process.argv.includes("--expressive");
 if (groups && expressive) throw new Error("Choose one engineering artifact");
 const features = ["om-core/production"];
 if (groups) features.push("groups-openmls");
-if (expressive) features.push("expressive-media");
+// The opt-in expressive client also carries Room attachments through the existing group engine.
+if (expressive) features.push("expressive-media", "groups-openmls");
 execFileSync("cargo", ["build", "-p", "om-wasm", "--target", "wasm32-unknown-unknown", "--release", "--locked", "--features", features.join(",")], { cwd: root, env, stdio: "inherit" });
 mkdirSync(outDir, { recursive: true });
 const name = groups ? "om_wasm_groups.wasm" : expressive ? "om_wasm_expressive.wasm" : "om_wasm.wasm";

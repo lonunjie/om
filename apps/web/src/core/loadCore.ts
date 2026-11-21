@@ -60,13 +60,14 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
   let bytes: ArrayBuffer | undefined;
   let groups = false;
   let expressiveMedia = false;
-  if (groupsInUse()) {
+  const expressiveOptIn = import.meta.env.VITE_OM_EXPRESSIVE_MEDIA === "1";
+  if (!expressiveOptIn && groupsInUse()) {
     // A device that has used groups starts on the groups module. If it cannot be verified now (offline and not kept, or a changed release), the base module
     // starts instead and groups are offered again on demand: chats keep working, nothing unverified is loaded.
     const g = await loadVerifiedModule(table(), "groups", pathOf(await moduleUrl("groups")), source(), { release: true });
     if (g.ok) { bytes = g.value; groups = true; }
   }
-  if (bytes === undefined && import.meta.env.VITE_OM_EXPRESSIVE_MEDIA === "1") {
+  if (expressiveOptIn) {
     const artifact = "../../../../packages/om-core-wasm/dist/om_wasm_expressive.wasm";
     const modules = import.meta.glob<string>("../../../../packages/om-core-wasm/dist/om_wasm_expressive.wasm", { query: "?url", import: "default" });
     const url = await modules[artifact]?.();
@@ -75,6 +76,7 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
     if (!e.ok) throw new Error(`expressive Core module refused (${e.reason})`);
     bytes = e.value;
     expressiveMedia = true;
+    groups = true;
   }
   if (bytes === undefined) {
     // Offline-safe: the base module is checked against the digest compiled into this code, without asking the network for the manifest.

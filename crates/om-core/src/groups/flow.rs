@@ -160,6 +160,9 @@ pub struct GroupMsg {
     /// Safe attachment metadata filled when messages are read.
     #[serde(skip)]
     pub attachment_view: Option<(String, crate::api::AttachmentView)>,
+    /// A locally sent sticker or loop committed without expressive presentation.
+    #[serde(skip)]
+    pub expressive_fallback: bool,
     /// Mentions of the create: character ranges of the text and the member named (ADR-0199). An edit clears them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mentions: Vec<GroupMention>,
@@ -497,6 +500,7 @@ pub struct GroupDetail {
     /// Accounts named in this Room's messages and notices that are not in `people`.
     pub former: Vec<FormerView>,
     pub can_send: bool,
+    pub can_upload: bool,
     pub protection: ProtectionView,
 }
 
@@ -3280,6 +3284,7 @@ impl AppState {
                     can_send: self.group_may_send(&conversation_id)
                         && !self.group_has_revoked_leaf(&conversation_id)
                         && !self.group_leaving.contains(&h(&conversation_id)),
+                    can_upload: self.group_upload_check(&conversation_id, &un(&me)?).is_ok(),
                     protection: ProtectionView {
                         profile: g.policy.security_profile,
                         custom: room::custom(&g),
@@ -3318,10 +3323,14 @@ impl AppState {
                     .map(|v| v.iter().filter(|m| !m.deleted).cloned().collect())
                     .unwrap_or_default();
                 for m in &mut out {
-                    m.attachment_view = attachments
-                        .and_then(|attachments| attachments.get(&m.id))
-                        .and_then(|a| crate::flows::attachment_view(0, &a.attachment, None))
-                        .map(|view| (format!("room/{room}/{}", m.id), view));
+                    if let Some(a) = attachments.and_then(|attachments| attachments.get(&m.id))
+                        && let Some(view) = crate::flows::attachment_view(0, &a.attachment, None)
+                    {
+                        // Only the expressive send intent can emit a Room WebP from this device.
+                        m.expressive_fallback =
+                            m.outgoing && view.media_type == "image/webp" && a.extension.is_none();
+                        m.attachment_view = Some((format!("room/{room}/{}", m.id), view));
+                    }
                     if let Some(p) = &m.poll {
                         m.poll_view =
                             Some(p.view(&me, m.sender_account == me || moderator, &members));

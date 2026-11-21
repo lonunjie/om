@@ -91,15 +91,21 @@ test("Bob reviews Alice's attached pack, installs it and sends a sticker", async
   await expect(picker.getByText("Sticker sent.")).toBeVisible();
   await picker.getByRole("button", { name: "Close", exact: true }).click();
 
-  // The same pack is updated from local bytes without another attachment request.
+  // The browser's file chooser opens the same review directly from Chats. Refusing leaves the old release active.
   requests.length = 0;
-  await stickers.click();
-  await pick(page, picker.getByRole("button", { name: "Choose pack file" }), "faces-update.ompack", successor.hex);
-  await picker.getByRole("button", { name: "Update Little faces" }).click();
-  await expect(picker.getByText("Pack saved on this device.")).toBeVisible();
+  const choose = page.getByRole("button", { name: "Choose pack file" });
+  await pick(page, choose, "faces-update.ompack", successor.hex);
+  const update = dialog.getByRole("button", { name: "Update Little faces" });
+  await expect(update).toBeVisible();
+  await expect(dialog.getByText("Signed by", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await pick(page, choose, "faces-update.ompack", successor.hex);
+  await update.click();
+  await expect(dialog.getByText("Pack saved on this device.")).toBeVisible();
   expect(blobReads()).toEqual([]);
   expect(thirdParty()).toEqual([]);
-  await picker.getByRole("button", { name: "Close", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
 
   await page.getByRole("list", { name: "Identities" }).getByRole("button", { name: "Alice", exact: true }).click();
   await page.getByRole("listbox", { name: "Conversations" }).getByRole("option").click();

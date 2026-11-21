@@ -30,6 +30,9 @@ export interface ExpressiveCopy {
   readonly approval: string;
   readonly needsAction: Readonly<Record<UserActionCode, string>>;
   readonly sent: string;
+  readonly roomFallback: string;
+  readonly roomWaiting: string;
+  readonly attachPack: string;
   readonly reacted: string;
   readonly details: (pack: string) => string;
   readonly back: string;
