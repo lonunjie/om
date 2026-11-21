@@ -349,6 +349,7 @@ pub struct PickerItem {
     label: String,
     alt_text: String,
     fallback_text: Option<String>,
+    reaction_key: Option<String>,
     cached: bool,
     favourite: bool,
 }
@@ -640,6 +641,7 @@ impl Packs {
                     label: release.labels[item_id].clone(),
                     alt_text: asset.presentation.alt_text.clone(),
                     fallback_text: asset.presentation.fallback_text.clone(),
+                    reaction_key: asset.presentation.reaction_key().map(str::to_owned),
                     cached: p.cached.contains(&asset.attachment.blob_id),
                     favourite: p.favourites.contains(item_id),
                 })

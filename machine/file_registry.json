@@ -4568,6 +4568,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0255-canonical-custom-reaction-token.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -10301,6 +10308,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-core-wasm/src/expressive-fuzz.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-core-wasm/src/expressive.test.ts",
       "class": "product_code",
       "domain": "expressive_media_content_packs",
@@ -12415,6 +12429,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-web-platform/src/expressive/fuzz-corpus.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/expressive/fuzz.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-web-platform/src/expressive/native.test.ts",
       "class": "product_code",
       "domain": "expressive_media_content_packs",
@@ -14347,6 +14375,27 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/prototypes/expressive-fuzz/afl/Cargo.lock",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-fuzz/afl/Cargo.toml",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-fuzz/afl/src/main.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/expressive-fuzz/fuzz_targets/asset_ref.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -14396,7 +14445,28 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/expressive-fuzz/gen_browser_corpus.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/expressive-fuzz/gen_seed_corpus.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-fuzz/run_afl_detached.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/expressive-fuzz/run_browser_fuzz.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -16196,6 +16266,20 @@
     },
     {
       "path": "verification/results/endpoint-profile-adr0148-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/expressive-fuzz-afl-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/expressive-fuzz-browser-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

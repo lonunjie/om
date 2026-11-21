@@ -553,7 +553,7 @@ fn sticker_inline_emoji_and_reaction_sends_add_no_provider_call_class() {
         "react",
         Target::Reaction {
             message_id: mid,
-            key: "k1".into(),
+            key: STRINGS[3].into(),
         },
         prepared(&reaction),
     );

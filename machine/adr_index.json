@@ -2978,6 +2978,16 @@
       "amends": [],
       "index_title": "Expressive-media pack distribution: one portable file, carried as an ordinary attachment (accepted by delegation 2026-11-20, additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0255",
+      "title": "Canonical custom-reaction token",
+      "status": "Accepted by delegation (2026-11-21).",
+      "date": "2026-11-21",
+      "path": "decisions/ADR-0255-canonical-custom-reaction-token.md",
+      "amends": [],
+      "index_title": "Canonical custom-reaction token (accepted by delegation 2026-11-21)",
+      "amended_by": []
     }
   ]
 }

@@ -1,0 +1,161 @@
+{
+  "adr": "ADR-0251",
+  "aflplusplus": {
+    "cargo --version": "cargo 1.102.0-nightly (f93c676e3 2026-11-15)",
+    "cargo afl": "cargo-afl 0.18.2 (AFL++ version 4.40c)",
+    "rustc --version": "rustc 1.102.0-nightly (6905905bb 2026-11-19)"
+  },
+  "budget_cpu_hours_total": 30.0,
+  "budget_met": true,
+  "commit": "548fc9a130a666ac0ae9477707163fd09eb97f5f plus uncommitted working-tree changes (the AFL++ harness itself)",
+  "counted_cpu_hours": 30.172,
+  "counted_engine": "afl",
+  "findings": 0,
+  "generated": "2026-11-21T08:33:58Z",
+  "host": "emeth4 (16 cores), 12 instances per target, 15 minute slices, 2026-11-21 14:05 to 16:39 PST",
+  "note": "Independent second fuzzer (AFL++ via cargo-afl). Its CPU-hours are a separate account from the libFuzzer budget and are not added to it.",
+  "schema": "om-expressive-fuzz-afl-summary-v1",
+  "targets": {
+    "asset_ref": {
+      "adr_target": "b_asset_ref_and_event_decoders",
+      "afl_final_stats": {
+        "corpus": 6563,
+        "crashes": 0,
+        "execs": 217097455,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 3.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 10884.423571586609,
+          "executions": 217097455,
+          "last_run": "2026-11-21T06:48:27Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    },
+    "control_state": {
+      "adr_target": "d_content_pack_control_state_and_lineage",
+      "afl_final_stats": {
+        "corpus": 7692,
+        "crashes": 0,
+        "execs": 154687719,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 6.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 21693.858744621277,
+          "executions": 154687719,
+          "last_run": "2026-11-21T08:03:50Z",
+          "slices": 2,
+          "state": "complete"
+        }
+      }
+    },
+    "event": {
+      "adr_target": "b_asset_ref_and_event_decoders",
+      "afl_final_stats": {
+        "corpus": 5100,
+        "crashes": 0,
+        "execs": 125041673,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 3.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 10881.04951286316,
+          "executions": 125041673,
+          "last_run": "2026-11-21T07:03:34Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    },
+    "facts": {
+      "adr_target": "a_webp_walker_and_budget",
+      "afl_final_stats": {
+        "corpus": 910,
+        "crashes": 0,
+        "execs": 289169391,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 3.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 10878.637770652771,
+          "executions": 289169391,
+          "last_run": "2026-11-21T06:33:20Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    },
+    "pack_file": {
+      "adr_target": "e_pack_file_codec",
+      "afl_final_stats": {
+        "corpus": 7068,
+        "crashes": 0,
+        "execs": 150455412,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 6.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 21689.98849582672,
+          "executions": 150455412,
+          "last_run": "2026-11-21T08:33:58Z",
+          "slices": 2,
+          "state": "complete"
+        }
+      }
+    },
+    "release": {
+      "adr_target": "c_content_pack_release",
+      "afl_final_stats": {
+        "corpus": 7285,
+        "crashes": 0,
+        "execs": 249768306,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 6.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 21699.08337020874,
+          "executions": 249768306,
+          "last_run": "2026-11-21T07:33:43Z",
+          "slices": 2,
+          "state": "complete"
+        }
+      }
+    },
+    "webp": {
+      "adr_target": "a_webp_walker_and_budget",
+      "afl_final_stats": {
+        "corpus": 3385,
+        "crashes": 0,
+        "execs": 275102804,
+        "hangs": 0,
+        "instances": 12
+      },
+      "budget_cpu_hours": 3.0,
+      "engines": {
+        "afl": {
+          "cpu_seconds": 10892.15823841095,
+          "executions": 275102804,
+          "last_run": "2026-11-21T06:18:14Z",
+          "slices": 1,
+          "state": "complete"
+        }
+      }
+    }
+  },
+  "total_executions": 1461322760
+}

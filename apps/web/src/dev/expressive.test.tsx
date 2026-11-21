@@ -163,11 +163,26 @@ describe("expressive media", () => {
     await user.click(button("Pause"));
     expect(pause).toHaveBeenCalledOnce();
     await a11y(log);
+    const query = services.client.expressive.query.bind(services.client.expressive);
+    vi.spyOn(services.client.expressive, "query").mockImplementation(async (ctx, value) => {
+      if (value.kind !== "picker") return query(ctx, value);
+      const picker = await query(ctx, value);
+      return picker === null ? null : {
+        ...picker,
+        items: picker.items.map((item) => ({ ...item, fallbackText: "Different display text" })),
+      };
+    });
+    const dispatch = vi.spyOn(services.client, "dispatch");
     await user.click(button(/^React: Hello/));
     await user.click(button("Custom reactions"));
     await user.click(await screen.findByRole("button", { name: "Little faces" }));
     await user.click(await screen.findByRole("button", { name: "React with Cheer" }));
     expect(await within(log).findByRole("img", { name: "A cheering reaction" })).toBeTruthy();
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(dispatch.mock.calls[0]?.[0]).toMatchObject({
+      kind: "SendExpressive",
+      target: { Reaction: { key: "😊" } },
+    });
     expect(await within(log).findByRole("img", { name: "A small smiling face" })).toBeTruthy();
     await user.keyboard("{Escape}");
     await user.click(button("Stickers"));

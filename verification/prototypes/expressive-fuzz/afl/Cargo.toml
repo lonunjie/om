@@ -1,0 +1,27 @@
+[package]
+name = "om-expressive-fuzz-afl"
+version = "0.0.0"
+edition = "2024"
+license = "MPL-2.0"
+publish = false
+description = "V-012 verification harness: AFL++ (cargo-afl) driver over the expressive-media parsers (ADR-0251), the independent second fuzzer. Not product code."
+
+[dependencies]
+afl = "0.18"
+om-core = { path = "../../../../crates/om-core", features = ["fuzz-entry"] }
+
+# Standalone evidence crate with its own lockfile, outside the engineering workspace.
+[workspace]
+
+# Arithmetic overflow and debug assertions stay on so an unchecked operation in a parser is a crash, as in a debug build.
+[profile.release]
+debug = true
+debug-assertions = true
+overflow-checks = true
+
+[[bin]]
+name = "om-afl"
+path = "src/main.rs"
+test = false
+doc = false
+bench = false

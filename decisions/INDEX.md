@@ -261,3 +261,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0252 — Expressive-media wire freeze (W1) and the constructions the design leaves to engineering (accepted by delegation 2026-11-20, additive)](ADR-0252-expressive-media-wire-freeze-and-delegated-constructions.md)
 - [ADR-0253 — Expressive-media product boundaries delegated to engineering (accepted by delegation 2026-11-20, additive)](ADR-0253-expressive-media-delegated-product-boundaries.md)
 - [ADR-0254 — Expressive-media pack distribution: one portable file, carried as an ordinary attachment (accepted by delegation 2026-11-20, additive)](ADR-0254-expressive-media-pack-distribution.md)
+- [ADR-0255 — Canonical custom-reaction token (accepted by delegation 2026-11-21)](ADR-0255-canonical-custom-reaction-token.md)

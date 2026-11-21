@@ -113,6 +113,14 @@ impl Presentation {
         self.fallback_text.as_deref().unwrap_or(&self.alt_text)
     }
 
+    /// ADR-0255: the explicit fallback is the key for newly sent custom reactions.
+    pub(crate) fn reaction_key(&self) -> Option<&str> {
+        self.fallback_text.as_deref().filter(|key| {
+            matches!(self.kind, Kind::CustomEmoji | Kind::ReactionAsset)
+                && crate::flows::social::valid_reaction_key(key)
+        })
+    }
+
     pub(crate) fn extension(&self, index: u8) -> V {
         let mut fields = self.fields(1);
         fields.push((0, V::U(u64::from(index))));
@@ -357,4 +365,33 @@ pub(crate) fn inline_assets(rt: Option<&V>) -> Option<Vec<crate::state::SecretHe
         .ok()?;
     }
     Some(refs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reaction_key_uses_only_an_explicit_bounded_fallback_verbatim() {
+        let max = "👍".repeat(16);
+        let over = format!("{max}a");
+        for fallback in [" :cheer: ", "e\u{301}", &max] {
+            let asset =
+                Presentation::webp(Kind::ReactionAsset, "Alt".into(), Some(fallback.into()));
+            assert_eq!(asset.reaction_key(), Some(fallback));
+        }
+        for fallback in [
+            None,
+            Some(""),
+            Some("\u{2003}"),
+            Some("a\u{0085}"),
+            Some(&over),
+        ] {
+            let asset =
+                Presentation::webp(Kind::CustomEmoji, "Alt".into(), fallback.map(str::to_owned));
+            assert_eq!(asset.reaction_key(), None);
+        }
+        let sticker = Presentation::webp(Kind::Sticker, "Alt".into(), Some(":cheer:".into()));
+        assert_eq!(sticker.reaction_key(), None);
+    }
 }

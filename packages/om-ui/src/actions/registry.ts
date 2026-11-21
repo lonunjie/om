@@ -108,7 +108,8 @@ const mentionsOf = (raw: unknown, text: string): readonly { readonly start: numb
   return out;
 };
 /** A reaction key Core would accept: 1 to 64 bytes, not blank, no control character. */
-const validReactionKey = (k: string): boolean => k.trim() !== "" && new TextEncoder().encode(k).length <= 64 && !/\p{Cc}/u.test(k);
+const validReactionKey = (k: string): boolean =>
+  /\P{White_Space}/u.test(k) && !/[\p{Cc}\p{Cs}]/u.test(k) && new TextEncoder().encode(k).length <= 64;
 const exactly = (p: Rec, allowed: readonly string[]): boolean => Object.keys(p).every((k) => allowed.includes(k));
 
 /** One Room setting with exactly one field of the expected type. Only what a screen offers is accepted: not `open` joining, not wider history, not a timer (ADR-0189 gives no durations or widening choices). */
@@ -405,7 +406,7 @@ const SPECS: Readonly<Record<string, Spec>> = {
   // One reaction of ours on a message: set or removed. The key is a Unicode token; Core validates it again (1 to 64 bytes, no control characters).
   "react-message": { destructive: false, parse: (p) => {
     const c = id(p["conversationId"]); const m = id(p["messageId"]); const k = p["reaction"]; const present = p["present"];
-    if (!exactly(p, ["conversationId", "messageId", "reaction", "present"]) || !c || !m || typeof k !== "string" || k.trim() === "" || new TextEncoder().encode(k).length > 64 || /\p{Cc}/u.test(k) || typeof present !== "boolean") return null;
+    if (!exactly(p, ["conversationId", "messageId", "reaction", "present"]) || !c || !m || typeof k !== "string" || !validReactionKey(k) || typeof present !== "boolean") return null;
     return { intent: (ctx, op) => ({ kind: "SetReaction", ctx, operationId: op, conversationId: asConversationId(c), messageId: asMessageId(m), reaction: k, present }) };
   } },
   // Edit and delete name one of our own messages. The scope of a delete is said on the screen before it is sent (everyone in the chat).

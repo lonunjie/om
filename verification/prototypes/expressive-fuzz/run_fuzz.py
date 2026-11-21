@@ -17,8 +17,10 @@ pack-file target gets the same H/4 on top (`--no-pack-file` omits it). Hours are
 Engines. `libfuzzer` (default) runs the `cargo-fuzz` targets in this directory on a nightly toolchain with
 AddressSanitizer; only its hours count toward the budget. `mutate` runs the in-tree deterministic mutation driver
 (`crates/om-core/tests/expressive_fuzz.rs`, offline, stable toolchain); it is smoke evidence and its hours are recorded
-but never counted. The independent second tool of ADR-0251 (AFL++) is not wired here; the entry points in
-`om_core::expressive::fuzz_entry` are tool-neutral so a second harness can reuse them.
+but never counted. `afl` runs the independent second tool of ADR-0251, AFL++ (`cargo-afl`, driver crate in `afl/`,
+README "Second fuzzer"), over the same entry points. It has its own budget (`--afl-budget-hours`, default 30, split
+evenly over the five target groups), its own ledger (work/ledger-afl.json) and its own summary
+(verification/results/expressive-fuzz-afl-latest.json); its hours are never added to the libFuzzer count.
 
 Resumable. State lives in the ledger (default work/ledger.json, never committed). Every slice is written to it as
 soon as it ends, so an interrupted run loses at most one slice and the next invocation continues from the recorded
@@ -47,6 +49,8 @@ ROOT = HERE.parents[2]
 WORK = HERE / "work"
 SEEDS = WORK / "seeds"
 SUMMARY = ROOT / "verification/results/expressive-fuzz-latest.json"
+SUMMARY_AFL = ROOT / "verification/results/expressive-fuzz-afl-latest.json"
+AFL_DIR = HERE / "afl"
 
 # ADR-0251 target -> libFuzzer binaries
 GROUPS = {
@@ -96,10 +100,13 @@ def save(path: Path, ledger: dict) -> None:
 
 def plan(args) -> list[tuple[str, str, float]]:
     """(group, binary, per-binary CPU-seconds budget)."""
-    per_group = args.budget_hours / 4 * 3600
     groups = dict(GROUPS)
     if not args.no_pack_file:
         groups.update(EXTRA)
+    if args.engine == "afl":
+        per_group = args.afl_budget_hours / len(groups) * 3600
+    else:
+        per_group = args.budget_hours / 4 * 3600
     rows = []
     for group, bins in groups.items():
         for name in bins:
@@ -107,6 +114,10 @@ def plan(args) -> list[tuple[str, str, float]]:
                 continue
             rows.append((group, name, per_group / len(bins)))
     return rows
+
+
+def counted_engine(args) -> str:
+    return "afl" if args.engine == "afl" else "libfuzzer"
 
 
 def spent(ledger: dict, name: str, engine: str) -> float:
@@ -162,6 +173,99 @@ def run_libfuzzer(args, name: str, seconds: int) -> tuple[int, int | None]:
     return code, executions
 
 
+def afl_env(args) -> dict:
+    env = dict(os.environ, RUSTUP_TOOLCHAIN=args.toolchain)
+    try:
+        bindir = subprocess.run(
+            ["rustup", "which", "--toolchain", args.toolchain, "cargo"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        env["PATH"] = str(Path(bindir).parent) + os.pathsep + env.get("PATH", "")
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return env
+
+
+def build_afl(args) -> Path:
+    """Build the instrumented driver once per invocation (`cargo afl config --build` is done once per host)."""
+    env = afl_env(args)
+    config = subprocess.run(["cargo", "afl", "config", "--build"], cwd=AFL_DIR, env=env, capture_output=True, text=True)
+    if config.returncode != 0 and "already built" not in (config.stdout + config.stderr):
+        sys.exit(f"cargo afl config --build failed:\n{config.stdout}{config.stderr}")
+    subprocess.run(["cargo", "afl", "build", "--release"], cwd=AFL_DIR, env=env, check=True)
+    for tool in (["cargo", "afl", "--version"], ["cargo", "--version"], ["rustc", "--version"]):
+        out = subprocess.run(tool, cwd=AFL_DIR, env=env, capture_output=True, text=True).stdout.strip()
+        args.afl_versions[" ".join(tool[:2])] = out
+    return AFL_DIR / "target" / "release" / "om-afl"
+
+
+def afl_stats(directory: Path) -> dict[str, dict[str, str]]:
+    stats = {}
+    for f in sorted(directory.glob("*/fuzzer_stats")):
+        stats[f.parent.name] = dict(
+            (k.strip(), v.strip()) for k, _, v in (line.partition(":") for line in f.read_text().splitlines()) if k
+        )
+    return stats
+
+
+def run_afl(args, name: str, seconds: int) -> tuple[int, int | None]:
+    """One slice: `--jobs` AFL++ instances (one -M main, the rest -S) syncing through one output directory."""
+    unpack_seeds()
+    out = WORK / "afl" / name
+    artifacts = WORK / "artifacts" / name
+    artifacts.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
+    resume = (out / "main" / "queue").exists()
+    before = sum(int(v.get("execs_done", 0)) for v in afl_stats(out).values())
+    env = dict(
+        afl_env(args),
+        OM_AFL_TARGET=name,
+        AFL_NO_UI="1",
+        AFL_SKIP_CPUFREQ="1",
+        AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES="1",
+        AFL_TRY_AFFINITY="1",
+        AFL_AUTORESUME="1",
+        AFL_NO_CRASH_README="1",
+    )
+    log = WORK / "logs" / f"afl-{name}-{int(time.time())}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    procs = []
+    with log.open("w") as logf:
+        for i in range(args.jobs):
+            role = ["-M", "main"] if i == 0 else ["-S", f"s{i}"]
+            cmd = [
+                "cargo", "afl", "fuzz", "-i", "-" if resume else str(SEEDS / name), "-o", str(out), *role,
+                "-V", str(seconds), "-t", "1000", "-m", "2048", "--", str(args.afl_binary),
+            ]
+            procs.append(subprocess.Popen(cmd, cwd=AFL_DIR, env=env, stdout=logf, stderr=subprocess.STDOUT))
+            time.sleep(0.5)
+        codes = []
+        for pr in procs:
+            try:
+                codes.append(pr.wait())
+            except KeyboardInterrupt:
+                pr.send_signal(signal.SIGTERM)
+                codes.append(pr.wait())
+    stats = afl_stats(out)
+    if len(stats) < args.jobs:
+        sys.exit(f"{name}: only {len(stats)} of {args.jobs} AFL++ instances wrote stats; see {log}")
+    executions = sum(int(v.get("execs_done", 0)) for v in stats.values()) - before
+    # Copy every crash and hang to the artifacts directory under the runner's finding prefixes.
+    for inst in stats:
+        for kind, prefix in (("crashes", "crash-"), ("hangs", "timeout-")):
+            for f in sorted((out / inst / kind).glob("id:*")):
+                dest = artifacts / f"{prefix}{inst}-{f.name.split(',')[0].replace(':', '')}"
+                if not dest.exists():
+                    shutil.copy2(f, dest)
+    stats_main = stats.get("main", {})
+    print(
+        f"  afl {name}: {len(stats)} instances, paths {sum(int(v.get('corpus_count', 0)) for v in stats.values())}, "
+        f"main edges {stats_main.get('edges_found', '?')}/{stats_main.get('total_edges', '?')}, "
+        f"saved crashes {sum(int(v.get('saved_crashes', 0)) for v in stats.values())}, "
+        f"saved hangs {sum(int(v.get('saved_hangs', 0)) for v in stats.values())}"
+    )
+    return (1 if any(c not in (0, None) for c in codes) and not any(artifacts.iterdir()) else 0), executions
+
+
 def run_mutate(args, name: str, seconds: int) -> tuple[int, int | None]:
     artifacts = WORK / "artifacts" / name
     artifacts.mkdir(parents=True, exist_ok=True)
@@ -187,62 +291,79 @@ def run_mutate(args, name: str, seconds: int) -> tuple[int, int | None]:
 def status(ledger: dict, rows, args) -> None:
     print(f"{'target':14} {'engine':9} {'spent h':>9} {'budget h':>9}  state")
     for group, name, budget in rows:
-        for engine in ("libfuzzer", "mutate"):
+        for engine in ("libfuzzer", "afl", "mutate"):
             entry = ledger["targets"].get(name, {}).get(engine)
-            if not entry and engine == "mutate":
+            if not entry and engine != counted_engine(args):
                 continue
             s = (entry or {}).get("cpu_seconds", 0.0)
             state = (entry or {}).get("state", "pending")
-            b = f"{budget / 3600:9.3f}" if engine == "libfuzzer" else "        -"
+            b = f"{budget / 3600:9.3f}" if engine == counted_engine(args) else "        -"
             print(f"{name:14} {engine:9} {s / 3600:9.3f} {b}  {state}")
-    counted = sum(spent(ledger, n, "libfuzzer") for _, n, _ in rows) / 3600
+    eng = counted_engine(args)
+    counted = sum(spent(ledger, n, eng) for _, n, _ in rows) / 3600
     total = sum(b for _, _, b in rows) / 3600
-    print(f"counted CPU-hours (libFuzzer): {counted:.3f} of {total:.3f}")
+    print(f"counted CPU-hours ({eng}): {counted:.3f} of {total:.3f}")
 
 
 def write_summary(ledger: dict, rows, args) -> None:
+    eng = counted_engine(args)
+    afl = eng == "afl"
     summary = {
-        "schema": "om-expressive-fuzz-summary-v1",
+        "schema": "om-expressive-fuzz-afl-summary-v1" if afl else "om-expressive-fuzz-summary-v1",
         "generated": now(),
         "adr": "ADR-0251",
         "commit": git_head(),
-        "budget_cpu_hours_total_adr_targets": args.budget_hours,
-        "counted_engine": "libfuzzer",
+        "budget_cpu_hours_total": args.afl_budget_hours if afl else args.budget_hours,
+        "counted_engine": eng,
         "targets": {},
-        "counted_cpu_hours": round(sum(spent(ledger, n, "libfuzzer") for _, n, _ in rows) / 3600, 6),
+        "counted_cpu_hours": round(sum(spent(ledger, n, eng) for _, n, _ in rows) / 3600, 6),
         "budget_met": all(
-            spent(ledger, n, "libfuzzer") >= b - 1e-6 and ledger["targets"].get(n, {}).get("libfuzzer", {}).get("state") != "finding"
+            spent(ledger, n, eng) >= b - 1e-6 and ledger["targets"].get(n, {}).get(eng, {}).get("state") != "finding"
             for _, n, b in rows
         ),
-        "note": "Hours recorded by engines other than libfuzzer are smoke evidence and are not counted.",
+        "note": (
+            "Independent second fuzzer (AFL++ via cargo-afl). Its CPU-hours are a separate account from the libFuzzer budget "
+            "and are not added to it."
+            if afl
+            else "Hours recorded by engines other than libfuzzer are smoke evidence and are not counted."
+        ),
     }
+    if not afl:
+        summary["budget_cpu_hours_total_adr_targets"] = summary.pop("budget_cpu_hours_total")
+    if afl:
+        summary["aflplusplus"] = args.afl_versions
     for group, name, budget in rows:
         summary["targets"][name] = {
             "adr_target": group,
             "budget_cpu_hours": round(budget / 3600, 6),
             "engines": ledger["targets"].get(name, {}),
         }
-    SUMMARY.parent.mkdir(parents=True, exist_ok=True)
-    SUMMARY.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
-    print(f"wrote {SUMMARY.relative_to(ROOT)}")
+    out = SUMMARY_AFL if afl else SUMMARY
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    print(f"wrote {out.relative_to(ROOT)}")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--budget-hours", type=float, default=96.0, help="total CPU-hours for the four ADR targets (default 96)")
-    ap.add_argument("--engine", choices=("libfuzzer", "mutate"), default="libfuzzer")
-    ap.add_argument("--jobs", type=int, default=1, help="libFuzzer fork workers; CPU time is wall time x jobs")
+    ap.add_argument("--engine", choices=("libfuzzer", "afl", "mutate"), default="libfuzzer")
+    ap.add_argument("--afl-budget-hours", type=float, default=30.0, help="total CPU-hours for --engine afl, split evenly over the target groups (default 30)")
+    ap.add_argument("--jobs", type=int, default=1, help="libFuzzer fork workers or AFL++ instances; CPU time is wall time x jobs")
     ap.add_argument("--slice-minutes", type=float, default=15.0)
     ap.add_argument("--slice-seconds", type=float, help="overrides --slice-minutes (smoke runs)")
     ap.add_argument("--target", help="run only this binary")
     ap.add_argument("--no-pack-file", action="store_true", help="omit the pack-file target (an extra 24 CPU-hours)")
-    ap.add_argument("--toolchain", default="nightly", help="toolchain for cargo-fuzz (needs -Z sanitizer)")
-    ap.add_argument("--ledger", type=Path, default=WORK / "ledger.json")
+    ap.add_argument("--toolchain", default="nightly", help="toolchain for cargo-fuzz (needs -Z sanitizer) and cargo-afl")
+    ap.add_argument("--ledger", type=Path, help="default work/ledger.json, work/ledger-afl.json for --engine afl")
     ap.add_argument("--stop-on-finding", action="store_true")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--write-summary", action="store_true", help=f"write {SUMMARY.relative_to(ROOT)} at the end")
     args = ap.parse_args()
+    args.afl_versions = {}
+    if args.ledger is None:
+        args.ledger = WORK / ("ledger-afl.json" if args.engine == "afl" else "ledger.json")
 
     rows = plan(args)
     ledger = load(args.ledger)
@@ -252,8 +373,10 @@ def main() -> int:
     slice_s = max(1, int(args.slice_seconds if args.slice_seconds else args.slice_minutes * 60))
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
-    runner = run_libfuzzer if args.engine == "libfuzzer" else run_mutate
-    workers = args.jobs if args.engine == "libfuzzer" else 1
+    runner = {"libfuzzer": run_libfuzzer, "afl": run_afl, "mutate": run_mutate}[args.engine]
+    workers = args.jobs if args.engine in ("libfuzzer", "afl") else 1
+    if args.engine == "afl" and not args.dry_run:
+        args.afl_binary = build_afl(args)
     findings = 0
 
     for group, name, budget in rows:

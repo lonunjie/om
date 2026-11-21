@@ -9,7 +9,7 @@ import type {
   PeerRecoveryView, PersonId, PrivacyPolicyLevel, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, ReplyView, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
-import { createExpressiveSim, sourceKey, type SeedExpressivePack } from "./expressive";
+import { createExpressiveSim, sourceKey, validReactionKey, type SeedExpressivePack } from "./expressive";
 import { createGroupSim, type GroupSim } from "./groups";
 
 export type { SeedExpressivePack } from "./expressive";
@@ -452,11 +452,10 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           messageOwner.set(messageId, intent.ctx.profileId);
           conv.messages.push(message);
         } else if ("Reaction" in target) {
-          if (kind !== "custom_emoji" && kind !== "reaction_asset") return rejected("invalid");
           const found = conv.messages.find((m) => m.messageId === target.Reaction.message_id);
           if (found === undefined) return rejected("not_found");
           const { key } = target.Reaction;
-          if (key.trim() === "" || new TextEncoder().encode(key).length > 64 || /\p{Cc}/u.test(key)) return rejected("invalid");
+          if (prepared.reactionKey === null || key !== prepared.reactionKey) return rejected("invalid");
           (found.mine ??= new Set()).add(key);
           source = { kind: "reaction", key, mine: true };
           message = found;
@@ -522,7 +521,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
         // Core's rule: a Unicode token of 1 to 64 bytes without control characters, on a shown message of this conversation.
-        if (intent.reaction.trim() === "" || new TextEncoder().encode(intent.reaction).length > 64 || /\p{Cc}/u.test(intent.reaction)) return rejected("invalid");
+        if (!validReactionKey(intent.reaction)) return rejected("invalid");
         const target = conv.messages.find((m) => m.messageId === intent.messageId);
         if (target === undefined) return rejected("not_found");
         const mine = target.mine ?? new Set<string>();

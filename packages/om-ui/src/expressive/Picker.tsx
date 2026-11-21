@@ -223,18 +223,12 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, l
   const selection = (picker: ExpressivePicker, item: PickerItem) => ({
     packId: picker.packId, releaseId: picker.pack.releaseId, itemId: item.itemId,
   });
-  const reactKey = (item: PickerItem): string | null => {
-    // The frozen carriage leaves the token free. Only use the pack's explicit, valid fallback.
-    const key = item.fallbackText;
-    return key !== null && key.trim() !== "" && !/\p{Cc}/u.test(key) && new TextEncoder().encode(key).length <= 64 ? key : null;
-  };
-
   const useItem = (picker: ExpressivePicker, item: PickerItem) => {
     if (conversationId === undefined) return;
     const failure = reactionTo === undefined ? copy.sendFailed : copy.reactionFailed;
     run(reactionTo === undefined ? copy.sending : copy.reacting, failure, async (signal) => {
-      const key = reactKey(item);
-      if (pending || (reactionTo !== undefined && key === null)) return;
+      const key = item.reactionKey;
+      if (pending || (reactionTo !== undefined && typeof key !== "string")) return;
       const selected = selection(picker, item);
       const bytes = await surface.readCached?.(ctx, item.ciphertextDigest ?? item.blobId);
       if (cancelled(signal)) return;
@@ -280,7 +274,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, l
   const showItems = (picker: ExpressivePicker) => {
     const eligible = picker.items.filter((item) => reactionTo === undefined
       ? item.kind === "sticker" || item.kind === "loop_animation"
-      : (item.kind === "reaction_asset" || item.kind === "custom_emoji") && reactKey(item) !== null);
+      : typeof item.reactionKey === "string");
     const exposure = reactionTo === undefined && eligible.some((item) => item.cached) && surface.readCached !== undefined
       ? api.blobExposure?.("shared_blob") : null;
     const byId = new Map(eligible.map((item) => [item.itemId, item]));

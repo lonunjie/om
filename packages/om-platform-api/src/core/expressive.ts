@@ -12,6 +12,7 @@ export type ExpressiveSource =
 
 /** The existing Core SendExpressive target. The prepared item's kind distinguishes stickers from loops. */
 export type ExpressiveTarget = "Attachment" | "Inline"
+  /** Echo the prepared asset's canonical reaction key. Core verifies the match. */
   | { readonly Reaction: { readonly message_id: MessageId; readonly key: string } }
   | { readonly Edit: { readonly message_id: MessageId } };
 
@@ -45,6 +46,8 @@ export interface ExpressivePicker {
     readonly label: string;
     readonly altText: string;
     readonly fallbackText: string | null;
+    /** The canonical custom-reaction key, or null when the item cannot be sent as a reaction. */
+    readonly reactionKey: string | null;
     readonly cached: boolean;
     readonly favourite: boolean;
   }[];

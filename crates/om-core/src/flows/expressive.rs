@@ -168,10 +168,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 if self.event_target(conv, message_id).is_none() {
                     return refuse(self, RejectReason::NotFound);
                 }
-                matches!(
-                    presentation.kind,
-                    media::Kind::CustomEmoji | media::Kind::ReactionAsset
-                ) && social::valid_reaction_key(key)
+                presentation.reaction_key() == Some(key.as_str())
                     && !self.own_reaction_would_exceed(conv, message_id, key)
             }
         };

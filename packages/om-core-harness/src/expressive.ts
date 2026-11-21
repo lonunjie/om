@@ -19,7 +19,14 @@ export interface SeedExpressivePack {
   }[];
 }
 
-type Renderable = SeedExpressivePack["items"][number]["asset"];
+export const validReactionKey = (key: string): boolean =>
+  /\P{White_Space}/u.test(key) && !/[\p{Cc}\p{Cs}]/u.test(key) && new TextEncoder().encode(key).length <= 64;
+
+function reactionKey({ asset, fallbackText }: SeedExpressivePack["items"][number]): string | null {
+  const kind = asset.asset.kind;
+  if (kind !== "reaction_asset" && kind !== "custom_emoji") return null;
+  return fallbackText !== undefined && validReactionKey(fallbackText) ? fallbackText : null;
+}
 
 function equalBytes(a: Uint8Array | undefined, b: Uint8Array | undefined): boolean {
   return a === undefined ? b === undefined : b !== undefined && a.length === b.length && a.every((byte, i) => byte === b[i]);
@@ -199,7 +206,7 @@ export function createExpressiveSim(options: {
               recents: [...pack.recents].reverse(),
               items: pack.fixture.items.map((item) => ({
                 itemId: item.itemId, blobId: item.blobId, label: item.label, kind: item.asset.asset.kind,
-                altText: item.asset.altText, fallbackText: item.fallbackText ?? null,
+                altText: item.asset.altText, fallbackText: item.fallbackText ?? null, reactionKey: reactionKey(item),
                 cached: pack.cached.has(item.blobId), favourite: pack.favourites.has(item.itemId),
               })),
             });
@@ -253,8 +260,9 @@ export function createExpressiveSim(options: {
   return {
     api,
     seed(ctx: ProfileExecutionContext, fixtures: readonly SeedExpressivePack[]) { state(ctx).fixtures = fixtures; },
-    prepared(ctx: ProfileExecutionContext, blobId: string): { asset: Renderable; fallbackText?: string } | undefined {
-      return state(ctx).prepared.get(blobId);
+    prepared(ctx: ProfileExecutionContext, blobId: string) {
+      const item = state(ctx).prepared.get(blobId);
+      return item === undefined ? undefined : { asset: item.asset, fallbackText: item.fallbackText, reactionKey: reactionKey(item) };
     },
     consume(ctx: ProfileExecutionContext, blobId: string) { state(ctx).prepared.delete(blobId); },
   };

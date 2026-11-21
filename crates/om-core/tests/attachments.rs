@@ -1428,6 +1428,39 @@ fn expressive_w0_device_gets_fallback_and_no_w1_slot() {
                 .is_none()
         );
         assert_eq!(p.net.blob_put_count(), 0);
+
+        let id = id.to_owned();
+        let (reaction, _) = expressive_prepare(&mut p, Kind::CustomEmoji, BlobPolicy::Fresh);
+        expressive_send(
+            &mut p,
+            "reaction",
+            Target::Reaction {
+                message_id: id.clone(),
+                key: "Fallback".into(),
+            },
+            &reaction,
+        );
+        settle(&mut p);
+        let items = view(&p.bob, &p.b, &p.b_conv);
+        assert!(matches!(
+            &items[0],
+            TimelineItem::Incoming { reactions, .. }
+                if reactions.len() == 1 && reactions[0].key == "Fallback"
+        ));
+        assert!(
+            p.bob
+                .core
+                .expressive_presentation(
+                    &p.b,
+                    &id,
+                    Source::Reaction {
+                        key: "Fallback",
+                        mine: false
+                    },
+                )
+                .is_none()
+        );
+        assert_eq!(p.net.blob_put_count(), 0);
     }
 }
 
@@ -1473,7 +1506,32 @@ fn expressive_inline_edit_and_reaction_follow_normal_mutation_registers() {
     );
 
     let (reaction, _) = expressive_prepare(&mut p, Kind::CustomEmoji, BlobPolicy::Fresh);
-    let key = "🙂".to_string();
+    let key = "Fallback".to_string();
+    let picker = serde_json::to_value(p.alice.core.expressive_picker(&p.a, PACK).unwrap()).unwrap();
+    assert_eq!(picker["items"][0]["reactionKey"], key);
+    let puts = p.net.blob_put_count();
+    p.alice.dispatch(
+        &p.a,
+        "substituted-reaction-key",
+        IntentBody::SendExpressive {
+            conversation_id: p.a_conv.clone(),
+            target: Target::Reaction {
+                message_id: id.clone(),
+                key: "Accessible label".into(),
+            },
+            asset: SendFrom::Prepared {
+                blob_id: reaction.blob_id.clone(),
+            },
+        },
+    );
+    assert_eq!(
+        p.alice.outcome(&p.a, "substituted-reaction-key"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Invalid
+        }),
+    );
+    settle(&mut p);
+    assert_eq!(p.net.blob_put_count(), puts);
     expressive_send(
         &mut p,
         "reaction",
@@ -1557,6 +1615,40 @@ fn expressive_shared_blob_is_explicit_and_reuses_the_blob() {
                 .shared_blob
         );
     }
+}
+
+#[test]
+fn expressive_legacy_reaction_keeps_its_authenticated_key() {
+    let mut p = active_pair_with_expressive(true, true);
+    let au = author(&p);
+    let msg = create_event(&au, 63, 1_790_000_000_100, Some("Target"), vec![], None);
+    alice_sends(&mut p, &msg);
+    let (manifest, _) = expressive_manifest(Kind::ReactionAsset);
+    let pack = Release::parse(&manifest).unwrap();
+    let event = Header {
+        event_id: [64; 16],
+        conversation_id: au.canon,
+        author_account: au.acct,
+        author_device: au.dev,
+        clock: Hlc {
+            physical_ms: 1_790_000_000_101,
+            logical: 0,
+        },
+        kind: events::K_REACTION,
+        body: V::M(vec![
+            (0, V::B(vec![63; 16])),
+            (1, V::T("Legacy key".into())),
+            (2, V::Bool(true)),
+            (3, pack.item("item").unwrap().value()),
+        ]),
+    }
+    .encode_full(None, Some(V::A(vec![V::T(expressive::REACTION.into())])));
+    alice_sends(&mut p, &event);
+    assert!(matches!(
+        &view(&p.bob, &p.b, &p.b_conv)[0],
+        TimelineItem::Incoming { reactions, .. }
+            if reactions.len() == 1 && reactions[0].key == "Legacy key"
+    ));
 }
 
 #[test]
