@@ -1105,6 +1105,11 @@ pub struct AppState {
     /// ConversationID (hex) -> the group's text messages as this device holds them. Additive.
     #[serde(default)]
     pub group_msgs: BTreeMap<Hex, Vec<crate::groups::flow::GroupMsg>>,
+    /// Room attachment secrets are held separately from the message projection returned to the host.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_attachments: BTreeMap<Hex, BTreeMap<Hex, crate::groups::flow::RoomAttachment>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub room_uploads: BTreeMap<OperationId, crate::flows::RoomUpload>,
     /// ConversationID (hex) -> the last event clock (physical ms, logical) this device gave an event it sent in the Room. Additive.
     #[serde(default)]
     pub group_hlc: BTreeMap<Hex, (u64, u32)>,

@@ -80,6 +80,31 @@ function Screen({ services, surface }: Pick<ReturnType<typeof setup>, "services"
 }
 
 describe("expressive media", () => {
+  it("shows the Core policy disclosure next to the default-off upload reuse choice", async () => {
+    const { services, surface } = setup();
+    const api = services.client.expressive;
+    const blobExposure = vi.fn(() => ({
+      kind: "shared_blob_linkage" as const,
+      line: "Shared blob: the BlobStore can link conversations by BlobID.",
+    }));
+    const prepare = vi.fn(api.prepare.bind(api));
+    const client = { ...services.client, expressive: { ...api, blobExposure, prepare } };
+    render(<Screen services={{ ...services, client }} surface={surface} />);
+    const user = await pick();
+    await install(user);
+    const option = screen.getByRole<HTMLInputElement>("checkbox", { name: expressiveCopy.allowUploadReuse });
+    expect(option.checked).toBe(false);
+    const disclosure = screen.getByText(expressiveCopy.blobExposure.shared_blob_linkage);
+    expect(option.getAttribute("aria-describedby")).toBe(disclosure.id);
+    expect(blobExposure).toHaveBeenCalledWith("shared_blob");
+    await a11y(dialog());
+    await user.click(option);
+    await user.click(button("Send Hello smile"));
+    await screen.findByText(expressiveCopy.sent);
+    expect(prepare).toHaveBeenCalledWith(services.ctx, expect.anything(), expect.any(Uint8Array), "shared_blob");
+    expect(option.checked).toBe(false);
+  });
+
   it("omits the picker and skips the decoder when the Core capability is off", async () => {
     const { services, surface, decode } = setup(false);
     render(<Screen {...{ services, surface }} />);

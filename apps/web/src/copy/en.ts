@@ -1910,6 +1910,10 @@ export const expressiveCopy: ExpressiveCopy = {
   recentFailed: "Recent items couldn’t be updated.",
   missingItem: "This item is unavailable on this device.",
   send: (label) => `Send ${label}`,
+  allowUploadReuse: "Allow reuse of this upload",
+  blobExposure: {
+    shared_blob_linkage: "If you reuse this upload, your storage service and people who receive it in more than one chat can link those chats.",
+  },
   react: (label) => `React with ${label}`,
   sending: "Getting your sticker ready…",
   reacting: "Getting your reaction ready…",

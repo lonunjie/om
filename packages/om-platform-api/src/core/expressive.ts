@@ -114,6 +114,13 @@ export type DecodedExpressive = ExpressivePlaceholder
   | (Extract<ExpressiveDecodeResult, { readonly state: "decoded" }> & { readonly altText: string });
 
 /** Core capability for the optional expressive-media host. Pack bytes are supplied by the local cache/import path. */
+export type ExpressiveBlobPolicy = "fresh" | "shared_blob";
+
+export interface ExpressiveBlobExposure {
+  readonly kind: "shared_blob_linkage";
+  readonly line: string;
+}
+
 export interface ExpressiveApi {
   available(): boolean;
   reviewPackFile(ctx: ProfileExecutionContext, bytes: Uint8Array): Promise<ExpressivePackFileReview>;
@@ -123,7 +130,8 @@ export interface ExpressiveApi {
     options: { readonly reducedMotion: boolean }): Promise<DecodedExpressive | null>;
   do(ctx: ProfileExecutionContext, intent: ExpressivePackIntent): Promise<{ readonly accepted: true } | { readonly refused: string }>;
   query<Q extends ExpressivePackQuery>(ctx: ProfileExecutionContext, query: Q): Promise<ExpressiveQueryResult[Q["kind"]]>;
-  prepare(ctx: ProfileExecutionContext, selection: ExpressivePackItem, ciphertext: Uint8Array): Promise<AttachmentPrepareResult>;
+  blobExposure?(policy: ExpressiveBlobPolicy): ExpressiveBlobExposure | null;
+  prepare(ctx: ProfileExecutionContext, selection: ExpressivePackItem, ciphertext: Uint8Array, policy?: ExpressiveBlobPolicy): Promise<AttachmentPrepareResult>;
   /** Feeds Core's validated bytes to the platform and returns frames only after Core accepts the observations. */
   decode(ctx: ProfileExecutionContext, messageId: MessageId, source: ExpressiveSource, decoder: ExpressiveMediaApi,
     options: { readonly reducedMotion: boolean }): Promise<DecodedExpressive | null>;

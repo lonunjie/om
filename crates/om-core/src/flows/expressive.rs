@@ -3,6 +3,18 @@
 use super::*;
 use crate::crypto::binding::Credential;
 use crate::expressive::{self as media, AssetRef, Pending, SendFrom, Target, WEBP};
+use crate::groups::{
+    GroupError,
+    flow::{GroupCtx, MAX_TEXT_BYTES},
+};
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RoomUpload {
+    pub room: String,
+    pub text: String,
+    pub attachment: AttachRec,
+    presentation: Option<media::Presentation>,
+}
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Covers the whole authenticated recipient set, even if a device has no route yet.
@@ -68,11 +80,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !self.expressive_enabled {
             return refuse(self, RejectReason::Unsupported);
         }
-        let Some(rel) = self.st.app.relationships.get(conv) else {
-            return refuse(self, RejectReason::NotFound);
-        };
-        if !matches!(rel.state, RelState::Active) || rel.blocked {
-            return refuse(self, RejectReason::Unavailable);
+        let room = self.st.app.groups.contains_key(conv);
+        if room {
+            if !matches!(target, Target::Attachment) {
+                return refuse(self, RejectReason::Unsupported);
+            }
+        } else {
+            let Some(rel) = self.st.app.relationships.get(conv) else {
+                return refuse(self, RejectReason::NotFound);
+            };
+            if !matches!(rel.state, RelState::Active) || rel.blocked {
+                return refuse(self, RejectReason::Unavailable);
+            }
         }
         let (rec, presentation, prepared) = match source {
             SendFrom::Prepared { blob_id } => {
@@ -159,9 +178,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if !valid_target {
             return refuse(self, RejectReason::Invalid);
         }
+        if room {
+            let text = presentation.fallback().to_owned();
+            return self.start_room_upload(op, KIND, conv, text, rec, Some(presentation));
+        }
         let inline_fallback_fits =
             target.slot() != Some(media::INLINE) || presentation.fallback().chars().count() <= 128;
-        let capable = inline_fallback_fits && self.expressive_recipients(rel, target.slot());
+        let capable = inline_fallback_fits
+            && self.expressive_recipients(&self.st.app.relationships[conv], target.slot());
         if target.slot().is_some() && !capable {
             let text = presentation.fallback();
             if let Target::Inline = target {
@@ -244,6 +268,131 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .is_some_and(|o| !matches!(o.outcome, OutcomeClass::Rejected { .. }))
         {
             self.st.app.prepared.remove(id);
+        }
+        Ok(())
+    }
+
+    pub(super) fn start_room_upload(
+        &mut self,
+        op: &OperationId,
+        kind: &str,
+        room: &str,
+        text: String,
+        attachment: AttachRec,
+        presentation: Option<media::Presentation>,
+    ) -> Result<(), CoreError> {
+        let refuse = |s: &mut Self, reason| {
+            s.record(op, kind, OutcomeClass::Rejected { reason }, None);
+            Ok(())
+        };
+        let Some(device) = &self.st.device else {
+            return refuse(self, RejectReason::Unavailable);
+        };
+        let conv = h32(room).map_err(|_| CoreError::Invalid("room id"))?;
+        if self
+            .st
+            .app
+            .group_upload_check(&conv, &device.account_id)
+            .is_err()
+        {
+            return refuse(self, RejectReason::Unavailable);
+        }
+        if !self.expressive_enabled || attachment.direct {
+            return refuse(self, RejectReason::Unsupported);
+        }
+        if text.len() > MAX_TEXT_BYTES {
+            return refuse(self, RejectReason::Invalid);
+        }
+        if !attachment.stored {
+            let size = attachment
+                .ciphertext_len
+                .saturating_sub(crate::attach::TAG_LEN);
+            if let Err(err) = self.check_blob_size(self.blob_limits, size) {
+                return refuse(self, err.reject_reason());
+            }
+            if self
+                .blob_limits
+                .is_some_and(|limits| !self.blob_budget_ok(&limits, attachment.ciphertext_len, 1))
+            {
+                return refuse(self, RejectReason::Quota);
+            }
+            if !self.enqueue_blob_put(op, room, &format!("room-upload-{op}"), &attachment) {
+                return refuse(self, RejectReason::Invalid);
+            }
+        }
+        let stored = attachment.stored;
+        self.st.app.prepared.remove(&attachment.blob_id);
+        self.st.app.room_uploads.insert(
+            op.clone(),
+            RoomUpload {
+                room: room.to_owned(),
+                text,
+                attachment,
+                presentation,
+            },
+        );
+        self.record(op, kind, OutcomeClass::PendingNetwork, None);
+        if stored {
+            self.finish_room_upload(op)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn finish_room_upload(&mut self, op: &OperationId) -> Result<(), CoreError> {
+        let upload = self
+            .st
+            .app
+            .room_uploads
+            .remove(op)
+            .ok_or(CoreError::CorruptState("room attachment upload"))?;
+        let conv = h32(&upload.room).map_err(|_| CoreError::CorruptState("room id"))?;
+        let device = self
+            .st
+            .device
+            .as_ref()
+            .ok_or(CoreError::CorruptState("room device"))?;
+        // The upload spans transactions. Open the committed MLS snapshot and use the Room head that is
+        // canonical now, then persist the MLS advance, message and fan-out in the receipt transaction.
+        let result = (|| {
+            if !self.expressive_enabled || upload.attachment.expires_ms <= self.now_ms {
+                return Err(GroupError("attachment_unavailable"));
+            }
+            let mut app = self.st.app.clone();
+            let snapshot = app
+                .group_crypto
+                .as_ref()
+                .ok_or(GroupError("unknown_group"))?;
+            let mut engine = crate::engine::group_engine_open(&device.device_id, Some(snapshot))?;
+            let mut ctx = GroupCtx {
+                engine: &mut *engine,
+                rng: &mut *self.rng,
+                now_ms: self.now_ms,
+                signer: &device.signer,
+                my_account: device.account_id.to_vec(),
+            };
+            let id = app.group_send_attachment(
+                &mut ctx,
+                &conv,
+                &upload.text,
+                upload.attachment.clone(),
+                upload.presentation.as_ref(),
+            )?;
+            self.st.app = app;
+            Ok(id)
+        })();
+        if let Ok(id) = result {
+            if let Some(record) = self.st.app.ops.get_mut(op) {
+                record.message_id = Some(id);
+            }
+            self.set_outcome(op, OutcomeClass::Committed);
+        } else {
+            self.delete_stored_blob(&upload.attachment);
+            self.set_outcome(
+                op,
+                OutcomeClass::Rejected {
+                    reason: RejectReason::Unavailable,
+                },
+            );
         }
         Ok(())
     }

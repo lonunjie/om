@@ -821,12 +821,23 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       const query = q.kind === "preview_pack" ? { kind: q.kind, input: packInput(q.input) } : q;
       return core.call({ cmd: "expressive_query", ctx, query }) as ExpressiveQueryResult[Q["kind"]];
     },
-    async prepare(inputCtx, selection, ciphertext) {
+    blobExposure(policy) {
+      if (!expressiveEnabled) return null;
+      try {
+        const result = core.call({ cmd: "expressive_blob_exposure", policy }) as { kind: string; line: string } | null;
+        return result?.kind === "shared_blob_linkage" && typeof result.line === "string" && result.line.length > 0
+          ? { kind: result.kind, line: result.line } : null;
+      } catch (err) {
+        if (err instanceof CoreCallError) return null;
+        throw err;
+      }
+    },
+    async prepare(inputCtx, selection, ciphertext, policy) {
       if (!expressiveEnabled) return { ok: false, refusal: { error: "unsupported" } };
       const ctx = ctxOf(inputCtx);
       await ensureLimits();
       return exclusive(async () => {
-        const r = core.call({ cmd: "prepare_expressive", ctx, ...selection, ciphertext: toHex(ciphertext) }) as PrepareJson;
+        const r = core.call({ cmd: "prepare_expressive", ctx, ...selection, ciphertext: toHex(ciphertext), ...(policy === undefined ? {} : { policy }) }) as PrepareJson;
         await commit(r.commit ?? null, ctx);
         if (r.prepared === undefined) return { ok: false, refusal: refusalOf(r.refused) };
         if (!(await stage(ctx.profileId, r.prepared.blobId, fromHex(r.prepared.ciphertext)))) return { ok: false, refusal: { error: "unavailable" } };

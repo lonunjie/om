@@ -15,6 +15,7 @@ pub const WEBP: &str = "om.expressive.webp-v1";
 pub const INLINE: &str = "om.expressive.inline-emoji.v1";
 pub const REACTION: &str = "om.expressive.reaction-asset.v1";
 pub const EXTENSION: &str = "om.expressive.asset.v1";
+pub const PACK_MEDIA_TYPE: &str = "application/vnd.om.content-pack";
 
 pub type Error = &'static str;
 
@@ -119,7 +120,8 @@ pub(crate) struct Pending {
 }
 
 /// A local opt-in which records the ADD exposure from the BlobStore policy descriptor.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BlobPolicy {
     #[default]
     Fresh,

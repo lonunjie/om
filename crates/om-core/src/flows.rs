@@ -27,6 +27,7 @@ mod blobs;
 mod ceremony;
 pub(crate) mod controller_change;
 mod expressive;
+pub use expressive::RoomUpload;
 mod group_lane;
 mod multi;
 mod owed;
@@ -41,7 +42,7 @@ mod recovery_watch;
 mod recovery_writer;
 pub(crate) mod social;
 
-pub(crate) use blobs::{attachment_views, presentation, rec_ref};
+pub(crate) use blobs::{attachment_view, attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;
 pub use ceremony::{
     history_view, notice_views, offer_view, pending_requests,
@@ -2885,6 +2886,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
                 if let Some((op, conv, msg)) = info {
                     self.set_outcome(&op, OutcomeClass::Rejected { reason });
+                    if matches!(entry.purpose, Purpose::PutBlob { .. })
+                        && self.st.app.room_uploads.remove(&op).is_some()
+                    {
+                        return Ok(());
+                    }
                     if let (Some(c), Some(m)) = (&conv, &msg) {
                         self.set_delivery(c, m, DeliveryState::Rejected { reason });
                         if matches!(entry.purpose, Purpose::PutBlob { .. }) {

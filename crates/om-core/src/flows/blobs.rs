@@ -147,40 +147,46 @@ pub(crate) fn attachment_views(
                 .is_none_or(|send| send.target.slot().is_none())
         })
         .enumerate()
-        .filter_map(|(i, rec)| {
-            let r = rec_ref(rec)?;
-            let outgoing = rec.owner_cap.is_some();
-            Some(AttachmentView {
-                index: i as u32,
-                blob_id: rec.blob_id.clone(),
-                media_type: r.media_type,
-                size: r.plaintext_size,
-                filename: r.filename,
-                width: r.width,
-                height: r.height,
-                duration_ms: r.duration_ms,
-                state: if rec.direct {
-                    match offers.get(&rec.blob_id).map(|o| o.status) {
-                        Some(DirectStatus::Waiting) => AttachmentState::WaitingForRecipient,
-                        Some(DirectStatus::PeerClaim) => AttachmentState::PeerSaysReceived,
-                        Some(DirectStatus::Confirmed) => AttachmentState::DeliveredLocally,
-                        Some(DirectStatus::Unconfirmed) => AttachmentState::NotConfirmed,
-                        _ => AttachmentState::NotOffered,
-                    }
-                } else {
-                    match (outgoing, rec.stored) {
-                        (true, true) => AttachmentState::StoredForLater,
-                        (true, false) => AttachmentState::Uploading,
-                        (false, _) if r.locations.is_empty() && r.read_cap.is_some() => {
-                            AttachmentState::RemoteDirect
-                        }
-                        (false, _) => AttachmentState::Remote,
-                    }
-                },
-                stored_until: (outgoing && rec.stored).then_some(rec.expires_ms),
-            })
-        })
+        .filter_map(|(i, rec)| attachment_view(i as u32, rec, offers.get(&rec.blob_id)))
         .collect()
+}
+
+pub(crate) fn attachment_view(
+    index: u32,
+    rec: &AttachRec,
+    offer: Option<&DirectOfferRec>,
+) -> Option<AttachmentView> {
+    let r = rec_ref(rec)?;
+    let outgoing = rec.owner_cap.is_some();
+    Some(AttachmentView {
+        index,
+        blob_id: rec.blob_id.clone(),
+        media_type: r.media_type,
+        size: r.plaintext_size,
+        filename: r.filename,
+        width: r.width,
+        height: r.height,
+        duration_ms: r.duration_ms,
+        state: if rec.direct {
+            match offer.map(|o| o.status) {
+                Some(DirectStatus::Waiting) => AttachmentState::WaitingForRecipient,
+                Some(DirectStatus::PeerClaim) => AttachmentState::PeerSaysReceived,
+                Some(DirectStatus::Confirmed) => AttachmentState::DeliveredLocally,
+                Some(DirectStatus::Unconfirmed) => AttachmentState::NotConfirmed,
+                _ => AttachmentState::NotOffered,
+            }
+        } else {
+            match (outgoing, rec.stored) {
+                (true, true) => AttachmentState::StoredForLater,
+                (true, false) => AttachmentState::Uploading,
+                (false, _) if r.locations.is_empty() && r.read_cap.is_some() => {
+                    AttachmentState::RemoteDirect
+                }
+                (false, _) => AttachmentState::Remote,
+            }
+        },
+        stored_until: (outgoing && rec.stored).then_some(rec.expires_ms),
+    })
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
@@ -209,6 +215,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         count += 1;
                     }
                 }
+            }
+        }
+        for a in self
+            .st
+            .app
+            .room_uploads
+            .values()
+            .map(|u| &u.attachment)
+            .chain(
+                self.st
+                    .app
+                    .group_attachments
+                    .values()
+                    .flat_map(|m| m.values().map(|a| &a.attachment)),
+            )
+        {
+            if a.owner_cap.is_some() && (!a.stored || a.expires_ms > now) {
+                bytes += a.ciphertext_len;
+                count += 1;
             }
         }
         (limits.max_spool_bytes == 0 || bytes + extra_bytes <= limits.max_spool_bytes)
@@ -537,6 +562,32 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             reject(self, RejectReason::Invalid);
             return Ok(());
         }
+        if self.st.app.groups.contains_key(conv) {
+            let [input] = inputs else {
+                reject(self, RejectReason::Unsupported);
+                return Ok(());
+            };
+            let Some(prepared) = self.st.app.prepared.get(&input.blob_id) else {
+                reject(self, RejectReason::NotFound);
+                return Ok(());
+            };
+            if input.voice_note.is_some()
+                || reply_to.is_some()
+                || !rec_ref(&prepared.rec)
+                    .is_some_and(|r| r.media_type == crate::expressive::PACK_MEDIA_TYPE)
+            {
+                reject(self, RejectReason::Unsupported);
+                return Ok(());
+            }
+            return self.start_room_upload(
+                op,
+                kind,
+                conv,
+                text.trim().into(),
+                prepared.rec.clone(),
+                None,
+            );
+        }
         let mut recs: Vec<AttachRec> = vec![];
         let mut voice: Option<Voice> = None;
         for (i, input) in inputs.iter().enumerate() {
@@ -710,33 +761,46 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 matches!(&e.purpose, Purpose::PutBlob { blob_id, message_id, .. }
                     if *blob_id == a.blob_id && message_id == mid)
             });
-            let (Some(cap), Some(rid), Some(r)) = (&a.owner_cap, &a.request_id, rec_ref(&a)) else {
-                continue;
-            };
             if queued {
                 continue;
             }
-            let (Ok(blob_id), Ok(owner_cap), Ok(request_id)) =
-                (unhex(&a.blob_id), unhex(cap), unhex(rid))
-            else {
-                continue;
-            };
-            self.enqueue(
-                NetCall::PutBlob {
-                    blob_id,
-                    owner_cap,
-                    request_id,
-                    digest: r.ciphertext_digest.to_vec(),
-                    length: a.ciphertext_len,
-                },
-                Purpose::PutBlob {
-                    operation_id: op.clone(),
-                    conversation_id: conv.to_string(),
-                    message_id: mid.to_string(),
-                    blob_id: a.blob_id.clone(),
-                },
-            );
+            self.enqueue_blob_put(op, conv, mid, &a);
         }
+    }
+
+    pub(super) fn enqueue_blob_put(
+        &mut self,
+        op: &OperationId,
+        conv: &str,
+        mid: &str,
+        a: &AttachRec,
+    ) -> bool {
+        let Some((blob_id, owner_cap, request_id, r)) = (|| {
+            Some((
+                unhex(&a.blob_id).ok()?,
+                unhex(a.owner_cap.as_ref()?).ok()?,
+                unhex(a.request_id.as_ref()?).ok()?,
+                rec_ref(a)?,
+            ))
+        })() else {
+            return false;
+        };
+        self.enqueue(
+            NetCall::PutBlob {
+                blob_id,
+                owner_cap,
+                request_id,
+                digest: r.ciphertext_digest.to_vec(),
+                length: a.ciphertext_len,
+            },
+            Purpose::PutBlob {
+                operation_id: op.clone(),
+                conversation_id: conv.into(),
+                message_id: mid.into(),
+                blob_id: a.blob_id.clone(),
+            },
+        );
+        true
     }
 
     /// A message that cannot go on (a refused upload): drop its other pending uploads, and, when it can never be retried,
@@ -759,22 +823,30 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let mut dels = vec![];
         for a in m.attachments.iter_mut().filter(|a| a.stored) {
-            if let (Some(cap), Some(loc)) = (&a.owner_cap, &a.location) {
-                dels.push((a.blob_id.clone(), cap.to_string(), loc.clone()));
-            }
+            dels.push(a.clone());
             a.stored = false;
         }
-        for (id, cap, loc) in dels {
-            if let (Ok(blob_id), Ok(owner_cap)) = (unhex(&id), unhex(&cap)) {
-                self.enqueue(
-                    NetCall::DeleteBlob {
-                        blob_id,
-                        owner_cap,
-                        location: loc,
-                    },
-                    Purpose::DeleteBlob { blob_id: id },
-                );
-            }
+        for a in dels {
+            self.delete_stored_blob(&a);
+        }
+    }
+
+    pub(super) fn delete_stored_blob(&mut self, a: &AttachRec) {
+        if let (Ok(blob_id), Some(owner_cap), Some(location)) = (
+            unhex(&a.blob_id),
+            a.owner_cap.as_ref().and_then(|cap| unhex(cap).ok()),
+            &a.location,
+        ) {
+            self.enqueue(
+                NetCall::DeleteBlob {
+                    blob_id,
+                    owner_cap,
+                    location: location.clone(),
+                },
+                Purpose::DeleteBlob {
+                    blob_id: a.blob_id.clone(),
+                },
+            );
         }
     }
 
@@ -822,6 +894,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         receipt: Option<Vec<u8>>,
     ) -> Result<(), CoreError> {
         let now = self.now_ms;
+        if let Some(upload) = self.st.app.room_uploads.get_mut(op) {
+            if upload.room != conv || upload.attachment.blob_id != blob_id {
+                return Err(CoreError::CorruptState("room attachment receipt"));
+            }
+            if apply_blob_receipt(&mut upload.attachment, receipt.as_deref(), now).is_none() {
+                self.st.app.room_uploads.remove(op);
+                self.set_outcome(
+                    op,
+                    OutcomeClass::Rejected {
+                        reason: RejectReason::IntegrityFailure,
+                    },
+                );
+                return Ok(());
+            }
+            return self.finish_room_upload(op);
+        }
         let rec = self
             .st
             .app
@@ -830,28 +918,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .and_then(|r| r.messages.iter().find(|m| m.id == mid))
             .and_then(|m| m.attachments.iter().find(|a| a.blob_id == blob_id))
             .cloned();
-        let Some(rec) = rec else {
+        let Some(mut rec) = rec else {
             return Ok(());
         };
-        let updated = (|| {
-            let receipt = BlobReceipt::from_bytes(&receipt?)?;
-            let mut r = rec_ref(&rec)?;
-            if receipt.digest != r.ciphertext_digest {
-                return None; // the store holds other bytes than we sealed
-            }
-            r.locations = receipt
-                .locations
-                .into_iter()
-                .filter(|l| attach::valid_location(l))
-                .take(8)
-                .collect();
-            if r.locations.is_empty() || !(16..=64).contains(&receipt.read_cap.len()) {
-                return None;
-            }
-            r.read_cap = Some(receipt.read_cap);
-            Some((r, receipt.expires_at))
-        })();
-        let Some((r, expires)) = updated else {
+        if apply_blob_receipt(&mut rec, receipt.as_deref(), now).is_none() {
             // Wrong digest or an unusable receipt: the object is not what we sealed (or cannot be addressed). Not retried
             // blindly; the message is refused with an integrity failure and what reached the store is removed.
             self.set_outcome(
@@ -869,7 +939,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             );
             self.abort_puts(conv, mid, true);
             return Ok(());
-        };
+        }
         if let Some(a) = self
             .st
             .app
@@ -878,12 +948,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .and_then(|r| r.messages.iter_mut().find(|m| m.id == mid))
             .and_then(|m| m.attachments.iter_mut().find(|a| a.blob_id == blob_id))
         {
-            a.location = r.locations.first().cloned();
-            a.reference = hex(&cbor::encode(&r.to_v())).into();
-            a.stored = true;
-            a.expires_ms = expires
-                .map(|e| e.saturating_mul(1000))
-                .unwrap_or(now + DEFAULT_STORE_MS);
+            *a = rec;
         }
         self.finalize_attachment_message(conv, mid)
     }
@@ -1030,4 +1095,30 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             matches!(e.purpose, Purpose::DeleteBlob { .. }) && e.fails > DELETE_GIVE_UP
         })
     }
+}
+
+fn apply_blob_receipt(rec: &mut AttachRec, bytes: Option<&[u8]>, now: u64) -> Option<()> {
+    let receipt = BlobReceipt::from_bytes(bytes?)?;
+    let mut r = rec_ref(rec)?;
+    if receipt.digest != r.ciphertext_digest {
+        return None;
+    }
+    r.locations = receipt
+        .locations
+        .into_iter()
+        .filter(|l| attach::valid_location(l))
+        .take(8)
+        .collect();
+    if r.locations.is_empty() || !(16..=64).contains(&receipt.read_cap.len()) {
+        return None;
+    }
+    r.read_cap = Some(receipt.read_cap);
+    rec.location = r.locations.first().cloned();
+    rec.reference = hex(&cbor::encode(&r.to_v())).into();
+    rec.stored = true;
+    rec.expires_ms = receipt
+        .expires_at
+        .map(|e| e.saturating_mul(1000))
+        .unwrap_or(now + DEFAULT_STORE_MS);
+    Some(())
 }

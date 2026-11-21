@@ -1300,6 +1300,88 @@ fn expressive_picker_state_is_profile_local_and_commit_gated() {
 }
 
 #[test]
+fn expressive_selection_falls_back_after_linking_a_device_with_empty_committed_capabilities() {
+    let mut p = active_pair_with_expressive(true, true);
+    let (sticker, _) = expressive_prepare(&mut p, Kind::Sticker, BlobPolicy::Fresh);
+    expressive_send(&mut p, "supported-genesis", Target::Attachment, &sticker);
+    settle(&mut p);
+    let timeline = view(&p.bob, &p.b, &p.b_conv);
+    let (id, _, _, _) = parts(timeline.last().unwrap());
+    assert!(
+        p.bob
+            .core
+            .expressive_presentation(&p.b, id, Source::Attachment(0))
+            .is_some()
+    );
+
+    let mut phone = Runtime::new("bob-linked", &p.net);
+    phone.core.enable_expressive_media();
+    let new = phone.open("p-linked");
+    p.bob.dispatch(&p.b, "offer", IntentBody::OfferDeviceLink);
+    p.bob.flush_net(&p.b);
+    let offer: LinkOfferView = p
+        .bob
+        .query::<Option<_>>(Query::GetLinkOffer {
+            ctx: p.b.clone(),
+            operation_id: "offer".into(),
+        })
+        .unwrap();
+    phone.dispatch(
+        &new,
+        "request",
+        IntentBody::RequestDeviceLink { link: offer.link },
+    );
+    settle_all(&mut [(&mut p.bob, &p.b), (&mut phone, &new)]);
+    let pending: DevicesView = p.bob.query(Query::GetDevices { ctx: p.b.clone() });
+    let request_id = pending.link_requests[0].request_id.clone();
+    let confirmation = common::confirmation(&mut p.bob, &p.b, "ApproveDeviceLink", &request_id);
+    p.bob.dispatch(
+        &p.b,
+        "approve",
+        IntentBody::ApproveDeviceLink {
+            request_id,
+            confirmation,
+        },
+    );
+    settle_all(&mut [(&mut p.bob, &p.b), (&mut phone, &new), (&mut p.alice, &p.a)]);
+    let linked: DevicesView = phone.query(Query::GetDevices { ctx: new });
+    let new_device = &linked.devices.iter().find(|d| d.is_current).unwrap().id;
+    let alice = app(&p.alice, &p.a);
+    let bob = &alice["relationships"][&p.a_conv];
+    let head = om_core::crypto::binding::Acs::from_body(
+        &unhex(bob["peerAcsBody"].as_str().unwrap()).unwrap(),
+    )
+    .unwrap();
+    let cred = bob["peerCredentials"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|raw| {
+            om_core::crypto::binding::Credential::from_body(&unhex(raw.as_str().unwrap()).unwrap())
+                .unwrap()
+        })
+        .find(|cred| &hex(&cred.device_id) == new_device)
+        .unwrap();
+    assert!(head.messaging.contains(&cred.device_id));
+    assert!(head.credentials.contains(&(cred.device_id, cred.hash())));
+    assert!(cred.capabilities.is_empty());
+
+    let (sticker, _) = expressive_prepare(&mut p, Kind::Sticker, BlobPolicy::Fresh);
+    expressive_send(&mut p, "linked-fallback", Target::Attachment, &sticker);
+    settle(&mut p);
+    let timeline = view(&p.bob, &p.b, &p.b_conv);
+    let (id, text, attachments, _) = parts(timeline.last().unwrap());
+    assert_eq!(text, "Fallback");
+    assert_eq!(attachments.len(), 1);
+    assert!(
+        p.bob
+            .core
+            .expressive_presentation(&p.b, id, Source::Attachment(0))
+            .is_none()
+    );
+}
+
+#[test]
 fn expressive_w0_device_gets_fallback_and_no_w1_slot() {
     for bob_supports_media in [false, true] {
         let mut p = active_pair_with_expressive(true, bob_supports_media);

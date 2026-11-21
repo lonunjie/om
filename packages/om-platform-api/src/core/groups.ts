@@ -1,4 +1,5 @@
-import type { ConversationId, Brand, ProfileExecutionContext, ProfileId } from "./ids";
+import type { ConversationId, Brand, MessageId, ProfileExecutionContext, ProfileId } from "./ids";
+import type { AttachmentView } from "./views";
 
 /**
  * Ordinary groups (scope `groups`, ADR-0177): the typed steps a client drives and the views it renders.
@@ -217,6 +218,9 @@ export interface GroupMessageView {
   readonly text: string;
   readonly atMs: number;
   readonly outgoing: boolean;
+  /** Room-scoped id for the attachment API. */
+  readonly attachmentMessageId?: MessageId;
+  readonly attachments?: readonly AttachmentView[];
   /** The id of the message this one answers. Whether it is still here is read from the messages the viewer holds. */
   readonly replyTo?: string;
   /** An accepted edit replaced the text. */

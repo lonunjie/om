@@ -25,7 +25,14 @@ struct P {
 }
 
 fn mk(net: &LoopbackNetwork, name: &str, label: &str) -> P {
+    mk_with_media(net, name, label, false)
+}
+
+fn mk_with_media(net: &LoopbackNetwork, name: &str, label: &str, expressive: bool) -> P {
     let mut rt = Runtime::new(name, net);
+    if expressive {
+        rt.core.enable_expressive_media();
+    }
     let ctx = common::create_profile(&mut rt, &format!("p-{name}"), label);
     P {
         rt,
@@ -965,6 +972,320 @@ fn accept_room_invite(p: &mut P) {
         })
         .unwrap();
     p.send_lane(&reply);
+}
+
+const ROOM_WEBP: &[u8] = b"RIFF\x12\0\0\0WEBPVP8L\x06\0\0\0\x2f\0\0\0\0\0";
+
+fn prepare_room_media(
+    net: &LoopbackNetwork,
+    sender: &mut P,
+    kind: om_core::expressive::Kind,
+) -> String {
+    use om_core::attach::{self, AttachmentRef};
+    use om_core::crypto::cbor::{V, encode};
+    use om_core::expressive::{AssetRef, BlobPolicy, CachePolicy, Install, Presentation, Release};
+
+    let pack = [kind as u8; 32];
+    let blob = [3; 32];
+    let key = [4; 32];
+    let mut animation = Vec::new();
+    let (plaintext, duration_ms) = if kind == om_core::expressive::Kind::LoopAnimation {
+        animation.extend_from_slice(
+            b"RIFF\0\0\0\0WEBPVP8X\x0a\0\0\0\x02\0\0\0\0\0\0\0\0\0ANIM\x06\0\0\0\0\0\0\0\0\0",
+        );
+        for _ in 0..2 {
+            animation.extend_from_slice(b"ANMF\x1e\0\0\0");
+            let mut frame = [0; 16];
+            frame[12] = 34;
+            animation.extend_from_slice(&frame);
+            animation.extend_from_slice(&ROOM_WEBP[12..]);
+        }
+        let size = animation.len() as u32 - 8;
+        animation[4..8].copy_from_slice(&size.to_le_bytes());
+        (animation.as_slice(), Some(68))
+    } else {
+        (ROOM_WEBP, None)
+    };
+    let ciphertext = attach::seal(&key, &blob, plaintext);
+    let asset = AssetRef {
+        attachment: AttachmentRef {
+            blob_id: blob,
+            key,
+            ciphertext_digest: attach::ciphertext_digest(&ciphertext),
+            plaintext_size: plaintext.len() as u64,
+            media_type: "image/webp".into(),
+            locations: vec![],
+            filename: None,
+            read_cap: None,
+            width: Some(1),
+            height: Some(1),
+            duration_ms,
+        },
+        presentation: Presentation::webp(kind, "A wave".into(), Some("Wave".into())),
+    };
+    let release = encode(&V::M(vec![
+        (0, V::U(45)),
+        (1, V::U(1)),
+        (2, V::B(pack.to_vec())),
+        (3, V::U(1)),
+        (5, V::T("Greetings".into())),
+        (7, V::A(vec![V::U(4)])),
+        (
+            8,
+            V::A(vec![V::M(vec![
+                (0, V::T("wave".into())),
+                (1, V::U(kind as u64)),
+                (2, asset.value()),
+                (5, V::T("Wave".into())),
+            ])]),
+        ),
+        (9, V::M(vec![])),
+    ]));
+    let id = Release::parse(&release).unwrap().id();
+    let (result, commit) = sender
+        .rt
+        .core
+        .install_content_pack(
+            &sender.ctx,
+            Install {
+                release: &release,
+                expected_release: id,
+                confirmed_release: id,
+                control: None,
+                policy: CachePolicy::Lazy,
+                favourites: &[],
+                cached: &[],
+            },
+        )
+        .unwrap();
+    result.unwrap();
+    assert!(sender.rt.settle(&Step {
+        commit,
+        handle: None
+    }));
+    let (prepared, step) = sender
+        .rt
+        .core
+        .prepare_expressive(&sender.ctx, pack, "wave", &ciphertext, BlobPolicy::Fresh)
+        .unwrap();
+    assert!(sender.rt.settle(&step));
+    let prepared = prepared.unwrap();
+    net.stage_blob(
+        &om_core::crypto::unhex(&prepared.blob_id).unwrap(),
+        prepared.ciphertext,
+    );
+    prepared.blob_id
+}
+
+#[test]
+fn room_attachment_uses_the_committed_membership_when_the_upload_finishes() {
+    use om_core::expressive::{Kind, SendFrom, Source, Target as ExpressiveTarget};
+
+    let net = LoopbackNetwork::default();
+    let mut ps = vec![
+        mk_with_media(&net, "room-alice", "Alice", true),
+        mk_with_media(&net, "room-bob", "Bob", true),
+        mk_with_media(&net, "room-carol", "Carol", false),
+    ];
+    connect(&mut ps, 0, 1);
+    connect(&mut ps, 0, 2);
+    let conv = join_all(&mut ps, 0, &[1], room::RECOMMENDED);
+    let start_send = |sender: &mut P, op, kind, target| {
+        let blob_id = prepare_room_media(&net, sender, kind);
+        sender.rt.dispatch(
+            &sender.ctx,
+            op,
+            IntentBody::SendExpressive {
+                conversation_id: hex(&conv),
+                target,
+                asset: SendFrom::Prepared { blob_id },
+            },
+        );
+    };
+    let check_last = |p: &mut P, expressive: bool, kind| {
+        let GroupView::Messages(messages) = p.view(GroupQuery::Messages {
+            conversation_id: conv.clone(),
+        }) else {
+            panic!("Room messages");
+        };
+        let message = messages.last().unwrap();
+        let (attachment_id, attachment) = message.attachment_view.as_ref().unwrap();
+        assert_eq!(message.text, "Wave");
+        assert_eq!(attachment.media_type, "image/webp");
+        assert_eq!(
+            p.rt.core
+                .expressive_presentation(&p.ctx, attachment_id, Source::Attachment(0))
+                .map(|asset| asset.kind),
+            expressive.then_some(kind)
+        );
+        let opened = p.rt.fetch_attachment(&p.ctx, attachment_id, 0).unwrap();
+        if kind == Kind::LoopAnimation {
+            assert_eq!(opened.duration_ms, Some(68));
+        } else {
+            assert_eq!(opened.plaintext, ROOM_WEBP);
+        }
+    };
+    let finish_send = |parties: &mut [P], op, recipients: &[usize]| {
+        let mut expected: Vec<_> = recipients
+            .iter()
+            .map(|i| parties[*i].device_hex())
+            .collect();
+        expected.sort();
+        let sender = &mut parties[0];
+        assert_eq!(
+            sender.rt.outcome(&sender.ctx, op),
+            Some(OutcomeClass::PendingNetwork)
+        );
+        assert!(
+            !sender
+                .outbox()
+                .iter()
+                .any(|i| matches!(i.wire, GroupWire::App { .. }))
+        );
+        sender.rt.flush_net(&sender.ctx);
+        assert_eq!(
+            sender.rt.outcome(&sender.ctx, op),
+            Some(OutcomeClass::Committed)
+        );
+        let mut devices: Vec<_> = sender
+            .outbox()
+            .iter()
+            .filter(|item| matches!(item.wire, GroupWire::App { .. }))
+            .map(|item| match item.to_outbound().unwrap().to {
+                Target::Device { device, .. } => hex(&device),
+                other => panic!("Unexpected Room destination {other:?}"),
+            })
+            .collect();
+        devices.sort();
+        assert_eq!(devices, expected);
+        drain(parties, 0);
+    };
+
+    start_send(
+        &mut ps[0],
+        "both-capable",
+        Kind::Sticker,
+        ExpressiveTarget::Attachment,
+    );
+    finish_send(&mut ps, "both-capable", &[1]);
+    check_last(&mut ps[1], true, Kind::Sticker);
+
+    let relationship_id = ps[0].rels[&2].clone();
+    let invite = ps[0]
+        .dob(GroupIntent::Invite {
+            conversation_id: conv.clone(),
+            relationship_id,
+        })
+        .unwrap();
+    ps[0].send_lane(&invite);
+    settle_every(&mut ps);
+    accept_room_invite(&mut ps[2]);
+    settle_every(&mut ps);
+    start_send(
+        &mut ps[0],
+        "join-during-upload",
+        Kind::Sticker,
+        ExpressiveTarget::Attachment,
+    );
+    ps[0].pump_lane();
+    drain(&mut ps, 0);
+    assert_eq!(ps[2].groups(), 1);
+    finish_send(&mut ps, "join-during-upload", &[1, 2]);
+    check_last(&mut ps[1], false, Kind::Sticker);
+    ps[2].rt.core.enable_expressive_media();
+    check_last(&mut ps[2], false, Kind::Sticker);
+
+    start_send(
+        &mut ps[0],
+        "leave-during-upload",
+        Kind::LoopAnimation,
+        ExpressiveTarget::Attachment,
+    );
+    ps[0].restart();
+    ps[0].rt.core.enable_expressive_media();
+    ps[2]
+        .dob(GroupIntent::Leave {
+            conversation_id: conv.clone(),
+        })
+        .unwrap();
+    drain(&mut ps, 2);
+    drain(&mut ps, 0);
+    assert_eq!(ps[2].groups(), 0);
+    finish_send(&mut ps, "leave-during-upload", &[1]);
+    check_last(&mut ps[1], true, Kind::LoopAnimation);
+
+    start_send(
+        &mut ps[0],
+        "room-inline",
+        Kind::CustomEmoji,
+        ExpressiveTarget::Inline,
+    );
+    assert_eq!(
+        ps[0].rt.outcome(&ps[0].ctx, "room-inline"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Unsupported,
+        })
+    );
+    assert_eq!(net.blob_put_count(), 3);
+
+    let sender = &mut ps[0];
+    let vectors: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../verification/vectors/pack-file-vectors.json"
+    ))
+    .unwrap();
+    let pack_bytes =
+        om_core::crypto::unhex(vectors["vectors"][0]["hex"].as_str().unwrap()).unwrap();
+    let prepared = sender
+        .rt
+        .prepare_attachment(
+            &sender.ctx,
+            &pack_bytes,
+            om_core::attach::Meta {
+                media_type: om_core::expressive::PACK_MEDIA_TYPE.into(),
+                filename: Some("greetings.ompack".into()),
+                width: None,
+                height: None,
+                duration_ms: None,
+            },
+        )
+        .unwrap();
+    sender.rt.dispatch(
+        &sender.ctx,
+        "room-pack",
+        IntentBody::SendAttachments {
+            conversation_id: hex(&conv),
+            draft: Draft {
+                text: String::new(),
+                reply_to: None,
+            },
+            attachments: vec![AttachmentInput {
+                blob_id: prepared.blob_id,
+                voice_note: None,
+            }],
+        },
+    );
+    finish_send(&mut ps, "room-pack", &[1]);
+    let receiver = &mut ps[1];
+    let GroupView::Messages(messages) = receiver.view(GroupQuery::Messages {
+        conversation_id: conv,
+    }) else {
+        panic!("Room messages");
+    };
+    let (attachment_id, _) = messages.last().unwrap().attachment_view.as_ref().unwrap();
+    let pack = receiver
+        .rt
+        .fetch_attachment(&receiver.ctx, attachment_id, 0)
+        .unwrap();
+    assert_eq!(pack.media_type, om_core::expressive::PACK_MEDIA_TYPE);
+    assert_eq!(pack.plaintext, pack_bytes);
+    assert!(
+        receiver
+            .rt
+            .core
+            .review_pack_file(&receiver.ctx, &pack.plaintext)
+            .unwrap()
+            .is_ok()
+    );
 }
 
 #[test]

@@ -113,6 +113,76 @@ fn endpoint_in(acs: &Acs, creds: &[Credential], ep: &Endpoint) -> Option<Bound> 
 }
 
 impl AppState {
+    /// Prove the full recipient set against the accepted Room roster, MLS leaves and current ACS credentials.
+    pub(super) fn group_expressive_recipients(
+        &self,
+        group: &super::GroupState,
+        leaves: &[Vec<u8>],
+        sender: &[u8],
+    ) -> bool {
+        let room = crate::crypto::hex(&group.conversation_id);
+        let dir = self.group_dir(&group.conversation_id);
+        if !self.acs_forks.is_empty()
+            || leaves.len() < 2
+            || leaves.len() != dir.len()
+            || !leaves.iter().any(|d| d == sender)
+            || leaves.iter().collect::<BTreeSet<_>>().len() != leaves.len()
+        {
+            return false;
+        }
+        let heads = self.group_heads(&room);
+        let accounts: BTreeSet<_> = group.membership.iter().map(|m| &m.principal).collect();
+        let mut covered = BTreeSet::new();
+        for id in leaves {
+            let Some(rec) = dir.get(&crate::crypto::hex(id)) else {
+                return false;
+            };
+            let Some((head, creds)) = heads
+                .iter()
+                .find(|(head, _)| crate::crypto::hex(&head.account_id) == rec.account)
+            else {
+                return false;
+            };
+            let account = super::Principal::account(head.account_id.to_vec());
+            if !accounts.contains(&account)
+                || !creds.iter().any(|c| {
+                    c.device_id.as_slice() == id
+                        && crate::crypto::hex(&c.signing_pk) == rec.pk
+                        && active_in(head, c)
+                })
+            {
+                return false;
+            }
+            if !covered.insert(account) {
+                continue;
+            }
+            // A Room-only pin never substitutes for a different held relationship pin (ADR-0229).
+            if self.relationships.values().any(|rel| {
+                rel.peer_account_id == rec.account
+                    && rel.state == RelState::Active
+                    && (rel.blocked
+                        || unhex(&rel.peer_acs_body)
+                            .ok()
+                            .and_then(|b| Acs::from_body(&b).ok())
+                            .is_none_or(|direct| direct.hash() != head.hash()))
+            }) || !head.control.union(&head.messaging).all(|device| {
+                !head.device_active(device)
+                    || device.as_slice() == sender
+                    || creds.iter().any(|cred| {
+                        cred.device_id == *device
+                            && active_in(head, cred)
+                            && cred
+                                .capabilities
+                                .iter()
+                                .any(|c| c == crate::expressive::WEBP)
+                    })
+            }) {
+                return false;
+            }
+        }
+        covered.len() == accounts.len()
+    }
+
     /// The validated heads this device holds, one per account: its own account's chain tip, and the pinned head of
     /// each active relationship. Where two heads name one account only the newest generation counts (an older one may
     /// still list a device a newer one revoked); two different heads at the same generation are a fork and the

@@ -125,7 +125,7 @@ pub struct Core<R: RngCore + CryptoRng> {
 
 /// A new engine for this device, or the one stored in `app` (the loader is chosen by the build: the real OpenMLS engine
 /// with `groups-openmls`, the test-only fake in test builds, otherwise groups are unavailable).
-fn group_engine_open(
+pub(crate) fn group_engine_open(
     device_id: &[u8],
     stored: Option<&crate::groups::store::GroupCryptoRec>,
 ) -> Result<Box<dyn GroupCrypto>, GroupError> {
@@ -1148,6 +1148,16 @@ impl<R: RngCore + CryptoRng> Core<R> {
     ) -> Option<crate::expressive::AssetRef> {
         use crate::expressive::{AssetRef, Source};
         let app = &self.slot(ctx).ok()?.state.app;
+        if let Source::Attachment(0) = source
+            && let Some(room) = app.room_attachment(message_id)
+        {
+            let attachment = crate::flows::rec_ref(&room.attachment)?;
+            let ext = crate::crypto::cbor::decode(
+                &crate::crypto::unhex(room.extension.as_deref()?).ok()?,
+            )
+            .ok()?;
+            return crate::expressive::from_extension(&ext, 0, attachment);
+        }
         let m = app
             .relationships
             .values()
@@ -1265,6 +1275,17 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     .flat_map(|m| m.attachments.iter())
                     .find(|a| a.blob_id == blob_id && (a.owner_cap.is_some() || a.direct))
             })
+            .or_else(|| {
+                st.room_uploads
+                    .values()
+                    .map(|u| &u.attachment)
+                    .chain(
+                        st.group_attachments
+                            .values()
+                            .flat_map(|r| r.values().map(|a| &a.attachment)),
+                    )
+                    .find(|a| a.blob_id == blob_id && a.owner_cap.is_some())
+            })
             .ok_or(AttachError::NotFound)?;
         let r = crate::flows::rec_ref(rec).ok_or(AttachError::NotFound)?;
         let ct = crate::attach::seal(&r.key, &r.blob_id, plaintext);
@@ -1284,6 +1305,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
     ) -> Result<crate::attach::AttachmentRef, crate::attach::AttachError> {
         use crate::attach::AttachError;
         let st = &self.slot(ctx).map_err(|_| AttachError::NotFound)?.state.app;
+        if index == 0
+            && let Some(attachment) = st.room_attachment(message_id)
+        {
+            return crate::flows::rec_ref(&attachment.attachment).ok_or(AttachError::NotFound);
+        }
         st.relationships
             .values()
             .flat_map(|r| r.messages.iter())
@@ -2018,6 +2044,18 @@ impl<R: RngCore + CryptoRng> Core<R> {
             }); // exact retry: same logical operation
         }
         let (_, commit) = self.txn(&intent.ctx.profile_id, |tx| tx.apply_intent(intent))?;
+        if let IntentBody::SendExpressive {
+            conversation_id, ..
+        } = &intent.body
+            && self
+                .slot(&intent.ctx)?
+                .state
+                .app
+                .groups
+                .contains_key(conversation_id)
+        {
+            self.group_engines.remove(&intent.ctx.profile_id);
+        }
         Ok(Step {
             commit,
             handle: Some(handle),
@@ -2527,7 +2565,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
         net_id: u64,
         result: NetResult,
     ) -> Result<Step, CoreError> {
-        self.slot(ctx)?;
+        let app = &self.slot(ctx)?.state.app;
+        if app.outbox.iter().any(|e| {
+            e.id == net_id
+                && matches!(&e.purpose, crate::state::Purpose::PutBlob { operation_id, .. } if app.room_uploads.contains_key(operation_id))
+        }) {
+            self.group_engines.remove(&ctx.profile_id);
+        }
         let (_, commit) = self.txn(&ctx.profile_id, |tx| tx.net_result(net_id, result))?;
         Ok(Step {
             commit,

@@ -203,6 +203,10 @@ enum Command {
     },
     ExpressiveAvailable,
     #[cfg(feature = "expressive-media")]
+    ExpressiveBlobExposure {
+        policy: media::BlobPolicy,
+    },
+    #[cfg(feature = "expressive-media")]
     ExpressiveDo {
         ctx: ProfileExecutionContext,
         intent: ExpressiveIntent,
@@ -219,6 +223,8 @@ enum Command {
         release_id: String,
         item_id: String,
         ciphertext: String,
+        #[serde(default)]
+        policy: media::BlobPolicy,
     },
     #[cfg(feature = "expressive-media")]
     ExpressiveDecode {
@@ -992,6 +998,10 @@ fn group_message_json(m: &om_core::groups::flow::GroupMsg) -> Value {
     if !m.mentions.is_empty() {
         v["mentions"] = json!(m.mentions);
     }
+    if let Some((id, attachment)) = &m.attachment_view {
+        v["attachmentMessageId"] = json!(id);
+        v["attachments"] = json!([attachment]);
+    }
     if let Some(p) = &m.poll_view {
         let mut poll = json!({
             "options": p.options.iter().map(|(id, label, count)| match count {
@@ -1213,6 +1223,17 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             }
             Command::ExpressiveAvailable => Ok(json!(self.core()?.expressive_media_available())),
             #[cfg(feature = "expressive-media")]
+            Command::ExpressiveBlobExposure { policy } => {
+                let exposure = self
+                    .core()?
+                    .expressive_media_available()
+                    .then(|| policy.metadata_exposure())
+                    .flatten();
+                Ok(json!(exposure.map(
+                    |line| json!({ "kind": "shared_blob_linkage", "line": line })
+                )))
+            }
+            #[cfg(feature = "expressive-media")]
             Command::ExpressiveDo { ctx, intent } => expressive_do(self.core()?, &ctx, intent),
             #[cfg(feature = "expressive-media")]
             Command::ExpressiveQuery { ctx, query } => expressive_query(self.core()?, &ctx, query),
@@ -1223,6 +1244,7 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 release_id,
                 item_id,
                 ciphertext,
+                policy,
             } => {
                 let core = self.core()?;
                 let pack = id32(&pack_id)?;
@@ -1240,7 +1262,7 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     pack,
                     &item_id,
                     &expressive_ciphertext(&ciphertext)?,
-                    media::BlobPolicy::Fresh,
+                    policy,
                 )?;
                 Ok(match out {
                     Ok(prepared) => json!({ "prepared": prepared, "commit": step.commit }),

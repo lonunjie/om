@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import type { UserActionCode } from "@om/platform-api";
+import type { ExpressiveBlobExposure, UserActionCode } from "@om/platform-api";
 
 export interface ExpressiveCopy {
   readonly picker: string;
@@ -19,6 +19,8 @@ export interface ExpressiveCopy {
   readonly recentFailed: string;
   readonly missingItem: string;
   readonly send: (label: string) => string;
+  readonly allowUploadReuse: string;
+  readonly blobExposure: Readonly<Record<ExpressiveBlobExposure["kind"], string>>;
   readonly react: (label: string) => string;
   readonly sending: string;
   readonly reacting: string;

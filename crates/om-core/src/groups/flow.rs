@@ -28,12 +28,12 @@ use super::mls::{CryptoEnv, GroupCrypto, MlsError};
 use super::rejoin::RejoinView;
 use super::room::{self, Change, Notice, Setting};
 use super::{GenesisParams, GroupError, GroupState, Intent, Principal, R, apply, err, genesis, op};
-use crate::crypto::cbor::V;
+use crate::crypto::cbor::{self, V};
 use crate::crypto::rng::{RngCore, fill};
 use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
 use crate::events;
-use crate::state::{AppState, RelState};
+use crate::state::{AppState, AttachRec, RelState};
 use om_codec::{Value, encode};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -43,6 +43,7 @@ const MAX_OPEN_INCOMING: usize = 16;
 const CAP_POST: &str = "room.post";
 const CAP_REPLY: &str = "room.reply";
 const CAP_REACT: &str = "room.react";
+const CAP_UPLOAD: &str = "room.upload";
 const CAP_MODERATE: &str = "room.redact_others";
 /// Polls kept open for tallying (ADR-0223 section 6). Closed polls are not counted: they stay in the Room's message log as ordinary
 /// messages with their final tally, under the log's own retention, never dropped to make room.
@@ -50,7 +51,7 @@ const MAX_POLLS: usize = 64;
 /// Vote registers kept per poll (ADR-0223).
 const MAX_POLL_VOTES: usize = 64;
 /// Longest message text, in bytes (the same bound a text message has always had here).
-const MAX_TEXT_BYTES: usize = 8192;
+pub(crate) const MAX_TEXT_BYTES: usize = 8192;
 /// Announced Room-setting changes kept per Room.
 const MAX_NOTICES: usize = 64;
 
@@ -123,6 +124,12 @@ pub struct GroupDeviceRec {
     pub pk: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoomAttachment {
+    pub attachment: AttachRec,
+    pub extension: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupMsg {
@@ -150,6 +157,9 @@ pub struct GroupMsg {
     /// The poll as the person using this device sees it; filled when messages are read, never stored.
     #[serde(skip)]
     pub poll_view: Option<GroupPollView>,
+    /// Safe attachment metadata filled when messages are read.
+    #[serde(skip)]
+    pub attachment_view: Option<(String, crate::api::AttachmentView)>,
     /// Mentions of the create: character ranges of the text and the member named (ADR-0199). An edit clears them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mentions: Vec<GroupMention>,
@@ -855,6 +865,16 @@ fn rand16(rng: &mut dyn RngCore) -> Vec<u8> {
 // ---- the flow ----------------------------------------------------------------------------------------------------
 
 impl AppState {
+    pub(crate) fn room_attachment(&self, reference: &str) -> Option<&RoomAttachment> {
+        let (room, id) = reference.strip_prefix("room/")?.split_once('/')?;
+        let attachment = self.group_attachments.get(room)?.get(id)?;
+        self.group_msgs
+            .get(room)?
+            .iter()
+            .any(|m| m.id == id && !m.deleted)
+            .then_some(attachment)
+    }
+
     pub(super) fn group_state(&self, conv: &[u8]) -> R<GroupState> {
         self.group(conv)?.ok_or(GroupError("unknown_group"))
     }
@@ -2021,6 +2041,13 @@ impl AppState {
             (1, events::rich_text(text)),
         ]);
         let needs = self.group_post_cap(conv, message_id);
+        if self
+            .group_attachments
+            .get(&h(conv))
+            .is_some_and(|a| a.contains_key(message_id))
+        {
+            self.group_post_check(conv, &ctx.my_account, &[CAP_UPLOAD])?;
+        }
         self.group_emit(ctx, conv, events::K_EDIT, body, Some(needs), rep)
     }
 
@@ -2037,18 +2064,7 @@ impl AppState {
         self.group_emit(ctx, conv, events::K_DELETE, body, None, rep)
     }
 
-    /// Send one typed `ConversationEvent` (events.cddl, kinds 1 to 4) as the application message of the Room: the canonical bytes
-    /// are the MLS plaintext, so MLS authenticates the sender and fixes the sending epoch, and the event's own author fields
-    /// are checked against both on receipt. The same change is applied to our own copy through the path a receiver uses.
-    fn group_emit(
-        &mut self,
-        ctx: &mut GroupCtx<'_>,
-        conv: &[u8],
-        kind: u64,
-        body: V,
-        needs: Option<&str>,
-        rep: &mut GroupReply,
-    ) -> R<()> {
+    fn group_post_check(&self, conv: &[u8], account: &[u8], needs: &[&str]) -> R<GroupState> {
         let g = self.group_state(conv)?;
         if self.group_leaving.contains(&h(conv)) {
             return err("leaving");
@@ -2059,11 +2075,86 @@ impl AppState {
         if !self.group_may_send(conv) {
             return err("commit_in_flight");
         }
-        let me = Principal::account(ctx.my_account.clone());
+        let me = Principal::account(account.to_vec());
         let caps = g.capabilities_of(&me);
-        if g.member(&me).is_none() || needs.is_some_and(|c| !caps.contains(c)) {
+        if g.member(&me).is_none() || needs.iter().any(|c| !caps.contains(*c)) {
             return err("not_authorized");
         }
+        Ok(g)
+    }
+
+    pub(crate) fn group_upload_check(&self, conv: &[u8], account: &[u8]) -> R<GroupState> {
+        self.group_post_check(conv, account, &[CAP_POST, CAP_UPLOAD])
+    }
+
+    pub(crate) fn group_send_attachment(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        text: &str,
+        attachment: AttachRec,
+        presentation: Option<&crate::expressive::Presentation>,
+    ) -> R<String> {
+        let group = self.group_upload_check(conv, &ctx.my_account)?;
+        let reference = crate::flows::rec_ref(&attachment).ok_or(GroupError("bad_event"))?;
+        let group_id = self.group_mls_id(conv)?;
+        let leaves = mls(ctx.engine.members(&group_id))?;
+        let extension = presentation
+            .filter(|_| self.group_expressive_recipients(&group, &leaves, ctx.engine.device_id()))
+            .map(|p| p.extension(0));
+        let body = events::message_create_body_with(
+            (!text.is_empty()).then_some(text),
+            vec![reference.to_v()],
+        );
+        let mut reply = GroupReply::default();
+        self.group_emit_with_extensions(
+            ctx,
+            conv,
+            events::K_CREATE,
+            body,
+            extension,
+            &group,
+            &mut reply,
+        )?;
+        let Some(GroupEvent::MessageSent { id, .. }) = reply.events.first() else {
+            return err("bad_event");
+        };
+        self.carry_outbox_add(&reply, ctx.now_ms / 1000)?;
+        self.group_attachments
+            .get_mut(&h(conv))
+            .and_then(|attachments| attachments.get_mut(id))
+            .ok_or(GroupError("bad_event"))?
+            .attachment = attachment;
+        Ok(id.clone())
+    }
+
+    /// Send a typed ConversationEvent as MLS application plaintext and apply it locally.
+    fn group_emit(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        kind: u64,
+        body: V,
+        needs: Option<&str>,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let g = self.group_post_check(conv, &ctx.my_account, needs.as_slice())?;
+        self.group_emit_with_extensions(ctx, conv, kind, body, None, &g, rep)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn group_emit_with_extensions(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        kind: u64,
+        body: V,
+        extension: Option<V>,
+        g: &GroupState,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let me = Principal::account(ctx.my_account.clone());
+        let caps = g.capabilities_of(&me);
         let gid = self.group_mls_id(conv)?;
         let event_id: [u8; 16] = rand16(ctx.rng)
             .try_into()
@@ -2093,7 +2184,7 @@ impl AppState {
             kind,
             body,
         }
-        .encode();
+        .encode_full(extension, None);
         if crate::flows::registry()
             .check("ConversationEvent", &plain, false)
             .is_err()
@@ -2163,22 +2254,52 @@ impl AppState {
             events::K_CREATE => {
                 // keys 4 to 6 (expiry, thread, topic) are not part of this build: refuse rather than half-apply (key 3, the
                 // mention set, is read below: ADR-0199)
-                if (4..=6).any(|k| ev.body.opt(k).is_some())
-                    || !ev
-                        .body
-                        .get(1)
-                        .and_then(|a| a.a())
-                        .is_ok_and(<[V]>::is_empty)
-                {
+                if (4..=6).any(|k| ev.body.opt(k).is_some()) {
                     return Applied::Refused("unsupported_event");
                 }
-                let Some(text) = ev
-                    .body
-                    .opt(0)
-                    .and_then(events::plain_text)
-                    .filter(|t| !t.is_empty() && t.len() <= MAX_TEXT_BYTES)
-                else {
+                let Ok(attachments) = ev.body.get(1).and_then(|a| a.a()) else {
                     return Applied::Refused("unsupported_event");
+                };
+                let attachment = match attachments {
+                    [] => None,
+                    [value] => {
+                        let Some(reference) =
+                            crate::attach::AttachmentRef::from_v(value).filter(|r| {
+                                matches!(
+                                    r.media_type.as_str(),
+                                    "image/webp" | crate::expressive::PACK_MEDIA_TYPE
+                                ) && !r.locations.is_empty()
+                                    && r.read_cap.is_some()
+                            })
+                        else {
+                            return Applied::Refused("unsupported_event");
+                        };
+                        Some(RoomAttachment {
+                            attachment: AttachRec {
+                                blob_id: hex(&reference.blob_id),
+                                reference: hex(&cbor::encode(value)).into(),
+                                owner_cap: None,
+                                request_id: None,
+                                stored: false,
+                                location: None,
+                                expires_ms: 0,
+                                ciphertext_len: 0,
+                                direct: false,
+                            },
+                            extension: ev.extensions.as_ref().map(|ext| hex(&cbor::encode(ext))),
+                        })
+                    }
+                    _ => return Applied::Refused("unsupported_event"),
+                };
+                let text = match ev.body.opt(0) {
+                    Some(rt) => match events::plain_text(rt)
+                        .filter(|t| !t.is_empty() && t.len() <= MAX_TEXT_BYTES)
+                    {
+                        Some(text) => text,
+                        None => return Applied::Refused("unsupported_event"),
+                    },
+                    None if attachment.is_some() => String::new(),
+                    None => return Applied::Refused("unsupported_event"),
                 };
                 let reply_to = match ev.body.opt(2) {
                     None => None,
@@ -2203,15 +2324,23 @@ impl AppState {
                 if mentions.iter().any(|m| !members.contains(&m.account)) {
                     mentions.clear();
                 }
-                if !author.caps.contains(if reply_to.is_some() {
-                    CAP_REPLY
-                } else {
-                    CAP_POST
-                }) {
+                if (attachment.is_some() && !author.caps.contains(CAP_UPLOAD))
+                    || !author.caps.contains(if reply_to.is_some() {
+                        CAP_REPLY
+                    } else {
+                        CAP_POST
+                    })
+                {
                     return Applied::Refused("sender_not_authorized");
                 }
                 if log.iter().any(|x| x.id == id) {
                     return Applied::Nothing;
+                }
+                if let Some(attachment) = attachment {
+                    self.group_attachments
+                        .entry(h(conv))
+                        .or_default()
+                        .insert(id.clone(), attachment);
                 }
                 log.push(GroupMsg {
                     id: id.clone(),
@@ -2370,7 +2499,14 @@ impl AppState {
                 } else {
                     CAP_POST
                 };
-                if ev.kind == events::K_EDIT && !author.caps.contains(post_cap) {
+                if ev.kind == events::K_EDIT
+                    && (!author.caps.contains(post_cap)
+                        || (self
+                            .group_attachments
+                            .get(&h(conv))
+                            .is_some_and(|a| a.contains_key(&id))
+                            && !author.caps.contains(CAP_UPLOAD)))
+                {
                     return Applied::Refused("sender_not_authorized");
                 }
                 if ev.kind == events::K_DELETE {
@@ -3174,12 +3310,18 @@ impl AppState {
                 let members = self
                     .group_member_accounts(&conversation_id)
                     .unwrap_or_default();
+                let room = h(&conversation_id);
+                let attachments = self.group_attachments.get(&room);
                 let mut out: Vec<GroupMsg> = self
                     .group_msgs
-                    .get(&h(&conversation_id))
+                    .get(&room)
                     .map(|v| v.iter().filter(|m| !m.deleted).cloned().collect())
                     .unwrap_or_default();
                 for m in &mut out {
+                    m.attachment_view = attachments
+                        .and_then(|attachments| attachments.get(&m.id))
+                        .and_then(|a| crate::flows::attachment_view(0, &a.attachment, None))
+                        .map(|view| (format!("room/{room}/{}", m.id), view));
                     if let Some(p) = &m.poll {
                         m.poll_view =
                             Some(p.view(&me, m.sender_account == me || moderator, &members));

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { PACK_FILE_MAX_BYTES, PACK_FILE_MEDIA_TYPE } from "@om/platform-api";
 import type { ConversationId, DecodedExpressive, ExpressiveApi, ExpressivePackFileReview, ExpressivePackItem, ExpressivePackPreview, ExpressivePicker, ExpressiveQueryResult, MessageId, PickedFile } from "@om/platform-api";
 import { resolveIntent, settledOutcome, type ConversationServices } from "../conversations/services";
@@ -81,6 +81,8 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(false);
+  const [allowUploadReuse, setAllowUploadReuse] = useState(false);
+  const exposureId = useId();
   const [reviewAttempt, setReviewAttempt] = useState(0);
   const [previewItem, setPreviewItem] = useState<{ selection: ExpressivePackItem; item: PickerItem } | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -140,6 +142,7 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
       const picker = await api.query(ctx, { kind: "picker", packId });
       if (cancelled(signal)) return;
       if (picker === null) { setStatus(copy.loadFailed); return; }
+      setAllowUploadReuse(false);
       setPanel({ kind: "items", picker });
       setStatus("");
     });
@@ -178,9 +181,12 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
       const bytes = await surface.readCached?.(ctx, item.ciphertextDigest ?? item.blobId);
       if (cancelled(signal)) return;
       if (bytes == null) { setStatus(copy.missingItem); return; }
-      const prepared = await api.prepare(ctx, selected, bytes);
+      const prepared = reactionTo === undefined && allowUploadReuse && api.blobExposure?.("shared_blob") != null
+        ? await api.prepare(ctx, selected, bytes, "shared_blob")
+        : await api.prepare(ctx, selected, bytes);
       if (cancelled(signal)) return;
       if (!prepared.ok) { setStatus(failure); return; }
+      setAllowUploadReuse(false);
       const actionId = reactionTo === undefined ? "send-sticker" : "set-custom-reaction";
       const r = resolveIntent(services, actionId, {
         conversationId, blobId: prepared.blobId, ...(reactionTo === undefined ? {} : { messageId: reactionTo, key }),
@@ -217,6 +223,8 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
     const eligible = picker.items.filter((item) => reactionTo === undefined
       ? item.kind === "sticker" || item.kind === "loop_animation"
       : (item.kind === "reaction_asset" || item.kind === "custom_emoji") && reactKey(item) !== null);
+    const exposure = reactionTo === undefined && eligible.some((item) => item.cached) && surface.readCached !== undefined
+      ? api.blobExposure?.("shared_blob") : null;
     const byId = new Map(eligible.map((item) => [item.itemId, item]));
     const recent = picker.recents.flatMap((id) => byId.get(id) ?? []);
     const groups = [
@@ -229,6 +237,14 @@ function Picker({ services, surface, conversationId, reactionTo, receivedPack, a
       <h3 tabIndex={-1} data-expressive-heading><bdi>{picker.pack.title}</bdi></h3>
       <Button variant="quiet" disabled={busy} onClick={() => { setStatus(""); setPanel({ kind: "details", picker }); }}>{copy.details(picker.pack.title)}</Button>
       {eligible.length === 0 ? <p>{copy.emptyItems}</p> : null}
+      {exposure == null ? null : <div>
+        <label>
+          <input type="checkbox" checked={allowUploadReuse} disabled={busy || pending} aria-describedby={exposureId}
+            onChange={(event) => { setAllowUploadReuse(event.currentTarget.checked); }} />
+          {copy.allowUploadReuse}
+        </label>
+        <p id={exposureId}>{copy.blobExposure[exposure.kind]}</p>
+      </div>}
       {groups.filter((group) => group.items.length !== 0).map(({ heading, items }) => (
         <section key={heading} aria-label={heading}>
           <h4>{heading}</h4>

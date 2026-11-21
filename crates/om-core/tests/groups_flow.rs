@@ -2060,6 +2060,56 @@ fn unknown_kinds_and_malformed_payloads_are_ignored_and_older_text_still_renders
     assert!(msgs(&devs[0], &conv).iter().all(|m| !m.id.is_empty()));
 }
 
+#[test]
+fn a_room_rejects_inline_type_four_from_an_authenticated_sender() {
+    use std::io::Read as _;
+    let (mut devs, conv) = room();
+    let mut corpus = String::new();
+    flate2::read::GzDecoder::new(
+        &include_bytes!("../../../verification/vectors/expressive-wire-vectors.json.gz")[..],
+    )
+    .read_to_string(&mut corpus)
+    .unwrap();
+    let json: serde_json::Value = serde_json::from_str(&corpus).unwrap();
+    let row = json["vectors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["id"] == "ConversationEvent/create-inline-custom-emoji")
+        .unwrap();
+    let bytes = om_core::crypto::unhex(row["hex"].as_str().unwrap()).unwrap();
+    let body = om_core::crypto::cbor::decode(&bytes)
+        .unwrap()
+        .get(11)
+        .unwrap()
+        .clone();
+    let plain = events::Header {
+        event_id: [0xee; 16],
+        conversation_id: conv.as_slice().try_into().unwrap(),
+        author_account: [2; 32],
+        author_device: devs[1].id().try_into().unwrap(),
+        clock: events::Hlc {
+            physical_ms: NOW + 10,
+            logical: 0,
+        },
+        kind: events::K_CREATE,
+        body,
+    }
+    .encode_full(
+        None,
+        Some(V::A(vec![V::T(om_core::expressive::INLINE.into())])),
+    );
+    assert!(om_core::expressive::decode_event(&plain, true).is_ok());
+    let wire = craft_plain(&mut devs, 1, &conv, &plain);
+    for (index, result) in deliver(&mut devs, 1, &wire) {
+        assert!(
+            dropped(&result, "unsupported_event"),
+            "device {index}: {result:?}"
+        );
+        assert!(msgs(&devs[index], &conv).is_empty());
+    }
+}
+
 // ---- mentions in a Room (ADR-0199) ------------------------------------------------------------------------------------
 
 fn mention_intent(conv: &[u8], text: &str, mentions: Vec<(usize, usize, &str)>) -> GroupIntent {
