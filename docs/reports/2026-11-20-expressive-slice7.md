@@ -1,6 +1,6 @@
 # Expressive media slice 7: hardening and first V-012 evidence
 
-This is hardening work and a first evidence pass. It is not a release, it flips no gate ledger entry, and the long fuzz budget has not been spent.
+This is hardening work and a first evidence pass. It is not a release, it flips no gate ledger entry, and the coverage-guided fuzz budget was then run (see Results, update 2026-11-21).
 
 ## Design sources read
 
@@ -55,7 +55,7 @@ Status words: met, partly met, open. "Independent" requirements are those of the
 
 | Criterion | Status | Evidence and what is left |
 | --- | --- | --- |
-| Pre-engineering 1: candidate decoders and pack parsers fuzzed for the agreed CPU-hour budget with no unresolved crash | Partly met | Harness, targets, committed seed corpus, per-input 1 second bound and a resumable CPU-hour runner exist ([fuzz harness](../../verification/prototypes/expressive-fuzz/README.md)). Smoke only: see results. No finding in the smoke runs. The 24 CPU-hours per target, the coverage-guided runs under a sanitizer and the second independently implemented fuzzer (AFL++) are open. |
+| Pre-engineering 1: candidate decoders and pack parsers fuzzed for the agreed CPU-hour budget with no unresolved crash | Partly met | Harness, targets, committed seed corpus, per-input 1 second bound and a resumable CPU-hour runner exist ([fuzz harness](../../verification/prototypes/expressive-fuzz/README.md)). Coverage-guided libFuzzer runs under a sanitizer spent 120.2 CPU-hours (12 per WebP/facts/asset-ref/event target, 24 each for release, control-state and pack-file) with no finding. The second independently implemented fuzzer (AFL++) and a browser-path run are open. |
 | Pre-engineering 2: canonical ContentPack manifest and signature vectors agree across two implementations | Partly met | Earlier evidence: the frozen vectors ([vectors](../../verification/vectors/expressive-wire-vectors.json.gz), [method](../../verification/prototypes/expressive-wire/run.sh)) are replayed by the product codec (`om-codec` test `expressive_vectors`, re-run here) and by an independently written Node harness; the pack-file vectors are produced by Node and re-decoded by Core. The full `run.sh` was not re-run in this pass. |
 | Pre-engineering 3: ADR-0156 wire freeze for inline type 4, ReactionSet key 3 and `ExpressiveAssetRef` | Partly met | Frozen CDDL, registries and positive and negative vectors exist ([CDDL](../../spec/cddl/expressive.cddl), [ADR-0252](../../decisions/ADR-0252-expressive-media-wire-freeze-and-delegated-constructions.md)), and two codecs agree on them per the earlier slices. Not re-verified in this pass beyond the `expressive_vectors` run, and the ledger's independence requirement for this phase is untouched. |
 | Pre-release 1: shipped parsers under continuous fuzzing | Open | No continuous fuzzing is configured. The runner and targets are the starting point. |
@@ -86,7 +86,7 @@ Results as run on the authoring host unless noted.
 
 ## Open
 
-- The ADR-0251 budget: at least 96 CPU-hours under libFuzzer with a sanitizer, plus 24 for the pack-file target, on the build host.
+- Done 2026-11-21: the ADR-0251 budget (120.2 CPU-hours under libFuzzer with a sanitizer on the build host, no finding). Summary: [expressive-fuzz-latest.json](../../verification/results/expressive-fuzz-latest.json). Still open: AFL++ second fuzzer.
 - The second independent fuzzer (AFL++) over the same targets. The entry points are tool-neutral.
 - The libFuzzer targets were not built in the authoring environment because the `arbitrary` crate is not in the offline cargo cache. They are one-line wrappers, but a first build is unverified.
 - Seeds that reach a fully accepted `ConversationEvent` (a real signed event with a matching device tiebreak) would improve depth for the `event` target.
