@@ -71,6 +71,8 @@ interface Spec { readonly destructive: boolean; readonly parse: (p: Rec, ctx: Pr
 
 const ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 const MAX_TEXT = 65536;
+/** The reference client's Room cap allows 31 invitees and the creator. */
+export const MAX_NEW_GROUP_INVITEES = 31;
 /** The recovery approval link (ADR-0203): its own prefix, never an enrollment link. */
 export const RECOVERY_APPROVAL_LINK = /^om:recover-approve\/[A-Za-z0-9_-]{16,200}$/;
 const id = (v: unknown): string | null => (typeof v === "string" && ID.test(v) ? v : null);
@@ -246,7 +248,7 @@ const SPECS: Readonly<Record<string, Spec>> = {
   // a suggestion (Omnibar, learned rank) cannot start, answer or leave a group. Leave and remove are consequential: the screen states the scope first.
   "group-create": { destructive: false, parse: (p) => {
     const name = p["name"]; const rel = p["relationshipIds"]; const level = p["protection"];
-    if (!exactly(p, level === undefined ? ["name", "relationshipIds"] : ["name", "relationshipIds", "protection"]) || typeof name !== "string" || name.length > 64 || !Array.isArray(rel) || rel.length < 1 || rel.length > 31) return null;
+    if (!exactly(p, level === undefined ? ["name", "relationshipIds"] : ["name", "relationshipIds", "protection"]) || typeof name !== "string" || name.length > 64 || !Array.isArray(rel) || rel.length < 1 || rel.length > MAX_NEW_GROUP_INVITEES) return null;
     const ids: string[] = [];
     for (const r of rel as unknown[]) { const v = id(r); if (v === null || ids.includes(v)) return null; ids.push(v); }
     const relationshipIds = ids.map(asConversationId);

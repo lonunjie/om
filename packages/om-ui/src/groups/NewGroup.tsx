@@ -1,6 +1,7 @@
 import { shownName } from "../conversations/shownName";
 import { useState } from "react";
 import type { ConversationSummary, GroupProtectionLevel } from "@om/platform-api";
+import { MAX_NEW_GROUP_INVITEES } from "../actions/registry";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import { Avatar } from "../conversations/Avatar";
@@ -36,6 +37,10 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
   const submit = async (e: { preventDefault: () => void }): Promise<void> => {
     e.preventDefault();
     if (busy || picked.size === 0) return;
+    if (picked.size > MAX_NEW_GROUP_INVITEES) {
+      setProblem(copy.refused("group_full"));
+      return;
+    }
     setBusy(true);
     setProblem(null);
     const chosen = eligible.filter((x) => picked.has(x.id)).map((x) => shownName(x));

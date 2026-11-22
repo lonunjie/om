@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ConversationSummary, GroupInviteView, GroupRejoinView } from "@om/platform-api";
 import { asConversationId, asGroupId, asOperationId, asPersonId, asProfileId } from "@om/platform-api";
-import { createHarness } from "@om/core-harness";
+import { createHarness, type SeedConversation } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { useConversationList, type ConversationServices } from "../conversations/index";
 import { GroupChat, GroupComposer, GroupInvites, GroupRejoinRequests, GroupRejoinReview, GroupStatus, HeldGroupInvites, NO_STATES, NewGroup, groupApiOf, reduceGroupStates, runGroupAction, useGroupEvents, useGroups, useHeldGroupInvites } from "./index";
@@ -26,12 +26,12 @@ const OTHER = asProfileId("other");
 const ANA = asConversationId("c-ana");
 const BEN = asConversationId("c-ben");
 
-function setup() {
+function setup(conversations: readonly SeedConversation[] = [
+  { id: ANA, personId: asPersonId("p-ana"), displayName: "Ana", messages: [] },
+  { id: BEN, personId: asPersonId("p-ben"), displayName: "Ben", messages: [] },
+]) {
   const h = createHarness({ env: {}, clock: () => 1000 });
-  h.seedProfile({ profileId: ME, label: "Me", conversations: [
-    { id: ANA, personId: asPersonId("p-ana"), displayName: "Ana", messages: [] },
-    { id: BEN, personId: asPersonId("p-ben"), displayName: "Ben", messages: [] },
-  ] });
+  h.seedProfile({ profileId: ME, label: "Me", conversations });
   h.seedProfile({ profileId: OTHER, label: "Other", conversations: [] });
   let n = 0;
   const registry = createActionRegistry({ newOperationId: () => asOperationId(`op-${String(++n)}`) });
@@ -80,6 +80,25 @@ describe("groups UI on the loopback harness", () => {
     await userEvent.click(screen.getByRole("button", { name: /Create group/ }));
     expect(await screen.findByRole("button", { name: "Book club (1+1)" })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("shows when a new group is full and keeps the selection so one person can be unchecked", async () => {
+    const { services } = setup(Array.from({ length: 32 }, (_, i) => ({
+      id: asConversationId(`c-limit-${String(i)}`), personId: asPersonId(`p-limit-${String(i)}`), displayName: `Contact ${String(i)}`, messages: [],
+    })));
+    const user = userEvent.setup();
+    render(<Screen services={services} />);
+    await user.type(await screen.findByLabelText("Group name"), "At the limit");
+    const people = await screen.findAllByRole<HTMLInputElement>("checkbox");
+    for (const person of people) await user.click(person);
+    await user.click(screen.getByRole("button", { name: /Create group/ }));
+    expect(screen.getByRole("alert").textContent).toBe("Refused: group_full");
+    expect(screen.queryByRole("button", { name: /At the limit/ })).toBeNull();
+    expect(people.filter((person) => person.checked)).toHaveLength(32);
+
+    await user.click(screen.getByRole("checkbox", { name: /Contact 31/ }));
+    await user.click(screen.getByRole("button", { name: /Create group/ }));
+    expect(await screen.findByRole("button", { name: "At the limit (1+31)" })).toBeTruthy();
   });
 
   it("accept an invitation, then send and receive", async () => {

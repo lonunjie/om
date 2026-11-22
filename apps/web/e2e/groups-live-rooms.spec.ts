@@ -15,6 +15,36 @@ test.setTimeout(240_000);
 const everyone: Person[] = [];
 test.afterEach(async () => { await closeAll(everyone.splice(0)); });
 
+test("New group is reachable from the Omnibar and Chats", async ({ browser }) => {
+  const alice = await startPerson(browser, "Alice");
+  everyone.push(alice);
+  const bob = await joinByLink(browser, "Bob", await firstLink(alice), alice);
+  everyone.push(bob);
+
+  await alice.page.getByRole("option", { name: /Bob/ }).click();
+  await alice.page.keyboard.press("Control+K");
+  const omni = alice.page.getByRole("dialog", { name: "Omnibar" });
+  await omni.getByRole("combobox").fill("New group");
+  await omni.getByRole("option", { name: /^New group\b/ }).click();
+
+  const sheet = alice.page.getByRole("dialog", { name: "New group", exact: true });
+  await expect(sheet.getByRole("checkbox", { name: /Bob/ })).toBeVisible({ timeout: 60_000 });
+  await sheet.getByLabel("Group name (optional)").fill("Weekend plans");
+  await sheet.getByRole("checkbox", { name: /Bob/ }).check();
+  await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(sheet).toBeHidden();
+  await expect(alice.page.getByRole("option", { name: /Weekend plans/ })).toHaveCount(0);
+
+  await alice.page.getByRole("button", { name: "New group", exact: true }).click();
+  await expect(sheet.getByLabel("Group name (optional)")).toHaveValue("");
+  await expect(sheet.getByRole("checkbox", { name: /Bob/ })).not.toBeChecked();
+  await sheet.getByLabel("Group name (optional)").fill("Weekend plans");
+  await sheet.getByRole("checkbox", { name: /Bob/ }).check();
+  await sheet.getByRole("button", { name: /^Create group/ }).click();
+  await openGroup(alice, "Weekend plans");
+  await expect(alice.page).toHaveURL(/\/chats#[0-9a-f]+$/);
+});
+
 test("a Hardened Room: created with the level, tightened at once, loosened only after a confirmation, and the other member sees who made it less strict", async ({ browser }) => {
   const alice = await startPerson(browser, "Alice");
   everyone.push(alice);
@@ -61,6 +91,11 @@ test("a Hardened Room: created with the level, tightened at once, loosened only 
   await expect(line.getByText("Less strict")).toBeVisible();
   // The tightening to Maximum Privacy was announced too, and Bob can still talk.
   await expect(roomLog(bob).getByText("Alice changed the protection level: now Maximum Privacy.")).toBeVisible();
+  await bob.page.reload();
+  await reopen(bob.page);
+  await expect(line).toBeVisible({ timeout: 60_000 });
+  await expect(line).toHaveCount(1);
+  await expect(line.getByText("Less strict")).toBeVisible();
   await say(bob, "seen it");
   await hears(alice, "seen it");
   expectSealedOnly(alice, [/first words|seen it|Planning/]);
