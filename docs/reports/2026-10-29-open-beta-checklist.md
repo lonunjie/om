@@ -25,6 +25,21 @@
 
 Escalate one way only: Haiku fails twice -> Sonnet; Sonnet blocked -> ask the operator about Opus.
 
+## Status refresh, 2026-11-22 (read this before the 2026-10-29 sections below)
+
+The sections below are the 2026-10-29 record and are kept as written, with ticks as they were. What has changed, checked 2026-11-22:
+
+- **Live:** the beta is live at <https://om.lonunjie.org>; its `bundle-manifest.json` reports version 0.0.12 (last web release 2026-11-04, `4772620`). Everything built after that, including Rooms, calls, stickers, alerts and the newer recovery flows, is on `main` and not released. `om-open-beta-1` still lists only `core_kernel`, `provider_reference`, `reference_client_ui` and no claims.
+- **C4 closed:** the stale `registry/repos.toml` purpose line for `om` and the README "Status" section were rewritten on 2026-11-22. Still not in any repo and for the operator to check: social bios, the GitHub repository description.
+- **D4 (Deploy button test) and the real first-run test with a person's own Cloudflare and GitHub accounts:** still not run by a person. A hermetic rehearsal is a separate agent slice; it does not replace the run.
+- **D5 (GitHub release with the signed zip):** still open. `gh release list -R lonunjie/om` returned no releases and the repository has no non-checkpoint tags.
+- **D6 (device link, recovery, signed-prekey rotation):** device linking shipped in 0.0.11. Owner recovery flows and prekey rotation are built on `main` and not released. The "client keeps rejecting them" note below applies to the older builds only.
+- **D7 (PQ epoch phase C), D8 (relay WAF rules):** not re-checked in this pass.
+- **E2 (second Opus audit), E3 (V-006 device run, V-018 round 1, counsel, human crypto review), E4:** not re-checked; the operator owns them. V-006 and V-018 remain open pre-release items ([evidence index](2026-11-22-evidence-index.md)).
+- **Gates:** state of V-007, V-012 and PR-001 to PR-014 is indexed in [`2026-11-22-evidence-index.md`](2026-11-22-evidence-index.md); nothing was flipped.
+- **Draft user-facing page:** [`SUPPORT_MATRIX_AND_FAQ.md`](../process/SUPPORT_MATRIX_AND_FAQ.md), for operator review before anything is published to the site.
+- **Operator decision still needed to ship more than the beta:** a release declaration naming which of groups, calls and expressive media (and which claims) a release offers, after the real-device checks.
+
 ## Checklist
 
 ### A. Done 2026-10-29

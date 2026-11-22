@@ -5646,6 +5646,13 @@
       "authority": "historical_index"
     },
     {
+      "path": "docs/checkpoints/SNAPSHOT_HISTORY.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_index"
+    },
+    {
       "path": "docs/constitution/CONSTITUTION_DIGEST.md",
       "class": "architecture_doc",
       "domain": "constitution_governance",
@@ -5882,6 +5889,13 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/SUPPORT_MATRIX_AND_FAQ.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
     },
     {
       "path": "docs/process/WORK_PACKAGE_CHECKLIST.md",
@@ -6319,6 +6333,13 @@
     },
     {
       "path": "docs/reports/2026-11-21-recovery-parser-fuzz.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-22-evidence-index.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

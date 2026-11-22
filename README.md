@@ -32,6 +32,16 @@ The deploy template is at <https://github.com/lonunjie/om-relay>. The Core is wr
 Chats are end-to-end encrypted by design. No human cryptographer has audited OM, we make no security claims, and data may
 be lost during the beta ([`SECURITY.md`](SECURITY.md)). Beta waivers: [ADR-0183](decisions/ADR-0183-open-beta-release-waivers.md).
 
+What the open beta release contains: one-to-one chats, device linking, a password-sealed chat-history backup file,
+attachments, voice notes, location cards and on-device search. What is built in this repository but not in any release
+yet: Rooms (groups), one-to-one calls, stickers and custom reactions, closed-app alerts and the newer recovery flows.
+Those stay off in the public build until a release declares them, and each still has open verification work. Group calls,
+typing indicators, discovery by phone number or username, and a second delivery-service implementation are not built.
+Nothing has been tested on real phones for push, calls or stickers yet. The plain-language list is in
+[`SUPPORT_MATRIX_AND_FAQ.md`](docs/process/SUPPORT_MATRIX_AND_FAQ.md) (a draft), the current checkpoint is
+[`SNAPSHOT.md`](SNAPSHOT.md) and the evidence status is in
+[`2026-11-22-evidence-index.md`](docs/reports/2026-11-22-evidence-index.md).
+
 ## Reading the design
 
 | If you want… | Start with |
