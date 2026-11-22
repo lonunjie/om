@@ -117,18 +117,22 @@ describe("English copy catalog", () => {
     expect(relay.map(([, s]) => s).join("\n")).not.toMatch(/\bHome\b/); // "a computer at home" is plain speech; the technical name "Home" is not
     expect(onboardingCopy.relay.ownFree).toBe("Set up my own, free");
     expect(onboardingCopy.relay.cloudflare.uses).toMatch(/Cloudflare/);
-    // 2026-11-14 (D30): the accounts page and the steps. The value box is named the way the person reads it, with the form's own short name given as the same box.
+    // The walkthrough still needs to confirm which label is visible and which account options are offered.
     const c = onboardingCopy.relay.cloudflare;
-    expect(c.steps.some((x) => /box named OM setup value/.test(x) && /OM_ADMISSION/.test(x))).toBe(true);
+    expect(c.steps.some((x) => /OM setup value/.test(x) && /OM_ADMISSION/.test(x))).toBe(true);
     expect(c.steps.join("\n").replaceAll("OM_ADMISSION", "")).not.toMatch(/\bOM_|ADMISSION/);
-    expect(c.accounts.cloudflare.body).toMatch(/Cloudflare/);
+    expect(c.accounts.cloudflare.heading).toMatch(/Cloudflare/);
+    expect(c.accounts.cloudflare.body).toMatch(/cloudflare\.com/);
+    expect(c.accounts.cloudflare.body).toMatch(/Stop if setup asks for payment details/);
     expect(c.accounts.git.body).toMatch(/GitHub/);
     expect(c.accounts.git.shareAdvice).toMatch(/new free GitHub account/);
-    expect(c.accounts.git.shareAdvice).toMatch(/all of its repositories/);
+    expect(c.accounts.git.shareAdvice).toMatch(/all repositories.*that separate account/);
     expect(c.accounts.confirm).toBe("I have it");
-    expect(c.accounts.unverified).toMatch(/not yet walked through/); // honest about what was not checked
-    expect(c.accounts.git.body).not.toMatch(/GitLab[^.]*(works|supported)\b/); // GitLab support is not claimed
-    expect(c.accounts.git.body).toMatch(/GitLab may work too, but we have not tried it/);
+    expect(c.accounts.unverified).toMatch(/not yet walked through/);
+    expect(c.accounts.git.body).toMatch(/GitLab if Cloudflare offers it/);
+    expect(c.accounts.git.body).toMatch(/not yet tested that setup/);
+    expect(c.accounts.git.body).toMatch(/If neither option is available/);
+    expect(c.openAgain).toMatch(/Check what the new tab asks you to do/);
   });
   it("the Advanced delivery-service copy says \"delivery service\" and never the technical names", () => {
     const text = all("h.advanced", homeCopy.advanced).filter(([path]) => path !== "h.advanced.add.relay.cloudflare.addressExample" && !path.startsWith("h.advanced.add.relay.cloudflare.steps")).map(([, s]) => s).join("\n");

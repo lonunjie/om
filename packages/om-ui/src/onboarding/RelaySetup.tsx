@@ -84,6 +84,10 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
   }
 
   function check(): void {
+    if (/^[0-9a-f]{64}$/i.test(text.trim())) {
+      setSaid({ text: copy.setup.setupValueInAddress, problem: true });
+      return;
+    }
     const mine = ++ticket.current;
     setSaid(undefined);
     setBusy("checking");
@@ -179,7 +183,19 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
             )}
           </div>
         ) : null}
-        {services.deployUrl === undefined || value.k !== "ready" ? null : <Text as="p" size="sm" tone="secondary">{copy.cloudflare.openAgain}</Text>}
+        {services.deployUrl === undefined || value.k !== "ready" ? null : (
+          <>
+            <Text as="p" size="sm" tone="secondary">{copy.cloudflare.openAgain}</Text>
+            <details className="om-onb__more">
+              <summary>{copy.cloudflare.help.heading}</summary>
+              <Text as="p">{copy.cloudflare.help.repositoryAccess}</Text>
+              <Text as="p">{copy.cloudflare.help.gitLabUnavailable}</Text>
+              <Text as="p">{copy.cloudflare.help.quota}</Text>
+              <Text as="p">{copy.cloudflare.help.failed}</Text>
+              <Text as="p">{copy.cloudflare.help.wrongValue}</Text>
+            </details>
+          </>
+        )}
         {copied === "done" ? <Text as="p" role="status" className="om-onb__copied">{s.copied}</Text> : null}
         {copied === "failed" ? <Text as="p" role="alert">{s.copyFailed}</Text> : null}
         {services.deployUrl === undefined ? <Text as="p" role="note">{copy.cloudflare.notReady}</Text> : null}

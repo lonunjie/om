@@ -209,7 +209,27 @@ export interface RelaySetupCopy {
   /** Choices that are listed and not built yet: plain text, never a control. */
   readonly later: { readonly items: readonly string[] };
   /** The only strings that may name a vendor. */
-  readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; /** Said under the button: it can be used again when the person lands somewhere else or the page stops. */ readonly openAgain: string; readonly notReady: string; /** The page before the setup link: the two accounts the person needs first, each with its own short step. */ readonly accounts: RelayAccountsCopy };
+  readonly cloudflare: {
+    readonly uses: string;
+    readonly steps: readonly string[];
+    readonly addressExample: string;
+    /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key and give the reason. */
+    readonly protect: string;
+    readonly open: string;
+    readonly opensNewTab: string;
+    readonly openAgain: string;
+    /** Guidance for outcomes seen in the other tab. OM cannot observe those outcomes. */
+    readonly help: {
+      readonly heading: string;
+      readonly repositoryAccess: string;
+      readonly gitLabUnavailable: string;
+      readonly quota: string;
+      readonly failed: string;
+      readonly wrongValue: string;
+    };
+    readonly notReady: string;
+    readonly accounts: RelayAccountsCopy;
+  };
   readonly setup: {
     readonly heading: string;
     readonly valueLabel: string;
@@ -221,6 +241,7 @@ export interface RelaySetupCopy {
     readonly copyFailed: string;
     readonly addressLabel: string;
     readonly addressHint: string;
+    readonly setupValueInAddress: string;
     readonly check: string;
     readonly checking: string;
     readonly saveFailed: string;

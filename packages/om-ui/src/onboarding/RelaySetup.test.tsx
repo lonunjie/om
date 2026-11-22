@@ -149,6 +149,25 @@ describe("RelaySetup (first run, ADR-0186)", () => {
     expect(r.connect).toHaveBeenCalledWith("https://mine.example");
   });
 
+  it("recognizes a setup value in the address field before probing and preserves the input", async () => {
+    const r = mount();
+    await pickOwn();
+    const field = screen.getByLabelText<HTMLInputElement>(copy.setup.addressLabel);
+    const pasted = ` ${HEX.toUpperCase()} `;
+    await userEvent.type(field, pasted);
+    await userEvent.click(screen.getByRole("button", { name: copy.setup.check }));
+    expect((await screen.findByRole("alert")).textContent).toBe(copy.setup.setupValueInAddress);
+    expect(field.value).toBe(pasted);
+    expect(r.probe).not.toHaveBeenCalled();
+    expect(r.connect).not.toHaveBeenCalled();
+    expect(r.done).not.toHaveBeenCalled();
+    await userEvent.clear(field);
+    await userEvent.type(field, "https://mine.example");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: copy.setup.check }));
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
+  });
+
   it.each<[string, HomeProbeResult, string]>([
     ["unreachable", { kind: "unreachable" }, copy.result.unreachable],
     ["not a delivery service", { kind: "not_a_home" }, copy.result.notAHome],

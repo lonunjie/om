@@ -22,6 +22,7 @@ Every earlier design checkpoint is a git commit tagged `checkpoint/YYYYMMDD-HHMM
 | [`research/`](research/) | Dated external references behind decisions. Research informs; it is not normative. |
 | [`ux-design/`](ux-design/) | Reconciled UI/UX system: journeys, semantic contracts, tokens, icons/media assets, prototypes, validation and architecture reconciliation records. |
 | [`reports/`](reports/) | Working reports from reviews and operator sessions. |
+| [`operator/`](operator/) | Scripts for hands-on verification. |
 
 Normative protocol schemas live in [`spec/`](../spec/), executable evidence in [`verification/`](../verification/README.md), and machine-checked project state in [`machine/`](../machine/).
 
