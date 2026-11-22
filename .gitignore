@@ -15,6 +15,7 @@ dist-types/
 coverage/
 playwright-report/
 test-results/
+test-results-*/
 *.tsbuildinfo
 .vite/
 target/

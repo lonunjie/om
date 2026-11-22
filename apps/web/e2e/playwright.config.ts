@@ -64,7 +64,7 @@ export default defineConfig({
     // Firefox gets one retry: in calls.spec.ts, about one run in eight, the ICE restart after the emulated offline blip does not finish inside the 20 s limit (the call then fails honestly). A retried pass is reported as "flaky", never hidden.
     { name: "firefox", use: { ...devices["Desktop Firefox"], launchOptions: { firefoxUserPrefs: firefoxMediaPrefs } }, testIgnore: OTHER_ENGINE_IGNORE, retries: 1 },
     // WebKit gets one retry (Firefox one, for a call-recovery reason above): on a loaded macOS host it intermittently times out a test that passes alone (lock, the long three-person Rooms run,
-    // peer-recovery confirm); every such test passed in isolation and on Chromium and Firefox. A retried pass is reported as "flaky", never hidden.
+    // peer-recovery confirm); every such test passed in isolation and on Chromium and Firefox. A retried pass is reported as "flaky", never hidden. (The 2026-11-23 full run on emeth4 had two such cases, a WebKit "Page crashed" and a closed WebKit context; both passed on the retry.)
     { name: "webkit", use: { ...devices["Desktop Safari"] }, testIgnore: OTHER_ENGINE_IGNORE, retries: 1 },
     ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-(relay|invite)\.spec\.ts/, timeout: 240_000 }] : []),
   ],
