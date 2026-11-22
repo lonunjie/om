@@ -175,7 +175,7 @@ fn chunk<'a>(input: &mut &'a [u8]) -> Result<(&'a [u8], &'a [u8]), Error> {
     let (head, rest) = input.split_at_checked(8).ok_or("truncated_chunk")?;
     let n = u32::from_le_bytes(head[4..8].try_into().unwrap()) as usize;
     let (payload, mut tail) = rest.split_at_checked(n).ok_or("chunk_size")?;
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         let (padding, after) = tail.split_first().ok_or("truncated_chunk")?;
         if *padding != 0 {
             return Err("chunk_padding");

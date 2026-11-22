@@ -269,7 +269,7 @@ fn approval_preserves_the_independent_checkpoint_when_the_record_tail_is_short()
     let Parsed::Sheet(sheet) = parse(&w.sheet).unwrap() else {
         panic!("sheet")
     };
-    let mut pin = sheet.checkpoint.clone().unwrap();
+    let mut pin = sheet.checkpoint.unwrap();
     pin.acs_hash = [9; 32];
     let different_pin =
         Sheet::full_v2(*sheet.root().unwrap(), SCOPE, sheet.port, &sheet.host, pin).unwrap();

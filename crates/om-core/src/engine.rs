@@ -2176,6 +2176,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
     }
 
     /// Issue one validated digest and ciphertext for the host's profile-local cache write.
+    #[allow(clippy::type_complexity)] // public signature; the nested result is the established API shape
     pub fn stage_pack_blob(
         &mut self,
         ctx: &ProfileExecutionContext,

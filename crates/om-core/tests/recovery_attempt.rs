@@ -1979,7 +1979,10 @@ mod room_rejoin {
             .clone();
         let (mut w, mut f, _) = recover_with_contact(w, true);
         let relationship = reconnect(&mut w, &mut f);
-        assert_eq!(rejoin(&f.rt, &f.ctx).contacts, [relationship.clone()]);
+        assert_eq!(
+            rejoin(&f.rt, &f.ctx).contacts,
+            std::slice::from_ref(&relationship)
+        );
 
         let ask = |hint: &str| GroupIntent::AskToRejoin {
             relationship_id: relationship.clone(),

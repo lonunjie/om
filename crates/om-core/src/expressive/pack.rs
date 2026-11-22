@@ -209,6 +209,7 @@ impl Control {
         })
     }
 
+    #[allow(clippy::type_complexity)] // private one-use tuple; an alias would add no clarity
     fn verify(
         envelope: &[u8],
         parent: Option<&Self>,

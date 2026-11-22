@@ -204,6 +204,7 @@ impl AppState {
         })
     }
 
+    #[allow(clippy::too_many_arguments)] // internal call shape shared with the other group flows
     pub(super) fn group_record_rejoin(
         &mut self,
         ctx: &GroupCtx<'_>,

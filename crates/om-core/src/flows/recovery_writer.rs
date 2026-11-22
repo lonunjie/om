@@ -404,6 +404,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             let covered = w.acked_head_hash.as_deref() == Some(head_hash.as_str())
                 || staged_acs == Some(head.generation);
             let quiet = now.saturating_sub(w.last_write_ms);
+            // The two refresh triggers are kept as separate, individually documented conditions.
+            #[allow(clippy::if_same_then_else)]
             if steward && !covered && now.saturating_sub(w.head_seen_ms) >= STEWARD_DELAY_MS {
                 slot = Some(w.refresh + 1);
             } else if steward

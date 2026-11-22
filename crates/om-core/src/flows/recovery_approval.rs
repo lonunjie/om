@@ -812,10 +812,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             // An identical repeat of the reply is a no-op; a different one ends the exchange (ADR-0226 section 5).
             (LinkState::Transferring, Some(ra::TYPE_REPLY)) => {
-                if let Some((_, raw)) = ra::Reply::from_bytes(&pt) {
-                    if join.descriptor.as_deref() != Some(hex(&raw).as_str()) {
-                        self.approval_end(LinkState::Failed);
-                    }
+                if let Some((_, raw)) = ra::Reply::from_bytes(&pt)
+                    && join.descriptor.as_deref() != Some(hex(&raw).as_str())
+                {
+                    self.approval_end(LinkState::Failed);
                 }
             }
             // An early chunk may be dropped; anything else is not part of this exchange.

@@ -142,6 +142,8 @@ impl Rules {
             .any(|p| p["id"] == id)
     }
 
+    // Test-only builder mirroring the claim fields one to one.
+    #[allow(clippy::too_many_arguments)]
     fn claims(
         &self,
         kind: u64,

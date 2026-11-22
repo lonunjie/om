@@ -462,7 +462,7 @@ fn absolute_file_size_accepts_exactly_32_mib_and_rejects_one_more() {
     let mut exact = om_codec::encode(&unsigned(
         items,
         blobs,
-        if excess % 2 == 0 {
+        if excess.is_multiple_of(2) {
             "Boundary"
         } else {
             "Boundar"

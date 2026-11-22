@@ -934,7 +934,7 @@ fn a_room_of_strangers_survives_join_add_leave_and_restart() {
         }
         ps[1].restart();
         for p in &ps {
-            assert_eq!(p.detail(&conv).summary.members as usize, size);
+            assert_eq!(p.detail(&conv).summary.members, size);
         }
         all_talk(&mut ps, &conv);
         let expected: Vec<_> = (0..size).map(|i| format!("from {i}")).collect();
@@ -952,7 +952,7 @@ fn a_room_of_strangers_survives_join_add_leave_and_restart() {
         drain(&mut ps, 0);
         assert_eq!(ps[size - 1].groups(), 0);
         for p in &ps[..size - 1] {
-            assert_eq!(p.detail(&conv).summary.members as usize, size - 1);
+            assert_eq!(p.detail(&conv).summary.members, size - 1);
         }
     }
 }

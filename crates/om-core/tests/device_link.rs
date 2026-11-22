@@ -1665,7 +1665,7 @@ fn first_call_answer_selects_one_of_three_independent_offers() {
             let key = rel
                 .my_delivery
                 .iter()
-                .find(|key| unhex(&key.public.key_id).unwrap().as_slice() == &key_id)?;
+                .find(|key| unhex(&key.public.key_id).unwrap().as_slice() == key_id)?;
             let inner = delivery::open(
                 bytes,
                 &unhex(&key.seed).unwrap().try_into().unwrap(),

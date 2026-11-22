@@ -18,7 +18,7 @@ fn chunk(tag: &[u8; 4], payload: &[u8]) -> Vec<u8> {
     let mut out = tag.to_vec();
     out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     out.extend_from_slice(payload);
-    if payload.len() % 2 != 0 {
+    if !payload.len().is_multiple_of(2) {
         out.push(0);
     }
     out
