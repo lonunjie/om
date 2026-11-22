@@ -146,3 +146,95 @@ describe("exact lease retries and the hard meter", () => {
     } finally { await home.dispose(); }
   }, 180_000);
 });
+
+// The adapter contract (infra/MEDIA_TURN_ADAPTER_CONTRACT.md): every way a backend can answer maps to one client-visible outcome,
+// identically on the Cloudflare Home (a service binding) and on the SQLite Home (a Unix socket). These cases run on every
+// target of `pnpm conformance:provider`, so a difference between the two adapters fails here.
+describe("media backend adapter contract", () => {
+  const now = () => Math.floor(Date.now() / 1000);
+  const good = (extra: Record<string, unknown> = {}) => ({ urls: ["turn:turn.example:3478?transport=udp"], username: "u", credential: "c", expires_at: now() + 60, ...extra });
+  const hex16 = (n: number): string => n.toString(16).padStart(32, "0");
+  const errorOf = async (reply: Response) => decodeHomeError(new Uint8Array(await reply.arrayBuffer())).name;
+  const seen: { method: string; type: string | null; body: string }[] = [];
+  /** Each case is one request id; the backend answers by id so one Home serves the whole table. */
+  const answers = new Map<string, (signal: AbortSignal) => Response | Promise<Response>>();
+  const backend = async (request: Request): Promise<Response> => {
+    const text = await request.text();
+    seen.push({ method: request.method, type: request.headers.get("content-type"), body: text });
+    const id = (JSON.parse(text) as { request_id: string }).request_id;
+    return (answers.get(id) ?? (() => new Response(null, { status: 500 })))(request.signal);
+  };
+  let home: Home;
+  beforeAll(async () => { home = await startHome({ vars: { ...(await vars()), OM_MEDIA_STUN: "stun:turn.example:3478" }, media: backend }); }, 120_000);
+  afterAll(async () => { await home.dispose(); });
+
+  it("passes the backend nothing but the request id, as JSON, and never the owner's admission", async () => {
+    answers.set(hex16(1), () => Response.json(good()));
+    seen.length = 0;
+    expect((await issue(home, hex16(1))).status).toBe(200);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.method).toBe("POST");
+    expect(seen[0]?.type).toMatch(/^application\/json/);
+    expect(seen[0]?.body).toBe(JSON.stringify({ request_id: hex16(1) }));
+  });
+
+  const malformed: [string, () => Response][] = [
+    ["a lease valid for longer than 600 seconds", () => Response.json(good({ expires_at: now() + 601 }))],
+    ["a lease that has already expired", () => Response.json(good({ expires_at: now() - 1 }))],
+    ["no server URL", () => Response.json(good({ urls: [] }))],
+    ["a URL that is not a TURN URL", () => Response.json(good({ urls: ["https://turn.example/"] }))],
+    ["more than eight URLs", () => Response.json(good({ urls: Array.from({ length: 9 }, () => "turn:turn.example:3478") }))],
+    ["a credential with a space in it", () => Response.json(good({ credential: "a b" }))],
+    ["a missing username", () => Response.json({ urls: ["turn:turn.example:3478"], credential: "c", expires_at: now() + 60 })],
+    ["a reply that is not JSON", () => new Response("not json", { status: 200 })],
+    ["an empty reply", () => new Response(null, { status: 200 })],
+    ["a reply larger than 4096 bytes", () => Response.json(good({ credential: "x".repeat(200), pad: "y".repeat(4200) }))],
+    ["a server error", () => new Response(null, { status: 500 })],
+    ["a redirect", () => new Response(null, { status: 307, headers: { location: "https://elsewhere.example/lease" } })],
+    ["an unexpected refusal code", () => new Response(null, { status: 403 })],
+  ];
+  it.each(malformed)("answers `retryable`, with no lasting refusal, for %s", async (_label, answer) => {
+    const id = hex16(100 + malformed.findIndex(([label]) => label === _label));
+    answers.set(id, answer);
+    const first = await issue(home, id);
+    expect(first.status).toBe(503);
+    expect(await errorOf(first)).toBe("retryable");
+    // The failure is not remembered as a verdict: the exact retry reaches the backend again and can be served.
+    answers.set(id, () => Response.json(good()));
+    expect((await issue(home, id)).status).toBe(200);
+  }, 60_000);
+
+  it("maps a budget refusal to `quota` and an expired reservation to `expired`, remembering each", async () => {
+    answers.set(hex16(2), () => new Response(null, { status: 429 }));
+    answers.set(hex16(3), () => new Response(null, { status: 410 }));
+    expect(await errorOf(await issue(home, hex16(2)))).toBe("quota");
+    expect(await errorOf(await issue(home, hex16(3)))).toBe("expired");
+    // The determined outcome is answered from the Home's own table: the backend is not asked again, even if it would now say yes.
+    answers.set(hex16(2), () => Response.json(good()));
+    answers.set(hex16(3), () => Response.json(good()));
+    seen.length = 0;
+    expect(await errorOf(await issue(home, hex16(2)))).toBe("quota");
+    expect(await errorOf(await issue(home, hex16(3)))).toBe("expired");
+    expect(seen).toHaveLength(0);
+  });
+
+  it("gives up on a backend that does not answer within five seconds", async () => {
+    // A backend honours the cancellation it is given, as the socket adapter's does; the Home must give up after five seconds either way.
+    answers.set(hex16(4), (signal) => new Promise<Response>((resolve, reject) => {
+      const timer = setTimeout(() => { resolve(Response.json(good())); }, 8000);
+      signal.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("cancelled")); }, { once: true });
+    }));
+    const started = Date.now();
+    expect(await errorOf(await issue(home, hex16(4)))).toBe("retryable");
+    expect(Date.now() - started).toBeLessThan(7500);
+  }, 30_000);
+
+  it("rejects a request body that is not exactly one 16-byte id, before the backend is asked", async () => {
+    seen.length = 0;
+    const post = (body: Uint8Array) => home.fetch(path, { method: "POST", headers: { "content-type": "application/cbor", "om-admission": toBase64Url(owner) }, body: asBody(body) });
+    expect((await post(new Uint8Array([0xa0]))).status).toBe(400);
+    expect((await post(encodeTurnRequest(new Uint8Array(15)))).status).toBe(400);
+    expect((await home.fetch(path, { method: "GET", headers: { "om-admission": toBase64Url(owner) } })).status).toBe(400);
+    expect(seen).toHaveLength(0);
+  });
+});

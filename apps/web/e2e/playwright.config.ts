@@ -18,8 +18,14 @@ const PROD_APP = "http://localhost:4181";
 const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
-// calls.spec.ts is Chromium-only: it needs Chromium launch flags for fake camera and microphone and a loopback ICE candidate, which Firefox and WebKit have no equivalent for in Playwright.
-const OTHER_ENGINE_IGNORE = /(calls|chromium|live-relay|live-invite)\.spec\.ts/;
+// Firefox gets fake capture devices, no permission prompt and loopback ICE candidates from preferences (the same three things the Chromium flags above give). WebKit has no equivalent switches; calls.spec.ts says what it can and cannot check there.
+const firefoxMediaPrefs = {
+  "media.navigator.streams.fake": true,
+  "media.navigator.permission.disabled": true,
+  "media.peerconnection.ice.obfuscate_host_addresses": false,
+  "media.peerconnection.ice.loopback": true,
+};
+const OTHER_ENGINE_IGNORE = /(chromium|live-relay|live-invite)\.spec\.ts/;
 
 export default defineConfig({
   testDir: ".",
@@ -55,8 +61,9 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay|live-invite)\.spec\.ts/ },
     // Firefox and WebKit run every hermetic spec except the Chromium-only ones (the fake camera device and the Chromium service-worker checks are Chromium features); ADR-0172 puts macOS Safari and Firefox in the first-release matrix.
-    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testIgnore: OTHER_ENGINE_IGNORE },
-    // WebKit alone gets one retry: on a loaded macOS host it intermittently times out a test that passes alone (lock, the long three-person Rooms run,
+    // Firefox gets one retry: in calls.spec.ts, about one run in eight, the ICE restart after the emulated offline blip does not finish inside the 20 s limit (the call then fails honestly). A retried pass is reported as "flaky", never hidden.
+    { name: "firefox", use: { ...devices["Desktop Firefox"], launchOptions: { firefoxUserPrefs: firefoxMediaPrefs } }, testIgnore: OTHER_ENGINE_IGNORE, retries: 1 },
+    // WebKit gets one retry (Firefox one, for a call-recovery reason above): on a loaded macOS host it intermittently times out a test that passes alone (lock, the long three-person Rooms run,
     // peer-recovery confirm); every such test passed in isolation and on Chromium and Firefox. A retried pass is reported as "flaky", never hidden.
     { name: "webkit", use: { ...devices["Desktop Safari"] }, testIgnore: OTHER_ENGINE_IGNORE, retries: 1 },
     ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-(relay|invite)\.spec\.ts/, timeout: 240_000 }] : []),

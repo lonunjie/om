@@ -21,7 +21,7 @@ Independent review and an independent implementation remain required. V-007 stay
 
 ## Trace entry points
 
-[The Chromium calls specification](../../apps/web/e2e/calls.spec.ts) checks protected audio, camera permission timing, keyboard operation, reconnect and track release.
+[The calls specification](../../apps/web/e2e/calls.spec.ts) checks protected audio, camera permission timing, keyboard operation, reconnect and track release.
 It also checks an existing device's closed-app drain and late delivery, the visible wake socket, and a simulated opaque wake for a hidden tab.
 The direct call trace records operation names, presence of clear SDP and whether URLs contain a query or fragment. It attaches no request body or bearer value.
 The no-ring trace records only whether a peer, track or media-lease request was created.
@@ -53,3 +53,25 @@ The ordinary Chromium fixtures require `--allow-loopback-in-peer-connection` bec
 
 Record engine, OS, device, direction, route change, elapsed recovery time, observed media state, audio-device behavior and whether the call remained the same.
 Use fixture accounts and avoid retaining packet contents, ICE server credentials, addresses, session IDs or identity IDs in shared traces.
+
+## Cross-engine runs and robustness regressions, 2026-11-22
+
+Design sources read: the calls architecture, ADR-0217 through ADR-0221 and ADR-0228. The metadata observer matrix and the
+Home wake and push documents were consulted by search only.
+
+| Engine (Playwright 1.63.0) | What runs | What it cannot do headlessly |
+|---|---|---|
+| Chromium | Every case in the calls specification, with fake devices and loopback ICE from launch flags | Nothing found; the local TURN case needs the loopback coturn fixture above |
+| Firefox | The same cases, with fake devices, no permission prompt and loopback ICE from preferences set in `playwright.config.ts`. Device permissions cannot be granted through the automation protocol, so the specification does not request them there. The ICE restart after the emulated offline blip occasionally does not finish inside the 20 second limit (about one run in eight), so Firefox has one retry; a retried pass is reported as flaky | The local TURN case needs the coturn fixture |
+| WebKit (the Playwright build) | Only the refusal: the build has mock capture devices but no `RTCRtpScriptTransform`, so the client refuses a protected call before capture, ICE or any signal. The test asserts exactly that | Placing a call. Branded Safari has the transform; that and real devices stay in the manual matrix below |
+
+Regressions added in the same file, each run on Chromium and Firefox:
+
+- turning "Allow calls" off while a call rings clears the ring with no capture, peer or lease; a call while it is off does not ring; turning it on again lets the next call ring;
+- a brief outage on the answering device keeps the same call, the same peer and the mute state, and media resumes;
+- a whole call, an ICE restart and the hang-up present the Home only operations, header names and URL shapes that an ordinary chat exchange already presents. No query or fragment, no media request when the Home advertises none, and no clear description. Deposit sizes are recorded as an attachment and not compared, because the padding bucket is the existing, documented signal;
+- the ICE restart on the original caller (already present) now also runs under the trace above.
+
+Host fix found by the Firefox run: a pending device list could hold the call preparation open, so every later call from the same page did nothing. The device list is now fetched without holding the preparation.
+
+The TURN adapter contract and its parity suite for both Homes are in [`MEDIA_TURN_ADAPTER_CONTRACT.md`](../../infra/MEDIA_TURN_ADAPTER_CONTRACT.md).

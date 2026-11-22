@@ -380,8 +380,10 @@ export function useCalls(services: ConversationServices, driver?: CallDriver, pr
         call.id = next.callSessionId;
         reconcile.current(next);
       }
-      const available = await transport.devices().catch(() => []);
-      if (owns(call)) setDevices(available);
+      // The device list is a convenience: never let it hold the call preparation (Firefox can leave enumerateDevices pending once the
+      // capture it follows has ended, which kept every later call from starting).
+      const listed = call;
+      void transport.devices().catch(() => []).then((available) => { if (owns(listed)) setDevices(available); });
     } catch (error) {
       const showFailure = canProceed() && (!call || !terminal(current.current) || call.id === null);
       if (call) release(call);
