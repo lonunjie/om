@@ -254,7 +254,8 @@ describe("relay semantics", () => {
       relay.mint(home, old.admin, { ttlSeconds: 3600 }, requestId)));
     const mint = mints[0];
     if (!mint?.ok) throw new Error("mint failed");
-    for (const replay of mints) expect(replay).toEqual(mint);
+    // The HTTP `date` header is the server clock at each reply (whole seconds), so four concurrent replies can straddle a second: it is not part of the outcome.
+    for (const replay of mints) expect({ ...replay, headers: undefined }).toEqual({ ...mint, headers: undefined });
     expect(errorOf(await relay.mint(home, old.admin, { ttlSeconds: 7200 }, requestId)).name).toBe("invalid_request");
     const replacement = await relay.mint(home, fresh.admin, { ttlSeconds: 3600 });
     if (!replacement.ok) throw new Error("replacement mint failed");
