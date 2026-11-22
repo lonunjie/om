@@ -20,6 +20,7 @@ afterAll(() => {
 });
 const run = (...a: string[]) => spawnSync("node", ["build/release.mjs", ...a], { cwd: webRoot, encoding: "utf8" });
 const repoRoot = new URL("../../..", import.meta.url).pathname;
+const BUILD_TIMEOUT = 420_000;
 
 describe("production build hygiene (audit H1)", () => {
   const polluters = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "OM_BUNDLE_DEV", "VITE_OM_ANYTHING"];
@@ -88,7 +89,8 @@ describe("release script", () => {
     expect(r.stderr).toMatch(/UNSIGNED/);
     expect(r.stderr).toMatch(/--dev/);
   });
-  it("builds a verifiable dev release; tampering and --require-signed fail", { timeout: 120_000 }, () => {
+  // A build is two wasm modules plus a vite build, so each test that makes one gets a limit a loaded host meets (these four sat at 120 s and timed out on the shared build host).
+  it("builds a verifiable dev release; tampering and --require-signed fail", { timeout: BUILD_TIMEOUT }, () => {
     const r = run("--dev", "--no-zip", "--out", tmp);
     expect(r.status, r.stderr).toBe(0);
     const dir = join(tmp, `om-web-${VERSION}-dev`);
@@ -167,7 +169,7 @@ describe("release script", () => {
       verifyRelease(d, { ...trust, requireSigned: true, ...extra }).errors.filter((e) => e.startsWith("signature:"));
     const signArgs = ["--no-zip", "--out", tmp, "--sign-with-key-file", keyFile, "--key-id", ONLINE_ID, "--test-roots-file", rootsFile];
 
-    it("refuses to sign without a delegation, and says where to get one", { timeout: 120_000 }, () => {
+    it("refuses to sign without a delegation, and says where to get one (before it builds anything)", { timeout: 30_000 }, () => {
       const r = run(...signArgs, "--delegation", join(tmp, "nope.json"));
       expect(r.status).toBe(1);
       expect(r.stderr).toMatch(/delegation missing or unreadable/);
@@ -186,7 +188,7 @@ describe("release script", () => {
       expect(() => requireDelegation(delegation, online.pem, ONLINE_ID, { roots: {}, threshold: 1, now: real })).toThrow(/root_unset/);
       expect(() => signManifest({ delegation }, online.pem, ONLINE_ID, { roots: {}, threshold: 1 })).toThrow(/root_unset/);
     });
-    it("builds, verifies with the right root, and matches the TS verifier byte-for-byte", { timeout: 120_000 }, async () => {
+    it("builds, verifies with the right root, and matches the TS verifier byte-for-byte", { timeout: BUILD_TIMEOUT }, async () => {
       const r = run(...signArgs, "--delegation", delegationFile);
       expect(r.status, r.stderr).toBe(0);
       expect(r.stdout + r.stderr).not.toMatch(/PRIVATE KEY/);
@@ -239,7 +241,7 @@ describe("release script", () => {
       rewrite(a, (m) => { (m["signature"] as Record<string, string>)["alg"] = "rsa"; });
       expect(sigErr(a)).toEqual(["signature: alg_mismatch"]);
     });
-    it("does not report an externally supplied signature as signed unless the whole chain verifies", { timeout: 120_000 }, () => {
+    it("does not report an externally supplied signature as signed unless the whole chain verifies", { timeout: BUILD_TIMEOUT }, () => {
       const sigFile = join(tmp, "bad-sig.json");
       writeFileSync(sigFile, JSON.stringify({ alg: "ed25519", keyId: ONLINE_ID, sig: Buffer.alloc(64, 7).toString("base64") }));
       const out = join(tmp, "bad-sig-out");

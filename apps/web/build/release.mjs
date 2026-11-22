@@ -56,6 +56,12 @@ if (!dev && Object.keys(trust.roots).length === 0) {
     "  Follow deploy/KEY-CEREMONY.md, then set ROOT_KEYS in apps/web/src/update/release-key.ts and PINNED_ROOTS in apps/web/build/verify-release.mjs.");
 }
 const delegationFile = resolve(opt("--delegation") ?? join(webRoot, "release-delegation.json"));
+// Read the delegation before any build: a signing run that has none stops here, not after two wasm modules and a vite build.
+let delegation;
+if (sigFile || signing) {
+  try { delegation = JSON.parse(readFileSync(delegationFile, "utf8")); }
+  catch { fail(`delegation missing or unreadable: ${delegationFile}\n  Run the key ceremony (deploy/KEY-CEREMONY.md) and commit the root-signed delegation there, or pass --delegation <file>.`); }
+}
 if (dev && (sigFile || signing)) fail("--dev and signing flags are mutually exclusive");
 if ([sigFile !== undefined, fromVault, keyFile !== undefined].filter(Boolean).length > 1) fail("pick exactly one of --signature, --sign-from-vault, --sign-with-key-file");
 
@@ -91,10 +97,7 @@ try {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   let signerPem; // kept in memory only, to sign the provenance statement with the same key
   if (sigFile || signing) {
-    // The delegation is part of the signed payload: embed it first, and refuse early if the chain cannot verify.
-    let delegation;
-    try { delegation = JSON.parse(readFileSync(delegationFile, "utf8")); }
-    catch { fail(`delegation missing or unreadable: ${delegationFile}\n  Run the key ceremony (deploy/KEY-CEREMONY.md) and commit the root-signed delegation there, or pass --delegation <file>.`); }
+    // The delegation (read above, before the build) is part of the signed payload: embed it first, and refuse early if the chain cannot verify.
     manifest.delegation = delegation;
     let s;
     if (sigFile) s = JSON.parse(readFileSync(sigFile, "utf8"));
