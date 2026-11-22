@@ -6,7 +6,7 @@
 // fetched at first load: the base module starts the app, and the groups module is fetched, verified and cached the first time a person
 // uses groups (`prepareGroups`), after which the app restarts onto it (a Core instance cannot be swapped under open profiles: every context
 // they hold is bound to the instance, D67). A device that has used groups starts on the groups module from then on.
-import { createCoreRuntime, instantiateCore, type Provider, type WasmCoreClient } from "@om/core-wasm";
+import { createCoreRuntime, instantiateCore, type CoreRuntimeOptions, type Provider, type WasmCoreClient } from "@om/core-wasm";
 import type { DeviceVault, ProfileId } from "@om/platform-api";
 import type { ExpressiveHost } from "@om/ui";
 import { createEncryptedKv } from "@om/web-platform";
@@ -56,7 +56,7 @@ export async function prepareGroups(): Promise<{ readonly ok: true } | { readonl
 
 export type WebCoreClient = WasmCoreClient & { readonly describeExpressive?: ExpressiveHost["describe"] };
 
-export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number | (() => number) }): Promise<WebCoreClient> {
+export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number | (() => number); /** Direct file transfer (D120: no product transport exists, so only the e2e build passes one). */ readonly directDriver?: CoreRuntimeOptions["directDriver"] }): Promise<WebCoreClient> {
   let bytes: ArrayBuffer | undefined;
   let groups = false;
   let expressiveMedia = false;
@@ -98,6 +98,7 @@ export async function startCore(opts: { readonly vault: DeviceVault; readonly in
       lockPackCache: (id, work) => globalThis.navigator.locks.request(`om-pack-cache:${id}`, work),
     } : {}),
     ...(groups ? { groupDriver: {} } : {}),
+    ...(opts.directDriver === undefined ? {} : { directDriver: opts.directDriver }),
   });
   if (!runtime.expressive.available()) return runtime;
   // The existing bridge exposes a local plan query. Keep the plan inside the host and

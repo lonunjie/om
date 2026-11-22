@@ -16,6 +16,7 @@ import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, recove
 import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
+import type { CoreRuntimeOptions } from "@om/core-wasm";
 import { prepareGroups, rememberOpenNewGroup, startCore, type WebCoreClient } from "./loadCore";
 import type { GroupsSetup } from "./GroupsGate";
 import { relayJustConnected } from "./relaySetup";
@@ -47,6 +48,10 @@ export interface RealAppProps {
   readonly alerts?: (profileCount: () => number) => AlertsServices | undefined;
   /** First-run page where a new install sets up its own delivery service; shown only when `provider` is `null` (ADR-0186). Left out, first run goes straight on. */
   readonly relaySetup?: RelaySetupServices;
+  /** Direct file transfer, when the host has a transport (only the e2e build has one: D120). */
+  readonly directDriver?: CoreRuntimeOptions["directDriver"];
+  /** Called with the running client once Core is up (the e2e build uses it to reach Core the way a second device would). */
+  readonly onCore?: (rt: WebCoreClient) => void;
 }
 
 interface Ready {
@@ -68,7 +73,7 @@ const shareLink = (coreLink: string): string => webInviteLink(coreLink, globalTh
 
 const newProfileId = (): ProfileId => asProfileId("p-" + Array.from(globalThis.crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join(""));
 
-export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: RealAppProps) {
+export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup, directDriver, onCore }: RealAppProps) {
   const [boot, setBoot] = useState<Boot>({ k: "loading" });
   useEffect(() => {
     const life = { live: true };
@@ -83,7 +88,8 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
         const drafts = createDraftStore((id) => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id));
         unbusy = addBusyProbe(() => drafts.hasPending()); // an update waits while a draft or the scheduled queue is not yet sealed
         const searchKv = (id: ProfileId): EncryptedKv => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id, "search-index");
-        rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace() });
+        rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace(), ...(directDriver === undefined ? {} : { directDriver }) });
+        onCore?.(rt);
         const known = await registry.list();
         const platform = createWebPlatform(undefined, { expressiveMedia: rt.expressive.available() });
         if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, searchKv, platform, capture: composerCapture(platform), known });
@@ -94,7 +100,7 @@ export function RealApp({ provider, banner, pollMs, home, alerts, relaySetup }: 
       }
     })();
     return () => { life.live = false; unbusy?.(); rt?.dispose(); };
-  }, [provider, pollMs]);
+  }, [provider, pollMs, directDriver, onCore]);
 
   return (
     <ThemeProvider>
