@@ -17,7 +17,7 @@ test("without a delivery service first run stops at the setup page, and says so 
   await expect(page.getByRole("heading", { name: "Advanced" })).toBeVisible();
   await expect(page.getByRole("button", { name: /container|install script|tunnel|open ports/i })).toHaveCount(0);
   // The vendor is named where the choice is made, and only there.
-  await expect(page.getByText("Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to make a copy of the setup in your own account). You check on the next step that you have them.")).toBeVisible();
+  await expect(page.getByText("You set up your delivery service in a free Cloudflare account. Cloudflare may ask for GitHub or GitLab to make a copy of the setup.")).toBeVisible();
   // No test banner: this is not the loopback build, and the next step (the person's name) is not reachable.
   await expect(page.getByText("LOOPBACK")).toHaveCount(0);
   await expect(page.getByLabel("Your name")).toHaveCount(0);
