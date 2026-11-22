@@ -47,6 +47,7 @@ The updater is manual in this version. A new signed release is a new version of 
 `node verify.mjs`, commit. `release.lock` also takes a `minVersion` floor that refuses older releases. An automatic, staged updater
 that checks independent transparency monitors is specified (CLIENTHOST_UPDATE_LIFECYCLE section 4) and not built yet.
 Taking release 0.2.0 over 0.1.x adds the temporary file storage (a second Durable Object migration, `v2`); your queues, messages and keys are kept.
+Taking release 0.3.0 over 0.2.x adds three more migrations (`v3` usage counter, `v4` recovery store, `v5` push alerts); your queues, messages, blobs and keys are kept. Alerts need the Home's admission value to be set, as for the other owner features.
 
 ## Limits you should know
 

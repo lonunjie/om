@@ -375,6 +375,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/release-dry-run.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/release-guards.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -5744,6 +5751,20 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/operator/release-0.1-rollout-kit.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/operator/release-declaration-proposal.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/overview/BLUEPRINT.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -9776,6 +9797,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/__fixtures__/home-v4-worker.js",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/test/admission.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -9952,6 +9980,13 @@
     },
     {
       "path": "infra/cloudflare-home/test/upgrade.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/upgrade-v5.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",

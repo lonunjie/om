@@ -1343,8 +1343,8 @@ export const alertsCopy: AlertsCopy = {
   heading: "Alerts",
   intro: "Get a notice on this device when a message arrives while OM is closed. It is off until you turn it on, and it is only for this device.",
   privacy: "The notice only says New message. Your browser's push service (Google, Apple or Mozilla, depending on the browser) learns that this device was woken, and when. It never learns who wrote, what was said, or which chat. Your own delivery service sends the wake; OM has no server of its own.",
-  ios: "On iPhone and iPad this works only after you add OM to your Home Screen (Share, then Add to Home Screen) and open it from there.",
-  limit: "Alerts can arrive late or not at all, depending on your phone and browser. Opening OM always brings in everything waiting for you.",
+  ios: "On iPhone and iPad (iOS or iPadOS 16.4 or later) this works only after you add OM to your Home Screen (Share, then Add to Home Screen) and open it from there. In a browser tab it is not available.",
+  limit: "Alerts are a best effort. Your phone or browser decides when to wake OM, so an alert can arrive late or not at all, for example in power saving mode or after you force-quit OM. OM does not control that. Nothing is lost: opening OM always brings in everything waiting for you.",
   loading: "Loading alerts",
   loadFailed: "Alerts could not be loaded. Try again in a moment.",
   unavailable: {
