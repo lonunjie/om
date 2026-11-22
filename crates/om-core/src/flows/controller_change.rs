@@ -113,6 +113,15 @@ fn parse_link(text: &str) -> Option<(bool, [u8; 16], ra::Offer)> {
     ))
 }
 
+/// Fuzz entry point (V-012): the controller-change link parser. Compiled only with `fuzz-entry`, which a `production` build refuses.
+#[cfg(feature = "fuzz-entry")]
+pub(super) fn fuzz_parse_link(text: &str) -> Result<(), &'static str> {
+    let (_, origin, offer) = parse_link(text).ok_or("link_refused")?;
+    assert_eq!(hex(&origin).len(), 32);
+    assert!(ra::encode_offer(&offer).is_some(), "a parsed offer re-encodes");
+    Ok(())
+}
+
 fn kit_for_head(head: &Acs, policy: &[u8], kit: &[u8]) -> bool {
     RecoveryPolicy::from_body(policy)
         .ok()

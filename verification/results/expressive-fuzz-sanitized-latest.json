@@ -1,0 +1,89 @@
+{
+  "budget_cpu_hours_total": 12.0,
+  "budget_met": true,
+  "commit": "340c4809aff8bee74ca6d99e74d23ff24904c2f7 plus the uncommitted working tree of this change",
+  "counted_cpu_hours": 12.084854,
+  "engine": "libFuzzer (cargo-fuzz) with AddressSanitizer, debug assertions and overflow checks",
+  "findings_open": [],
+  "generated": "2026-11-22T06:28:40Z",
+  "jobs": 12,
+  "note": "CPU-hours are wall seconds times libFuzzer fork workers, an upper bound on CPU used. Inputs of any finding are kept locally and are not part of this file.",
+  "schema": "om-expressive-fuzz-sanitized-summary-v1",
+  "suite": "expressive",
+  "targets": {
+    "asset_ref": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6218.02997303009,
+        "executions": 2057978588,
+        "last_run": "2026-11-21T13:02:04Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    },
+    "control_state": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6229.583009719849,
+        "executions": 778879532,
+        "last_run": "2026-11-21T13:28:02Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    },
+    "event": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6220.775991439819,
+        "executions": 921909054,
+        "last_run": "2026-11-21T13:10:43Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    },
+    "facts": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6197.521370887756,
+        "executions": 10280506277,
+        "last_run": "2026-11-21T12:53:25Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    },
+    "pack_file": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6214.347604751587,
+        "executions": 1247999304,
+        "last_run": "2026-11-21T13:36:41Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    },
+    "release": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6225.737957954407,
+        "executions": 1377659216,
+        "last_run": "2026-11-21T13:19:23Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    },
+    "webp": {
+      "budget_cpu_hours": 1.714286,
+      "run": {
+        "cpu_seconds": 6199.479961395264,
+        "executions": 10590812342,
+        "last_run": "2026-11-21T12:44:48Z",
+        "slices": 1,
+        "state": "complete"
+      }
+    }
+  },
+  "toolchain": {
+    "cargo fuzz": "cargo-fuzz 0.13.2",
+    "rustc --version": "rustc 1.102.0-nightly (6905905bb 2026-11-19)"
+  }
+}

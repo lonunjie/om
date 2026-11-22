@@ -33,6 +33,8 @@ mod multi;
 mod owed;
 pub(crate) mod preferences;
 mod recovery_approval;
+#[cfg(feature = "fuzz-entry")]
+pub mod recovery_fuzz;
 mod recovery_attempt;
 mod recovery_inbox;
 mod recovery_owner;

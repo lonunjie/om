@@ -44,6 +44,11 @@ pub mod state;
 #[cfg(any(test, feature = "test-loopback"))]
 pub mod runtime;
 
+/// Byte-slice entry points over the owner-recovery codecs and the link-ceremony frames, for external fuzzers (V-012).
+/// Compiled only with the `fuzz-entry` feature, which a `production` build refuses (R-072).
+#[cfg(feature = "fuzz-entry")]
+pub use flows::recovery_fuzz as recovery_fuzz_entry;
+
 pub use engine::Core;
 pub use flows::{
     CONFIRMATION_TTL_MS, FIRST_CONTACT_MAX_CHAIN, FIRST_CONTACT_PER_DAY, FIRST_CONTACT_PER_HOUR,

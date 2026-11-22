@@ -1,0 +1,79 @@
+[package]
+name = "om-recovery-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "MPL-2.0"
+publish = false
+description = "V-012 verification harness: libFuzzer targets over the owner-recovery codecs and the link-ceremony frames. Not product code."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+om-core = { path = "../../../crates/om-core", features = ["fuzz-entry"] }
+
+# Standalone evidence crate with its own lockfile, outside the engineering workspace.
+[workspace]
+
+# Arithmetic overflow and debug assertions stay on so an unchecked operation in a parser is a crash, as in a debug build.
+[profile.release]
+debug = true
+debug-assertions = true
+overflow-checks = true
+
+[[bin]]
+name = "sheet"
+path = "fuzz_targets/sheet.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "record"
+path = "fuzz_targets/record.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kit"
+path = "fuzz_targets/kit.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "approval"
+path = "fuzz_targets/approval.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "notice"
+path = "fuzz_targets/notice.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "link"
+path = "fuzz_targets/link.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "frame"
+path = "fuzz_targets/frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "continuation"
+path = "fuzz_targets/continuation.rs"
+test = false
+doc = false
+bench = false

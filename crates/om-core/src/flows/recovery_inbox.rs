@@ -51,6 +51,15 @@ fn inbox_item(raw: &[u8]) -> Option<(String, u8, Vec<u8>)> {
         .then(|| (hex(id), kind as u8, bytes.to_vec()))
 }
 
+/// Fuzz entry point (V-012): the drained inbox item reader. Compiled only with `fuzz-entry`, which a `production` build refuses.
+#[cfg(feature = "fuzz-entry")]
+pub(super) fn fuzz_inbox_item(raw: &[u8]) -> Result<(), &'static str> {
+    let (id, kind, bytes) = inbox_item(raw).ok_or("item_refused")?;
+    assert_eq!(id.len(), 32);
+    assert!(matches!(kind, 1 | 2) && (1..=16_384).contains(&bytes.len()));
+    Ok(())
+}
+
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Retain just the old drain credential and verifier before the verified replacement swaps the kit and policy.
     pub(super) fn retire_recovery_inbox(&mut self) {

@@ -23,6 +23,10 @@ use crate::crypto::sig::{self, ROLE_CONTROLLER, ds_sig, signature_entry};
 use chacha20poly1305::XChaCha20Poly1305;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 
+#[cfg(feature = "fuzz-entry")]
+#[path = "ceremony_fuzz.rs"]
+pub(super) mod fuzz_entry;
+
 pub(super) const LINK_PREFIX: &str = "om:link/";
 const LBL_NOTICE_SIG: &str = "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1";
 /// Sent from the approving device to every other device of the account: `{0: 11, 1: signed notice, 2: [states], 3: [creds]}`.
