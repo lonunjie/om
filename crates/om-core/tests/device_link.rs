@@ -1778,3 +1778,88 @@ fn first_call_answer_selects_one_of_three_independent_offers() {
         }
     }
 }
+
+/// Calls on a linked account: the contact's call goes to every device of the account, one device answers, and removing that
+/// device from the account ends the contact's call with a failure and leaves no media keys behind.
+#[test]
+fn removing_the_device_that_answered_ends_the_contacts_call() {
+    use om_core::calls::{CallReason, CallState, CallView};
+    let view = |rt: &Runtime, ctx: &ProfileExecutionContext| -> Option<CallView> {
+        rt.query(Query::GetCallView { ctx: ctx.clone() })
+    };
+    let mut w = world();
+    let request_id = w.offer_and_ask();
+    assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
+    w.settle();
+    w.settle();
+    for rt in [&mut w.alice, &mut w.carol, &mut w.phone] {
+        rt.core.enable_calls();
+    }
+    let chat: ConversationView = w.carol.query(Query::GetConversationView {
+        ctx: w.c.clone(),
+        conversation_id: w.c_conv.clone(),
+    });
+    w.carol.dispatch(
+        &w.c,
+        "dial",
+        IntentBody::StartCall {
+            target: chat.summary.person_id,
+            media: CallMedia::Audio,
+            sdp: Some(b"prepared offer".to_vec()),
+        },
+    );
+    w.settle();
+    w.settle();
+    let ringing = view(&w.phone, &w.n).expect("the linked device rings too");
+    assert_eq!(ringing.state, CallState::Incoming);
+    let id = ringing.call_session_id;
+    w.phone.dispatch(
+        &w.n,
+        "answer",
+        IntentBody::AcceptCall {
+            call_session_id: id.clone(),
+            sdp: b"prepared answer".to_vec(),
+            media_flags: 1,
+        },
+    );
+    w.settle();
+    w.settle();
+    assert_eq!(view(&w.carol, &w.c).unwrap().state, CallState::Connecting);
+    assert_eq!(view(&w.phone, &w.n).unwrap().state, CallState::Connecting);
+
+    let device = w
+        .devices(false)
+        .devices
+        .iter()
+        .find(|d| d.is_current)
+        .unwrap()
+        .id
+        .clone();
+    let confirmation = nonce(&mut w.alice, &w.a, "RevokeDevice", &device);
+    w.alice.dispatch(
+        &w.a,
+        "revoke",
+        IntentBody::RevokeDevice {
+            device_id: device,
+            confirmation,
+        },
+    );
+    assert_eq!(
+        w.alice.outcome(&w.a, "revoke"),
+        Some(OutcomeClass::Committed)
+    );
+    for _ in 0..3 {
+        w.settle();
+    }
+    let ended = view(&w.carol, &w.c).expect("the call's final state is visible");
+    assert_eq!(ended.state, CallState::Failed);
+    assert_eq!(ended.reason, Some(CallReason::Failed));
+    assert!(
+        w.carol
+            .core
+            .take_call_keys(&w.c, &id)
+            .unwrap()
+            .is_none(),
+        "no media keys outlive the call"
+    );
+}
