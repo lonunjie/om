@@ -37,14 +37,16 @@ const tag = (name, child) => {
 };
 
 const running = [];
-const stopServers = () => { for (const s of running) s.kill("SIGTERM"); };
+// Each server runs in its own process group (the command goes through a shell, and `pnpm exec` and workerd are grandchildren), and the whole group is stopped:
+// killing only the shell leaves the servers running, and a later run would reuse them with their old state.
+const stopServers = () => { for (const s of running) { try { process.kill(-s.pid, "SIGTERM"); } catch { /* already gone */ } } };
 process.on("SIGINT", () => { stopServers(); process.exit(130); });
 
 let code = 1;
 try {
   for (const s of servers) {
     if (await up(s.url)) continue; // already running (reuseExistingServer)
-    const child = spawn(s.command, { shell: true, cwd: s.cwd === undefined ? process.cwd() : new URL(`../e2e/${s.cwd}/`, import.meta.url), stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...(s.env ?? {}) } });
+    const child = spawn(s.command, { shell: true, cwd: s.cwd === undefined ? process.cwd() : new URL(`../e2e/${s.cwd}/`, import.meta.url), detached: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...(s.env ?? {}) } });
     tag(`server ${s.url}`, child);
     running.push(child);
   }
