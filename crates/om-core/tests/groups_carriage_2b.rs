@@ -2045,7 +2045,10 @@ fn a_replaced_queue_is_retired_only_after_the_overlap_and_its_grant_debt() {
     assert!(!revoke.is_empty());
     let (due, step) = core!(ps[1], group_queue_retires).unwrap();
     assert!(ps[1].rt.settle(&step));
-    assert!(due.is_empty(), "a grant revocation on the queue is outstanding");
+    assert!(
+        due.is_empty(),
+        "a grant revocation on the queue is outstanding"
+    );
     for grant in &revoke {
         let step = core!(ps[1], group_route_revoked, grant).unwrap();
         assert!(ps[1].rt.settle(&step));
@@ -2054,7 +2057,10 @@ fn a_replaced_queue_is_retired_only_after_the_overlap_and_its_grant_debt() {
     assert!(ps[1].rt.settle(&step));
     assert_eq!(due.len(), revoke.len());
     for (q, g) in due.iter().zip(&revoke) {
-        assert_eq!(q.relay_uri, g.relay_uri, "only the Home that holds the queue");
+        assert_eq!(
+            q.relay_uri, g.relay_uri,
+            "only the Home that holds the queue"
+        );
         assert_eq!(q.mailbox, g.mailbox);
         assert_eq!(q.request_id.len(), 32);
         assert!(q.request_id.bytes().all(|b| b.is_ascii_hexdigit()));
@@ -2101,7 +2107,11 @@ fn the_retire_debt_survives_restart_retries_with_backoff_and_the_same_request_id
         let step = core!(ps[1], group_queue_retired, q).unwrap();
         assert!(ps[1].rt.settle(&step));
     }
-    assert!(ps[1].carriage()["queueRetire"].as_array().is_none_or(|a| a.is_empty()));
+    assert!(
+        ps[1].carriage()["queueRetire"]
+            .as_array()
+            .is_none_or(|a| a.is_empty())
+    );
     ps[1].restart();
     ps[1].rt.tick(cg::QUEUE_RETIRE_BACKOFF_MAX_S * 2 * 1000);
     let (none, step) = core!(ps[1], group_queue_retires).unwrap();

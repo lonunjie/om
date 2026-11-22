@@ -6,7 +6,7 @@
 
 use om_core::crypto::unhex;
 use om_core::recovery_fuzz_entry::TARGETS;
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::{Duration, Instant};
 
 const ARCHIVE: &[u8] =

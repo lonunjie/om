@@ -89,7 +89,11 @@ pub fn world_with(with_place: bool) -> World {
         },
     );
     settle_all(&mut [(&mut alice, &a), (&mut bob, &b)]);
-    assert_eq!(net.recovery_puts().len(), usize::from(with_place), "the record is written only with a place");
+    assert_eq!(
+        net.recovery_puts().len(),
+        usize::from(with_place),
+        "the record is written only with a place"
+    );
     let root = root_of(&key.groups);
     World {
         net,
@@ -97,7 +101,11 @@ pub fn world_with(with_place: bool) -> World {
         a,
         bob,
         b,
-        sheet: if with_place { key.sheet.expect("sheet") } else { String::new() },
+        sheet: if with_place {
+            key.sheet.expect("sheet")
+        } else {
+            String::new()
+        },
         keys: RecordKeys::derive(&root, &SCOPE),
     }
 }

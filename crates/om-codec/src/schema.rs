@@ -247,7 +247,9 @@ impl Registry {
         inline["union"]["variants"]["3"] = "InlineMentionX".into();
         structs.insert("InlineX".into(), inline);
         for (name, key) in [("MessageCreate", 0), ("MessageEdit", 1)] {
-            let fields = structs.get_mut(name).unwrap()["fields"].as_array_mut().unwrap();
+            let fields = structs.get_mut(name).unwrap()["fields"]
+                .as_array_mut()
+                .unwrap();
             let content = fields.iter_mut().find(|f| f["key"] == key).unwrap();
             content["type"]["ref"] = "RichTextX".into();
         }
@@ -272,7 +274,9 @@ impl Registry {
             }
         }
         for (un, add) in ov["union_variants"].as_object().unwrap() {
-            let t = f["structs"][un]["union"]["variants"].as_object_mut().unwrap();
+            let t = f["structs"][un]["union"]["variants"]
+                .as_object_mut()
+                .unwrap();
             for (value, name) in add.as_object().unwrap() {
                 if let Some(old) = t.get(value) {
                     assert_eq!(old, name, "overlay conflicts with {un}[{value}]");
@@ -284,7 +288,11 @@ impl Registry {
             let waves = f["enum_value_waves"][e].as_object_mut().unwrap();
             for v in vals.as_array().unwrap() {
                 let v = v.as_str().unwrap();
-                assert_eq!(waves.get(v).and_then(|w| w.as_str()), Some("W1"), "{e}[{v}] is not marked W1");
+                assert_eq!(
+                    waves.get(v).and_then(|w| w.as_str()),
+                    Some("W1"),
+                    "{e}[{v}] is not marked W1"
+                );
                 waves.remove(v);
             }
         }
@@ -516,7 +524,11 @@ impl Registry {
         let mut lim = self.lim;
         lim.max_string = lim.max_string.max(max_bytes as u64);
         let v = crate::cbor::decode_guarded(bytes, lim, max_bytes, true)?;
-        Cx { r: self, lenient: false }.strukt(v.value(), name, None)?;
+        Cx {
+            r: self,
+            lenient: false,
+        }
+        .strukt(v.value(), name, None)?;
         Ok(inspect(v.value()))
     }
 

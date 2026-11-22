@@ -2259,7 +2259,9 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
     ) -> Result<Option<String>, CoreError> {
         let slot = self.slot(ctx)?;
-        Ok(slot.committed.get(crate::state::REC_EXPRESSIVE_PACKS)
+        Ok(slot
+            .committed
+            .get(crate::state::REC_EXPRESSIVE_PACKS)
             .map(|record| crate::crypto::hex(&crate::crypto::sha256(&[record]))))
     }
 
@@ -2416,9 +2418,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
         blob: [u8; 32],
     ) -> Result<(Result<(), crate::expressive::Error>, Option<Commit>), CoreError> {
         self.slot(ctx)?;
-        self.txn_inner(&ctx.profile_id, |tx| {
-            Ok(tx.st.expressive_packs.evict(pack, blob))
-        }, true)
+        self.txn_inner(
+            &ctx.profile_id,
+            |tx| Ok(tx.st.expressive_packs.evict(pack, blob)),
+            true,
+        )
     }
 
     /// The media driver opts in per Core instance. The reference app does not enable it.
@@ -3847,13 +3851,20 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
                     delay.saturating_sub(a.obs.credited_ms)
                 }),
         }),
-        alerts: policy.as_ref().filter(|_| {
-            committed
-                && st.app.recovery_kit.is_some()
-                && head.as_ref().zip(st.device.as_ref()).is_some_and(|(head, device)| {
-                    head.control.contains(&device.device_id) && !head.quarantined.contains(&device.device_id)
-                })
-        }).map(|policy| st.app.recovery_inbox.status(policy.epoch(), now_ms)),
+        alerts: policy
+            .as_ref()
+            .filter(|_| {
+                committed
+                    && st.app.recovery_kit.is_some()
+                    && head
+                        .as_ref()
+                        .zip(st.device.as_ref())
+                        .is_some_and(|(head, device)| {
+                            head.control.contains(&device.device_id)
+                                && !head.quarantined.contains(&device.device_id)
+                        })
+            })
+            .map(|policy| st.app.recovery_inbox.status(policy.epoch(), now_ms)),
         earlier_code_used: st.app.earlier_recovery_code_used,
         record: match st.app.recovery_record_status(now_ms) {
             crate::state::RecoveryRecordStatus::Off => None,

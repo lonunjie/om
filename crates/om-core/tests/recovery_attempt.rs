@@ -316,9 +316,12 @@ fn maximum_privacy_writes_an_empty_relationship_snapshot() {
     w.alice.tick(90 * 24 * H);
     w.alice.recovery_tick(&w.a, &mono(1, 0));
     let pending = w.alice.core.net_ops(&w.a).unwrap();
-    assert!(pending.iter().any(|op| matches!(op.call, NetCall::RecoveryPut { .. })));
-    let confirmation =
-        common::confirmation(&mut w.alice, &w.a, "ChangePrivacyPolicy", "maximum");
+    assert!(
+        pending
+            .iter()
+            .any(|op| matches!(op.call, NetCall::RecoveryPut { .. }))
+    );
+    let confirmation = common::confirmation(&mut w.alice, &w.a, "ChangePrivacyPolicy", "maximum");
     w.alice.dispatch(
         &w.a,
         "maximum",
@@ -328,7 +331,11 @@ fn maximum_privacy_writes_an_empty_relationship_snapshot() {
         },
     );
     w.alice.flush_net(&w.a);
-    assert_eq!(snapshot_size(&w), 0, "the next write uses the stricter profile");
+    assert_eq!(
+        snapshot_size(&w),
+        0,
+        "the next write uses the stricter profile"
+    );
     w.alice.tick(25 * H);
     w.alice.recovery_tick(&w.a, &mono(1, 25 * H));
     w.alice.flush_net(&w.a);
@@ -659,19 +666,29 @@ fn a_full_floor_table_keeps_all_existing_lineages() {
     let mut app = f.app();
     let floors = (0..16)
         .map(|i| {
-            let key = format!("{}:{}", om_core::crypto::hex(&SCOPE), om_core::crypto::hex(&[i; 32]));
-            (key, serde_json::json!({
-                "lineage": om_core::crypto::hex(&[16; 32]),
-                "generation": 7,
-                "digest": om_core::crypto::hex(&[23; 32]),
-            }))
+            let key = format!(
+                "{}:{}",
+                om_core::crypto::hex(&SCOPE),
+                om_core::crypto::hex(&[i; 32])
+            );
+            (
+                key,
+                serde_json::json!({
+                    "lineage": om_core::crypto::hex(&[16; 32]),
+                    "generation": 7,
+                    "digest": om_core::crypto::hex(&[23; 32]),
+                }),
+            )
         })
         .collect::<serde_json::Map<_, _>>();
     app["recoveryFloors"] = serde_json::Value::Object(floors);
     let before = app["recoveryFloors"].clone();
     rewrite(&mut f, app);
     f.rt.flush_net(&f.ctx);
-    assert_eq!(serde_json::to_value(f.view()).unwrap()["stage"], "floor_table_full");
+    assert_eq!(
+        serde_json::to_value(f.view()).unwrap()["stage"],
+        "floor_table_full"
+    );
     assert_eq!(f.app()["recoveryFloors"], before);
 }
 
@@ -702,8 +719,15 @@ fn forget_targets_only_the_named_cancelled_attempt() {
     let mut f = fresh(&w.net);
     f.begin(&w.sheet);
     let mut app = f.app();
-    let begin = app["recoveryJoin"]["operationId"].as_str().unwrap().to_owned();
-    let unrelated = format!("{}:{}", om_core::crypto::hex(&SCOPE), om_core::crypto::hex(&[21; 32]));
+    let begin = app["recoveryJoin"]["operationId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let unrelated = format!(
+        "{}:{}",
+        om_core::crypto::hex(&SCOPE),
+        om_core::crypto::hex(&[21; 32])
+    );
     let unrelated_floor = serde_json::json!({
         "lineage": om_core::crypto::hex(&[22; 32]),
         "generation": 8,
@@ -713,17 +737,29 @@ fn forget_targets_only_the_named_cancelled_attempt() {
     rewrite(&mut f, app);
     let forget = |f: &mut Fresh, op, id: &str| {
         let confirmation = common::confirmation(&mut f.rt, &f.ctx, "ForgetRecoveryAttempt", id);
-        f.go(op, IntentBody::ForgetRecoveryAttempt {
-            recovery_operation_id: id.to_owned(),
-            confirmation,
-        })
+        f.go(
+            op,
+            IntentBody::ForgetRecoveryAttempt {
+                recovery_operation_id: id.to_owned(),
+                confirmation,
+            },
+        )
     };
-    assert!(matches!(forget(&mut f, "active-forget", &begin), Some(OutcomeClass::Rejected { .. })));
+    assert!(matches!(
+        forget(&mut f, "active-forget", &begin),
+        Some(OutcomeClass::Rejected { .. })
+    ));
     f.go("cancel", IntentBody::CancelRecovery);
     f.rt.restart();
     f.ctx = f.rt.open("q");
-    assert!(matches!(forget(&mut f, "wrong-forget", "other"), Some(OutcomeClass::Rejected { .. })));
-    assert_eq!(forget(&mut f, "forget", &begin), Some(OutcomeClass::Committed));
+    assert!(matches!(
+        forget(&mut f, "wrong-forget", "other"),
+        Some(OutcomeClass::Rejected { .. })
+    ));
+    assert_eq!(
+        forget(&mut f, "forget", &begin),
+        Some(OutcomeClass::Committed)
+    );
     assert!(f.view().is_none());
     assert_eq!(f.app()["recoveryFloors"].as_object().unwrap().len(), 1);
     assert_eq!(f.app()["recoveryFloors"][unrelated], unrelated_floor);
@@ -957,10 +993,17 @@ fn sending_again_preserves_the_request_and_its_verifier_credit() {
     f.begin(&w.sheet);
     f.rt.dispatch(&f.ctx, "req", IntentBody::RequestRecovery);
     let post = |f: &Fresh| {
-        f.rt.core.net_ops(&f.ctx).unwrap().into_iter().find_map(|op| match op.call {
-            NetCall::RecoveryRequestPost { request_id, bytes, .. } => Some((request_id, bytes)),
-            _ => None,
-        }).expect("pending recovery request")
+        f.rt.core
+            .net_ops(&f.ctx)
+            .unwrap()
+            .into_iter()
+            .find_map(|op| match op.call {
+                NetCall::RecoveryRequestPost {
+                    request_id, bytes, ..
+                } => Some((request_id, bytes)),
+                _ => None,
+            })
+            .expect("pending recovery request")
     };
     let first = post(&f);
     f.rt.dispatch(&f.ctx, "coalesce-resend", IntentBody::ResendRecoveryRequest);
@@ -996,7 +1039,10 @@ fn an_open_request_refreshes_after_four_offline_days_without_new_verifier_credit
     assert!(posts.iter().any(|post| {
         matches!(&post.call, NetCall::RecoveryRequestPost { bytes, .. } if bytes == &first)
     }));
-    assert_eq!(f.app()["recoveryJoin"]["attempt"]["obs"]["creditedMs"], credited);
+    assert_eq!(
+        f.app()["recoveryJoin"]["attempt"]["obs"]["creditedMs"],
+        credited
+    );
 }
 
 #[test]
@@ -1011,15 +1057,23 @@ fn eight_unclassified_vetoes_keep_the_strict_attempt_waiting() {
     f.rt.recovery_tick(&f.ctx, &mono(1, DELAY_MS));
     for op in f.rt.core.net_ops(&f.ctx).unwrap() {
         let result = match op.call {
-            NetCall::RecoveryVetoRead { .. } => NetResult::Many { items: vec![vec![0]; 8] },
+            NetCall::RecoveryVetoRead { .. } => NetResult::Many {
+                items: vec![vec![0]; 8],
+            },
             _ => w.net.perform(&op.call),
         };
         let step = f.rt.core.net_result(&f.ctx, op.id, result).unwrap();
         assert!(f.rt.settle(&step));
     }
-    assert!(f.view().is_some(), "the board did not establish a complete round");
+    assert!(
+        f.view().is_some(),
+        "the board did not establish a complete round"
+    );
     f.tick(&mono(1, DELAY_MS + 1));
-    assert!(f.view().unwrap().veto_check_incomplete, "a later empty board does not resolve saturation");
+    assert!(
+        f.view().unwrap().veto_check_incomplete,
+        "a later empty board does not resolve saturation"
+    );
 }
 
 // ----------------------------------------------------------------------------------------------- controller inbox
@@ -1036,8 +1090,7 @@ fn alice_tick(w: &mut World, session: u8, at: u64) {
 fn inbox_readiness_requires_a_recent_successful_drain() {
     let mut w = world();
     let alerts = |w: &World| {
-        let view: serde_json::Value =
-            w.alice.query(Query::GetRecoveryStatus { ctx: w.a.clone() });
+        let view: serde_json::Value = w.alice.query(Query::GetRecoveryStatus { ctx: w.a.clone() });
         view["alerts"].clone()
     };
     alice_tick(&mut w, 1, 0);
@@ -1063,7 +1116,11 @@ fn the_controller_renews_its_inbox_after_thirty_days_across_restart() {
     w.alice.tick(30 * 24 * H);
     w.alice.recovery_tick(&w.a, &mono(2, 0));
     let calls = w.alice.core.net_ops(&w.a).unwrap();
-    assert!(calls.iter().any(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. })));
+    assert!(
+        calls
+            .iter()
+            .any(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. }))
+    );
 }
 
 #[test]
@@ -1074,18 +1131,48 @@ fn an_inbox_registration_refusal_after_a_missing_drain_is_retried_daily_across_r
     alice_tick(&mut w, 1, 0);
     w.alice.tick(61_000);
     w.alice.recovery_tick(&w.a, &mono(1, 1000));
-    let drain = w.alice.core.net_ops(&w.a).unwrap().into_iter()
-        .find(|op| matches!(op.call, NetCall::RecoveryInboxDrain { .. })).unwrap();
-    let missing = w.alice.core.net_result(&w.a, drain.id, NetResult::Err {
-        error: NetError::NotFound,
-    }).unwrap();
+    let drain = w
+        .alice
+        .core
+        .net_ops(&w.a)
+        .unwrap()
+        .into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryInboxDrain { .. }))
+        .unwrap();
+    let missing = w
+        .alice
+        .core
+        .net_result(
+            &w.a,
+            drain.id,
+            NetResult::Err {
+                error: NetError::NotFound,
+            },
+        )
+        .unwrap();
     assert!(w.alice.settle(&missing));
     w.alice.recovery_tick(&w.a, &mono(1, 2000));
-    let register = w.alice.core.net_ops(&w.a).unwrap().into_iter()
-        .find(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. })).unwrap();
-    let refused = w.alice.core.net_result(&w.a, register.id, NetResult::Err {
-        error: NetError::Rejected { reason: RejectReason::Unauthorized },
-    }).unwrap();
+    let register = w
+        .alice
+        .core
+        .net_ops(&w.a)
+        .unwrap()
+        .into_iter()
+        .find(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. }))
+        .unwrap();
+    let refused = w
+        .alice
+        .core
+        .net_result(
+            &w.a,
+            register.id,
+            NetResult::Err {
+                error: NetError::Rejected {
+                    reason: RejectReason::Unauthorized,
+                },
+            },
+        )
+        .unwrap();
     assert!(w.alice.settle(&refused));
 
     w.alice.restart();
@@ -1096,11 +1183,19 @@ fn an_inbox_registration_refusal_after_a_missing_drain_is_retried_daily_across_r
     w.alice.tick(H);
     w.alice.recovery_tick(&w.a, &mono(2, 0));
     let calls = w.alice.core.net_ops(&w.a).unwrap();
-    assert!(calls.iter().all(|op| !matches!(op.call, NetCall::RecoveryInboxRegister { .. })));
+    assert!(
+        calls
+            .iter()
+            .all(|op| !matches!(op.call, NetCall::RecoveryInboxRegister { .. }))
+    );
     w.alice.tick(23 * H);
     w.alice.recovery_tick(&w.a, &mono(2, 1000));
     let calls = w.alice.core.net_ops(&w.a).unwrap();
-    assert!(calls.iter().any(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. })));
+    assert!(
+        calls
+            .iter()
+            .any(|op| matches!(op.call, NetCall::RecoveryInboxRegister { .. }))
+    );
     w.alice.flush_net(&w.a);
     let app = w.alice.core.debug_app_state(&w.a).unwrap();
     assert_eq!(app["recoveryInbox"]["registrationRefused"], false);
@@ -1118,7 +1213,9 @@ fn a_surviving_controller_registers_drains_and_acknowledges_and_is_told_of_the_r
     let mut w = world();
     // The inbox is registered on the first tick, before any request exists.
     alice_tick(&mut w, 1, 0);
-    assert!(w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"]["registeredAtMs"].is_u64());
+    assert!(
+        w.alice.core.debug_app_state(&w.a).unwrap()["recoveryInbox"]["registeredAtMs"].is_u64()
+    );
     let mut f = fresh(&w.net);
     f.begin(&w.sheet);
     f.go("req", IntentBody::RequestRecovery);

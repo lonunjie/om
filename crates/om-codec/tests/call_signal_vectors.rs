@@ -59,7 +59,11 @@ fn call_signal_corpus_replays_exactly() {
     let reg = Registry::load_w1();
     let doc = corpus();
     let vectors = doc["vectors"].as_array().unwrap();
-    assert!(vectors.len() >= 90, "corpus unexpectedly small: {}", vectors.len());
+    assert!(
+        vectors.len() >= 90,
+        "corpus unexpectedly small: {}",
+        vectors.len()
+    );
     let mut bad = Vec::new();
     let (mut accepted, mut rejected) = (0, 0);
     for v in vectors {
@@ -67,7 +71,10 @@ fn call_signal_corpus_replays_exactly() {
         let name = v["object"].as_str().unwrap();
         assert_eq!(name, "CallSignal", "{id}");
         let bytes = expand_hex(&v["hex"]);
-        match (v["expect"].as_str().unwrap(), reg.check(name, &bytes, false)) {
+        match (
+            v["expect"].as_str().unwrap(),
+            reg.check(name, &bytes, false),
+        ) {
             ("reject", Err(e)) => {
                 rejected += 1;
                 if Some(e) != v["error"].as_str() {
@@ -93,11 +100,22 @@ fn call_signal_corpus_replays_exactly() {
                     bad.push(format!("{id}: derived signature/hash inputs differ"));
                 }
             }
-            (want, got) => bad.push(format!("{id}: expected {want}, got {:?}", got.map(|_| "accept"))),
+            (want, got) => bad.push(format!(
+                "{id}: expected {want}, got {:?}",
+                got.map(|_| "accept")
+            )),
         }
     }
-    assert!(bad.is_empty(), "{} mismatches, first: {:#?}", bad.len(), &bad[..bad.len().min(10)]);
-    assert!(accepted >= 35 && rejected >= 55, "accepted {accepted} rejected {rejected}");
+    assert!(
+        bad.is_empty(),
+        "{} mismatches, first: {:#?}",
+        bad.len(),
+        &bad[..bad.len().min(10)]
+    );
+    assert!(
+        accepted >= 35 && rejected >= 55,
+        "accepted {accepted} rejected {rejected}"
+    );
 }
 
 /// CallKeyPackage is not a top-level object; the product codec checks it as a registered struct.
@@ -112,7 +130,10 @@ fn key_package_structs_replay_exactly() {
         let id = v["id"].as_str().unwrap();
         let name = v["struct"].as_str().unwrap();
         let bytes = expand_hex(&v["hex"]);
-        match (v["expect"].as_str().unwrap(), reg.check_struct(name, &bytes, 32_768)) {
+        match (
+            v["expect"].as_str().unwrap(),
+            reg.check_struct(name, &bytes, 32_768),
+        ) {
             ("reject", Err(e)) => {
                 if Some(e) != v["error"].as_str() {
                     bad.push(format!("{id}: error {e} != {}", v["error"]));
@@ -123,7 +144,10 @@ fn key_package_structs_replay_exactly() {
                     bad.push(format!("{id}: re-encode differs"));
                 }
             }
-            (want, got) => bad.push(format!("{id}: expected {want}, got {:?}", got.map(|_| "accept"))),
+            (want, got) => bad.push(format!(
+                "{id}: expected {want}, got {:?}",
+                got.map(|_| "accept")
+            )),
         }
     }
     assert!(bad.is_empty(), "{bad:#?}");
@@ -150,7 +174,8 @@ fn signal_size_boundary_on_the_product_codec() {
     assert_eq!(build(pad).len(), 32_768);
     assert!(reg.check("CallSignal", &build(pad), false).is_ok());
     assert_eq!(
-        reg.check("CallSignal", &build(pad + 1), false).map(|_: Value| ()),
+        reg.check("CallSignal", &build(pad + 1), false)
+            .map(|_: Value| ()),
         Err("size_limit")
     );
 }
@@ -161,15 +186,23 @@ fn signal_size_boundary_on_the_product_codec() {
 fn signal_refuses_every_unassigned_key() {
     let reg = Registry::load_w1();
     let doc = corpus();
-    let min = doc["vectors"].as_array().unwrap().iter().find(|v| v["id"] == "CallSignal/end-hangup").unwrap();
+    let min = doc["vectors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == "CallSignal/end-hangup")
+        .unwrap();
     let bytes = expand_hex(&min["hex"]);
     let val = reg.check("CallSignal", &bytes, false).unwrap();
     for key in (10u64..=22).chain(24..=40) {
-        let Value::Map(mut m) = val.clone() else { panic!("map") };
+        let Value::Map(mut m) = val.clone() else {
+            panic!("map")
+        };
         m.push((Value::Uint(key), Value::Uint(1_790_208_000)));
         m.sort_by_key(|a| encode(&a.0));
         assert_eq!(
-            reg.check("CallSignal", &encode(&Value::Map(m)), false).map(|_: Value| ()),
+            reg.check("CallSignal", &encode(&Value::Map(m)), false)
+                .map(|_: Value| ()),
             Err("unknown_field"),
             "key {key}"
         );

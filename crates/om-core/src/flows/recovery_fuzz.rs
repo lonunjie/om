@@ -15,8 +15,8 @@ use crate::crypto::recovery_approval as ra;
 use crate::crypto::sig::ds_hash;
 use crate::recovery::{RecoveryPolicy, RecoveryRequest, RecoveryVeto};
 use crate::recovery_record::{
-    self as rr, ProviderHome, RecordKeys, RecoveryKit, RecoveryRecord, RecoveryRedirect,
-    RelationshipSnapshot, BUCKETS,
+    self as rr, BUCKETS, ProviderHome, RecordKeys, RecoveryKit, RecoveryRecord, RecoveryRedirect,
+    RelationshipSnapshot,
 };
 use crate::recovery_sheet::{self as sheet, OwnerCheckpoint, Parsed, Sheet};
 

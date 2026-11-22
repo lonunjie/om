@@ -2311,7 +2311,10 @@ fn the_poll_cap_counts_polls_kept_open_not_closed_ones() {
     // 64 closed polls, none open: the 65th is created and reaches every device, and the closed tallies are all still there
     go(&mut devs, 1, poll_intent(&conv, false, 1));
     for d in &devs {
-        let polls: Vec<_> = msgs(d, &conv).into_iter().filter(|m| m.poll_view.is_some()).collect();
+        let polls: Vec<_> = msgs(d, &conv)
+            .into_iter()
+            .filter(|m| m.poll_view.is_some())
+            .collect();
         assert_eq!(polls.len(), 65);
         assert_eq!(
             polls

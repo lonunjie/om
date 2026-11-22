@@ -612,9 +612,10 @@ impl IntentBody {
             | IntentBody::ConfirmRecovery { request_id, .. }
             | IntentBody::DeclinePeerRecovery { request_id, .. }
             | IntentBody::ConfirmPeerRecovery { request_id, .. } => Some(request_id.clone()),
-            IntentBody::ForgetRecoveryAttempt { recovery_operation_id, .. } => {
-                Some(recovery_operation_id.clone())
-            }
+            IntentBody::ForgetRecoveryAttempt {
+                recovery_operation_id,
+                ..
+            } => Some(recovery_operation_id.clone()),
             IntentBody::ChangePrivacyPolicy { policy, .. } => Some(code(policy)),
             IntentBody::StartRecovery {
                 scope, custodian, ..

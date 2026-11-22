@@ -59,7 +59,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let required_votes = control::majority(head.control.len());
         if required_votes > 1 {
-            return OutcomeClass::NeedsUserAction { action: UserActionCode::AuthorizeWithDevice };
+            return OutcomeClass::NeedsUserAction {
+                action: UserActionCode::AuthorizeWithDevice,
+            };
         }
         let Some(parent_epoch) = self.committed_recovery_epoch(&head) else {
             return rejected(RejectReason::StaleState);
@@ -170,13 +172,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if pending.kit.is_some()
             && let Some(old) = self.recovery_kit_value()
         {
-            self.st.app.retired_recovery_records.push(RetiredRecoveryRecord {
-                place: JoinPlace { host: old.host.clone(), port: old.port, scope: hex(&old.scope) },
-                locator: hex(&old.locator()),
-                write_cap: hex(&old.write_cap).into(),
-                replacement_generation: child.generation,
-                expires_ms: self.now_ms.saturating_add(400 * 86_400_000),
-            });
+            self.st
+                .app
+                .retired_recovery_records
+                .push(RetiredRecoveryRecord {
+                    place: JoinPlace {
+                        host: old.host.clone(),
+                        port: old.port,
+                        scope: hex(&old.scope),
+                    },
+                    locator: hex(&old.locator()),
+                    write_cap: hex(&old.write_cap).into(),
+                    replacement_generation: child.generation,
+                    expires_ms: self.now_ms.saturating_add(400 * 86_400_000),
+                });
         }
         self.retire_recovery_inbox();
         self.st.app.acs_chain.push(hex(&signed));

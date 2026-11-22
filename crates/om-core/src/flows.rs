@@ -33,9 +33,9 @@ mod multi;
 mod owed;
 pub(crate) mod preferences;
 mod recovery_approval;
+mod recovery_attempt;
 #[cfg(feature = "fuzz-entry")]
 pub mod recovery_fuzz;
-mod recovery_attempt;
 mod recovery_inbox;
 mod recovery_owner;
 mod recovery_peer;
@@ -1015,9 +1015,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::OfferRecoveryApproval => self.offer_recovery_approval(op),
             IntentBody::JoinRecoveryApproval { link } => self.join_recovery_approval(op, link),
             IntentBody::CancelRecovery => self.cancel_recovery(),
-            IntentBody::ForgetRecoveryAttempt { recovery_operation_id, .. } => {
-                self.forget_recovery_attempt(recovery_operation_id)
-            }
+            IntentBody::ForgetRecoveryAttempt {
+                recovery_operation_id,
+                ..
+            } => self.forget_recovery_attempt(recovery_operation_id),
             IntentBody::CheckRecoveryAgain => self.check_recovery_again(),
             IntentBody::ResendRecoveryRequest => self.resend_recovery_request(),
             IntentBody::ApproveDeviceLink { request_id, .. } => {
@@ -2707,7 +2708,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 error: NetError::NotFound,
             } => match entry.call {
                 NetCall::GetInvite { .. } => K::Terminal(RejectReason::NotFound),
-                NetCall::DeleteBlob { .. } | NetCall::RevokeKeyGeneration { .. } | NetCall::RecoveryDelete { .. } => {
+                NetCall::DeleteBlob { .. }
+                | NetCall::RevokeKeyGeneration { .. }
+                | NetCall::RecoveryDelete { .. } => {
                     K::Done(None, vec![]) // already gone is success
                 }
                 NetCall::FetchKeyMaterial { .. } => K::Retry, // the peer may not have published yet
@@ -2716,7 +2719,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             NetResult::Err {
                 error: NetError::Rejected { reason },
             } => match &entry.call {
-                NetCall::RecoveryDelete { .. } if reason == RejectReason::NotFound => K::Done(None, vec![]),
+                NetCall::RecoveryDelete { .. } if reason == RejectReason::NotFound => {
+                    K::Done(None, vec![])
+                }
                 NetCall::RecoveryDelete { .. } => K::Retry,
                 _ => K::Terminal(reason),
             },
@@ -2939,7 +2944,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
             Purpose::RecoveryPut { generation } => self.recovery_put_done(generation, bytes),
-            Purpose::RecoveryDelete { locator } => self.st.app.retired_recovery_records.retain(|debt| debt.locator != locator),
+            Purpose::RecoveryDelete { locator } => self
+                .st
+                .app
+                .retired_recovery_records
+                .retain(|debt| debt.locator != locator),
             Purpose::RecoveryReconcile { generation } => {
                 let got = match <[Vec<u8>; 2]>::try_from(items) {
                     Ok([etag, envelope]) => Some((etag, envelope)),

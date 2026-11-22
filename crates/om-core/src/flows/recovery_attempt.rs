@@ -381,23 +381,36 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 reason: RejectReason::NotFound,
             };
         };
-        let keys = unhex(&join.root).ok()
+        let keys = unhex(&join.root)
+            .ok()
             .and_then(|root| <[u8; 32]>::try_from(root).ok())
             .map(zeroize::Zeroizing::new)
             .map(|root| {
-                join.place.iter().map(|p| &p.scope)
+                join.place
+                    .iter()
+                    .map(|p| &p.scope)
                     .chain(join.visited.iter().map(|(_, scope)| scope))
-                    .chain(join.attempt.iter().flat_map(|a| a.homes.iter().map(|p| &p.scope)))
+                    .chain(
+                        join.attempt
+                            .iter()
+                            .flat_map(|a| a.homes.iter().map(|p| &p.scope)),
+                    )
                     .filter_map(|scope| {
                         let scope_bytes = <[u8; 32]>::try_from(unhex(scope).ok()?).ok()?;
                         let keys = RecordKeys::derive(&root, &scope_bytes);
                         let key = Self::floor_key(scope, &keys.locator);
-                        self.st.app.recovery_floors.contains_key(&key).then_some(key)
+                        self.st
+                            .app
+                            .recovery_floors
+                            .contains_key(&key)
+                            .then_some(key)
                     })
                     .collect::<std::collections::BTreeSet<_>>()
             })
             .unwrap_or_default();
-        if !keys.is_empty() && let Some(join) = self.st.app.recovery_join.as_mut() {
+        if !keys.is_empty()
+            && let Some(join) = self.st.app.recovery_join.as_mut()
+        {
             join.cancelled_floors = Some(crate::state::CancelledRecoveryFloors {
                 keys,
                 last_sample: None,
@@ -410,24 +423,42 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     pub(super) fn forget_recovery_attempt(&mut self, recovery_operation_id: &str) -> OutcomeClass {
         if self.st.app.recovery_join.as_ref().is_none_or(|join| {
-            join.terminal != Some(AttemptState::Cancelled) || join.operation_id != recovery_operation_id
+            join.terminal != Some(AttemptState::Cancelled)
+                || join.operation_id != recovery_operation_id
         }) {
-            return OutcomeClass::Rejected { reason: RejectReason::NotFound };
+            return OutcomeClass::Rejected {
+                reason: RejectReason::NotFound,
+            };
         }
-        if let Some(floors) = self.st.app.recovery_join.take().and_then(|j| j.cancelled_floors) {
-            self.st.app.recovery_floors.retain(|key, _| !floors.keys.contains(key));
+        if let Some(floors) = self
+            .st
+            .app
+            .recovery_join
+            .take()
+            .and_then(|j| j.cancelled_floors)
+        {
+            self.st
+                .app
+                .recovery_floors
+                .retain(|key, _| !floors.keys.contains(key));
         }
         OutcomeClass::Committed
     }
 
     fn expire_cancelled_floors(&mut self, mono: &MonotonicSample) {
         const RETENTION_MS: u64 = 400 * 86_400_000;
-        let Some(join) = self.st.app.recovery_join.as_mut()
+        let Some(join) = self
+            .st
+            .app
+            .recovery_join
+            .as_mut()
             .filter(|j| j.terminal == Some(AttemptState::Cancelled))
         else {
             return;
         };
-        let Some(floors) = join.cancelled_floors.as_mut() else { return };
+        let Some(floors) = join.cancelled_floors.as_mut() else {
+            return;
+        };
         match floors.last_sample.as_mut() {
             Some(last) if last.boot_session == mono.boot_session => {
                 let elapsed = mono.elapsed_ms.saturating_sub(last.elapsed_ms);
@@ -439,7 +470,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if floors.credited_ms >= RETENTION_MS
             && let Some(floors) = join.cancelled_floors.take()
         {
-            self.st.app.recovery_floors.retain(|key, _| !floors.keys.contains(key));
+            self.st
+                .app
+                .recovery_floors
+                .retain(|key, _| !floors.keys.contains(key));
         }
     }
 
@@ -476,8 +510,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     // ------------------------------------------------------------------------------------------- delivery
 
     pub(super) fn resend_recovery_request(&mut self) -> OutcomeClass {
-        if self.attempt().is_none_or(|a| a.state != AttemptState::Waiting) {
-            return OutcomeClass::Rejected { reason: RejectReason::NotFound };
+        if self
+            .attempt()
+            .is_none_or(|a| a.state != AttemptState::Waiting)
+        {
+            return OutcomeClass::Rejected {
+                reason: RejectReason::NotFound,
+            };
         }
         self.owner_post_all();
         OutcomeClass::Committed
@@ -497,10 +536,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             a.last_request_post_ms = Some(now);
         }
         for h in &a.homes {
-            if self.st.app.outbox.iter().any(|e| matches!(&e.call,
-                NetCall::RecoveryRequestPost { host, port, bytes, .. }
-                    if host == &h.host && port == &h.port && bytes == &req
-            )) {
+            if self.st.app.outbox.iter().any(|e| {
+                matches!(&e.call,
+                    NetCall::RecoveryRequestPost { host, port, bytes, .. }
+                        if host == &h.host && port == &h.port && bytes == &req
+                )
+            }) {
                 continue; // The existing operation remains an exact retry until its outcome is known.
             }
             let request_id = Some(hex(&self.rand16()));
@@ -624,7 +665,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     .and_then(|b| <[u8; 32]>::try_from(b).ok())
             {
                 let keys = RecordKeys::derive(&root, &scope);
-                let kind = if j.place.as_ref() == Some(h) { OWNER_PRIMARY_RECORD_READ } else { 0 };
+                let kind = if j.place.as_ref() == Some(h) {
+                    OWNER_PRIMARY_RECORD_READ
+                } else {
+                    0
+                };
                 self.enqueue(
                     NetCall::RecoveryGet {
                         host: h.host.clone(),
@@ -660,7 +705,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if kind == 1 {
             if let Some(a) = self.attempt_mut() {
                 a.round_veto_unanswered |= got.is_none();
-                a.veto_page_full |= got.as_ref().is_some_and(|(_, items)| items.len() >= UNCLASSIFIED_VETO_LIMIT);
+                a.veto_page_full |= got
+                    .as_ref()
+                    .is_some_and(|(_, items)| items.len() >= UNCLASSIFIED_VETO_LIMIT);
             }
             if let Some((_, items)) = got {
                 for v in items {
@@ -748,7 +795,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             let Ok(Plain::Record(r)) = rr::read_plaintext(&plain) else {
                 continue;
             };
-            let Some(v) = self.accept_record(&root, &r, j.checkpoint.as_ref()) else { continue };
+            let Some(v) = self.accept_record(&root, &r, j.checkpoint.as_ref()) else {
+                continue;
+            };
             let lineage = hex(&v.head.account_id);
             let scope_id = hex(&scope);
             let Some(a) = self.attempt().cloned() else {
@@ -764,12 +813,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 scope: scope_id.clone(),
                 record_generation: r.generation,
             };
-            if j.checkpoint.as_ref().is_some_and(|cp| cp.account_id != lineage || v.states.iter().any(|s| {
-                s.generation == cp.generation && hex(&s.hash()) != cp.acs_hash
-            })) {
+            if j.checkpoint.as_ref().is_some_and(|cp| {
+                cp.account_id != lineage
+                    || v.states
+                        .iter()
+                        .any(|s| s.generation == cp.generation && hex(&s.hash()) != cp.acs_hash)
+            }) {
                 if let Some(a) = self.attempt_mut() {
                     a.round_conflict = true;
-                    if j.checkpoint.as_ref().is_some_and(|cp| cp.account_id == lineage) {
+                    if j.checkpoint
+                        .as_ref()
+                        .is_some_and(|cp| cp.account_id == lineage)
+                    {
                         Self::remember_owner_head(a, observation);
                     }
                 }
@@ -905,7 +960,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             * 1000;
         let due = |n: u64| credited >= delay_ms / 3 * n && delay_ms > 0;
         let resend_mark = if due(2) { 2 } else { u8::from(due(1)) };
-        let refresh_due = last_post.is_none_or(|last| self.now_ms.saturating_sub(last) >= REQUEST_REFRESH_MS);
+        let refresh_due =
+            last_post.is_none_or(|last| self.now_ms.saturating_sub(last) >= REQUEST_REFRESH_MS);
         if resend_mark > resends || refresh_due {
             if let Some(a) = self.attempt_mut() {
                 a.resends = resend_mark.max(resends);

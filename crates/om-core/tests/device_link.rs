@@ -1855,11 +1855,7 @@ fn removing_the_device_that_answered_ends_the_contacts_call() {
     assert_eq!(ended.state, CallState::Failed);
     assert_eq!(ended.reason, Some(CallReason::Failed));
     assert!(
-        w.carol
-            .core
-            .take_call_keys(&w.c, &id)
-            .unwrap()
-            .is_none(),
+        w.carol.core.take_call_keys(&w.c, &id).unwrap().is_none(),
         "no media keys outlive the call"
     );
 }

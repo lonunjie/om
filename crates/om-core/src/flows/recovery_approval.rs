@@ -938,7 +938,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
             None => 0,
         };
-        let states: Vec<_> = ev.states[start..].iter().filter_map(|s| child_of_state(s)).collect();
+        let states: Vec<_> = ev.states[start..]
+            .iter()
+            .filter_map(|s| child_of_state(s))
+            .collect();
         let links: Option<Vec<_>> = ev
             .dossiers
             .iter()
@@ -995,8 +998,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // Learn a verified descendant of the pinned head. Ending this request cannot
             // authorize another request: the person must ask again against the new parent.
             let extends = ev.successor.is_none()
-                && ev
-                    .states[start..]
+                && ev.states[start..]
                     .iter()
                     .any(|s| child_of_state(s).is_some_and(|x| Some(x.hash()) == parent))
                 && head.generation > a.parent_generation;

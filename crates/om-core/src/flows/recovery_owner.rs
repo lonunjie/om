@@ -12,7 +12,12 @@ use crate::recovery_sheet as sheet;
 
 impl AppState {
     pub(crate) fn verify_own_chain(&self, chain: &[Vec<u8>], creds: &[Vec<u8>]) -> Option<Acs> {
-        verify_owner_chain(chain, creds, &self.link_evidence(), self.acs_checkpoint.as_ref())
+        verify_owner_chain(
+            chain,
+            creds,
+            &self.link_evidence(),
+            self.acs_checkpoint.as_ref(),
+        )
     }
 }
 
@@ -104,31 +109,39 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let opened = rr::open_envelope(&keys, &scope, &envelope)
             .and_then(|plain| rr::read_plaintext(&plain).map(|p| (plain, p)));
         match opened {
-            Ok((plain, Plain::Record(r))) => match self.accept_record(&root, &r, j.checkpoint.as_ref()) {
-                Some(verified) => {
-                    let evidence = self.owner_evidence(&j, &r, &verified);
-                    if evidence == EvidenceStage::Conflict {
-                        if let Some(j) = self.st.app.recovery_join.as_mut() {
-                            j.record = None;
-                            j.evidence = evidence;
-                            j.stage = JoinStage::Conflict;
-                        }
-                        return;
-                    }
-                    let account = hex(&verified.head.account_id);
-                    match self.apply_floor(&place.scope, &keys.locator, &account, r.generation, &plain) {
-                        Ok(()) => {
+            Ok((plain, Plain::Record(r))) => {
+                match self.accept_record(&root, &r, j.checkpoint.as_ref()) {
+                    Some(verified) => {
+                        let evidence = self.owner_evidence(&j, &r, &verified);
+                        if evidence == EvidenceStage::Conflict {
                             if let Some(j) = self.st.app.recovery_join.as_mut() {
-                                j.record = Some(hex(&plain).into());
+                                j.record = None;
                                 j.evidence = evidence;
-                                j.stage = JoinStage::Found;
+                                j.stage = JoinStage::Conflict;
                             }
+                            return;
                         }
-                        Err(stage_err) => stage(self, stage_err),
+                        let account = hex(&verified.head.account_id);
+                        match self.apply_floor(
+                            &place.scope,
+                            &keys.locator,
+                            &account,
+                            r.generation,
+                            &plain,
+                        ) {
+                            Ok(()) => {
+                                if let Some(j) = self.st.app.recovery_join.as_mut() {
+                                    j.record = Some(hex(&plain).into());
+                                    j.evidence = evidence;
+                                    j.stage = JoinStage::Found;
+                                }
+                            }
+                            Err(stage_err) => stage(self, stage_err),
+                        }
                     }
+                    None => stage(self, JoinStage::CantRead),
                 }
-                None => stage(self, JoinStage::CantRead),
-            },
+            }
             Ok((_, Plain::Redirect(red))) => {
                 // A moved Home (ADR-0200 section 6): follow it only under the rules that need no network, then look again.
                 let visited: Vec<(String, [u8; 32])> = j
@@ -191,7 +204,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             generation,
             digest: hex(&rr::plaintext_digest(plaintext)),
         };
-        let held = existing.into_iter().chain(legacy).max_by_key(|f| f.generation);
+        let held = existing
+            .into_iter()
+            .chain(legacy)
+            .max_by_key(|f| f.generation);
         let (keep, result) = match held {
             Some(f) if f.generation > generation => (f.clone(), Err(JoinStage::OutOfDate)),
             Some(f) if f.generation == generation && f.digest != new.digest => {
@@ -207,7 +223,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// The saved checkpoint supplies the trusted starting state (ADR-0225 §1).
-    fn owner_evidence(&self, j: &RecoveryJoinRec, r: &RecoveryRecord, v: &rr::Verified) -> EvidenceStage {
+    fn owner_evidence(
+        &self,
+        j: &RecoveryJoinRec,
+        r: &RecoveryRecord,
+        v: &rr::Verified,
+    ) -> EvidenceStage {
         let Some(cp) = j.checkpoint.as_ref() else {
             return EvidenceStage::Unpinned;
         };
@@ -255,7 +276,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .chain(std::iter::once(&r.evidence.head))
             .collect();
         let start = checkpoint
-            .and_then(|pin| v.states.iter().position(|state| matches_checkpoint(state, pin)))
+            .and_then(|pin| {
+                v.states
+                    .iter()
+                    .position(|state| matches_checkpoint(state, pin))
+            })
             .unwrap_or(0);
         let rest: Vec<Vec<u8>> = states.into_iter().skip(start + 1).cloned().collect();
         if !rest.is_empty() {
@@ -266,7 +291,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 start + 1,
                 &r.evidence.credentials,
                 &[],
-            ).ok()?;
+            )
+            .ok()?;
         }
         Some(v)
     }
@@ -302,6 +328,7 @@ pub(super) fn verify_owner_chain(
         index + 1,
         credentials,
         links,
-    ).ok()?;
+    )
+    .ok()?;
     pending.is_none().then_some(head)
 }

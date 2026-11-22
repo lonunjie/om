@@ -474,13 +474,18 @@ fn a_reply_whose_manifest_was_lost_is_repeated_by_the_sender_and_completes() {
         settle(&mut w, &mut f);
         f.rt.flush_net(&f.ctx);
     }
-    assert!(f.app()["acsChain"].as_array().unwrap().is_empty(), "nothing adopted");
+    assert!(
+        f.app()["acsChain"].as_array().unwrap().is_empty(),
+        "nothing adopted"
+    );
     assert_eq!(f.view().unwrap().attempt, Some(AttemptState::Waiting));
     let join = f.app()["recoveryJoin"]["attempt"]["approval"].clone();
     assert!(join.is_object(), "the exchange is still open");
     assert!(join["descriptor"].is_null(), "no manifest yet");
     assert!(
-        join["chunks"].as_array().is_none_or(|c| c.iter().all(|x| x.is_null())),
+        join["chunks"]
+            .as_array()
+            .is_none_or(|c| c.iter().all(|x| x.is_null())),
         "nothing is buffered before the manifest"
     );
     // the controller's device repeats the whole sequence after one fifth of the exchange's life

@@ -118,7 +118,10 @@ fn parse_link(text: &str) -> Option<(bool, [u8; 16], ra::Offer)> {
 pub(super) fn fuzz_parse_link(text: &str) -> Result<(), &'static str> {
     let (_, origin, offer) = parse_link(text).ok_or("link_refused")?;
     assert_eq!(hex(&origin).len(), 32);
-    assert!(ra::encode_offer(&offer).is_some(), "a parsed offer re-encodes");
+    assert!(
+        ra::encode_offer(&offer).is_some(),
+        "a parsed offer re-encodes"
+    );
     Ok(())
 }
 

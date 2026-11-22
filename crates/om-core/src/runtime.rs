@@ -760,15 +760,23 @@ impl LoopbackNetwork {
                     error: NetError::NotFound,
                 },
             },
-            NetCall::RecoveryDelete { locator, write_cap, .. } => {
+            NetCall::RecoveryDelete {
+                locator, write_cap, ..
+            } => {
                 let key = crate::crypto::unhex(locator).unwrap_or_default();
                 let hash = crate::crypto::unhex(write_cap)
-                    .map(|cap| crate::crypto::sha256(&[&cap])).ok();
-                if s.recovery.get(&key).is_some_and(|r| Some(r.write_hash) == hash) {
+                    .map(|cap| crate::crypto::sha256(&[&cap]))
+                    .ok();
+                if s.recovery
+                    .get(&key)
+                    .is_some_and(|r| Some(r.write_hash) == hash)
+                {
                     s.recovery.remove(&key);
                     NetResult::Ok
                 } else {
-                    NetResult::Err { error: NetError::NotFound }
+                    NetResult::Err {
+                        error: NetError::NotFound,
+                    }
                 }
             }
             NetCall::RecoveryRequestPost { bytes, .. } => {
@@ -786,9 +794,15 @@ impl LoopbackNetwork {
                 NetResult::Ok
             }
             NetCall::RecoveryInboxRegister {
-                account_id, recovery_epoch, cap, ..
+                account_id,
+                recovery_epoch,
+                cap,
+                ..
             } => {
-                let inbox_id = crate::recovery::inbox_id(&account_id.as_slice().try_into().unwrap_or_default(), *recovery_epoch);
+                let inbox_id = crate::recovery::inbox_id(
+                    &account_id.as_slice().try_into().unwrap_or_default(),
+                    *recovery_epoch,
+                );
                 let h = crate::crypto::sha256(&[cap]);
                 match s.recovery_inboxes.get(inbox_id.as_slice()) {
                     Some(i) if i.cap_hash != h => NetResult::Err {
@@ -810,9 +824,15 @@ impl LoopbackNetwork {
                 }
             }
             NetCall::RecoveryInboxDrain {
-                account_id, recovery_epoch, cap, ..
+                account_id,
+                recovery_epoch,
+                cap,
+                ..
             } => {
-                let inbox_id = crate::recovery::inbox_id(&account_id.as_slice().try_into().unwrap_or_default(), *recovery_epoch);
+                let inbox_id = crate::recovery::inbox_id(
+                    &account_id.as_slice().try_into().unwrap_or_default(),
+                    *recovery_epoch,
+                );
                 let h = crate::crypto::sha256(&[cap]);
                 match s.recovery_inboxes.get(inbox_id.as_slice()) {
                     Some(i) if i.cap_hash == h => NetResult::Many {
@@ -844,7 +864,10 @@ impl LoopbackNetwork {
                 item_ids,
                 ..
             } => {
-                let inbox_id = crate::recovery::inbox_id(&account_id.as_slice().try_into().unwrap_or_default(), *recovery_epoch);
+                let inbox_id = crate::recovery::inbox_id(
+                    &account_id.as_slice().try_into().unwrap_or_default(),
+                    *recovery_epoch,
+                );
                 let h = crate::crypto::sha256(&[cap]);
                 match s.recovery_inboxes.get_mut(inbox_id.as_slice()) {
                     Some(i) if i.cap_hash == h => {

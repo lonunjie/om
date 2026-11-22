@@ -37,7 +37,10 @@ impl AppState {
         if w.paused_for_exclusion || w.recovered_with_sheet {
             return RecoveryRecordStatus::NeedsNewKey;
         }
-        if let Some(head) = self.acs_chain.last().and_then(|signed| unhex(signed).ok())
+        if let Some(head) = self
+            .acs_chain
+            .last()
+            .and_then(|signed| unhex(signed).ok())
             .and_then(|signed| ceremony::chain_head(&signed))
         {
             let anchor_generation = w.sheet_anchor.as_ref().map_or(1, |cp| cp.generation);
@@ -262,7 +265,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let debts = &mut self.st.app.retired_recovery_records;
         debts.retain(|debt| self.now_ms < debt.expires_ms);
         self.st.app.outbox.retain(|entry| match &entry.purpose {
-            Purpose::RecoveryDelete { locator } => debts.iter().any(|debt| &debt.locator == locator),
+            Purpose::RecoveryDelete { locator } => {
+                debts.iter().any(|debt| &debt.locator == locator)
+            }
             _ => true,
         });
         let writer = &self.st.app.recovery_writer;
@@ -273,8 +278,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let due: Vec<_> = debts
             .iter()
             .filter(|debt| debt.replacement_generation <= acked_generation)
-            .filter(|debt| !self.st.app.outbox.iter().any(|entry| matches!(&entry.purpose,
-                Purpose::RecoveryDelete { locator } if *locator == debt.locator)))
+            .filter(|debt| {
+                !self.st.app.outbox.iter().any(|entry| {
+                    matches!(&entry.purpose,
+                Purpose::RecoveryDelete { locator } if *locator == debt.locator)
+                })
+            })
             .cloned()
             .collect();
         for debt in due {
@@ -286,7 +295,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     locator: debt.locator.clone(),
                     write_cap: debt.write_cap,
                 },
-                Purpose::RecoveryDelete { locator: debt.locator },
+                Purpose::RecoveryDelete {
+                    locator: debt.locator,
+                },
             );
         }
     }
@@ -356,7 +367,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let snapshot = self.recovery_snapshot();
         let content = hex(&crypto::sha256(&[&snapshot.to_bytes()]));
         let w = &self.st.app.recovery_writer;
-        let replace_staged_snapshot = self.st.app.privacy_level == Some(crate::api::PrivacyPolicyLevel::Maximum)
+        let replace_staged_snapshot = self.st.app.privacy_level
+            == Some(crate::api::PrivacyPolicyLevel::Maximum)
             && w.staged.is_some()
             && w.last_content.as_ref() != Some(&content);
         if replace_staged_snapshot {
@@ -595,7 +607,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 credentials.push(credential.clone());
             }
         }
-        self.st.app.verify_own_chain(&chain, &credentials)
+        self.st
+            .app
+            .verify_own_chain(&chain, &credentials)
             .is_some_and(|head| head.hash() == remote.head.state_hash)
     }
 }
