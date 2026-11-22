@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const targets = process.argv.slice(2);
 if (targets.length === 0) targets.push("worker", "sqlite");
-if (targets.some((target) => !["worker", "sqlite", "sqlite-direct"].includes(target))) {
-  process.stderr.write("Usage: pnpm conformance:provider [worker|sqlite|sqlite-direct]\n");
+if (targets.some((target) => !["worker", "sqlite", "sqlite-direct", "sqlite-process"].includes(target))) {
+  process.stderr.write("Usage: pnpm conformance:provider [worker|sqlite|sqlite-direct|sqlite-process]\n");
   process.exit(2);
 }
 

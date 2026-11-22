@@ -11,6 +11,7 @@ pnpm load:home                       # both Homes, quick scale (about 1 minute e
 pnpm load:home worker                # one Home
 pnpm load:home sqlite --full         # full scale (about 8 minutes each)
 pnpm load:home --full --out /tmp/om-load   # keep the JSON somewhere else
+pnpm load:home sqlite --capacity --full    # per-relay capacity: unit cost, idle accounting, N users, behaviour at the quota (about 20 minutes)
 ```
 
 One JSON file per Home is written to `conformance/load/out/` (git-ignored): `<home>-<scale>.json`. The run fails if any
@@ -33,6 +34,8 @@ Home share the CPU, so absolute numbers are a floor, not a capacity statement.
 
 Scale is set by `OM_LOAD_SCALE` (`quick` or `full`, see `P` in `load.load.ts`). A Worker keeps its write-ahead log until a clean
 stop, so its disk figure during a run includes it; the figure after a clean stop is the stored size.
+
+The capacity scenarios (`relay-capacity.load.ts`) and their results are described in [`2026-11-22-sqlite-home-real-host-and-capacity.md`](../../docs/reports/2026-11-22-sqlite-home-real-host-and-capacity.md).
 
 ## Files
 

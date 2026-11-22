@@ -43,9 +43,9 @@ export function providerFetch(home: Home): typeof fetch {
 
 export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string>; bundle?: string; blobs?: false; usage?: false; recovery?: false; push?: false; media?: (request: Request) => Promise<Response> } = {}): Promise<Home> {
   const target = process.env["OM_PROVIDER_TEST_TARGET"];
-  if (target === "sqlite" || target === "sqlite-direct") {
+  if (target === "sqlite" || target === "sqlite-direct" || target === "sqlite-process") {
     const { startSqliteHome } = await import("../../sqlite-home/test/harness");
-    return startSqliteHome({ ...opts, direct: target === "sqlite-direct" });
+    return startSqliteHome({ ...opts, direct: target === "sqlite-direct", process: target === "sqlite-process" });
   }
   const code = readFileSync(opts.bundle ?? bundle(), "utf8");
   const mf = new Miniflare({

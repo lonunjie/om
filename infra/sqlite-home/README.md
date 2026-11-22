@@ -23,6 +23,27 @@ docker run -d --name om-home --restart unless-stopped \
   -e OM_ADMISSION='<your OM setup value>' om-sqlite-home
 ```
 
+## Run under systemd
+
+For a machine that keeps the Home running, install the built bundle and the unit in `deploy/`. Build once from the repository root (`pnpm --filter @om/sqlite-home build`), then as root:
+
+```sh
+install -d /opt/om-home /etc/om-home
+install -m 0644 infra/sqlite-home/dist/home.mjs /opt/om-home/home.mjs
+install -m 0600 infra/sqlite-home/deploy/om-home.env.example /etc/om-home/om-home.env
+install -m 0644 infra/sqlite-home/deploy/om-home.service /etc/systemd/system/om-home.service
+```
+
+Edit `/etc/om-home/om-home.env` and set `OM_ADMISSION` to your OM setup value, then start it.
+
+```sh
+systemctl daemon-reload
+systemctl enable --now om-home.service
+systemctl status om-home.service
+```
+
+The unit runs the Home as a throwaway unprivileged account, keeps its data in `/var/lib/om-home` (mode 0700), restarts it after a crash, stops it with a clean close, and removes access to the rest of the system. It expects `node` at `/usr/bin/node` (Node.js 24.14 or later in the 24 line); change `ExecStart` if yours is elsewhere. Run `systemd-analyze security om-home.service` to see the sandbox as your systemd reports it. Take a consistent copy of the data directory only with the service stopped (`systemctl stop om-home.service`).
+
 ## Give the Home an HTTPS address
 
 Point a hostname you control at the machine that runs the HTTPS proxy. On the same machine as the Home, configure Caddy with the following site block and replace the example hostname. Allow external connections to the proxy on ports 80 and 443. Keep port 8787 private. Caddy obtains the certificate and forwards the WebSocket upgrade. [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https) and [Caddy reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy).
@@ -50,4 +71,6 @@ Look for `om.admission.v1`, `om.relay.wake.v1`, `om.blob.spool.v1` and `om.recov
 - Store the Home on local persistent storage and stop it before making a consistent copy of the complete data directory. Restoring an older copy can omit accepted or acknowledged items. The application's end-to-end history and identity are separate from this data.
 - The data directory contains encrypted payloads, opaque identifiers, capability hashes, and the state needed for idempotent retries. Roles share one operator and keep separate SQLite files. Restrict access to the directory and any copies. The Home does not write request logs.
 
-The source build and Dockerfile are for staging and self-hosted evaluation. Release-integrity and provider-diversity gates are tracked separately. Run the shared cases with `pnpm conformance:provider` from the repository root.
+Capacity measurements and the budget one Home needs for a number of people are in [`2026-11-22-sqlite-home-real-host-and-capacity.md`](../../docs/reports/2026-11-22-sqlite-home-real-host-and-capacity.md).
+
+The source build, Dockerfile and systemd unit are for staging and self-hosted evaluation. Release-integrity and provider-diversity gates are tracked separately. Run the shared cases with `pnpm conformance:provider` from the repository root.

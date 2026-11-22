@@ -1628,6 +1628,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "conformance/load/relay-capacity.load.ts",
+      "class": "verification_tool",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "conformance/load/run.mjs",
       "class": "verification_tool",
       "domain": "provider_deployment_supply_chain",
@@ -6360,6 +6367,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-11-22-sqlite-home-real-host-and-capacity.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/README.md",
       "class": "report",
       "domain": "architecture_process",
@@ -10001,6 +10015,20 @@
     },
     {
       "path": "infra/sqlite-home/build.mjs",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/deploy/om-home.env.example",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/sqlite-home/deploy/om-home.service",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",

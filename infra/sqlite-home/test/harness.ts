@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { execFileSync } from "node:child_process";
-import { request, type IncomingHttpHeaders, type IncomingMessage, type Server as HttpServer } from "node:http";
+import { execFileSync, spawn } from "node:child_process";
+import { createServer as createHttpServer, request, type IncomingHttpHeaders, type IncomingMessage, type Server as HttpServer } from "node:http";
 import { createRequire } from "node:module";
 import { duplexPair, type Duplex } from "node:stream";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -16,6 +16,8 @@ interface Options {
   recovery?: false;
   usage?: false;
   direct?: boolean;
+  /** Run the Home as its own process on a real TCP listener (target `sqlite-process`). */
+  process?: boolean;
   media?(request: Request): Promise<Response>;
 }
 
@@ -88,7 +90,69 @@ function bundle(): string {
   return out;
 }
 
+const HOME_PROCESS = fileURLToPath(new URL("../../../conformance/load/home-process.mjs", import.meta.url));
+
+/**
+ * The Home as its own operating-system process on a real TCP listener, started from the built bundle the way a service
+ * manager starts it. Nothing is shared with the test process but the network: a restart is a process exit and a new process.
+ * A media backend function is offered over the permission-restricted Unix socket the Home already uses for it.
+ */
+async function startSqliteProcess(options: Options): Promise<Server> {
+  const directory = options.persist ?? mkdtempSync(join(tmpdir(), "om-home-proc-"));
+  const scratch = mkdtempSync(join(tmpdir(), "om-home-sock-"));
+  const vars: Record<string, string> = { OM_PROFILE: "default", OM_ADMISSION_REQUIRED: "0", OM_PROVIDER_ID: "om-test-home", ...options.vars };
+  let backend: HttpServer | undefined;
+  if (options.media) {
+    const media = options.media.bind(options);
+    const socketPath = join(scratch, "media.sock");
+    backend = createHttpServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (c: Buffer) => chunks.push(c));
+      req.on("end", () => {
+        // eslint-disable-next-line no-restricted-syntax -- synthetic origin: the media backend is a function in the test process
+        void media(new Request("http://media.invalid/lease", { method: "POST", headers: { "content-type": "application/json" }, body: Buffer.concat(chunks) }))
+          .then(async (r) => { res.statusCode = r.status; res.end(Buffer.from(await r.arrayBuffer())); }, () => { res.statusCode = 503; res.end(); });
+      });
+    });
+    await new Promise<void>((resolve) => { backend?.listen(socketPath, resolve); });
+    vars["OM_MEDIA_SOCKET"] = socketPath;
+  }
+  const child = spawn(process.execPath, [HOME_PROCESS, bundle(), directory, JSON.stringify(vars), JSON.stringify({ blobs: options.blobs, recovery: options.recovery, usage: options.usage })], { stdio: ["ignore", "pipe", "inherit"] });
+  const cleanup = (): void => {
+    backend?.close();
+    rmSync(scratch, { recursive: true, force: true });
+    if (options.persist === undefined) rmSync(directory, { recursive: true, force: true });
+  };
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      let seen = "";
+      child.stdout.on("data", (d: Buffer) => {
+        seen += d.toString();
+        const m = /LISTENING (\S+)/.exec(seen);
+        if (m?.[1]) resolve(m[1]);
+      });
+      child.once("exit", (code) => { reject(new Error(`Home process exited with ${String(code)}`)); });
+    });
+    return {
+      url, fetch: (path, init) => fetch(url + path, init),
+      dispose: async () => {
+        if (child.exitCode === null && child.signalCode === null) {
+          const done = new Promise<void>((resolve) => child.once("exit", () => { resolve(); }));
+          child.kill("SIGTERM");
+          await done;
+        }
+        cleanup();
+      },
+    };
+  } catch (error) {
+    child.kill("SIGKILL");
+    cleanup();
+    throw error;
+  }
+}
+
 export async function startSqliteHome(options: Options = {}): Promise<Server> {
+  if (options.process) return startSqliteProcess(options);
   const url = pathToFileURL(bundle());
   url.searchParams.set("instance", String(instance++));
   const module = await import(/* @vite-ignore */ url.href) as {

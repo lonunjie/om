@@ -263,7 +263,9 @@ describe("relay semantics", () => {
     expect((await relay.revoke(home, fresh.admin, mint.value.id)).ok).toBe(true);
     expect((await relay.deposit(home, mint.value.cap, sealed())).ok).toBe(true);
     expect((await relay.revoke(home, old.admin, mint.value.id)).ok).toBe(true);
-    expect(await relay.mint(home, old.admin, { ttlSeconds: 3600 }, requestId)).toEqual(mint);
+    // An exact replay returns the same outcome. The HTTP `date` header is the server clock at the time of each reply, so it is not part of the outcome.
+    const replayed = await relay.mint(home, old.admin, { ttlSeconds: 3600 }, requestId);
+    expect({ ...replayed, headers: undefined }).toEqual({ ...mint, headers: undefined });
     expect(errorOf(await relay.deposit(home, mint.value.cap, sealed())).name).toBe("revoked");
     expect((await relay.deposit(home, replacement.value.cap, sealed())).ok).toBe(true);
   });
