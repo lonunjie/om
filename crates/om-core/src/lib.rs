@@ -43,6 +43,7 @@ pub mod recovery;
 pub mod recovery_record;
 pub mod recovery_sheet;
 pub mod relayset;
+pub mod room_topics;
 pub mod route;
 pub mod service_authorship;
 pub mod service_control;
