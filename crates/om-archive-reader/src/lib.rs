@@ -8,6 +8,7 @@ mod manifest;
 mod zip;
 pub use limits::Limits;
 pub mod import;
+pub mod writer;
 use sha2::{Digest, Sha256};
 
 /// Stable ZIP error subclasses within the §7 `Zip(<class>)` family.
