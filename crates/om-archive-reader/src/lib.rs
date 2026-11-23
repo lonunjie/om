@@ -7,6 +7,7 @@ mod limits;
 mod manifest;
 mod zip;
 pub use limits::Limits;
+pub mod foreign;
 pub mod import;
 pub mod readable;
 pub mod rehydrate;
