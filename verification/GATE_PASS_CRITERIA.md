@@ -30,7 +30,7 @@
 | V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | passed | open | open | — |
 | V-007 | `sframe_interop` | calls | waived_by_adr | open | open | — |
-| V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
+| V-008 | `space_room_permission_authority_model` | communities_publications | waived_by_adr | open | evidenced | core_kernel |
 | V-009 | `baseline_event_materialization_convergence` | groups | passed | open | evidenced | core_kernel |
 | V-010 | `plugin_sandbox_capability_model` | plugins | waived_by_adr | open | open | — |
 | V-011 | `service_principal_authority_and_automation_model` | services_bots | waived_by_adr | open | evidenced | core_kernel |
@@ -270,10 +270,10 @@ Mechanically unfinished pre-engineering work:
 Model-check Room/Space capability grants, explicit restrictions, delegation ceilings, governance quorum, bilateral links and authority-parent propagation/revocation so no role/Space transition can silently self-escalate, create transitive authority, or bypass Room-local security state.
 
 - **Scopes blocked:** communities_publications
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 - **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0160-v008-space-publication-wire-freeze.md`; `spec/cddl/space-publication.cddl`; `spec/protocol/publication-event.logical.schema.json`; `spec/protocol/space-control-state.logical.schema.json`; `spec/registries/om-domain-separation.json`; `spec/registries/om-numeric-fields.json`; `spec/registries/om-object-types.json`; `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/v008_authority_r16b.py`; `verification/prototypes/v008-space-wire/README.md`; `verification/prototypes/v008-space-wire/node_codec.mjs`; `verification/prototypes/v008-space-wire/python_codec.py`; `verification/prototypes/v008-space-wire/run.py`; `verification/prototypes/v008-space-wire/vectors.json`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v008-authority-r16b-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/results/v008-space-publication-wire-r16c-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
 
 Pre-engineering criteria:

@@ -3038,6 +3038,16 @@
       "amends": [],
       "index_title": "Authorize engineering scope `bridges` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0261",
+      "title": "Authorize engineering scope `communities_publications` (W3), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0261-authorize-communities-publications-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `communities_publications` (W3), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
+      "amended_by": []
     }
   ]
 }

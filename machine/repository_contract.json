@@ -218,11 +218,12 @@
     },
     "communities_publications": {
       "wave": "W3",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "groups"
       ],
-      "description": "Spaces, topics, Publications, delegated moderation"
+      "description": "Spaces, topics, Publications, delegated moderation",
+      "authorizing_adr": "ADR-0261"
     },
     "services_bots": {
       "wave": "W4",

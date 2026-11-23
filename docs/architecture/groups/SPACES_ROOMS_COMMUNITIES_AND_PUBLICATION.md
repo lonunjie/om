@@ -349,3 +349,25 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 - [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): authority-**reducing** transitions (revocation, binding drop, unlink, mirror sync removing roles) are never forks. They rebase onto any head and stay applicable while control is frozen, so the fork freeze applies only to transitions that add or change authority.
 - A Space-side unlink ends the authority binding; re-linking needs a new binding approved by the Room's quorum. A `SpaceAuthorityBinding` names the governance whose authorship it accepts, and sub-delegated Space authority is rejected unless the binding opts in.
+
+## Publication conformance suite (cases PUB-01 to PUB-14)
+
+These cases restate rules already normative above and in ADR-0122 and ADR-0128 rule 13 as checkable cases for the `publication` suite in [`conformance_suites.json`](../../../machine/conformance_suites.json). They add no new rule. An implementation passes when every case below ends as stated, using the frozen objects of [`space-publication.cddl`](../../../spec/cddl/space-publication.cddl).
+
+| Case | Input | Required outcome |
+|---|---|---|
+| PUB-01 | a `PublicationEvent` whose `seq` is not greater than the key's previous `seq`, or whose `prev_post_hash` does not match that key's previous event | rejected; no state change |
+| PUB-02 | an event from a revoked signing key with `seq` beyond the revocation's recorded last valid `(key, seq)` | invalid, whatever its `clock` or the `control_state_hash` it names |
+| PUB-03 | the same event as PUB-02 carrying an earlier `clock` than the revocation | still invalid; `clock` never decides validity |
+| PUB-04 | a validly chained event from a revoked key at or below the recorded last valid `seq` | remains valid |
+| PUB-05 | a subscriber that has validated a `PublicationControlState` head is offered an older head | the older head is rejected; no rollback |
+| PUB-06 | an untrusted mirror withholds a revocation or a tombstone | the subscriber may be delayed, but once a newer head is seen an older one never wins again |
+| PUB-07 | two valid authority-changing control successors of the same head | privileged advancement freezes; no winner by timestamp, arrival order or provider preference; authority-reducing transitions stay applicable (ADR-0122) |
+| PUB-08 | a control transition that does not reference the prior accepted state hash, or does not satisfy the prior state's governance | rejected |
+| PUB-09 | an event whose `signing_key_ref` is not authorized by the control state it names | rejected |
+| PUB-10 | key rotation or revocation accepted by the control state | `PublicationID` is unchanged; the old key cannot authorize later events |
+| PUB-11 | a signed tombstone for an earlier post | validated like any other event; the client shows "publisher retracted this", never "this never existed", and makes no erasure promise |
+| PUB-12 | the same `PublicationEvent` delivered twice; two different events from one key with the same `seq` | the duplicate is idempotent; the pair is an equivocation conflict, not a silent overwrite |
+| PUB-13 | following a Publication | no canonical member or subscriber roster is created or disclosed to the publisher or other followers |
+| PUB-14 | a linked discussion `ConversationID` | feed events grant no Room authority and Room membership grants no publishing authority; the two stay separate objects |
+

@@ -117,11 +117,11 @@
     {
       "name": "publication",
       "spec_doc": "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "communities_publications"
       ],
-      "description": "Publication seq chain, revocation and rollback rejection."
+      "description": "Publication cases PUB-01..PUB-14: seq chain, revoked-key last valid seq, clock never validity, rollback rejection, control-head fork freeze, tombstones, idempotence and equivocation, subscriber privacy and discussion-Room separation."
     },
     {
       "name": "protocol_evolution",
