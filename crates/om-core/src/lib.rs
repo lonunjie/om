@@ -36,6 +36,7 @@ pub mod intro;
 pub mod lan;
 pub mod lan_route;
 pub mod present;
+pub mod publication;
 pub mod recovery;
 pub mod recovery_record;
 pub mod recovery_sheet;
