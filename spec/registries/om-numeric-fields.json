@@ -393,6 +393,58 @@
       "3": "draft",
       "4": "selected_topic_or_thread",
       "5": "explicit_user_text"
+    },
+    "bridge_controller_kind": {
+      "1": "account",
+      "2": "organization",
+      "3": "Space_governance",
+      "4": "Room_governance"
+    },
+    "bridge_endpoint_state": {
+      "1": "active",
+      "2": "quarantined",
+      "3": "revoked"
+    },
+    "bridge_direction": {
+      "1": "om_to_foreign",
+      "2": "foreign_to_om",
+      "3": "bidirectional"
+    },
+    "bridge_revocation_state": {
+      "1": "active",
+      "2": "revoked"
+    },
+    "bridge_semantic_support": {
+      "1": "text",
+      "2": "rich_text_subset",
+      "3": "attachments",
+      "4": "replies",
+      "5": "edits",
+      "6": "deletes",
+      "7": "reactions",
+      "8": "polls",
+      "9": "threads_topics",
+      "10": "mentions",
+      "11": "read_receipts",
+      "12": "membership_events"
+    },
+    "bridge_fidelity_flag": {
+      "1": "exact",
+      "2": "lossy_formatting",
+      "3": "reply_target_unavailable",
+      "4": "edit_represented_as_new_message",
+      "5": "delete_not_propagated",
+      "6": "reaction_not_supported",
+      "7": "attachment_transcoded",
+      "8": "foreign_actor_unverified",
+      "9": "origin_unverified"
+    },
+    "foreign_identity_proof_method": {
+      "1": "signed_challenge",
+      "2": "oauth_style_proof",
+      "3": "posted_nonce",
+      "4": "domain_claim",
+      "5": "bridge_attestation"
     }
   },
   "structs": {
@@ -1715,15 +1767,19 @@
           "req": false,
           "wave": "W4",
           "note": "W4 only: W0 receivers MUST reject key 13, even if this value is well formed (ADR-0128 rule 18)."
-        }
-      ],
-      "reserved": [
+        },
         {
           "key": 14,
           "name": "foreign_provenance",
-          "note": "W4 bridges ForeignProvenance; unknown to W0 decoders (critical)"
+          "type": {
+            "ref": "ForeignProvenanceBody"
+          },
+          "req": false,
+          "wave": "W4",
+          "note": "W4 bridge-only. W0 receiver MUST reject as unknown critical field (ADR-0128 rule 18); requires BridgePrincipal (kind 3)."
         }
-      ]
+      ],
+      "reserved": []
     },
     "EncryptionDescriptor": {
       "fields": [
@@ -10058,6 +10114,950 @@
         }
       ],
       "note": "Key 13 on ConversationEvent; only service-authored events; validated against a live scoped RepresentationGrant."
+    },
+    "BridgePrincipal": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "bridge_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "Unsigned stable random BridgeID; no Account/Service authority and no hash-derived ID."
+    },
+    "BridgeController": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "bridge_controller_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "authority_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "External governance proof required; no bridge/endpoint/provider self-approval."
+    },
+    "BridgeEndpointCredential": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "endpoint_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "credential_state",
+          "type": {
+            "enum": "bridge_endpoint_state"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "host_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": false
+        }
+      ],
+      "note": "Non-account endpoint credential, stable incarnation; MLS Room membership is externally checked."
+    },
+    "BridgeSizeLimit": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "semantic",
+          "type": {
+            "enum": "bridge_semantic_support"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "max_bytes",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "max_items",
+          "type": {
+            "uint": [
+              1,
+              1024
+            ]
+          },
+          "req": false
+        }
+      ],
+      "note": "Optional per-semantic bounded size and count. Unspecified external limits are never an authority grant."
+    },
+    "InteropCapabilities": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "supported_semantics",
+          "type": {
+            "set": {
+              "enum": "bridge_semantic_support"
+            },
+            "n": [
+              1,
+              12
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "carries_interop_metadata",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "max_event_bytes",
+          "type": {
+            "uint": [
+              1,
+              1048576
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "external_e2ee_claim",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "identity_proof_methods",
+          "type": {
+            "set": {
+              "enum": "foreign_identity_proof_method"
+            },
+            "n": [
+              0,
+              5
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "per_semantic_size_limits",
+          "type": {
+            "set": {
+              "ref": "BridgeSizeLimit"
+            },
+            "n": [
+              1,
+              12
+            ]
+          },
+          "req": false
+        }
+      ],
+      "note": "Declared features and foreign security claim; not proof, policy or grants."
+    },
+    "BridgeAdapterDefinition": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "adapter_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "foreign_network_namespace",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "capabilities",
+          "type": {
+            "ref": "InteropCapabilities"
+          },
+          "req": true
+        }
+      ],
+      "note": "One namespace per adapter, unique adapter ID and namespace per control state."
+    },
+    "BridgeControlState": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "bridge_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "controllers",
+          "type": {
+            "set": {
+              "ref": "BridgeController"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "approval_threshold",
+          "type": {
+            "uint": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "endpoint_credentials",
+          "type": {
+            "set": {
+              "ref": "BridgeEndpointCredential"
+            },
+            "n": [
+              0,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "adapter_definitions",
+          "type": {
+            "set": {
+              "ref": "BridgeAdapterDefinition"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "Controller authorization in SignedEnvelope, previous authenticated head and distinct eligible signer proof externally required."
+    },
+    "BridgeStateHead": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "AccountControlBasis": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ],
+      "note": "Validated AccountControlState head, not a BridgeControlState authorization."
+    },
+    "BridgeScopeRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "scope_kind",
+          "type": {
+            "uint": [
+              2,
+              2
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "room_conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "Private Room scope only: bridge always full MLS member, never a selective recipient or Space-based export."
+    },
+    "BridgeCapabilityMap": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "allowed_event_classes",
+          "type": {
+            "set": {
+              "enum": "event_kind"
+            },
+            "n": [
+              1,
+              18
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "declared_semantics",
+          "type": {
+            "set": {
+              "enum": "bridge_semantic_support"
+            },
+            "n": [
+              1,
+              12
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "Allowed classes only constrain export, not decryption/readability by the full MLS member."
+    },
+    "BridgeMappingPolicy": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "relay_bridged",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "permit_fanout",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "require_interop_metadata",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        }
+      ],
+      "note": "Declarative limits, not authority; relay needs Room opt-in and metadata preservation across foreign path."
+    },
+    "BridgeMapping": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "mapping_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "bridge_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "om_scope_ref",
+          "type": {
+            "ref": "BridgeScopeRef"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "foreign_network_namespace",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "foreign_scope_ref",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "direction",
+          "type": {
+            "enum": "bridge_direction"
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "capability_map",
+          "type": {
+            "ref": "BridgeCapabilityMap"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "policy",
+          "type": {
+            "ref": "BridgeMappingPolicy"
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 11,
+          "name": "previous_mapping_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "approval_evidence",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 13,
+          "name": "revocation_state",
+          "type": {
+            "enum": "bridge_revocation_state"
+          },
+          "req": true
+        },
+        {
+          "key": 14,
+          "name": "control_state_head",
+          "type": {
+            "ref": "BridgeStateHead"
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "Signed Bridge controller statement only; external Room approval/quorum, live MLS membership and authorized head MUST be verified."
+    },
+    "InteropTraceBody": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "origin_network_namespace",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "origin_fingerprint",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "traversed_bridge_ids",
+          "type": {
+            "array": {
+              "bstr": [
+                32,
+                32
+              ]
+            },
+            "n": [
+              0,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "hop_count",
+          "type": {
+            "uint": [
+              0,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "hop_limit",
+          "type": {
+            "uint": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "transformation_ids",
+          "type": {
+            "array": {
+              "bstr": [
+                16,
+                32
+              ]
+            },
+            "n": [
+              0,
+              16
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "Traversal order matters. No raw global origin identifiers, Room secret or duplicate BridgeIDs."
+    },
+    "InteropTrace": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "trace",
+          "type": {
+            "ref": "InteropTraceBody"
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "Unsigned standalone diagnostic wrapper; trace embedded directly as InteropTraceBody in key 14."
+    },
+    "ForeignProvenanceBody": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "foreign_network_namespace",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "foreign_conversation_ref",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "foreign_event_ref",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "foreign_actor_ref",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "foreign_actor_display_hint",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "observed_source_time",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "bridge_observed_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "fidelity_flags",
+          "type": {
+            "set": {
+              "enum": "bridge_fidelity_flag"
+            },
+            "n": [
+              1,
+              9
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "origin_fingerprint",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "interop_trace",
+          "type": {
+            "ref": "InteropTraceBody"
+          },
+          "req": false
+        }
+      ],
+      "note": "Bridge-attested opaque foreign refs, never native authority; event key14 uses exactly this nested struct."
+    },
+    "ForeignProvenance": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "provenance",
+          "type": {
+            "ref": "ForeignProvenanceBody"
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "Standalone wrapper unsigned, not authority; inbound event key14 embeds ForeignProvenanceBody directly."
+    },
+    "ForeignIdentityLink": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "foreign_network_namespace",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "foreign_actor_ref",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "proof_method",
+          "type": {
+            "enum": "foreign_identity_proof_method"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "bridge_or_network_attestation_ref",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "account_control_state_head",
+          "type": {
+            "ref": "AccountControlBasis"
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "revocation_state",
+          "type": {
+            "enum": "bridge_revocation_state"
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "link_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 11,
+          "name": "previous_link_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "attesting_bridge_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 13,
+          "name": "not_before",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ],
+      "top_level": true,
+      "note": "Signed by eligible account control authority and verified against live ACS head. Proof reference not self-authenticating; never grants authorship."
     }
   },
   "extensions": [

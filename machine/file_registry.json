@@ -1866,6 +1866,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/tests/bridge_wire_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/tests/call_signal_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1958,6 +1965,13 @@
     },
     {
       "path": "crates/om-core/src/backup.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/bridge_control.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -2581,6 +2595,13 @@
     },
     {
       "path": "crates/om-core/tests/backup.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/bridge_control.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -4954,6 +4975,13 @@
     },
     {
       "path": "decisions/ADR-0263-adopt-om-zip-v1-plain-portable-archive.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0264-bridges-wire-freeze.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -13136,6 +13164,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "spec/cddl/bridge.cddl",
+      "class": "spec_artifact",
+      "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "spec/cddl/call.cddl",
       "class": "spec_artifact",
       "domain": "calls_media",
@@ -14779,6 +14814,34 @@
       "domain": "architecture_verification",
       "license": "CC-BY-SA-4.0",
       "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/bridges-wire/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/bridges-wire/python_codec.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/bridges-wire/run.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/bridges-wire/vectors.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
     },
     {
       "path": "verification/prototypes/call-wire/.gitignore",

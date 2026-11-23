@@ -3070,6 +3070,16 @@
       "amended_by": []
     },
     {
+      "id": "ADR-0264",
+      "title": "W4 `bridges` canonical wire freeze and adapter-contract design review",
+      "status": "Delegated design decision — repo-local W4 wire freeze and **AI design review only**; **independent review remains required**.",
+      "date": "2026-11-24",
+      "path": "decisions/ADR-0264-bridges-wire-freeze.md",
+      "amends": [],
+      "index_title": "W4 bridges wire freeze (designer-built, adopted; adapter-contract review findings)",
+      "amended_by": []
+    },
+    {
       "id": "ADR-0265",
       "title": "V1 limits for Spaces and Publications are the frozen wire bounds",
       "status": "Delegated design decision (additive; independent review remains required).",

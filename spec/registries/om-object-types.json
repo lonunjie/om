@@ -761,6 +761,87 @@
       "max_bytes": 65536,
       "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ContextDisclosureBundle; ADR-0124 (ADR-0262; CDDL: spec/cddl/service.cddl)",
       "logical_schema": null
+    },
+    {
+      "type_id": 53,
+      "name": "BridgePrincipal",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 256,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Unsigned random provider-independent BridgeID wrapper",
+      "logical_schema": null
+    },
+    {
+      "type_id": 54,
+      "name": "BridgeControlState",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": {
+        "label": "OM-BRIDGE-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-BRIDGE-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Bridge controller threshold and endpoint/adapter state",
+      "logical_schema": "spec/protocol/bridge-principal.logical.schema.json"
+    },
+    {
+      "type_id": 55,
+      "name": "BridgeMapping",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": {
+        "label": "OM-BRIDGE-MAPPING-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-BRIDGE-MAPPING-HASH-v1",
+      "max_bytes": 32768,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Explicit Room to foreign-scope mapping, export policy and approval evidence",
+      "logical_schema": null
+    },
+    {
+      "type_id": 56,
+      "name": "InteropTrace",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 8192,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Diagnostic lineage wrapper; Room-scoped fingerprint in inner trace",
+      "logical_schema": null
+    },
+    {
+      "type_id": 57,
+      "name": "ForeignProvenance",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Bridge-attested foreign source metadata wrapper; inner body is event key 14",
+      "logical_schema": "spec/protocol/foreign-provenance.logical.schema.json"
+    },
+    {
+      "type_id": 58,
+      "name": "ForeignIdentityLink",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": {
+        "label": "OM-FOREIGN-IDENTITY-LINK-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-FOREIGN-IDENTITY-LINK-HASH-v1",
+      "max_bytes": 32768,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Account-authorized foreign identity proof; never native authorship",
+      "logical_schema": null
     }
   ]
 }

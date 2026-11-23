@@ -1,0 +1,188 @@
+; ADR-0264 — W4 bridges wire freeze; use with common.cddl and events.cddl.
+; OM-CBOR-v1 deterministic definite-length CBOR. Typed maps use only registered
+; uint keys, no null, no unknown fields/tags/floats/negative ints. Every set
+; is unique and sorted by full encoded element bytes (not text collation).
+; Top-level objects: key 0 type, 1 version=1, optional 23 extensions.
+; Signed objects are bodies inside SignedEnvelope {1: body bstr,
+; 2: [1*16 signature]}; signature role controller (1), verified externally.
+
+bridge-id = bstr .size 32    ; stable random independent ID; no native AccountID
+bridge-endpoint-id = bstr .size (16..32)
+bridge-version = 1..4294967295
+bridge-ns = tstr .size (1..128)
+foreign-ref = tstr .size (1..512) ; opaque adapter-defined, not native authority
+bridge-digest = digest
+bridge-state = 1..2          ; active, revoked
+bridge-direction = 1..3      ; OM->foreign, foreign->OM, both
+bridge-semantic = 1..12      ; registry bridge_semantic_support
+bridge-fidelity-flag = 1..9  ; registry bridge_fidelity_flag
+bridge-proof-method = 1..5  ; signed challenge, OAuth, nonce, domain, bridge
+
+BridgePrincipal = {
+  0: 53, 1: 1,
+  2: bridge-id,
+  ? 23: extensions
+}
+
+bridge-controller = {
+  0: 1..4,                 ; independent account / organization / Space / Room
+  1: bstr .size 32        ; authority ID, NOT provider/bridge/endpoint identity
+}
+bridge-endpoint-credential = {
+  0: bridge-endpoint-id,
+  1: 1..3,                 ; active, quarantined, revoked
+  2: profile-id,
+  3: bstr .size (32..4096), ; public key; never an MLS secret or auth token
+  ? 4: bstr .size (16..32) ; optional nonauthoritative host reference
+}
+bridge-size-limit = {
+  0: bridge-semantic,         ; one limit per semantic capability
+  1: 1..4294967295,         ; max bytes
+  ? 2: 1..1024             ; max items when relevant
+}
+interop-capabilities = {
+  0: [1*12 bridge-semantic],   ; support declarations (set)
+  1: bool,                     ; carries_interop_metadata
+  2: 1..1048576,               ; bounded external event bytes
+  ? 3: tstr .size (1..512),   ; external network E2EE *claim*, separately UI
+  4: [0*5 bridge-proof-method], ; allowed identity proof methods (set)
+  ? 5: [1*12 bridge-size-limit] ; per-feature size/count ceilings (set)
+}
+bridge-adapter-definition = {
+  0: bstr .size 16,         ; unique adapter incarnation
+  1: bridge-ns,             ; unique namespace per active control head
+  2: interop-capabilities
+}
+BridgeControlState = {
+  0: 54, 1: 1,
+  2: bridge-id,
+  3: bridge-version,
+  ? 4: bridge-digest,        ; absent if and only if state_version=1
+  5: [1*32 bridge-controller], ; sorted, unique independent controllers
+  6: 1..32,                 ; <= controller count
+  7: [0*128 bridge-endpoint-credential], ; set, unique endpoint ID
+  8: [1*64 bridge-adapter-definition],   ; set, unique namespace and adapter ID
+  ? 23: extensions
+}
+; Authorization evidence = SignedEnvelope signatures, not a duplicate field.
+; Verify prior authenticated state, version+1, predecessor controller quorum,
+; live eligible signers and permanent endpoint revoke tombstones externally.
+
+bridge-state-head = { 0: bridge-version, 1: bridge-digest }
+account-control-basis = { 0: bridge-version, 1: bridge-digest }
+bridge-room-scope = { 0: 2, 1: bstr .size 32 } ; Room ConversationID
+bridge-capability-map = {
+  0: [1*18 (1..18)],       ; allowed_event_classes: limits EXPORT, not READ
+  1: [1*12 bridge-semantic] ; advertised supported semantic subset
+}
+bridge-mapping-policy = {
+  0: bool,                 ; relay_bridged: default false
+  1: bool,                 ; permit_fanout: default false
+  2: bool                  ; require_interop_metadata: default true
+}
+BridgeMapping = {
+  0: 55, 1: 1,
+  2: bstr .size 16,        ; stable mapping incarnation ID
+  3: bridge-id,
+  4: bridge-room-scope,    ; Room-only: visible, full MLS membership
+  5: bridge-ns,
+  6: foreign-ref,
+  7: bridge-direction,
+  8: bridge-capability-map,
+  9: bridge-mapping-policy,
+  10: bridge-version,
+  ? 11: bridge-digest,      ; predecessor mapping hash absent iff genesis
+  12: bridge-digest,        ; external actual Room approval proof reference
+  13: bridge-state,
+  14: bridge-state-head,   ; authorized BridgeControlState head
+  ? 23: extensions
+}
+; Signed by eligible bridge controllers; signing alone cannot admit a bridge.
+; Room control with room.add_bridge/quorum, explicit roster and MLS Add,
+; fresh state head and membership interval are independently verified.
+; No mapping changes the provider-independent Room ConversationID.
+
+interop-trace-body = {
+  0: bridge-ns,             ; origin network (may differ from observed leg)
+  1: bstr .size 32,        ; Room-secret keyed origin fingerprint
+  2: [0*16 bridge-id],     ; traversal ORDER, unique IDs
+  3: 0..16,                ; hop_count = number of traversed_bridge_ids
+  4: 1..16,                ; hop_limit, never exceeded on accepted trace
+  5: [0*16 bstr .size (16..32)] ; ordered unique transformation IDs
+}
+InteropTrace = {
+  0: 56, 1: 1,
+  2: interop-trace-body,
+  ? 23: extensions
+}
+; Fingerprint = HMAC-SHA256(Room-scoped secret, canonical OM-CBOR
+; ["OM-INTEROP-FP-MAC-v1", origin_network_namespace, stable_origin_event_ref]).
+; A Room ID by itself NEVER substitutes for the secret, the secret NEVER
+; enters public CBOR, and the BridgeID is NOT part of the MAC input.
+
+foreign-provenance-body = {
+  0: bridge-ns,           ; immediate observed foreign network namespace
+  1: foreign-ref,         ; observed foreign conversation ref
+  2: foreign-ref,         ; observed foreign event ref
+  ? 3: foreign-ref,       ; observed actor ref; not an OM AccountID
+  ? 4: tstr .size (1..512), ; display hint, bridge attested NOT identity
+  ? 5: posix-seconds,     ; source time hint, not ordering authority
+  6: posix-seconds,       ; bridge_observed_at wall-clock hint
+  7: [1*9 bridge-fidelity-flag], ; sorted, unique (exact excludes others)
+  ? 8: bstr .size 32,    ; origin_fingerprint; must match trace if present
+  ? 9: interop-trace-body
+}
+ForeignProvenance = {
+  0: 57, 1: 1,
+  2: foreign-provenance-body,
+  ? 23: extensions
+}
+; Standalone wrappers do not authenticate metadata. In an imported event
+; field 14 is directly foreign-provenance-body, not a wrapped type 57 item.
+
+ForeignIdentityLink = {
+  0: 58, 1: 1,
+  2: account-id,
+  3: bridge-ns,
+  4: foreign-ref,
+  5: bridge-proof-method,
+  6: bridge-digest,       ; externally verified network/bridge attestation
+  7: account-control-basis, ; exact validated AccountControlState version/hash
+  8: posix-seconds,      ; expires_at required; no perpetual link
+  9: bridge-state,       ; active / revoked
+  10: bridge-version,     ; link update incarnation chain
+  ? 11: bridge-digest,    ; previous_link_hash absent iff genesis
+  ? 12: bridge-id,        ; required for method 5 bridge attestation
+  ? 13: posix-seconds,    ; not_before
+  ? 23: extensions
+}
+; Account authorization = controller role SignedEnvelope, with actual
+; controller-to-AccountControlState signer verification outside CBOR.
+; A valid link is presentation evidence only; NEVER permits Account authorship.
+
+BridgeImportedConversationEvent = {
+  0: 10, 1: 1,
+  2: 1..65535,
+  3: event-id,
+  4: conversation-id,
+  5: { 0: 3, 1: bridge-id }, ; ALWAYS BridgePrincipal author
+  6: bridge-endpoint-id,  ; active bridge endpoint, authorized MLS member
+  7: hlc,
+  8: 1..18,              ; existing event kind (NO new event kind allocated)
+  9: 1..65535,
+  ? 10: [1*16 tstr .size (1..128)],
+  11: any,               ; MUST also satisfy kind-specific events.cddl body
+  ? 12: posix-seconds,
+  14: foreign-provenance-body, ; W4 only; W0 rejects unknown critical key
+  ? 23: extensions
+}
+; Key 13 remains services-only and is forbidden alongside bridge key 14.
+; For inbound event: key14 MUST include 8 and 9; last traversed BridgeID
+; equals author BridgeID; no exhausted hop count, and no unverified Account.
+; A native authored event must not carry key14. Event payload MUST preserve
+; existing W0-compatible body (or reviewed later-wave body) and kind guard.
+; The W0 receiver MUST REJECT key14, not ignore or accept a fallback.
+
+signed-bridge-control-state = { 1: bstr, 2: [1*16 signature] }
+signed-bridge-mapping = { 1: bstr, 2: [1*16 signature] }
+signed-foreign-identity-link = { 1: bstr, 2: [1*16 signature] }

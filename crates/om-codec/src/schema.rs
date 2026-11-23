@@ -687,6 +687,7 @@ impl<'a> Cx<'a> {
     fn body(&self, v: &Value, t: &ObjType) -> Result<(), Class> {
         self.strukt(v, &t.name, Some(t.id))?;
         service_rules(v, &t.name)?;
+        bridge_rules(v, &t.name)?;
         if t.name == "AsyncKeyBundle"
             && let Value::Map(m) = v
         {
@@ -1064,6 +1065,183 @@ fn service_rules(v: &Value, name: &str) -> Result<(), Class> {
                             }
                     }
                     _ => false,
+                };
+                if empty {
+                    return Err("value_range");
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn arr(v: Option<&Value>) -> &[Value] {
+    match v {
+        Some(Value::Array(a)) => a,
+        _ => &[],
+    }
+}
+
+fn map_of(v: Option<&Value>) -> Option<&[(Value, Value)]> {
+    match v {
+        Some(Value::Map(m)) => Some(m),
+        _ => None,
+    }
+}
+
+fn field(x: &Value, k: u64) -> Option<&Value> {
+    match x {
+        Value::Map(e) => mget(e, k),
+        _ => None,
+    }
+}
+
+fn distinct(items: &[&Value]) -> bool {
+    items
+        .iter()
+        .enumerate()
+        .all(|(i, a)| items[i + 1..].iter().all(|b| a != b))
+}
+
+/// Interop trace body (`interop-trace-body`): hop count equals the path, within the limit, no repeated bridge or
+/// transformation.
+fn trace_rules(t: &[(Value, Value)]) -> Result<(), Class> {
+    let path = arr(mget(t, 2));
+    let hops = uint(mget(t, 3)).ok_or("missing_field")?;
+    let limit = uint(mget(t, 4)).ok_or("missing_field")?;
+    if path.len() as u64 != hops || hops > limit {
+        return Err("value_range");
+    }
+    if !distinct(&path.iter().collect::<Vec<_>>()) {
+        return Err("loop_detected");
+    }
+    if !distinct(&arr(mget(t, 5)).iter().collect::<Vec<_>>()) {
+        return Err("value_range");
+    }
+    Ok(())
+}
+
+/// Foreign provenance body (`foreign-provenance-body`), standalone or as key 14 of an event.
+fn provenance_rules(p: &[(Value, Value)]) -> Result<(), Class> {
+    let flags = arr(mget(p, 7));
+    if flags.contains(&Value::Uint(1)) && flags.len() != 1 {
+        return Err("value_range");
+    }
+    if mget(p, 3).is_none() && !flags.contains(&Value::Uint(8)) {
+        return Err("missing_field");
+    }
+    if let Some(t) = map_of(mget(p, 9)) {
+        trace_rules(t)?;
+        let fp = mget(p, 8).ok_or("missing_field")?;
+        if Some(fp) != mget(t, 1) {
+            return Err("provenance_mismatch");
+        }
+    }
+    Ok(())
+}
+
+/// Cross-field rules of the W4 bridge objects (ADR-0264, `spec/cddl/bridge.cddl`) that one object's own bytes decide.
+/// Rules that need a prior head, a live control state or a Room mapping belong to the bridge engine, not here. The
+/// Python prototype `verification/prototypes/bridges-wire/python_codec.py` states the same rules.
+fn bridge_rules(v: &Value, name: &str) -> Result<(), Class> {
+    let Value::Map(m) = v else { return Ok(()) };
+    let chain = match name {
+        "BridgeControlState" => Some((3, 4)),
+        "BridgeMapping" | "ForeignIdentityLink" => Some((10, 11)),
+        _ => None,
+    };
+    if let Some((ver, prev)) = chain {
+        let version = uint(mget(m, ver)).ok_or("missing_field")?;
+        match (version, mget(m, prev).is_some()) {
+            (1, true) => return Err("forked_chain"),
+            (v, false) if v > 1 => return Err("missing_field"),
+            _ => {}
+        }
+    }
+    match name {
+        "InteropTrace" => trace_rules(map_of(mget(m, 2)).ok_or("missing_field")?)?,
+        "ForeignProvenance" => provenance_rules(map_of(mget(m, 2)).ok_or("missing_field")?)?,
+        "BridgeControlState" => {
+            if uint(mget(m, 6)).ok_or("missing_field")? > arr(mget(m, 5)).len() as u64 {
+                return Err("value_range");
+            }
+            let ends: Vec<_> = arr(mget(m, 7)).iter().filter_map(|e| field(e, 0)).collect();
+            let adapters = arr(mget(m, 8));
+            let ids: Vec<_> = adapters.iter().filter_map(|a| field(a, 0)).collect();
+            let spaces: Vec<_> = adapters.iter().filter_map(|a| field(a, 1)).collect();
+            if !distinct(&ends) || !distinct(&ids) || !distinct(&spaces) {
+                return Err("set_order");
+            }
+            for a in adapters {
+                let Some(cap) = map_of(field(a, 2)) else {
+                    continue;
+                };
+                let limits = arr(mget(cap, 5));
+                let sems: Vec<_> = limits.iter().filter_map(|l| field(l, 0)).collect();
+                if !distinct(&sems) {
+                    return Err("set_order");
+                }
+                if sems.iter().any(|x| !arr(mget(cap, 0)).contains(x)) {
+                    return Err("value_range");
+                }
+            }
+        }
+        "BridgeMapping" => {
+            let pol = map_of(mget(m, 9)).ok_or("missing_field")?;
+            let (relay, meta) = (
+                mget(pol, 0) == Some(&Value::Bool(true)),
+                mget(pol, 2) == Some(&Value::Bool(true)),
+            );
+            let dir = uint(mget(m, 7));
+            if relay && !meta || !meta && matches!(dir, Some(1) | Some(3)) {
+                return Err("wrong_role");
+            }
+        }
+        "ForeignIdentityLink" => {
+            let bridge_proof = uint(mget(m, 5)) == Some(5);
+            if bridge_proof != mget(m, 12).is_some() {
+                return Err(if bridge_proof {
+                    "missing_field"
+                } else {
+                    "value_range"
+                });
+            }
+            if let (Some(nb), Some(exp)) = (uint(mget(m, 13)), uint(mget(m, 8)))
+                && nb >= exp
+            {
+                return Err("value_range");
+            }
+        }
+        "ConversationEvent" => {
+            let author = map_of(mget(m, 5));
+            let kind = author.and_then(|p| uint(mget(p, 0)));
+            let bridge_author = kind == Some(3);
+            if let Some(f) = mget(m, 14) {
+                if mget(m, 13).is_some() {
+                    return Err("wrong_role");
+                }
+                let Some(a) = author.filter(|_| bridge_author) else {
+                    return Err("wrong_role");
+                };
+                let f = map_of(Some(f)).ok_or("value_range")?;
+                provenance_rules(f)?;
+                let (Some(_), Some(t)) = (mget(f, 8), map_of(mget(f, 9))) else {
+                    return Err("missing_field");
+                };
+                if arr(mget(t, 2)).last() != mget(a, 1) {
+                    return Err("provenance_mismatch");
+                }
+                if uint(mget(t, 3)) >= uint(mget(t, 4)) {
+                    return Err("loop_detected");
+                }
+            } else if bridge_author {
+                return Err("missing_field");
+            }
+            if bridge_author && uint(mget(m, 8)) == Some(1) {
+                let empty = match map_of(mget(m, 11)) {
+                    Some(b) => mget(b, 0).is_none() && arr(mget(b, 1)).is_empty(),
+                    None => false,
                 };
                 if empty {
                     return Err("value_range");

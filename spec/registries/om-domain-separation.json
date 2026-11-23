@@ -934,6 +934,62 @@
       "object": "ContextDisclosureBundle (receipt/dedup hash for one-shot selected-context bundle, not authorization)",
       "wave": "W4",
       "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "BridgeControlState (controller role; signer eligibility externally verified)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "BridgeControlState (state predecessor and authenticated head)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-MAPPING-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "BridgeMapping (controller role, plus external Room-governance approval)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-MAPPING-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "BridgeMapping (incarnation version chain, not Room approval)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-FOREIGN-IDENTITY-LINK-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ForeignIdentityLink (account controller role, live ACS authority separately required)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-FOREIGN-IDENTITY-LINK-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ForeignIdentityLink (incarnation, revocation chain, not native authorship)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-INTEROP-FP-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 with a 32-byte Room-scoped secret derivable by every admitted bridge from authenticated Room-only secret state, message = canonical OM-CBOR array [this label tstr, origin_network_namespace tstr, stable_foreign_origin_ref tstr]; never expose secret or derive key from public Room identifier",
+      "object": "InteropTraceBody.origin_fingerprint and ForeignProvenanceBody.origin_fingerprint; Room-scoped cross-bridge deduplication",
+      "wave": "W4",
+      "status": "frozen"
     }
   ]
 }
