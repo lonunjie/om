@@ -272,3 +272,189 @@ pub fn topics_view(t: &RoomTopics, topic: Option<&str>, message: Option<&str>) -
     }
     Value::Object(out)
 }
+
+// ---- Room moderation ---------------------------------------------------------------------------------------------
+
+use om_core::room_moderation::{Effect, ModError, RoomModeration};
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum ModOp {
+    Admit {
+        who: String,
+        incarnation: String,
+        governance: bool,
+    },
+    Remove {
+        target: String,
+        incarnation: String,
+        governance_authority: bool,
+    },
+    Ban {
+        target: String,
+        incarnation: String,
+        governance_authority: bool,
+    },
+    Unban {
+        target: String,
+        incarnation: String,
+    },
+    Timeout {
+        target: String,
+        incarnation: String,
+        governance_authority: bool,
+    },
+    Untimeout {
+        target: String,
+        incarnation: String,
+    },
+    Restrict {
+        target: String,
+        restriction: u64,
+        incarnation: String,
+        governance_authority: bool,
+    },
+    Lift {
+        target: String,
+        restriction: u64,
+        incarnation: String,
+    },
+    Redact {
+        author: String,
+        event: String,
+    },
+}
+
+fn mod_err(e: ModError) -> &'static str {
+    match e {
+        ModError::NotAuthorized => "not_authorized",
+        ModError::SelfAction => "self_action",
+        ModError::GovernanceProtected => "governance_protected",
+        ModError::Banned => "banned",
+        ModError::Duplicate => "duplicate",
+        ModError::UnknownMember => "unknown_member",
+    }
+}
+
+fn effect(r: Result<Effect, ModError>) -> Value {
+    match r {
+        Ok(Effect::Applied) => json!({ "applied": true }),
+        Ok(Effect::NoOp) => json!({ "applied": false, "noop": true }),
+        Err(e) => json!({ "refused": mod_err(e) }),
+    }
+}
+fn unit(r: Result<(), ModError>) -> Value {
+    match r {
+        Ok(()) => json!({ "applied": true }),
+        Err(e) => json!({ "refused": mod_err(e) }),
+    }
+}
+
+pub fn moderation_do(m: &mut RoomModeration, caps: &[String], actor: &str, op: ModOp) -> Value {
+    let caps: BTreeSet<String> = caps.iter().cloned().collect();
+    let bad = || json!({ "refused": "malformed" });
+    let a = actor.as_bytes();
+    match op {
+        ModOp::Admit {
+            who,
+            incarnation,
+            governance,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            unit(m.admit(who.into_bytes(), i, governance))
+        }
+        ModOp::Remove {
+            target,
+            incarnation,
+            governance_authority,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            effect(m.remove(&caps, a, target.as_bytes(), i, governance_authority))
+        }
+        ModOp::Ban {
+            target,
+            incarnation,
+            governance_authority,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            unit(m.ban(&caps, a, target.as_bytes(), i, governance_authority))
+        }
+        ModOp::Unban {
+            target,
+            incarnation,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            effect(m.unban(&caps, a, target.as_bytes(), i))
+        }
+        ModOp::Timeout {
+            target,
+            incarnation,
+            governance_authority,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            unit(m.timeout(&caps, a, target.as_bytes(), i, governance_authority))
+        }
+        ModOp::Untimeout {
+            target,
+            incarnation,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            effect(m.untimeout(&caps, a, target.as_bytes(), i))
+        }
+        ModOp::Restrict {
+            target,
+            restriction,
+            incarnation,
+            governance_authority,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            unit(m.restrict(
+                &caps,
+                a,
+                target.as_bytes(),
+                restriction,
+                i,
+                governance_authority,
+            ))
+        }
+        ModOp::Lift {
+            target,
+            restriction,
+            incarnation,
+        } => {
+            let Some(i) = hex_n::<16>(&incarnation) else {
+                return bad();
+            };
+            effect(m.lift(&caps, a, target.as_bytes(), restriction, i))
+        }
+        ModOp::Redact { author, event } => {
+            let Some(e) = hex_n::<32>(&event) else {
+                return bad();
+            };
+            unit(m.redact(&caps, a, author.as_bytes(), e))
+        }
+    }
+}
+
+pub fn moderation_view(m: &RoomModeration, who: &str) -> Value {
+    let w = who.as_bytes();
+    json!({ "member": m.is_member(w), "banned": m.is_banned(w), "timedOut": m.is_timed_out(w) })
+}

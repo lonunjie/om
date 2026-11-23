@@ -226,6 +226,16 @@ enum Command {
         op: scope::TopicOp,
     },
     #[cfg(feature = "scope-engines")]
+    ModerationDo {
+        caps: Vec<String>,
+        actor: String,
+        op: scope::ModOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    ModerationView {
+        who: String,
+    },
+    #[cfg(feature = "scope-engines")]
     TopicsView {
         topic: Option<String>,
         message: Option<String>,
@@ -1090,6 +1100,8 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     core: Option<Core<R>>,
     #[cfg(feature = "scope-engines")]
     topics: om_core::room_topics::RoomTopics,
+    #[cfg(feature = "scope-engines")]
+    moderation: om_core::room_moderation::RoomModeration,
 }
 
 impl<R: RngCore + CryptoRng> Bridge<R> {
@@ -1100,6 +1112,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             core: None,
             #[cfg(feature = "scope-engines")]
             topics: Default::default(),
+            #[cfg(feature = "scope-engines")]
+            moderation: Default::default(),
         }
     }
 
@@ -1274,6 +1288,15 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::TopicsDo { caps, actor, op } => {
                 Ok(scope::topics_do(&mut self.topics, &caps, &actor, op))
             }
+            #[cfg(feature = "scope-engines")]
+            Command::ModerationDo { caps, actor, op } => Ok(scope::moderation_do(
+                &mut self.moderation,
+                &caps,
+                &actor,
+                op,
+            )),
+            #[cfg(feature = "scope-engines")]
+            Command::ModerationView { who } => Ok(scope::moderation_view(&self.moderation, &who)),
             #[cfg(feature = "scope-engines")]
             Command::TopicsView { topic, message } => Ok(scope::topics_view(
                 &self.topics,

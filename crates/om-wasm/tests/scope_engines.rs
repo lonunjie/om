@@ -115,3 +115,42 @@ fn topics_run_through_one_bridge_instance() {
     );
     assert_eq!(r["ok"]["refused"], "malformed");
 }
+
+#[test]
+fn moderation_runs_through_the_bridge_and_stale_lifts_are_noops() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"scope"),
+        || 1_790_000_000_000,
+    );
+    let mut go = |v: Value| -> Value {
+        serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+    };
+    let inc = |n: u8| format!("{n:02x}").repeat(16);
+    assert_eq!(
+        go(
+            json!({"cmd":"moderation_do","caps":[],"actor":"x","op":{"kind":"admit","who":"bob","incarnation":inc(3),"governance":false}})
+        )["ok"]["applied"],
+        true
+    );
+    let ban = |c: &str, t: &str, n: u8| json!({"cmd":"moderation_do","caps":[c],"actor":"mod","op":{"kind":"ban","target":t,"incarnation":inc(n),"governanceAuthority":false}});
+    assert_eq!(
+        go(ban("room.remove_member", "bob", 9))["ok"]["refused"],
+        "not_authorized"
+    );
+    assert_eq!(go(ban("room.ban_member", "bob", 9))["ok"]["applied"], true);
+    assert_eq!(
+        go(json!({"cmd":"moderation_view","who":"bob"}))["ok"],
+        json!({"member": false, "banned": true, "timedOut": false})
+    );
+    let unban = |n: u8| json!({"cmd":"moderation_do","caps":["room.ban_member"],"actor":"mod","op":{"kind":"unban","target":"bob","incarnation":inc(n)}});
+    assert_eq!(
+        go(unban(1))["ok"],
+        json!({"applied": false, "noop": true}),
+        "a stale incarnation changes nothing"
+    );
+    assert_eq!(
+        go(json!({"cmd":"moderation_view","who":"bob"}))["ok"]["banned"],
+        true
+    );
+    assert_eq!(go(unban(9))["ok"]["applied"], true);
+}
