@@ -41,6 +41,7 @@ pub mod intro;
 pub mod lan;
 pub mod lan_first_contact;
 pub mod lan_route;
+pub mod lan_transfer;
 pub mod present;
 pub mod publication;
 pub mod recovery;
