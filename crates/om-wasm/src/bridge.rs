@@ -218,6 +218,18 @@ enum Command {
         policy: scope::EgressPolicyIn,
         name: String,
     },
+    /// Room topics engine for this bridge instance (one Room per profile bridge in the engineering artifact).
+    #[cfg(feature = "scope-engines")]
+    TopicsDo {
+        caps: Vec<String>,
+        actor: String,
+        op: scope::TopicOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    TopicsView {
+        topic: Option<String>,
+        message: Option<String>,
+    },
     ExpressiveAvailable,
     #[cfg(feature = "expressive-media")]
     ExpressiveBlobExposure {
@@ -1076,6 +1088,8 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     make_rng: Option<Box<dyn FnOnce() -> R>>,
     clock: Option<Box<dyn Fn() -> u64>>,
     core: Option<Core<R>>,
+    #[cfg(feature = "scope-engines")]
+    topics: om_core::room_topics::RoomTopics,
 }
 
 impl<R: RngCore + CryptoRng> Bridge<R> {
@@ -1084,6 +1098,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             make_rng: Some(Box::new(make_rng)),
             clock: Some(Box::new(clock)),
             core: None,
+            #[cfg(feature = "scope-engines")]
+            topics: Default::default(),
         }
     }
 
@@ -1254,6 +1270,16 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 policy,
                 name,
             } => Ok(scope::broker_request(&granted, tainted, policy, &name)),
+            #[cfg(feature = "scope-engines")]
+            Command::TopicsDo { caps, actor, op } => {
+                Ok(scope::topics_do(&mut self.topics, &caps, &actor, op))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::TopicsView { topic, message } => Ok(scope::topics_view(
+                &self.topics,
+                topic.as_deref(),
+                message.as_deref(),
+            )),
             Command::ExpressiveAvailable => Ok(json!(self.core()?.expressive_media_available())),
             #[cfg(feature = "expressive-media")]
             Command::ExpressiveBlobExposure { policy } => {

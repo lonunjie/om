@@ -112,3 +112,163 @@ pub fn broker_request(
         }),
     }
 }
+
+// ---- Room topics -------------------------------------------------------------------------------------------------
+
+use om_core::room_topics::{Mode, RoomTopics, Stamp, TopicError, TopicId};
+use std::collections::BTreeSet;
+
+#[derive(Deserialize)]
+pub struct StampIn {
+    pub clock: u64,
+    pub event: String,
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum TopicOp {
+    Create {
+        id: String,
+        title: String,
+        at: StampIn,
+    },
+    Update {
+        id: String,
+        title: String,
+        at: StampIn,
+    },
+    SetStatus {
+        id: String,
+        status: u64,
+        at: StampIn,
+    },
+    Post {
+        mode: String,
+        top_level: bool,
+        event: String,
+        author: String,
+        topic: Option<String>,
+    },
+    Move {
+        event: String,
+        topic: Option<String>,
+        at: StampIn,
+    },
+}
+
+fn hex_n<const N: usize>(s: &str) -> Option<[u8; N]> {
+    if s.len() != N * 2 {
+        return None;
+    }
+    let mut out = [0u8; N];
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = u8::from_str_radix(s.get(i * 2..i * 2 + 2)?, 16).ok()?;
+    }
+    Some(out)
+}
+fn stamp(s: &StampIn) -> Option<Stamp> {
+    Some((s.clock, hex_n::<32>(&s.event)?))
+}
+fn topic_err(e: TopicError) -> &'static str {
+    match e {
+        TopicError::NotAuthorized => "not_authorized",
+        TopicError::Duplicate => "duplicate",
+        TopicError::UnknownTopic => "unknown_topic",
+        TopicError::UnknownMessage => "unknown_message",
+        TopicError::Malformed => "malformed",
+        TopicError::TopicRequired => "topic_required",
+    }
+}
+
+pub fn topics_do(t: &mut RoomTopics, caps: &[String], actor: &str, op: TopicOp) -> Value {
+    let caps: BTreeSet<String> = caps.iter().cloned().collect();
+    let bad = || json!({ "refused": "malformed" });
+    let res = match op {
+        TopicOp::Create { id, title, at } => {
+            let (Some(id), Some(at)) = (hex_n::<16>(&id), stamp(&at)) else {
+                return bad();
+            };
+            t.create(&caps, actor.as_bytes().to_vec(), id, &title, at)
+        }
+        TopicOp::Update { id, title, at } => {
+            let (Some(id), Some(at)) = (hex_n::<16>(&id), stamp(&at)) else {
+                return bad();
+            };
+            t.update(&caps, actor.as_bytes(), id, &title, at)
+        }
+        TopicOp::SetStatus { id, status, at } => {
+            let (Some(id), Some(at)) = (hex_n::<16>(&id), stamp(&at)) else {
+                return bad();
+            };
+            t.set_status(&caps, actor.as_bytes(), id, status, at)
+        }
+        TopicOp::Post {
+            mode,
+            top_level,
+            event,
+            author,
+            topic,
+        } => {
+            let mode = match mode.as_str() {
+                "chat" => Mode::Chat,
+                "forum" => Mode::Forum,
+                "announcement" => Mode::Announcement,
+                _ => return bad(),
+            };
+            let Some(event) = hex_n::<32>(&event) else {
+                return bad();
+            };
+            let topic: Option<TopicId> = match topic.as_deref().map(hex_n::<16>) {
+                None => None,
+                Some(Some(t)) => Some(t),
+                Some(None) => return bad(),
+            };
+            t.post(mode, top_level, event, author.into_bytes(), topic)
+        }
+        TopicOp::Move { event, topic, at } => {
+            let (Some(event), Some(at)) = (hex_n::<32>(&event), stamp(&at)) else {
+                return bad();
+            };
+            let topic: Option<TopicId> = match topic.as_deref().map(hex_n::<16>) {
+                None => None,
+                Some(Some(t)) => Some(t),
+                Some(None) => return bad(),
+            };
+            t.move_message(&caps, actor.as_bytes(), event, topic, at)
+        }
+    };
+    match res {
+        Ok(()) => json!({ "applied": true }),
+        Err(e) => json!({ "refused": topic_err(e) }),
+    }
+}
+
+pub fn topics_view(t: &RoomTopics, topic: Option<&str>, message: Option<&str>) -> Value {
+    let mut out = serde_json::Map::new();
+    if let Some(id) = topic.and_then(hex_n::<16>) {
+        out.insert(
+            "topic".into(),
+            match t.topic(&id) {
+                Some(x) => json!({ "title": x.title, "status": x.status as u8 }),
+                None => Value::Null,
+            },
+        );
+    }
+    if let Some(ev) = message.and_then(hex_n::<32>) {
+        out.insert(
+            "placement".into(),
+            match t.placement(&ev) {
+                None => Value::Null,
+                Some(None) => json!({ "topic": null }),
+                Some(Some(id)) => {
+                    json!({ "topic": id.iter().map(|b| format!("{b:02x}")).collect::<String>() })
+                }
+            },
+        );
+    }
+    Value::Object(out)
+}

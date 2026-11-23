@@ -74,3 +74,44 @@ fn broker_requests_follow_grants_taint_and_policy() {
     );
     assert_eq!(ask(false, room_no, "rm -rf")["refusal"], "unknown_tool");
 }
+
+#[test]
+fn topics_run_through_one_bridge_instance() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"scope"),
+        || 1_790_000_000_000,
+    );
+    let mut go = |v: Value| -> Value {
+        serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+    };
+    let id = "01".repeat(16);
+    let ev = "aa".repeat(32);
+    let st = json!({"clock": 1, "event": "bb".repeat(32)});
+    let r = go(
+        json!({"cmd":"topics_do","caps":[],"actor":"ann","op":{"kind":"create","id":id,"title":"general","at":st}}),
+    );
+    assert_eq!(r["ok"]["refused"], "not_authorized");
+    let r = go(
+        json!({"cmd":"topics_do","caps":["room.create_topic"],"actor":"ann","op":{"kind":"create","id":id,"title":"general","at":st}}),
+    );
+    assert_eq!(r["ok"]["applied"], true);
+    let r = go(
+        json!({"cmd":"topics_do","caps":[],"actor":"ann","op":{"kind":"post","mode":"forum","topLevel":true,"event":ev,"author":"ann","topic":null}}),
+    );
+    assert_eq!(r["ok"]["refused"], "topic_required");
+    let r = go(
+        json!({"cmd":"topics_do","caps":[],"actor":"ann","op":{"kind":"post","mode":"forum","topLevel":true,"event":ev,"author":"ann","topic":id}}),
+    );
+    assert_eq!(r["ok"]["applied"], true);
+    let r = go(
+        json!({"cmd":"topics_do","caps":["room.manage_topics"],"actor":"bob","op":{"kind":"move","event":ev,"topic":null,"at":{"clock":5,"event":"cc".repeat(32)}}}),
+    );
+    assert_eq!(r["ok"]["applied"], true);
+    let v = go(json!({"cmd":"topics_view","topic":id,"message":ev}));
+    assert_eq!(v["ok"]["topic"]["title"], "general");
+    assert_eq!(v["ok"]["placement"], json!({"topic": null}));
+    let r = go(
+        json!({"cmd":"topics_do","caps":[],"actor":"x","op":{"kind":"create","id":"zz","title":"t","at":st}}),
+    );
+    assert_eq!(r["ok"]["refused"], "malformed");
+}
