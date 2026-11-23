@@ -3048,6 +3048,16 @@
       "amends": [],
       "index_title": "Authorize engineering scope `communities_publications` (W3), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0262",
+      "title": "W4 `services_bots` canonical wire freeze",
+      "status": "Delegated design decision — repo-local W4 wire freeze; **independent review remains required**.",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0262-services-bots-wire-freeze.md",
+      "amends": [],
+      "index_title": "W4 `services_bots` canonical wire freeze (delegated design decision; independent review required)",
+      "amended_by": []
     }
   ]
 }

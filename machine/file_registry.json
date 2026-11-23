@@ -4883,6 +4883,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0262-services-bots-wire-freeze.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -13157,6 +13164,13 @@
       "authority": "normative_wire_schema"
     },
     {
+      "path": "spec/cddl/service.cddl",
+      "class": "spec_artifact",
+      "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_wire_schema"
+    },
+    {
       "path": "spec/cddl/space-publication.cddl",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
@@ -15447,6 +15461,34 @@
     },
     {
       "path": "verification/prototypes/recovery-sheet-wire/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/services-wire/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/services-wire/python_codec.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/services-wire/run.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/services-wire/vectors.json",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

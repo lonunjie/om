@@ -862,6 +862,78 @@
       "object": "PackController.key_id (Signature.signer of a ContentPackControlState)",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ServiceControlState (controller role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ServiceControlState (predecessor chain and authenticated head reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-DEFINITION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ServiceDefinition (controller role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-DEFINITION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ServiceDefinition (immutable signed definition identity and release reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-INSTALLATION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ServiceInstallation (controller/device role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-INSTALLATION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ServiceInstallation (predecessor chain and authenticated head reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-REPRESENTATION-GRANT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RepresentationGrant (controller/device role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-REPRESENTATION-GRANT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RepresentationGrant (predecessor chain and authenticated head reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTEXT-DISCLOSURE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContextDisclosureBundle (receipt/dedup hash for one-shot selected-context bundle, not authorization)",
+      "wave": "W4",
+      "status": "frozen"
     }
   ]
 }

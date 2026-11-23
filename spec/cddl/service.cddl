@@ -1,0 +1,191 @@
+; OM W4 services_bots wire freeze, ADR-0262. Use together with common.cddl
+; and events.cddl. OM-CBOR-v1 (RFC 8949 deterministic CBOR), no null,
+; maps with only assigned keys, sorted/unique sets by full element CBOR bytes.
+; 0=object_type, 1=object_version, optional 23=extensions on top levels.
+; Signed objects are embedded in SignedEnvelope {1: canonical body bstr,
+; 2: [1*16 signature]}; roles and size limits are per om-object-types.json.
+
+service-id = bstr .size 32         ; independently generated stable random ID
+service-endpoint-id = bstr .size (16..32)
+service-version = 1..4294967295
+service-capability = tstr .size (1..128)
+service-scope-kind = 1..3          ; 1 personal/account, 2 Room, 3 Space
+service-execution-mode = 1..3     ; 1 local_component, 2 remote_om, 3 remote_web_service
+service-data-mode = 1..3          ; 1 selected_context, 2 local_personal, 3 full_room_member
+service-revocation-state = 1..2   ; 1 active, 2 revoked
+service-state-head = { 0: service-version, 1: digest }
+service-scope-ref = { 0: service-scope-kind, 1: bstr .size 32 }
+
+; Identity is ServiceID. This unsigned wrapper does not bestow authority;
+; do not replace ServiceID by a hash or account/host/alias identifier.
+ServicePrincipal = {
+  0: 47, 1: 1, 2: service-id, ? 23: extensions
+}
+service-controller = {
+  0: 1..4,                      ; account, organization, Space, Room governance
+  1: bstr .size 32             ; independent controller authority ID
+}
+service-endpoint-credential = {
+  0: service-endpoint-id,
+  1: 1..3,                     ; active, quarantined, revoked
+  2: profile-id,
+  3: bstr .size (32..4096),    ; public key, never a token/private key
+  4: service-execution-mode,
+  ? 5: bstr .size (16..32)     ; host ref is routing evidence, not controller
+}
+service-profile = {
+  0: tstr .size (1..256),
+  ? 1: tstr .size (1..4096),
+  ? 2: tstr .size (1..2048)
+}
+ServiceControlState = {
+  0: 48, 1: 1,
+  2: service-id,
+  3: service-version,
+  ? 4: digest,                 ; previous ServiceControlState hash (absent iff genesis)
+  5: [1*32 service-controller], ; sorted/unique independent controllers
+  6: 1..32,                    ; <= count of controllers
+  7: [0*128 service-endpoint-credential], ; sorted/unique by endpoint ID and wire bytes
+  8: service-profile,
+  ? 9: digest,                 ; signed ServiceDefinition reference
+  ? 23: extensions
+}
+; Authorization evidence is envelope signatures, not another body signature.
+; Genesis has state_version=1, no previous hash; every later version has it.
+; Endpoint revoke is monotone; move hosts atomically via accepted state.
+
+service-command-descriptor = {
+  0: tstr .size (1..128),      ; command_id
+  1: tstr .size (1..256),      ; localized_name
+  ? 2: tstr .size (1..2048),  ; localized description
+  3: bstr .size (0..4096),    ; declarative parameter schema; not authority
+  4: [1*32 service-capability], ; invocation_contexts
+  5: [0*32 service-capability], ; requested_input_scopes
+  6: [0*32 service-capability]  ; possible_output_actions
+}
+ServiceDefinition = {
+  0: 49, 1: 1,
+  2: service-id,
+  3: service-version,
+  4: service-profile,
+  5: [1*32 service-capability],   ; service categories
+  6: [0*64 service-command-descriptor],
+  7: [1*3 service-scope-kind],
+  8: [0*128 service-capability],  ; requested, not granted, capabilities
+  9: [1*3 service-execution-mode],
+  ? 10: tstr .size (1..4096),     ; data handling declaration
+  ? 11: [1*16 tstr .size (1..2048)], ; homepage/source refs
+  ? 23: extensions
+}
+service-approval-evidence = {
+  0: principal-ref,
+  1: digest                     ; external governance/account decision proof
+}
+service-trigger-filter = {
+  0: [1*18 (1..18)],           ; event kinds, wake/act filtering only
+  ? 1: [1*32 service-scope-ref]
+}
+service-automation-rule = {
+  0: bstr .size 16,
+  1: service-trigger-filter,
+  2: [1*32 service-capability],
+  3: 1..16,                    ; hop bound
+  4: 1..1000,                  ; per root action budget
+  5: bool
+}
+ServiceInstallation = {
+  0: 50, 1: 1,
+  2: bstr .size (16..32),     ; installation incarnation ID
+  3: service-id,
+  4: service-scope-ref,
+  5: [0*128 service-capability],
+  6: service-data-mode,
+  7: [0*64 service-capability],  ; interaction surfaces
+  ? 8: [1*64 service-automation-rule],
+  9: service-approval-evidence,
+  10: principal-ref,
+  11: service-revocation-state,
+  ? 12: service-trigger-filter,
+  ? 13: service-state-head,    ; required for full Room member
+  14: service-version,
+  ? 15: digest,                ; previous installation hash, absent iff v1
+  ? 23: extensions
+}
+; A trigger filter cannot grant transcript access. Mode 3 only in Room
+; and subject to visible roster, current ServiceControlState and MLS admission.
+
+representation-constraints = {
+  ? 0: 1..1000000,             ; max_actions
+  ? 1: [1*256 principal-ref], ; allowed counterparties
+  ? 2: bool                   ; per_action_confirmation
+}
+RepresentationGrant = {
+  0: 51, 1: 1,
+  2: bstr .size (16..32),     ; grant incarnation ID
+  3: bstr .size 32,          ; represented AccountID
+  4: service-id,
+  5: [1*64 service-scope-ref],
+  6: [1*64 service-capability], ; allowed actions
+  ? 7: representation-constraints,
+  8: bstr .size (16..32),    ; issuing account control device
+  9: service-state-head,     ; issuing AccountControlState version/hash basis
+  ? 10: posix-seconds,       ; not_before
+  ? 11: posix-seconds,       ; expires_at
+  12: service-revocation-state,
+  ? 13: digest,              ; counterparty notice evidence, when relevant
+  14: service-version,       ; update/revocation version
+  ? 15: digest,              ; previous grant hash, absent iff v1
+  ? 23: extensions
+}
+; Grant creation/expansion is signed by an active account control device
+; (controller role). Revocation may be signed by a messaging device (device
+; role). Service authorship never changes to Account authorship.
+
+service-selected-item = {
+  0: 1..5,                   ; selected msg/attachment/draft/topic/explicit text
+  1: bstr .size (1..16384)  ; only explicitly disclosed content bytes
+}
+ContextDisclosureBundle = {
+  0: 52, 1: 1,
+  2: bstr .size 16,         ; invocation ID
+  3: service-id,
+  ? 4: service-scope-ref,   ; omitted by default, no stable Room ID leak
+  5: [1*32 service-selected-item],
+  ? 6: [1*64 principal-ref], ; explicitly disclosed participants only
+  7: tstr .size (1..128),   ; purpose/command ID
+  8: posix-seconds,        ; absolute expiry
+  ? 23: extensions
+}
+; Bundle travels over authenticated 1:1 session, never as hidden standing
+; subscription. The one-shot disclosure must be user initiated and receipted.
+
+ServiceEventRepresentation = {
+  0: bstr .size 32,       ; represented_account_id, NOT the event author
+  1: digest              ; hash of the live, scoped RepresentationGrant
+}
+; W4-only addition to ConversationEvent: exact top-level key 13, not a new
+; event kind. The following is an overlay: every event MUST *also* satisfy
+; the corresponding kind-specific ConversationEvent body schema in events.cddl
+; (including the W0-valid message.create body and later-wave additions).
+; W0 decoders MUST reject key 13 as unknown critical field, even when valid.
+ServiceRepresentedConversationEvent = {
+  0: 10, 1: 1,
+  2: 1..65535,
+  3: event-id,
+  4: conversation-id,
+  5: { 0: 2, 1: service-id }, ; author_principal is always a ServicePrincipal
+  6: service-endpoint-id,   ; author_endpoint_id, authorized by current head
+  7: hlc,
+  8: 1..18,                ; existing kind, NO new event kind allocated
+  9: 1..65535,
+  ? 10: [1*16 tstr .size (1..128)],
+  11: any,                  ; constrained by the matching existing event kind
+  ? 12: posix-seconds,
+  13: ServiceEventRepresentation,
+  ? 23: extensions
+}
+
+signed-service-control-state = { 1: bstr, 2: [1*16 signature] } ; controller
+signed-service-definition = { 1: bstr, 2: [1*16 signature] }    ; controller
+signed-service-installation = { 1: bstr, 2: [1*16 signature] }  ; device/controller, scope-gated
+signed-representation-grant = { 1: bstr, 2: [1*16 signature] }  ; controller, or device for revoke

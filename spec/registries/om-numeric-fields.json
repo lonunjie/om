@@ -356,6 +356,43 @@
       "2": "custom_emoji",
       "3": "reaction",
       "4": "mixed"
+    },
+    "service_controller_kind": {
+      "1": "account",
+      "2": "organization",
+      "3": "space",
+      "4": "room"
+    },
+    "service_endpoint_state": {
+      "1": "active",
+      "2": "quarantined",
+      "3": "revoked"
+    },
+    "service_execution_mode": {
+      "1": "local_component",
+      "2": "remote_om",
+      "3": "remote_web_service"
+    },
+    "service_install_scope": {
+      "1": "personal_account",
+      "2": "room",
+      "3": "space"
+    },
+    "service_data_access_mode": {
+      "1": "selected_context",
+      "2": "local_personal",
+      "3": "full_room_member"
+    },
+    "service_revocation_state": {
+      "1": "active",
+      "2": "revoked"
+    },
+    "service_selected_item_kind": {
+      "1": "selected_message",
+      "2": "selected_attachment",
+      "3": "draft",
+      "4": "selected_topic_or_thread",
+      "5": "explicit_user_text"
     }
   },
   "structs": {
@@ -1668,14 +1705,19 @@
             ]
           },
           "req": false
-        }
-      ],
-      "reserved": [
+        },
         {
           "key": 13,
           "name": "representation",
-          "note": "W4 services_bots RepresentationGrant; unknown to W0 decoders (critical)"
-        },
+          "type": {
+            "ref": "ServiceEventRepresentation"
+          },
+          "req": false,
+          "wave": "W4",
+          "note": "W4 only: W0 receivers MUST reject key 13, even if this value is well formed (ADR-0128 rule 18)."
+        }
+      ],
+      "reserved": [
         {
           "key": 14,
           "name": "foreign_provenance",
@@ -8900,6 +8942,1122 @@
           "req": true
         }
       ]
+    },
+    "ServiceController": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "service_controller_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "authority_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "Only independently authorized account/organization/space/room governance; never the service, host or service endpoint."
+    },
+    "ServiceEndpointCredential": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "endpoint_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "credential_state",
+          "type": {
+            "enum": "service_endpoint_state"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "execution_mode",
+          "type": {
+            "enum": "service_execution_mode"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "host_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ServiceProfile": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "display_name",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "description",
+          "type": {
+            "tstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "avatar_ref",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ServicePrincipal": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "service_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "Identity is the random ServiceID, not the hash of this unsigned wrapper or an alias."
+    },
+    "ServiceControlState": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "service_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "controllers",
+          "type": {
+            "set": {
+              "ref": "ServiceController"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "approval_threshold",
+          "type": {
+            "uint": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "endpoint_credentials",
+          "type": {
+            "set": {
+              "ref": "ServiceEndpointCredential"
+            },
+            "n": [
+              0,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "profile",
+          "type": {
+            "ref": "ServiceProfile"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "manifest_release_ref",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        }
+      ],
+      "top_level": true,
+      "note": "Authorization evidence is the signed envelope; known-head, quorum and fork checks depend on authenticated previous state."
+    },
+    "ServiceCommandDescriptor": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "command_id",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "localized_name",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "description",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "parameter_schema",
+          "type": {
+            "bstr": [
+              0,
+              4096
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "invocation_contexts",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "requested_input_scopes",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              0,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "possible_output_actions",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              0,
+              32
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "Parameter schema is declarative opaque bytes; host must understand or refuse the command."
+    },
+    "ServiceDefinition": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "service_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "display_metadata",
+          "type": {
+            "ref": "ServiceProfile"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "service_categories",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "command_descriptors",
+          "type": {
+            "set": {
+              "ref": "ServiceCommandDescriptor"
+            },
+            "n": [
+              0,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "supported_install_scopes",
+          "type": {
+            "set": {
+              "enum": "service_install_scope"
+            },
+            "n": [
+              1,
+              3
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "requested_capabilities",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              0,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "supported_execution_modes",
+          "type": {
+            "set": {
+              "enum": "service_execution_mode"
+            },
+            "n": [
+              1,
+              3
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "data_handling_declarations",
+          "type": {
+            "tstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "homepage_source_refs",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": false
+        }
+      ],
+      "top_level": true
+    },
+    "ServiceScopeRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "scope_kind",
+          "type": {
+            "enum": "service_install_scope"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "scope_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "ServiceStateHead": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "ServiceApprovalEvidence": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "approving_principal",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "decision_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "ServiceTriggerFilter": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "event_kinds",
+          "type": {
+            "set": {
+              "enum": "event_kind"
+            },
+            "n": [
+              1,
+              18
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "source_scope_refs",
+          "type": {
+            "set": {
+              "ref": "ServiceScopeRef"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ServiceAutomationRule": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "rule_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "trigger",
+          "type": {
+            "ref": "ServiceTriggerFilter"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "allowed_actions",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "max_hops",
+          "type": {
+            "uint": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "max_actions_per_root",
+          "type": {
+            "uint": [
+              1,
+              1000
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "enabled",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        }
+      ]
+    },
+    "ServiceInstallation": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "service_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "scope_ref",
+          "type": {
+            "ref": "ServiceScopeRef"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "granted_capabilities",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              0,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "data_access_mode",
+          "type": {
+            "enum": "service_data_access_mode"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "interaction_surfaces",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              0,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "automation_rules",
+          "type": {
+            "set": {
+              "ref": "ServiceAutomationRule"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "approval_evidence",
+          "type": {
+            "ref": "ServiceApprovalEvidence"
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "created_by",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 11,
+          "name": "revocation_state",
+          "type": {
+            "enum": "service_revocation_state"
+          },
+          "req": true
+        },
+        {
+          "key": 12,
+          "name": "trigger_filter",
+          "type": {
+            "ref": "ServiceTriggerFilter"
+          },
+          "req": false
+        },
+        {
+          "key": 13,
+          "name": "state_head",
+          "type": {
+            "ref": "ServiceStateHead"
+          },
+          "req": false
+        },
+        {
+          "key": 14,
+          "name": "installation_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 15,
+          "name": "previous_installation_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        }
+      ],
+      "top_level": true,
+      "note": "Full-member installs require current state head and explicit Room admission; hash-chain protects installation updates."
+    },
+    "RepresentationConstraints": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "max_actions",
+          "type": {
+            "uint": [
+              1,
+              1000000
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 1,
+          "name": "allowed_counterparties",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "per_action_confirmation",
+          "type": {
+            "bool": null
+          },
+          "req": false
+        }
+      ]
+    },
+    "RepresentationGrant": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "grant_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "represented_account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "service_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "scope_refs",
+          "type": {
+            "set": {
+              "ref": "ServiceScopeRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "allowed_actions",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "optional_constraints",
+          "type": {
+            "ref": "RepresentationConstraints"
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "issuing_control_device_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "account_control_state_head",
+          "type": {
+            "ref": "ServiceStateHead"
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "not_before",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "revocation_state",
+          "type": {
+            "enum": "service_revocation_state"
+          },
+          "req": true
+        },
+        {
+          "key": 13,
+          "name": "counterparty_notice_ref",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 14,
+          "name": "grant_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 15,
+          "name": "previous_grant_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        }
+      ],
+      "top_level": true,
+      "note": "Controller-issued grants only; messaging-device signature permitted only to revoke, not issue/expand. Basis validity is external."
+    },
+    "ServiceSelectedItem": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "service_selected_item_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "selected_bytes",
+          "type": {
+            "bstr": [
+              1,
+              16384
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "Opaque selected bytes, not an ambient transcript or a hidden persistent subscriber."
+    },
+    "ContextDisclosureBundle": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "service_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "source_scope_hint",
+          "type": {
+            "ref": "ServiceScopeRef"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "selected_items",
+          "type": {
+            "array": {
+              "ref": "ServiceSelectedItem"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "disclosed_participant_refs",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "purpose_command_id",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "expiry",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ],
+      "top_level": true,
+      "note": "One-shot selected-context data sent over authenticated OM 1:1 session; not separately signed."
+    },
+    "ServiceEventRepresentation": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "represented_account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "representation_grant_ref",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ],
+      "note": "Key 13 on ConversationEvent; only service-authored events; validated against a live scoped RepresentationGrant."
     }
   },
   "extensions": [

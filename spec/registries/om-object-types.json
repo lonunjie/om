@@ -673,6 +673,94 @@
       "max_bytes": 131072,
       "source": "ADR-0252 (CDDL: spec/cddl/expressive.cddl); hash-chained, authorized by a threshold of the previous state's pack controllers",
       "logical_schema": null
+    },
+    {
+      "type_id": 47,
+      "name": "ServicePrincipal",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 256,
+      "source": "ServiceID identity wrapper; unsigned; ServiceID is random and not hash-derived (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 48,
+      "name": "ServiceControlState",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-SERVICE-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-SERVICE-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ServiceControlState; ADR-0129 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": "spec/protocol/service-principal.logical.schema.json"
+    },
+    {
+      "type_id": 49,
+      "name": "ServiceDefinition",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-SERVICE-DEFINITION-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-SERVICE-DEFINITION-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ServiceDefinition (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 50,
+      "name": "ServiceInstallation",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-SERVICE-INSTALLATION-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-SERVICE-INSTALLATION-HASH-v1",
+      "max_bytes": 32768,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §Installation scope; ADR-0129 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": "spec/protocol/service-installation.logical.schema.json"
+    },
+    {
+      "type_id": 51,
+      "name": "RepresentationGrant",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-REPRESENTATION-GRANT-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-REPRESENTATION-GRANT-HASH-v1",
+      "max_bytes": 32768,
+      "source": "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md §9; ADR-0129 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 52,
+      "name": "ContextDisclosureBundle",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": null,
+      "hash": "OM-CONTEXT-DISCLOSURE-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ContextDisclosureBundle; ADR-0124 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
     }
   ]
 }

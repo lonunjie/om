@@ -84,6 +84,9 @@ pub struct Registry {
     /// `sig_role` value -> name, for the roles that are valid only on object types whose `signed.roles` list them
     /// (enum_value_waves marks them later-wave; a decoder of that wave lifts the marker, see [`Registry::load_w3`]).
     pub scoped_roles: HashMap<u64, String>,
+    /// struct name -> fields marked with a later `"wave"` in the registry; held back from `structs` until a decoder of
+    /// that wave enables them ([`Registry::load_w4`]).
+    pub deferred_fields: HashMap<String, Vec<Field>>,
 }
 
 fn range(j: &J) -> (u64, u64) {
@@ -143,10 +146,17 @@ fn parse_ty(j: &J) -> Ty {
     panic!("unknown registry type {j}")
 }
 
+/// A field entry carrying a `"wave"` marker belongs to a later wave: a W0 decoder treats its key as unknown (the key is
+/// rejected exactly as if unregistered) and only [`Registry::load_w4`] enables it.
 fn parse_fields(a: &J) -> Vec<Field> {
+    parse_fields_where(a, false)
+}
+
+fn parse_fields_where(a: &J, later_wave: bool) -> Vec<Field> {
     a.as_array()
         .unwrap()
         .iter()
+        .filter(|f| f.get("wave").is_some() == later_wave)
         .map(|f| Field {
             key: f["key"].as_u64().unwrap(),
             name: f["name"].as_str().unwrap().into(),
@@ -175,6 +185,19 @@ impl Registry {
         let mut r = Self::load_w1();
         let roles: Vec<u64> = r.scoped_roles.keys().copied().collect();
         r.enums.get_mut("sig_role").unwrap().extend(roles);
+        r
+    }
+
+    /// The registry a `services_bots` (W4) decoder uses (ADR-0262): the W3 registry with the later-wave struct fields
+    /// enabled, today `ConversationEvent` key 13 (`representation`). W0 to W3 decoders keep rejecting key 13.
+    pub fn load_w4() -> Registry {
+        let mut r = Self::load_w3();
+        for (name, fields) in std::mem::take(&mut r.deferred_fields) {
+            if let Some(Struct::Fields { fields: have, .. }) = r.structs.get_mut(&name) {
+                have.extend(fields);
+                have.sort_by_key(|x| x.key);
+            }
+        }
         r
     }
 
@@ -316,6 +339,7 @@ impl Registry {
     fn from_json(f: J, t: J, p: J) -> Registry {
         let common = parse_fields(&f["common_top_level_fields"]);
         let mut structs = HashMap::new();
+        let mut deferred: HashMap<String, Vec<Field>> = HashMap::new();
         for (name, s) in f["structs"].as_object().unwrap() {
             if let Some(u) = s.get("union") {
                 let variants = u["variants"]
@@ -337,6 +361,10 @@ impl Registry {
                     .and_then(|x| x.as_bool())
                     .unwrap_or(false);
                 let mut fields = parse_fields(&s["fields"]);
+                let later = parse_fields_where(&s["fields"], true);
+                if !later.is_empty() {
+                    deferred.insert(name.clone(), later);
+                }
                 if top {
                     fields.extend(common.iter().cloned());
                 }
@@ -489,6 +517,7 @@ impl Registry {
             sealed_hpke,
             lim,
             scoped_roles,
+            deferred_fields: deferred,
         }
     }
 

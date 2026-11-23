@@ -268,3 +268,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0259 — Authorize engineering scope `plugins` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0259-authorize-plugins-engineering.md)
 - [ADR-0260 — Authorize engineering scope `bridges` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0260-authorize-bridges-engineering.md)
 - [ADR-0261 — Authorize engineering scope `communities_publications` (W3), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0261-authorize-communities-publications-engineering.md)
+- [ADR-0262 — W4 `services_bots` canonical wire freeze (delegated design decision; independent review required)](ADR-0262-services-bots-wire-freeze.md)
