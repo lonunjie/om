@@ -8,6 +8,7 @@ mod manifest;
 mod zip;
 pub use limits::Limits;
 pub mod import;
+pub mod rehydrate;
 pub mod writer;
 use sha2::{Digest, Sha256};
 
