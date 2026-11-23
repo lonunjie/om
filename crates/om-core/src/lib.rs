@@ -49,6 +49,7 @@ pub mod route;
 pub mod service_authorship;
 pub mod service_control;
 pub mod service_invocation;
+pub mod service_room_member;
 pub mod space_binding;
 pub mod space_control;
 pub mod state;

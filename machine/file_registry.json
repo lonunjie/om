@@ -2601,6 +2601,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/service_room_member.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/space_binding.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -3155,6 +3162,13 @@
     },
     {
       "path": "crates/om-core/tests/service_invocation.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/service_room_member.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
