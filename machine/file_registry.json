@@ -1719,6 +1719,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/src/lan.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/src/lib.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1755,6 +1762,13 @@
     },
     {
       "path": "crates/om-codec/tests/lan_receipt_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/tests/lan_wire_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",

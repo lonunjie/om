@@ -11,6 +11,7 @@
 
 pub mod cbor;
 pub mod derive;
+pub mod lan;
 pub mod schema;
 
 pub use cbor::{Class, Limits, Value, decode, encode};
