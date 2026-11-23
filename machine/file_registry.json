@@ -1894,6 +1894,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/crypto/lan_rendezvous.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/crypto/ledger.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -2307,6 +2314,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/lan.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/lib.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -2630,6 +2644,20 @@
     },
     {
       "path": "crates/om-core/tests/groups_openmls.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/lan_rendezvous_state.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/lan_rendezvous_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -14858,6 +14886,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/lan-rendezvous/gen_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/owner-recovery-wire/README.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
@@ -18030,6 +18065,13 @@
     },
     {
       "path": "verification/vectors/group-transport-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/lan-rendezvous-vectors.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

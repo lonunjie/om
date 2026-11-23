@@ -1,0 +1,81 @@
+{
+ "profile": "LanDeliveryProfile-v1",
+ "pair": {
+  "sk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "crypto_profile": 1,
+  "initiator": "404142434445464748494a4b4c4d4e4f",
+  "responder": "606162636465666768696a6b6c6d6e6f",
+  "seed": "afc65044b32a708d0949c74e9a9d82a56e4663e077fa456e4d62b27ddcd78865",
+  "tags": [
+   {
+    "posix": 0,
+    "epoch": 0,
+    "tag": "57df573105d71a05573458c01b627035"
+   },
+   {
+    "posix": 899,
+    "epoch": 0,
+    "tag": "57df573105d71a05573458c01b627035"
+   },
+   {
+    "posix": 900,
+    "epoch": 1,
+    "tag": "c3143c2d2830213ebd22deb61e8d54bb"
+   },
+   {
+    "posix": 1795000000,
+    "epoch": 1994444,
+    "tag": "bfacc01984e5ecd039ace4d87cf5543e"
+   },
+   {
+    "posix": 1795000899,
+    "epoch": 1994445,
+    "tag": "27e9d80805a6fd85f5d8c2b85797a307"
+   },
+   {
+    "posix": 1795000900,
+    "epoch": 1994445,
+    "tag": "27e9d80805a6fd85f5d8c2b85797a307"
+   }
+  ]
+ },
+ "pair_swapped_roles_seed": "597925c31e3745347b5c64bafe66bd586b1754a417e52f52d1a55e6913a99eb4",
+ "pair_other_profile_seed": "ac5e06bf758665eb9981ea47995cc93fe06134042b67c20b3946dbc1a6b478c4",
+ "invite": {
+  "secret": "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
+  "invite_id": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+  "seed": "9001c3b2ed4c1e60bd26c7ae6ba3e078af138fbdd75265b32435965ef821fe39",
+  "tags": [
+   {
+    "posix": 0,
+    "epoch": 0,
+    "tag": "fb248e2e3a71f699288767fcaff4deea"
+   },
+   {
+    "posix": 899,
+    "epoch": 0,
+    "tag": "fb248e2e3a71f699288767fcaff4deea"
+   },
+   {
+    "posix": 900,
+    "epoch": 1,
+    "tag": "ae96fe3830248c050c9193ddb997a20f"
+   },
+   {
+    "posix": 1795000000,
+    "epoch": 1994444,
+    "tag": "5e0c1bdc2a3dbd6c09c56d811c64dd64"
+   },
+   {
+    "posix": 1795000899,
+    "epoch": 1994445,
+    "tag": "cc7a8b5982c2034425607985b34f3d57"
+   },
+   {
+    "posix": 1795000900,
+    "epoch": 1994445,
+    "tag": "cc7a8b5982c2034425607985b34f3d57"
+   }
+  ]
+ }
+}
