@@ -7,6 +7,7 @@ mod limits;
 mod manifest;
 mod zip;
 pub use limits::Limits;
+pub mod import;
 use sha2::{Digest, Sha256};
 
 /// Stable ZIP error subclasses within the §7 `Zip(<class>)` family.
@@ -107,6 +108,8 @@ pub struct ArchiveEntry<'a> {
     pub kind: EntryKind,
     /// Unmodified canonical object / blob / record bytes; owned by the caller's input.
     pub bytes: &'a [u8],
+    /// The manifest's `object_type` (canonical objects) or `record_type` (records); `None` for blobs.
+    pub declared_type: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +200,7 @@ pub fn read_archive<'a>(bytes: &'a [u8], limits: &Limits) -> Result<Archive<'a>,
             path: item.path.to_owned(),
             kind: item.kind,
             bytes: entry.data,
+            declared_type: item.object_type.or(item.record_type).map(str::to_owned),
         });
         seen += 1;
     }

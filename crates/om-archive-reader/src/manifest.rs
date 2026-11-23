@@ -11,6 +11,7 @@ pub(crate) struct InventoryItem<'a> {
     pub(crate) hash: [u8; 32],
     pub(crate) kind: EntryKind,
     pub(crate) record_type: Option<&'a str>,
+    pub(crate) object_type: Option<&'a str>,
     pub(crate) present: bool,
 }
 
@@ -126,9 +127,11 @@ fn inventory<'a>(node: &Node<'a>, kind: EntryKind) -> Result<Vec<InventoryItem<'
         let hash = fixed::<32>(req(el, "sha256")?)?;
         let mut present = true;
         let mut record_type = None;
+        let mut object_type_out = None;
         match kind {
             EntryKind::CanonicalObject => {
                 let object_type = text(req(el, "object_type")?)?;
+                object_type_out = Some(object_type);
                 if SECRETS.contains(&object_type) {
                     return Err(ArchiveError::SecretMaterial);
                 }
@@ -164,6 +167,7 @@ fn inventory<'a>(node: &Node<'a>, kind: EntryKind) -> Result<Vec<InventoryItem<'
             hash,
             kind,
             record_type,
+            object_type: object_type_out,
             present,
         });
     }
