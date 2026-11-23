@@ -34,5 +34,8 @@ groups-openmls = ["om-core/groups-openmls", "dep:getrandom02"]
 # Includes the opt-in expressive-media host commands in a separate engineering artifact.
 expressive-media = []
 
+# Stateless typed queries for the services and bridges scopes (ADR-0258, ADR-0260). Engineering artifact only; off in every release.
+scope-engines = []
+
 [dev-dependencies]
 om-core = { path = "../om-core", features = ["insecure-test-rng", "test-loopback"] }

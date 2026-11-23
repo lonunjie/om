@@ -9,6 +9,8 @@ use om_core::crypto::rng::{self, CryptoRng, RngCore};
 use om_core::direct::{DirectFrame, ErrorCode, FetchState, TRANSFER_ID_LEN};
 #[cfg(feature = "expressive-media")]
 use om_core::expressive as media;
+#[cfg(feature = "scope-engines")]
+mod scope;
 use om_core::groups::carriage::Sealed;
 use om_core::groups::flow::{
     DeviceRelease, GroupEvent, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Outbound,
@@ -200,6 +202,21 @@ enum Command {
         ctx: ProfileExecutionContext,
         call_session_id: String,
         route: om_core::calls::CallRoute,
+    },
+    /// Stateless typed queries for the services and bridges scopes. Built only into the engineering artifact
+    /// (feature `scope-engines`); off in every release until each scope's gate evidence is in.
+    #[cfg(feature = "scope-engines")]
+    BridgeFidelityPlan {
+        semantics: Vec<u8>,
+        max_attachment_bytes: Option<u64>,
+        op: scope::FidelityOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    ServiceBrokerRequest {
+        granted: Vec<String>,
+        tainted: bool,
+        policy: scope::EgressPolicyIn,
+        name: String,
     },
     ExpressiveAvailable,
     #[cfg(feature = "expressive-media")]
@@ -1224,6 +1241,19 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::PendingOperations { ctx } => {
                 Ok(enc(&self.core()?.pending_operations(&ctx)?))
             }
+            #[cfg(feature = "scope-engines")]
+            Command::BridgeFidelityPlan {
+                semantics,
+                max_attachment_bytes,
+                op,
+            } => Ok(scope::fidelity_plan(&semantics, max_attachment_bytes, op)),
+            #[cfg(feature = "scope-engines")]
+            Command::ServiceBrokerRequest {
+                granted,
+                tainted,
+                policy,
+                name,
+            } => Ok(scope::broker_request(&granted, tainted, policy, &name)),
             Command::ExpressiveAvailable => Ok(json!(self.core()?.expressive_media_available())),
             #[cfg(feature = "expressive-media")]
             Command::ExpressiveBlobExposure { policy } => {
