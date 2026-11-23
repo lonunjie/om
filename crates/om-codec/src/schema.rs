@@ -87,6 +87,9 @@ pub struct Registry {
     /// struct name -> fields marked with a later `"wave"` in the registry; held back from `structs` until a decoder of
     /// that wave enables them ([`Registry::load_w4`]).
     pub deferred_fields: HashMap<String, Vec<Field>>,
+    /// enum name -> values marked `"W4"` in `enum_value_waves`; W0 to W3 decoders reject them as unknown and only
+    /// [`Registry::load_w4`] enables them (the plugin capability, error and state ids of ADR-0266).
+    pub deferred_enums: HashMap<String, Vec<u64>>,
 }
 
 fn range(j: &J) -> (u64, u64) {
@@ -192,6 +195,11 @@ impl Registry {
     /// enabled, today `ConversationEvent` key 13 (`representation`). W0 to W3 decoders keep rejecting key 13.
     pub fn load_w4() -> Registry {
         let mut r = Self::load_w3();
+        for (name, values) in std::mem::take(&mut r.deferred_enums) {
+            if let Some(set) = r.enums.get_mut(&name) {
+                set.extend(values);
+            }
+        }
         for (name, fields) in std::mem::take(&mut r.deferred_fields) {
             if let Some(Struct::Fields { fields: have, .. }) = r.structs.get_mut(&name) {
                 have.extend(fields);
@@ -378,6 +386,17 @@ impl Registry {
                 .as_str()
                 .is_some_and(|w| w != "W0")
         };
+        let mut deferred_enums: HashMap<String, Vec<u64>> = HashMap::new();
+        for (e, vals) in f["enums"].as_object().unwrap() {
+            for v in vals.as_object().unwrap().keys() {
+                if f["enum_value_waves"][e][v].as_str() == Some("W4") {
+                    deferred_enums
+                        .entry(e.clone())
+                        .or_default()
+                        .push(v.parse().unwrap());
+                }
+            }
+        }
         let enums = f["enums"]
             .as_object()
             .unwrap()
@@ -518,6 +537,7 @@ impl Registry {
             lim,
             scoped_roles,
             deferred_fields: deferred,
+            deferred_enums,
         }
     }
 
@@ -594,6 +614,18 @@ impl Registry {
 
     /// Decode + validate the *inner body* of a signed type (the bytes carried in SignedEnvelope key 1), without
     /// looking at signatures. Used to check bodies Core builds before it signs them.
+    /// Checks an already decoded value against a named (not necessarily top-level) struct, as a nested payload.
+    pub fn check_struct_value(&self, name: &str, v: &Value) -> Result<(), Class> {
+        if !self.structs.contains_key(name) {
+            return Err("unknown_type");
+        }
+        Cx {
+            r: self,
+            lenient: false,
+        }
+        .strukt(v, name, None)
+    }
+
     pub fn check_body(&self, type_name: &str, body: &[u8]) -> Result<Value, Class> {
         let t = self.types.get(type_name).ok_or("unknown_type")?;
         let v = decode(body, self.limits_for(t), t.max_bytes)?;
@@ -688,6 +720,7 @@ impl<'a> Cx<'a> {
         self.strukt(v, &t.name, Some(t.id))?;
         service_rules(v, &t.name)?;
         bridge_rules(v, &t.name)?;
+        plugin_rules(self.r, v, &t.name)?;
         if t.name == "AsyncKeyBundle"
             && let Value::Map(m) = v
         {
@@ -1249,6 +1282,286 @@ fn bridge_rules(v: &Value, name: &str) -> Result<(), Class> {
             }
         }
         _ => {}
+    }
+    Ok(())
+}
+
+fn flag(v: Option<&Value>) -> bool {
+    v == Some(&Value::Bool(true))
+}
+
+/// The set-valued digest key of a digest map `{0: 1, 1: bytes}`.
+fn digest_bytes(v: Option<&Value>) -> Option<&Value> {
+    match v {
+        Some(Value::Map(m)) => mget(m, 1),
+        _ => None,
+    }
+}
+
+fn uint_set(v: Option<&Value>) -> Vec<u64> {
+    arr(v).iter().filter_map(|x| uint(Some(x))).collect()
+}
+
+/// Cross-field rules of the W4 plugin objects (ADR-0266, `spec/cddl/plugin.cddl`) that one object's own bytes decide,
+/// including the nested payload of the plugin/host envelopes. Rules that need a prior release, a live grant, a clock,
+/// a verified channel or host policy are the plugin host's, not here. The Python prototype
+/// `verification/prototypes/plugins-wire/python_codec.py` states the same rules.
+fn plugin_rules(r: &Registry, v: &Value, name: &str) -> Result<(), Class> {
+    let Value::Map(m) = v else { return Ok(()) };
+    match name {
+        "PluginPackageManifest" => {
+            let version = uint(mget(m, 3)).ok_or("missing_field")?;
+            match (version, mget(m, 5).is_some()) {
+                (1, true) => return Err("forked_chain"),
+                (v, false) if v > 1 => return Err("missing_field"),
+                _ => {}
+            }
+            let name_of = |x: &Value| field(x, 1).cloned();
+            let comps: Vec<Value> = arr(mget(m, 6)).iter().filter_map(name_of).collect();
+            let entry: Vec<Value> = arr(mget(m, 8))
+                .iter()
+                .filter_map(|e| {
+                    Some(Value::Array(vec![
+                        field(e, 0)?.clone(),
+                        field(e, 1)?.clone(),
+                    ]))
+                })
+                .collect();
+            let limits: Vec<Value> = arr(mget(m, 11))
+                .iter()
+                .filter_map(|l| field(l, 0).cloned())
+                .collect();
+            if !distinct(&comps.iter().collect::<Vec<_>>())
+                || !distinct(&entry.iter().collect::<Vec<_>>())
+                || !distinct(&limits.iter().collect::<Vec<_>>())
+            {
+                return Err("set_order");
+            }
+            if !arr(mget(m, 10)).is_empty() && !uint_set(mget(m, 9)).contains(&14) {
+                return Err("value_range");
+            }
+        }
+        "PluginControlState" => {
+            let keys = arr(mget(m, 5));
+            let active = keys.iter().filter(|k| uint(field(k, 3)) == Some(1)).count() as u64;
+            if uint(mget(m, 6)).ok_or("missing_field")? > active {
+                return Err("value_range");
+            }
+            let key_ids: Vec<&Value> = keys.iter().filter_map(|k| field(k, 0)).collect();
+            if !distinct(&key_ids) {
+                return Err("set_order");
+            }
+            let rel = arr(mget(m, 7));
+            let seqs: Vec<u64> = rel.iter().filter_map(|x| uint(field(x, 0))).collect();
+            let mut sorted = seqs.clone();
+            sorted.sort_unstable();
+            if sorted.windows(2).any(|w| w[0] == w[1]) {
+                return Err("set_order");
+            }
+            if sorted.iter().enumerate().any(|(i, s)| *s != i as u64 + 1) {
+                return Err("stale_chain");
+            }
+            let ids: Vec<&Value> = rel
+                .iter()
+                .filter_map(|x| digest_bytes(field(x, 1)))
+                .collect();
+            if !distinct(&ids) {
+                return Err("set_order");
+            }
+            for x in rel {
+                let (Some(id), Some(mh)) = (field(x, 1), field(x, 2)) else {
+                    return Err("missing_field");
+                };
+                if id != mh {
+                    return Err("value_range");
+                }
+                let (req, ceil) = (uint_set(field(x, 3)), uint_set(field(x, 4)));
+                if !ceil.iter().all(|c| req.contains(c)) {
+                    return Err("capability_escalation");
+                }
+                match (uint(field(x, 0)), field(x, 7).is_some()) {
+                    (Some(1), true) => return Err("forked_chain"),
+                    (Some(n), false) if n > 1 => return Err("missing_field"),
+                    _ => {}
+                }
+            }
+            let by_seq = |n: u64| rel.iter().find(|x| uint(field(x, 0)) == Some(n));
+            for n in 2..=sorted.len() as u64 {
+                let (new, old) = (
+                    by_seq(n).ok_or("stale_chain")?,
+                    by_seq(n - 1).ok_or("stale_chain")?,
+                );
+                if field(new, 7) != field(old, 1) {
+                    return Err("forked_chain");
+                }
+                let (nc, oc) = (uint_set(field(new, 4)), uint_set(field(old, 4)));
+                if !nc.iter().all(|c| oc.contains(c)) {
+                    return Err("capability_escalation");
+                }
+            }
+        }
+        "PluginCapabilityGrant" => {
+            if uint(mget(m, 7)).ok_or("missing_field")?
+                <= uint(mget(m, 6)).ok_or("missing_field")?
+            {
+                return Err("value_range");
+            }
+            scope_rules(mget(m, 5))?;
+            if let Some(sc) = map_of(mget(m, 5))
+                && uint(mget(sc, 0)) == Some(1)
+                && mget(sc, 1) != mget(m, 2)
+            {
+                return Err("value_range");
+            }
+        }
+        "PluginCapabilityCall" => {
+            scope_rules(mget(m, 7))?;
+            let cap = uint(mget(m, 5)).ok_or("missing_field")?;
+            let eg = map_of(mget(m, 9));
+            if let Some(e) = eg {
+                if !matches!(cap, 11 | 14 | 17) {
+                    return Err("value_range");
+                }
+                let kind = uint(mget(e, 0));
+                if kind == Some(3) && mget(e, 3).is_none() {
+                    return Err("missing_field");
+                }
+                if matches!(kind, Some(2) | Some(4)) && mget(e, 2).is_none() {
+                    return Err("missing_field");
+                }
+            }
+            if matches!(cap, 14 | 17) {
+                match eg {
+                    None => return Err("missing_field"),
+                    Some(e) if uint(mget(e, 0)) == Some(1) => return Err("value_range"),
+                    _ => {}
+                }
+            }
+            if cap == 11 {
+                let sc = map_of(mget(m, 7)).and_then(|s| uint(mget(s, 0)));
+                if sc != Some(2) {
+                    return Err("value_range");
+                }
+                match eg {
+                    None => return Err("missing_field"),
+                    Some(e) if uint(mget(e, 0)) != Some(1) => return Err("value_range"),
+                    _ => {}
+                }
+            }
+        }
+        "PluginUiTreeUpdate" => {
+            let nodes = arr(mget(m, 6));
+            let ids: Vec<&Value> = nodes.iter().filter_map(|n| field(n, 0)).collect();
+            if !distinct(&ids) {
+                return Err("value_range");
+            }
+            let mut roots = 0;
+            for n in nodes {
+                let (mut cur, mut depth) = (n, 0);
+                if field(cur, 2).is_none() {
+                    roots += 1;
+                }
+                while let Some(parent) = field(cur, 2) {
+                    depth += 1;
+                    if depth > 8 {
+                        return Err("value_range");
+                    }
+                    let Some(next) = nodes.iter().find(|x| field(x, 0) == Some(parent)) else {
+                        return Err("value_range");
+                    };
+                    if depth > nodes.len() {
+                        return Err("value_range");
+                    }
+                    cur = next;
+                }
+            }
+            if roots != 1 {
+                return Err("value_range");
+            }
+        }
+        "PluginHostRequest" | "PluginHostResponse" => {
+            let request = name == "PluginHostRequest";
+            let inner = match (request, uint(mget(m, 7))) {
+                (true, Some(1)) => "PluginCapabilityCall",
+                (true, Some(2)) => "PluginUiTreeUpdate",
+                (true, Some(3)) => "PluginEvent",
+                (false, Some(1)) => "PluginCallResult",
+                (false, Some(2)) => "PluginHostPolicyDecision",
+                (false, Some(3)) => "PluginError",
+                _ => return Err("value_range"),
+            };
+            let Some(Value::Bytes(payload)) = mget(m, 8) else {
+                return Err("missing_field");
+            };
+            let top = r.types.get(inner);
+            let Some(x) = top
+                .map(|t| t.max_bytes)
+                .or(Some(65536))
+                .and_then(|max| decode(payload, Limits::OM, max).ok())
+            else {
+                return Err("non_canonical");
+            };
+            if let Some(t) = top {
+                if uint(x.get(0)) != Some(t.id) {
+                    return Err("value_range");
+                }
+                r.check_body(inner, payload)?;
+                let same = if inner == "PluginError" {
+                    x.get(2) == mget(m, 5)
+                } else {
+                    x.get(2) == mget(m, 2) && x.get(3) == mget(m, 3) && x.get(4) == mget(m, 5)
+                };
+                if !same {
+                    return Err("value_range");
+                }
+            } else {
+                r.check_struct_value(inner, &x)?;
+                if x.get(0) != mget(m, 5) {
+                    return Err("value_range");
+                }
+                if inner == "PluginHostPolicyDecision" {
+                    decision_rules(&x)?;
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn scope_rules(sc: Option<&Value>) -> Result<(), Class> {
+    let Some(sc) = map_of(sc) else { return Ok(()) };
+    let want = match uint(mget(sc, 0)) {
+        Some(1) | Some(3) => 16,
+        Some(2) => 32,
+        _ => return Err("value_range"),
+    };
+    match mget(sc, 1) {
+        Some(Value::Bytes(b)) if b.len() == want => Ok(()),
+        _ => Err("value_range"),
+    }
+}
+
+/// Host policy decision (`PluginHostPolicyDecision`): the single-object rules about confirmation and evidence.
+fn decision_rules(x: &Value) -> Result<(), Class> {
+    let Value::Map(d) = x else { return Ok(()) };
+    let (tainted, allowed, confirmed) = (flag(mget(d, 2)), flag(mget(d, 3)), flag(mget(d, 4)));
+    let egress = uint(mget(d, 6));
+    if confirmed && mget(d, 8).is_none() {
+        return Err("missing_field");
+    }
+    let outbound = allowed && tainted && matches!(egress, Some(2) | Some(4));
+    if outbound && mget(d, 9).is_none() {
+        return Err("missing_field");
+    }
+    if outbound && uint(mget(d, 7)) == Some(1) && !flag(mget(d, 5)) {
+        return Err("bilateral_consent_required");
+    }
+    if allowed && uint(mget(d, 1)) == Some(11) && !confirmed {
+        return Err("user_confirmation_required");
+    }
+    if allowed && tainted && egress == Some(3) && !confirmed {
+        return Err("user_confirmation_required");
     }
     Ok(())
 }

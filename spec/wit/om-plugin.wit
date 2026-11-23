@@ -1,0 +1,66 @@
+// ADR-0266 W4 flag-off capability-only first OM Component Model world.
+// Each import is a separately brokered host capability; these are not WASI
+// imports. Host checks active per-install signed grants, scope, expiry, taint,
+// conversation policy, exact origin+channel, resource budgets and user consent.
+// No import exposes OM memory, DOM, filesystem, raw network, DeviceVault or keys.
+package om:plugin@0.1.0;
+
+interface ui-composer-action { register: func(action-id: string, caption: string) -> result<_, string>; }
+interface ui-message-action { register: func(action-id: string, caption: string) -> result<_, string>; }
+interface ui-panel { update: func(surface: string, canonical-ui-update: list<u8>) -> result<_, string>; }
+interface ui-settings-page { update: func(canonical-ui-update: list<u8>) -> result<_, string>; }
+interface content-read-selected { read: func(selection-token: list<u8>) -> result<list<u8>, string>; }
+interface content-read-current-conversation { read: func(conversation-id: list<u8>) -> result<list<u8>, string>; }
+interface content-search-local-scope { search: func(scope-token: list<u8>, query: string) -> result<list<u8>, string>; }
+interface content-read-attachment-selected { read: func(selection-token: list<u8>) -> result<list<u8>, string>; }
+interface compose-insert { insert: func(draft-content: list<u8>) -> result<_, string>; }
+interface compose-create-draft { create: func(draft-content: list<u8>) -> result<list<u8>, string>; }
+interface conversation-send-message { send-confirmed: func(conversation-id: list<u8>, exact-content: list<u8>) -> result<list<u8>, string>; }
+interface conversation-set-reaction { set: func(target-message: list<u8>, reaction: string) -> result<_, string>; }
+interface conversation-open { open: func(conversation-id: list<u8>) -> result<_, string>; }
+interface net-fetch-origin-scoped { fetch: func(exact-origin: string, request: list<u8>) -> result<list<u8>, string>; }
+interface storage-plugin-private { put: func(key: string, value: list<u8>) -> result<_, string>; get: func(key: string) -> result<list<u8>, string>; }
+interface notifications-plugin-local { show: func(title: string, message: string) -> result<_, string>; }
+interface service-invoke { invoke: func(service-id: list<u8>, selected-context: list<u8>) -> result<list<u8>, string>; }
+
+world plugin {
+  // capability 1 ui.composer_action; no plaintext read or egress.
+  import ui-composer-action;
+  // capability 2 ui.message_action; selected context NOT implied, no egress.
+  import ui-message-action;
+  // capability 3 ui.panel; host-rendered declarative UI only, no DOM/egress.
+  import ui-panel;
+  // capability 4 ui.settings_page; host-owned UI, no security chrome/egress.
+  import ui-settings-page;
+  // capability 5 content.read_selected; plaintext-taints invocation and writes, no egress implied.
+  import content-read-selected;
+  // capability 6 content.read_current_conversation; plaintext-taints invocation/storage, no egress implied.
+  import content-read-current-conversation;
+  // capability 7 content.search_local_scope; matched plaintext taints invocation/storage, no egress implied.
+  import content-search-local-scope;
+  // capability 8 content.read_attachment_selected; plaintext/attachments taint, no egress implied.
+  import content-read-attachment-selected;
+  // capability 9 compose.insert; draft only, never send/egress.
+  import compose-insert;
+  // capability 10 compose.create_draft; draft only, never send/egress.
+  import compose-create-draft;
+  // capability 11 conversation.send_message; host shows exact recipient and content, confirms EVERY send.
+  import conversation-send-message;
+  // capability 12 conversation.set_reaction; host-authorized operation, no extra plaintext/egress.
+  import conversation-set-reaction;
+  // capability 13 conversation.open; navigation only, no read or egress.
+  import conversation-open;
+  // capability 14 net.fetch_origin_scoped; tainted egress DENIED absent Room policy/both 1:1 consents or user-confirmed one-shot.
+  import net-fetch-origin-scoped;
+  // capability 15 storage.plugin_private; taint propagates to stored bytes and future reads, no laundering.
+  import storage-plugin-private;
+  // capability 16 notifications.plugin_local; local only, never indirect remote plaintext egress.
+  import notifications-plugin-local;
+  // capability 17 service.invoke; outbound taint rule applies; continuous export needs Bridge authorization.
+  import service-invoke;
+
+  // Declared entrypoints (host chooses which to call; events cannot author Account sends).
+  export init: func() -> result<_, string>;
+  export on-event: func(event: list<u8>) -> result<list<u8>, string>;
+  export render: func(surface: string) -> result<list<u8>, string>;
+}

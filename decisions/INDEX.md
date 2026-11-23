@@ -272,4 +272,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0263 — Adopt the OM-ZIP-v1 container, manifest and integrity rules (plain mode) for the portable archive (delegated; encryption not adopted)](ADR-0263-adopt-om-zip-v1-plain-portable-archive.md)
 - [ADR-0264 — W4 bridges wire freeze (designer-built, adopted; adapter-contract review findings)](ADR-0264-bridges-wire-freeze.md)
 - [ADR-0265 — V1 limits for Spaces and Publications are the frozen wire bounds (delegated; additive)](ADR-0265-v1-space-and-publication-size-limits.md)
+- [ADR-0266 — W4 plugins wire freeze and the first om:plugin WIT world (designer-built, adopted; delegated)](ADR-0266-plugins-wire-freeze.md)
 - [ADR-0267 — Default bridge hop limit and the fingerprint-secret boundary (delegated; additive)](ADR-0267-bridge-hop-limit-and-fingerprint-secret-boundary.md)

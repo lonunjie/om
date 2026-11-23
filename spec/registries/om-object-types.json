@@ -842,6 +842,120 @@
       "max_bytes": 32768,
       "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Account-authorized foreign identity proof; never native authorship",
       "logical_schema": null
+    },
+    {
+      "type_id": 59,
+      "name": "PluginPackageManifest",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": {
+        "label": "OM-PLUGIN-MANIFEST-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-PLUGIN-MANIFEST-HASH-v1",
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": "spec/protocol/plugin-package.logical.schema.json"
+    },
+    {
+      "type_id": 60,
+      "name": "PluginControlState",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": {
+        "label": "OM-PLUGIN-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-PLUGIN-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 61,
+      "name": "PluginCapabilityGrant",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": {
+        "label": "OM-PLUGIN-GRANT-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-PLUGIN-GRANT-HASH-v1",
+      "max_bytes": 16384,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 62,
+      "name": "PluginHostRequest",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 63,
+      "name": "PluginHostResponse",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 64,
+      "name": "PluginCapabilityCall",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 65,
+      "name": "PluginUiTreeUpdate",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 49152,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 66,
+      "name": "PluginEvent",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 67,
+      "name": "PluginError",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 8192,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
     }
   ]
 }

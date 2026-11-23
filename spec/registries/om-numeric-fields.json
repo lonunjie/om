@@ -59,6 +59,100 @@
     },
     "inline_type": {
       "4": "W1"
+    },
+    "plugin_capability_id": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4",
+      "4": "W4",
+      "5": "W4",
+      "6": "W4",
+      "7": "W4",
+      "8": "W4",
+      "9": "W4",
+      "10": "W4",
+      "11": "W4",
+      "12": "W4",
+      "13": "W4",
+      "14": "W4",
+      "15": "W4",
+      "16": "W4",
+      "17": "W4"
+    },
+    "plugin_release_state": {
+      "1": "W4",
+      "2": "W4"
+    },
+    "plugin_publisher_key_state": {
+      "1": "W4",
+      "2": "W4"
+    },
+    "plugin_grant_state": {
+      "1": "W4",
+      "2": "W4"
+    },
+    "plugin_scope_kind": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4"
+    },
+    "plugin_request_kind": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4"
+    },
+    "plugin_response_kind": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4"
+    },
+    "plugin_error_code": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4",
+      "4": "W4",
+      "5": "W4",
+      "6": "W4",
+      "7": "W4",
+      "8": "W4",
+      "9": "W4",
+      "10": "W4",
+      "11": "W4",
+      "12": "W4"
+    },
+    "plugin_ui_node_kind": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4",
+      "4": "W4",
+      "5": "W4",
+      "6": "W4"
+    },
+    "plugin_event_kind": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4",
+      "4": "W4"
+    },
+    "plugin_egress_intent": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4",
+      "4": "W4"
+    },
+    "plugin_conversation_kind": {
+      "1": "W4",
+      "2": "W4"
+    },
+    "plugin_limit_kind": {
+      "1": "W4",
+      "2": "W4",
+      "3": "W4",
+      "4": "W4",
+      "5": "W4",
+      "6": "W4",
+      "7": "W4",
+      "8": "W4"
     }
   },
   "enums": {
@@ -445,6 +539,100 @@
       "3": "posted_nonce",
       "4": "domain_claim",
       "5": "bridge_attestation"
+    },
+    "plugin_capability_id": {
+      "1": "ui.composer_action",
+      "2": "ui.message_action",
+      "3": "ui.panel",
+      "4": "ui.settings_page",
+      "5": "content.read_selected",
+      "6": "content.read_current_conversation",
+      "7": "content.search_local_scope",
+      "8": "content.read_attachment_selected",
+      "9": "compose.insert",
+      "10": "compose.create_draft",
+      "11": "conversation.send_message",
+      "12": "conversation.set_reaction",
+      "13": "conversation.open",
+      "14": "net.fetch_origin_scoped",
+      "15": "storage.plugin_private",
+      "16": "notifications.plugin_local",
+      "17": "service.invoke"
+    },
+    "plugin_release_state": {
+      "1": "active",
+      "2": "revoked"
+    },
+    "plugin_publisher_key_state": {
+      "1": "active",
+      "2": "revoked"
+    },
+    "plugin_grant_state": {
+      "1": "active",
+      "2": "revoked"
+    },
+    "plugin_scope_kind": {
+      "1": "personal_install",
+      "2": "conversation",
+      "3": "selected_item"
+    },
+    "plugin_request_kind": {
+      "1": "capability_call",
+      "2": "ui_tree_update",
+      "3": "plugin_event"
+    },
+    "plugin_response_kind": {
+      "1": "call_result",
+      "2": "policy_decision",
+      "3": "error"
+    },
+    "plugin_error_code": {
+      "1": "malformed_request",
+      "2": "unknown_capability",
+      "3": "capability_not_granted",
+      "4": "grant_expired",
+      "5": "tainted_egress_denied",
+      "6": "user_confirmation_required",
+      "7": "bilateral_consent_required",
+      "8": "origin_channel_mismatch",
+      "9": "resource_budget_exceeded",
+      "10": "host_policy_denied",
+      "11": "release_not_authorized",
+      "12": "invalid_ui_tree"
+    },
+    "plugin_ui_node_kind": {
+      "1": "text",
+      "2": "button",
+      "3": "input",
+      "4": "card",
+      "5": "form",
+      "6": "group"
+    },
+    "plugin_event_kind": {
+      "1": "host_action",
+      "2": "lifecycle",
+      "3": "selected_context",
+      "4": "ui_interaction"
+    },
+    "plugin_egress_intent": {
+      "1": "none",
+      "2": "policy_authorized",
+      "3": "one_shot_selected",
+      "4": "continuous_export"
+    },
+    "plugin_conversation_kind": {
+      "1": "one_to_one",
+      "2": "room"
+    },
+    "plugin_limit_kind": {
+      "1": "memory_bytes",
+      "2": "fuel_units",
+      "3": "concurrent_tasks",
+      "4": "storage_bytes",
+      "5": "network_bytes",
+      "6": "network_requests",
+      "7": "background_millis",
+      "8": "events_per_minute"
     }
   },
   "structs": {
@@ -11058,6 +11246,1326 @@
       ],
       "top_level": true,
       "note": "Signed by eligible account control authority and verified against live ACS head. Proof reference not self-authenticating; never grants authorship."
+    },
+    "PluginResourceLimit": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "limit_kind",
+          "type": {
+            "enum": "plugin_limit_kind"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "requested_maximum",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "note": "Requested non-default ceiling, not an approved host allocation."
+    },
+    "PluginPublisherKey": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "signer_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 2,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "key_state",
+          "type": {
+            "enum": "plugin_publisher_key_state"
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ]
+    },
+    "PluginReleaseRecord": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "release_sequence",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 2,
+          "name": "manifest_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "requested_capabilities",
+          "type": {
+            "set": {
+              "enum": "plugin_capability_id"
+            },
+            "n": [
+              0,
+              17
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "continuity_ceiling",
+          "type": {
+            "set": {
+              "enum": "plugin_capability_id"
+            },
+            "n": [
+              0,
+              17
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "release_state",
+          "type": {
+            "enum": "plugin_release_state"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "version_label",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "previous_release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "note": "Immutable release metadata except monotone active->revoked tombstone; ceiling only governs automatic continuity, not separately device-approved new grants."
+    },
+    "PluginScope": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "plugin_scope_kind"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "scope_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "note": "Kind 1 requires 16-byte install id; kind 2 requires 32-byte conversation id; kind 3 requires 16-byte selected-item token. Scope must be authorized externally."
+    },
+    "PluginComponent": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "component_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "component_name",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ]
+    },
+    "PluginEntrypoint": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "entrypoint_name",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "surface",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ]
+    },
+    "PluginEgressRequest": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "intent",
+          "type": {
+            "enum": "plugin_egress_intent"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "destination",
+          "type": {
+            "tstr": [
+              1,
+              512
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 2,
+          "name": "conversation_kind",
+          "type": {
+            "enum": "plugin_conversation_kind"
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "selected_context_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "note": "Only request metadata. Caller cannot set host confirmation or bilateral consent."
+    },
+    "PluginUiNode": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "node_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "node_kind",
+          "type": {
+            "enum": "plugin_ui_node_kind"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 2,
+          "name": "parent_node_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "text",
+          "type": {
+            "tstr": [
+              0,
+              1024
+            ]
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "action_id",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "note": "Flattened bounded declarative tree, no HTML/DOM, script, style, security chrome, network URLs or credential fields."
+    },
+    "PluginCallResult": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "capability_id",
+          "type": {
+            "enum": "plugin_capability_id"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 2,
+          "name": "result_bytes",
+          "type": {
+            "bstr": [
+              0,
+              8192
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "note": "Opaque bounded result; actual per-capability data validation is host interface specific."
+    },
+    "PluginHostPolicyDecision": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 1,
+          "name": "capability_id",
+          "type": {
+            "enum": "plugin_capability_id"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 2,
+          "name": "tainted",
+          "type": {
+            "bool": null
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "allowed",
+          "type": {
+            "bool": null
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "per_action_confirmed",
+          "type": {
+            "bool": null
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "both_participants_consented",
+          "type": {
+            "bool": null
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "egress_intent",
+          "type": {
+            "enum": "plugin_egress_intent"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "conversation_kind",
+          "type": {
+            "enum": "plugin_conversation_kind"
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 8,
+          "name": "confirmation_binding",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 9,
+          "name": "policy_evidence",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "note": "Host-authored observation only, not a plugin-provided authorization. Approval must be checked outside CBOR."
+    },
+    "PluginPackageManifest": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "release_sequence",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "version_label",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "previous_release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "components",
+          "type": {
+            "set": {
+              "ref": "PluginComponent"
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "abi_versions",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                64
+              ]
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 8,
+          "name": "entrypoints",
+          "type": {
+            "set": {
+              "ref": "PluginEntrypoint"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 9,
+          "name": "requested_capabilities",
+          "type": {
+            "set": {
+              "enum": "plugin_capability_id"
+            },
+            "n": [
+              0,
+              17
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 10,
+          "name": "requested_network_origins",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                512
+              ]
+            },
+            "n": [
+              0,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 11,
+          "name": "resource_limits",
+          "type": {
+            "set": {
+              "ref": "PluginResourceLimit"
+            },
+            "n": [
+              0,
+              8
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 12,
+          "name": "publisher_name",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 13,
+          "name": "publisher_source_refs",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              0,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginControlState": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "publisher_keys",
+          "type": {
+            "set": {
+              "ref": "PluginPublisherKey"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "signing_threshold",
+          "type": {
+            "uint": [
+              1,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "releases",
+          "type": {
+            "set": {
+              "ref": "PluginReleaseRecord"
+            },
+            "n": [
+              1,
+              128
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginCapabilityGrant": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "capability_id",
+          "type": {
+            "enum": "plugin_capability_id"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "scope",
+          "type": {
+            "ref": "PluginScope"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "issued_at",
+          "type": {
+            "uint": [
+              0,
+              18446744073709551615
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              1,
+              18446744073709551615
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 8,
+          "name": "issuing_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 9,
+          "name": "approved_release_id",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 10,
+          "name": "grant_state",
+          "type": {
+            "enum": "plugin_grant_state"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 11,
+          "name": "grant_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 12,
+          "name": "grant_version",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 13,
+          "name": "previous_grant_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true,
+      "note": "An independently signed device grant per install and capability. No grant implied by package declarations."
+    },
+    "PluginHostRequest": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "channel_binding",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "sequence",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "request_kind",
+          "type": {
+            "enum": "plugin_request_kind"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 8,
+          "name": "payload",
+          "type": {
+            "bstr": [
+              1,
+              49152
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginHostResponse": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "channel_binding",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "sequence",
+          "type": {
+            "uint": [
+              1,
+              4294967295
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "response_kind",
+          "type": {
+            "enum": "plugin_response_kind"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 8,
+          "name": "payload",
+          "type": {
+            "bstr": [
+              1,
+              49152
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginCapabilityCall": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "capability_id",
+          "type": {
+            "enum": "plugin_capability_id"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "grant_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 7,
+          "name": "scope",
+          "type": {
+            "ref": "PluginScope"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 8,
+          "name": "arguments",
+          "type": {
+            "bstr": [
+              0,
+              8192
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 9,
+          "name": "egress_request",
+          "type": {
+            "ref": "PluginEgressRequest"
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginUiTreeUpdate": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "surface",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "nodes",
+          "type": {
+            "array": {
+              "ref": "PluginUiNode"
+            },
+            "n": [
+              1,
+              128
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginEvent": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "plugin_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "installation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "event_kind",
+          "type": {
+            "enum": "plugin_event_kind"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 6,
+          "name": "payload",
+          "type": {
+            "bstr": [
+              0,
+              8192
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
+    },
+    "PluginError": {
+      "fields": [
+        {
+          "key": 2,
+          "name": "invocation_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 3,
+          "name": "error_code",
+          "type": {
+            "enum": "plugin_error_code"
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 4,
+          "name": "message",
+          "type": {
+            "tstr": [
+              0,
+              1024
+            ]
+          },
+          "req": true,
+          "wave": "W4"
+        },
+        {
+          "key": 5,
+          "name": "capability_id",
+          "type": {
+            "enum": "plugin_capability_id"
+          },
+          "req": false,
+          "wave": "W4"
+        }
+      ],
+      "top_level": true
     }
   },
   "extensions": [

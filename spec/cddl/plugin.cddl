@@ -1,0 +1,254 @@
+; ADR-0266 — plugins W4, feature flag OFF. Use common.cddl for digest,
+; signature and extensions. Complete numeric field definitions and wave tags
+; are in spec/registries/om-numeric-fields.json. Type IDs start AFTER bridges 58.
+; OM-CBOR-v1: RFC 8949 shortest definite-length encoding, canonical numeric
+; typed-map keys, no null/tags/floats/negative ints/indefinite items; reject
+; unrecognized fields, duplicate keys, non-UTF-8, trailing data. Map ordering
+; follows encoded key (length, then bytes). All sets: unique, sorted by FULL
+; canonical CBOR element bytes; non-set arrays preserve order. No silent sorting.
+; Each new type and field is W4; W0 rejects type IDs 59..67, flag remains off.
+; A signed body is encoded in SignedEnvelope {1: bstr canonical top-level body,
+; 2: [1*16 signature]} and checked against existing sig-role 1 controller
+; (plugin publisher) or sig-role 3 device (per-install grant); never type 5
+; provider, never a new generic publisher role. Signature order is a set.
+; Keys and proof blobs are PUBLIC only; no secret or vault material appears.
+
+plugin-id = bstr .size 32
+plugin-install-id = bstr .size 16
+plugin-invocation-id = bstr .size 16
+plugin-channel-id = bstr .size 32
+plugin-device-id = bstr .size 16
+plugin-version = 1..4294967295
+plugin-capability-id = 1..17 ; exact registered plugin_capability_id enum
+plugin-release-state = 1..2 ; active or revoked
+plugin-grant-state = 1..2 ; active or revoked
+plugin-publisher-key-state = 1..2 ; active or revoked
+plugin-scope-kind = 1..3  ; personal install / conversation / selected item
+plugin-egress-intent = 1..4 ; none / authorized policy / selected one-shot / export
+plugin-conversation-kind = 1..2 ; 1:1 / Room
+plugin-limit-kind = 1..8
+plugin-node-kind = 1..6
+plugin-event-kind = 1..4
+plugin-request-kind = 1..3
+plugin-response-kind = 1..3
+plugin-error-code = 1..12
+plugin-unix-seconds = 0..18446744073709551615
+
+plugin-resource-limit = {
+  0: plugin-limit-kind,
+  1: 1..4294967295 ; REQUESTED upper bound, not host default/approval
+}
+plugin-component = {
+  0: digest,                 ; SHA-256 component content hash
+  1: tstr .size (1..128)
+}
+plugin-entrypoint = {
+  0: tstr .size (1..128),
+  1: tstr .size (1..128)    ; host-owned UI surface / event entrypoint name
+}
+PluginPackageManifest = {
+  0: 59, 1: 1,
+  2: plugin-id,
+  3: plugin-version,       ; monotonically increasing release_sequence
+  4: tstr .size (1..64),   ; version_label, presentation only
+  ? 5: digest,             ; previous_release_id, absent iff seq=1
+  6: [1*16 plugin-component],       ; set, unique component name and digest
+  7: [1*16 tstr .size (1..64)],     ; set of ABI version identifiers
+  8: [1*32 plugin-entrypoint],      ; set of declared entrypoints
+  9: [0*17 plugin-capability-id],   ; set: REQUESTS, never grants
+  10: [0*32 tstr .size (1..512)],   ; set: requested exact origins, never egress right
+  11: [0*8 plugin-resource-limit],  ; set: requested limits, no defaults
+  12: tstr .size (1..256),         ; publisher display/provenance name
+  13: [0*16 tstr .size (1..2048)], ; set: source/homepage refs, inert text
+  ? 23: extensions
+}
+; Max signed-envelope wire bytes: 65,536 (one bounded release manifest,
+; no package binary or active code transferred inside this object).
+; Publisher/controller role 1 signature OM-PLUGIN-MANIFEST-SIG-v1.
+; Manifest digest: OM-PLUGIN-MANIFEST-HASH-v1 (DS-HASH over canonical body).
+; Content-addressed release ID is the hash of this canonical manifest; no
+; assumption that these bytes alone prove downloaded component integrity.
+
+plugin-publisher-key = {
+  0: bstr .size (16..32),     ; signer ID
+  1: 1..65535,              ; crypto_profile
+  2: bstr .size (32..4096), ; verification public key only
+  3: plugin-publisher-key-state
+}
+plugin-release-record = {
+  0: plugin-version,        ; release sequence
+  1: digest,                ; release id (manifest hash)
+  2: digest,                ; manifest hash (must equal 1)
+  3: [0*17 plugin-capability-id],   ; requested capability set
+  4: [0*17 plugin-capability-id],   ; automatic continuity ceiling
+  5: plugin-release-state,
+  6: tstr .size (1..64),
+  ? 7: digest               ; predecessor release ID (absent iff seq=1)
+}
+PluginControlState = {
+  0: 60, 1: 1,
+  2: plugin-id,
+  3: plugin-version,        ; control state version
+  ? 4: digest,              ; previous_state_hash absent iff genesis
+  5: [1*32 plugin-publisher-key], ; set with unique signer IDs
+  6: 1..32,                 ; publisher signature threshold <= live keys
+  7: [1*128 plugin-release-record], ; set by sequence, unique IDs
+  ? 23: extensions
+}
+; SignedEnvelope role 1, OM-PLUGIN-CONTROL-SIG-v1, predecessor hash label
+; OM-PLUGIN-CONTROL-HASH-v1. Genesis MUST have external trust anchor.
+; Later states need exactly version+1, previous digest and predecessor
+; publisher threshold. Keep all immutable releases and revoked tombstones;
+; revoke cannot become active. Release sequences strictly append; a newly
+; requested capability outside predecessor ceiling MAY be declared but MUST
+; NOT join the continuity ceiling (requires separate fresh device grant).
+; Max signed-envelope bytes: 65,536 (max 32 keys / 128 releases; reject
+; actual oversize even if individual collection limits are met).
+
+plugin-scope = {
+  0: plugin-scope-kind,
+  1: bstr .size (16..32) ; kind 1 install=16, 2 conversation=32, 3 selected=16
+}
+PluginCapabilityGrant = {
+  0: 61, 1: 1,
+  2: plugin-install-id,
+  3: plugin-id,
+  4: plugin-capability-id, ; exactly one capability per signed record
+  5: plugin-scope,
+  6: plugin-unix-seconds, ; issued_at
+  7: 1..18446744073709551615, ; expires_at > issued_at
+  8: plugin-device-id,
+  9: digest,              ; explicitly approved release ID
+  10: plugin-grant-state,
+  11: bstr .size 16,     ; unique grant incarnation; monotone revocation
+  12: plugin-version,    ; grant_version, genesis=1
+  ? 13: digest,          ; previous_grant_hash absent iff v1
+  ? 23: extensions
+}
+; SignedEnvelope role 3 device, OM-PLUGIN-GRANT-SIG-v1 and grant hash
+; OM-PLUGIN-GRANT-HASH-v1. Max bytes 16,384. External proof of user
+; approval and active device / scope required. Grant states are hash-chained; revoked grants cannot revive;
+; expiring or uninstalling reduces permissions, never adds capability.
+
+plugin-egress-request = {
+  0: plugin-egress-intent,
+  1: tstr .size (1..512), ; exact desired destination, never a consent
+  ? 2: plugin-conversation-kind,
+  ? 3: digest             ; exact user-selected context, not automatic history
+}
+PluginCapabilityCall = {
+  0: 64, 1: 1,
+  2: plugin-id,
+  3: plugin-install-id,
+  4: plugin-invocation-id,
+  5: plugin-capability-id,
+  6: digest,                 ; grant digest, must resolve to trusted grant
+  7: plugin-scope,
+  8: bstr .size (0..8192),   ; per-interface canonical argument bytes, not authority
+  ? 9: plugin-egress-request, ; REQUIRED for cap 11/14/17; 14/17 may not use intent=none
+  ? 23: extensions
+}
+; Max 16,384 bytes. A call without a matching live grant is denied. A
+; plaintext-tainted invocation has NO egress unless external conversation
+; policy authorizes plaintext_egress (both participants for 1:1), OR
+; user-confirmed one-shot selected-context, OR separate export authorization.
+; conversation.send_message requires scope kind 2 and egress_request carrying
+; intended exact destination (intent 1 = no host network egress). It ALWAYS
+; needs a distinct per-send confirmation of these exact arguments/destination.
+; The host-computed confirmation_binding in its policy response is a Digest
+; SHA-256(DS-HASH("OM-PLUGIN-CONFIRMATION-HASH-v1", CBOR([plugin_id,
+; installation_id, invocation_id, capability_id, scope, arguments, destination]))).
+; The user-visible prompt must show the exact recipient and unmodified content;
+; host validation of that confirmation is outside the wire.
+
+plugin-ui-node = {
+  0: bstr .size 16,        ; unique node ID
+  1: plugin-node-kind,     ; text/button/input/card/form/group only
+  ? 2: bstr .size 16,      ; parent ID must exist; acyclic, max depth 8
+  ? 3: tstr .size (0..1024),
+  ? 4: tstr .size (1..128) ; action ID, never scripting or host security chrome
+}
+PluginUiTreeUpdate = {
+  0: 65, 1: 1,
+  2: plugin-id, 3: plugin-install-id, 4: plugin-invocation-id,
+  5: tstr .size (1..128), ; declared UI surface (host-owned bounds)
+  6: [1*128 plugin-ui-node], ; ordered flat tree, unique IDs and valid parents
+  ? 23: extensions
+}
+; Max 49,152 bytes. No arbitrary DOM/HTML/CSS, shell occlusion or
+; impersonated permission/recovery dialogs. Host controls rendering.
+
+PluginEvent = {
+  0: 66, 1: 1,
+  2: plugin-id, 3: plugin-install-id, 4: plugin-invocation-id,
+  5: plugin-event-kind,
+  6: bstr .size (0..8192), ; bounded declared event payload, no raw keys
+  ? 23: extensions
+}
+; Max 16,384 bytes. A plaintext trigger taints this invocation.
+
+PluginError = {
+  0: 67, 1: 1,
+  2: plugin-invocation-id,
+  3: plugin-error-code,
+  4: tstr .size (0..1024), ; sanitized non-authoritative display text
+  ? 5: plugin-capability-id,
+  ? 23: extensions
+}
+; Max 8,192 bytes. Do not leak protected data in error strings.
+
+plugin-call-result = {
+  0: plugin-invocation-id,
+  1: plugin-capability-id,
+  2: bstr .size (0..8192)
+}
+plugin-host-policy-decision = {
+  0: plugin-invocation-id,
+  1: plugin-capability-id,
+  2: bool,  ; host-observed plaintext taint
+  3: bool,  ; host-verified permitted
+  4: bool,  ; host-confirmed exact send/action
+  5: bool,  ; host-verified BOTH parties' 1:1 policy consent
+  6: plugin-egress-intent,
+  ? 7: plugin-conversation-kind,
+  ? 8: digest, ; exact content+destination binding (host-confirmed)
+  ? 9: digest  ; authenticated policy/consent evidence reference
+}
+; confirmation_binding uses the registered OM-PLUGIN-CONFIRMATION-HASH-v1
+; label and the exact pending call; it is not generated by plugin code.
+; These booleans are valid only in HOST->plugin response; cannot be supplied
+; by a plugin as policy evidence or substitute for real signed consent.
+
+PluginHostRequest = {
+  0: 62, 1: 1,
+  2: plugin-id, 3: plugin-install-id,
+  4: plugin-channel-id,    ; bound to actual exact-origin MessageChannel
+  5: plugin-invocation-id,
+  6: plugin-version,       ; monotonic per-channel sequence
+  7: plugin-request-kind,  ; 1 call / 2 UI update / 3 event
+  8: bstr .size (1..49152), ; full CBOR object 64/65/66 matching 7
+  ? 23: extensions
+}
+PluginHostResponse = {
+  0: 63, 1: 1,
+  2: plugin-id, 3: plugin-install-id,
+  4: plugin-channel-id,
+  5: plugin-invocation-id,
+  6: plugin-version,
+  7: plugin-response-kind,  ; 1 call-result / 2 policy decision / 3 error
+  8: bstr .size (1..49152), ; canonical CBOR nested payload matching 7
+  ? 23: extensions
+}
+; Max 65,536 bytes EACH, checked before decoding. Only authenticated exact
+; plugin origin + channel / host-origin direction and replay-resistant sequence
+; are authority; the copied binding token in the payload proves NOTHING alone.
+; 49,152-byte inner payload cap leaves headroom for the outer envelope;
+; host must validate nested types and invocation/install/plugin consistency.
+;
+; Limits rationale (not product budget defaults): 16 components/ABI versions,
+; 32 entrypoints/origins, 17 known capabilities, 8 distinct resource kinds,
+; 32 publishers, 128 immutable release records, 128 flat UI nodes and 8-deep
+; nesting bound decoder allocations and review size; 8KiB arguments/events,
+; 1KiB node/error text and 512-byte origin/destination avoid arbitrary blobs,
+; script injection and UI abuse. Host may enforce STRICTER configured caps;
+; the wire sets no permitted memory/fuel/network budget and grants no egress.

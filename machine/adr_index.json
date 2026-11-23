@@ -3090,6 +3090,16 @@
       "amended_by": []
     },
     {
+      "id": "ADR-0266",
+      "title": "W4 `plugins` canonical wire freeze and initial capability-only `om:plugin` world",
+      "status": "Delegated design construction — repository-local W4 wire/prototype **only**. No independent review; flag **off**.",
+      "date": "2026-11-24",
+      "path": "decisions/ADR-0266-plugins-wire-freeze.md",
+      "amends": [],
+      "index_title": "W4 plugins wire freeze and the first om:plugin WIT world (designer-built, adopted; delegated)",
+      "amended_by": []
+    },
+    {
       "id": "ADR-0267",
       "title": "Default bridge hop limit and the fingerprint-secret boundary",
       "status": "Delegated design decision (additive; independent review remains required).",

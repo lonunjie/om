@@ -990,6 +990,62 @@
       "object": "InteropTraceBody.origin_fingerprint and ForeignProvenanceBody.origin_fingerprint; Room-scoped cross-bridge deduplication",
       "wave": "W4",
       "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-MANIFEST-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PluginPackageManifest",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-MANIFEST-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginPackageManifest",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PluginControlState",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginControlState",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-GRANT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PluginCapabilityGrant",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-GRANT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginCapabilityGrant",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-CONFIRMATION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginCapabilityCall (host-confirmed exact arguments and destination binding)",
+      "wave": "W4",
+      "status": "frozen"
     }
   ]
 }
