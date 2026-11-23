@@ -3088,6 +3088,16 @@
       "amends": [],
       "index_title": "V1 limits for Spaces and Publications are the frozen wire bounds (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0267",
+      "title": "Default bridge hop limit and the fingerprint-secret boundary",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-24",
+      "path": "decisions/ADR-0267-bridge-hop-limit-and-fingerprint-secret-boundary.md",
+      "amends": [],
+      "index_title": "Default bridge hop limit and the fingerprint-secret boundary (delegated; additive)",
+      "amended_by": []
     }
   ]
 }

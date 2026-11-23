@@ -1978,6 +1978,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/bridge_provenance.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/calls/mod.rs",
       "class": "product_code",
       "domain": "calls_media",
@@ -2602,6 +2609,13 @@
     },
     {
       "path": "crates/om-core/tests/bridge_control.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/bridge_provenance.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -4989,6 +5003,13 @@
     },
     {
       "path": "decisions/ADR-0265-v1-space-and-publication-size-limits.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0267-bridge-hop-limit-and-fingerprint-secret-boundary.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
