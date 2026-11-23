@@ -42,6 +42,7 @@ pub mod recovery_record;
 pub mod recovery_sheet;
 pub mod relayset;
 pub mod route;
+pub mod service_authorship;
 pub mod service_control;
 pub mod state;
 
