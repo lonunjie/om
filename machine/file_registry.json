@@ -1992,6 +1992,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/tests/wire_mutation_sweep.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/Cargo.toml",
       "class": "product_code",
       "domain": "crypto_1to1",
