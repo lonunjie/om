@@ -1789,6 +1789,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/tests/space_publication_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/tests/w0_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

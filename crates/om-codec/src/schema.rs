@@ -63,6 +63,8 @@ pub struct ObjType {
     pub sig_label: Option<String>,
     pub hash_label: Option<String>,
     pub max_bytes: usize,
+    /// Names of the signing roles this type's envelope may carry (`signed.roles` of om-object-types.json).
+    pub roles: Vec<String>,
 }
 
 pub struct Registry {
@@ -79,6 +81,9 @@ pub struct Registry {
     /// CryptoProfile id -> exact (hpke_enc, delivery public_key, ciphertext lengths) for sealed delivery.
     pub sealed_hpke: HashMap<u64, (usize, usize, Vec<usize>)>,
     pub lim: Limits,
+    /// `sig_role` value -> name, for the roles that are valid only on object types whose `signed.roles` list them
+    /// (enum_value_waves marks them later-wave; a decoder of that wave lifts the marker, see [`Registry::load_w3`]).
+    pub scoped_roles: HashMap<u64, String>,
 }
 
 fn range(j: &J) -> (u64, u64) {
@@ -163,6 +168,16 @@ impl Registry {
     /// The registry a later-wave `groups` decoder uses: the W0 numeric-fields registry with the additive W1
     /// event-body overlay (om-w1-event-bodies.json) merged in, as `verification/prototypes/v004-group-wire/overlay.py`
     /// does for the prototype codecs. A kind-to-struct pair that names an existing kind with a different struct is an error.
+    /// The registry a `communities_publications` (W3) decoder uses: the W1 registry with `sig_role` 7
+    /// (`publication_signing_key`) enabled. ADR-0168 F-16: that role is valid only on object types whose `signed.roles`
+    /// list it (PublicationEvent), which `check` enforces for every scoped role, so enabling it adds nothing elsewhere.
+    pub fn load_w3() -> Registry {
+        let mut r = Self::load_w1();
+        let roles: Vec<u64> = r.scoped_roles.keys().copied().collect();
+        r.enums.get_mut("sig_role").unwrap().extend(roles);
+        r
+    }
+
     pub fn load_w1() -> Registry {
         let mut f: J = serde_json::from_str(FIELDS_JSON).unwrap();
         Self::apply_event_bodies(&mut f);
@@ -368,6 +383,14 @@ impl Registry {
                             .map(String::from),
                         hash_label: x["hash"].as_str().map(String::from),
                         max_bytes: x["max_bytes"].as_u64().unwrap() as usize,
+                        roles: x["signed"]["roles"]
+                            .as_array()
+                            .map(|r| {
+                                r.iter()
+                                    .filter_map(|n| n.as_str().map(String::from))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
                     },
                 )
             })
@@ -448,6 +471,13 @@ impl Registry {
                 );
             }
         }
+        let scoped_roles = f["enums"]["sig_role"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(v, _)| later_wave("sig_role", v))
+            .map(|(v, n)| (v.parse().unwrap(), n.as_str().unwrap().to_string()))
+            .collect();
         Registry {
             structs,
             enums,
@@ -458,6 +488,7 @@ impl Registry {
             hpke_sizes,
             sealed_hpke,
             lim,
+            scoped_roles,
         }
     }
 
@@ -607,6 +638,18 @@ impl<'a> Cx<'a> {
         for f in fields {
             if f.req && !m.iter().any(|(k, _)| *k == Value::Uint(f.key)) {
                 return Err("missing_field");
+            }
+        }
+        // A scoped (later-wave) signing role is valid only on a type whose `signed.roles` names it.
+        if let Some((_, Value::Array(sigs))) = m.iter().find(|(k, _)| *k == Value::Uint(2)) {
+            for sig in sigs {
+                let Value::Map(sm) = sig else { continue };
+                if let Some((_, Value::Uint(role))) = sm.iter().find(|(k, _)| *k == Value::Uint(2))
+                    && let Some(name) = self.r.scoped_roles.get(role)
+                    && !t.roles.contains(name)
+                {
+                    return Err("value_range");
+                }
             }
         }
         Ok(())
