@@ -28,25 +28,9 @@ const STRUCTURAL: &[&str] = &[
     "w0_receiver_rejection",
 ];
 
-/// Cross-field rules (genesis versus non-genesis chain fields, threshold against controller count, scope-dependent
-/// installation fields, grant time windows, author binding, non-empty create) that the per-field registry cannot
-/// express. The Python prototype enforces them; om-codec does not yet, so these negatives are still accepted here. The
-/// test pins the exact set so closing one (or opening a new one) is a visible change. Tracked as services_bots slice 0
-/// follow-up: add the rules to `check_body`.
-const PENDING_CROSS_FIELD: &[&str] = &[
-    "n29-control-threshold-exceeds",
-    "n35-install-full-member-in-space",
-    "n36-install-full-member-missing-head",
-    "n37-install-local-in-room",
-    "n38-install-trigger-selected",
-    "n40-grant-bad-time-window",
-    "n42-grant-no-counterparty-notice",
-    "n46-event-not-service-author",
-    "n49-event-empty-create",
-    "n59-control-non-genesis-missing-prev",
-    "n65-install-non-genesis-missing-prev",
-    "n68-grant-non-genesis-missing-prev",
-];
+/// Negatives that om-codec still accepts (cross-field rules not yet in `service_rules`). Empty since the rules landed;
+/// kept so any future gap is pinned exactly.
+const PENDING_CROSS_FIELD: &[&str] = &[];
 
 fn registry_for(v: &J) -> Registry {
     match v["receiver_wave"].as_str() {

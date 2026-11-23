@@ -686,6 +686,7 @@ impl<'a> Cx<'a> {
 
     fn body(&self, v: &Value, t: &ObjType) -> Result<(), Class> {
         self.strukt(v, &t.name, Some(t.id))?;
+        service_rules(v, &t.name)?;
         if t.name == "AsyncKeyBundle"
             && let Value::Map(m) = v
         {
@@ -959,4 +960,117 @@ impl<'a> Cx<'a> {
             }
         }
     }
+}
+
+fn mget(m: &[(Value, Value)], k: u64) -> Option<&Value> {
+    m.iter()
+        .find(|(kk, _)| *kk == Value::Uint(k))
+        .map(|(_, x)| x)
+}
+
+fn uint(v: Option<&Value>) -> Option<u64> {
+    if let Some(Value::Uint(x)) = v {
+        Some(*x)
+    } else {
+        None
+    }
+}
+
+/// Cross-field rules of the W4 service objects (ADR-0262, `spec/cddl/service.cddl`) that one object's own bytes decide;
+/// the per-field registry cannot express them. Chain rules that need a prior head (stale, forked, rollback) belong to the
+/// service control engine, not here. The Python prototype `verification/prototypes/services-wire/python_codec.py` states
+/// the same rules, and the shared corpus checks both.
+fn service_rules(v: &Value, name: &str) -> Result<(), Class> {
+    let Value::Map(m) = v else { return Ok(()) };
+    let chain = match name {
+        "ServiceControlState" => Some((3, 4)),
+        "ServiceInstallation" | "RepresentationGrant" => Some((14, 15)),
+        _ => None,
+    };
+    if let Some((ver, prev)) = chain {
+        let version = uint(mget(m, ver)).ok_or("missing_field")?;
+        match (version, mget(m, prev).is_some()) {
+            (1, true) => return Err("forked_chain"),
+            (v, false) if v > 1 => return Err("missing_field"),
+            _ => {}
+        }
+    }
+    let strings = |k: u64| -> Vec<&str> {
+        match mget(m, k) {
+            Some(Value::Array(a)) => a
+                .iter()
+                .filter_map(|x| {
+                    if let Value::Text(t) = x {
+                        Some(t.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            _ => vec![],
+        }
+    };
+    match name {
+        "ServiceControlState" => {
+            let controllers = match mget(m, 5) {
+                Some(Value::Array(a)) => a.len() as u64,
+                _ => 0,
+            };
+            if uint(mget(m, 6)).ok_or("missing_field")? > controllers {
+                return Err("value_range");
+            }
+        }
+        "ServiceInstallation" => {
+            let scope = match mget(m, 4) {
+                Some(Value::Map(s)) => uint(mget(s, 0)),
+                _ => None,
+            }
+            .ok_or("missing_field")?;
+            let mode = uint(mget(m, 6)).ok_or("missing_field")?;
+            if mode == 3 && scope != 2 || mode == 2 && scope != 1 {
+                return Err("value_range");
+            }
+            if mode == 3 && mget(m, 13).is_none() {
+                return Err("missing_field");
+            }
+            if mode != 3 && mget(m, 12).is_some() {
+                return Err("value_range");
+            }
+        }
+        "RepresentationGrant" => {
+            if let (Some(from), Some(to)) = (uint(mget(m, 10)), uint(mget(m, 11)))
+                && from >= to
+            {
+                return Err("value_range");
+            }
+            if strings(6).contains(&"message.read_other_participant") && mget(m, 13).is_none() {
+                return Err("missing_field");
+            }
+        }
+        "ConversationEvent" => {
+            let service_author =
+                matches!(mget(m, 5), Some(Value::Map(p)) if uint(mget(p, 0)) == Some(2));
+            if mget(m, 13).is_some() && !service_author {
+                return Err("value_range");
+            }
+            if service_author && uint(mget(m, 8)) == Some(1) {
+                let empty = match mget(m, 11) {
+                    Some(Value::Map(b)) => {
+                        mget(b, 0).is_none()
+                            && match mget(b, 1) {
+                                Some(Value::Array(a)) => a.is_empty(),
+                                None => true,
+                                _ => false,
+                            }
+                    }
+                    _ => false,
+                };
+                if empty {
+                    return Err("value_range");
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
