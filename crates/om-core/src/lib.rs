@@ -23,6 +23,7 @@ pub mod api;
 pub mod attach;
 pub mod backup;
 pub mod bridge_control;
+pub mod bridge_fidelity;
 pub mod bridge_provenance;
 pub mod bridge_room;
 pub mod calls;
