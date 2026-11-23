@@ -1761,6 +1761,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-archive-reader/src/readable.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-archive-reader/src/rehydrate.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1797,6 +1804,13 @@
     },
     {
       "path": "crates/om-archive-reader/tests/import.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-archive-reader/tests/readable.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
