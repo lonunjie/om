@@ -1,0 +1,53 @@
+{
+ "kind": "lan_datachannel_feasibility",
+ "frame": 16384,
+ "frames": 256,
+ "high": 262144,
+ "low": 65536,
+ "engines": {
+  "chromium": {
+   "engine": "chromium",
+   "established": true,
+   "frames": 256,
+   "bytes": 4194304,
+   "inOrder": true,
+   "ordered": true,
+   "reliable": true,
+   "label": "om-lan-v1",
+   "sentMaxBuffered": 278528,
+   "lowEvents": 18,
+   "offerCandidateTypes": [
+    "host+mdns"
+   ],
+   "sdpHasStun": false,
+   "pass": true
+  },
+  "firefox": {
+   "engine": "firefox",
+   "established": true,
+   "frames": 256,
+   "bytes": 4194304,
+   "inOrder": true,
+   "ordered": true,
+   "reliable": true,
+   "label": "om-lan-v1",
+   "sentMaxBuffered": 278528,
+   "lowEvents": 15,
+   "offerCandidateTypes": [
+    "host+mdns"
+   ],
+   "sdpHasStun": false,
+   "pass": true
+  },
+  "webkit": {
+   "engine": "webkit",
+   "established": false
+  }
+ },
+ "note": "Playwright engines on one Linux build host (emeth4), two pages in one context, offer and answer exchanged by the script (the manual/QR path), iceServers empty. Chromium and Firefox established the ordered reliable om-lan-v1 channel and received 256 frames of 16 KiB in order with host-only mDNS candidates and no srflx or relay. WebKit exposes RTCPeerConnection but gathered only .local (mDNS) host candidates and did not establish (cause not isolated: no mDNS resolution in this environment). This is NOT evidence about iOS Safari, real phones, other Wi-Fi networks, client isolation or the iOS local-network permission; those need real devices (operator item). Per ADR-0158 section 4 a runtime that cannot establish the channel reports local_delivery = unavailable.",
+ "verdicts": {
+  "chromium": "established",
+  "firefox": "established",
+  "webkit": "not established in this environment: report unavailable until a real-device run shows otherwise"
+ }
+}
