@@ -36,6 +36,10 @@ impl LanSeed {
     pub fn expose_for_test(&self) -> [u8; 32] {
         self.0
     }
+    /// The seed bytes as HKDF input for sibling derivations (`lan_signal`). Callers must zeroize the copy.
+    pub(crate) fn expose_for_derivation(&self) -> [u8; 32] {
+        self.0
+    }
     fn from_okm(mut okm: [u8; 32]) -> Self {
         let s = Self(okm);
         okm.zeroize();

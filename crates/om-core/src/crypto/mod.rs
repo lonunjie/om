@@ -24,6 +24,7 @@ pub mod error;
 pub mod hpke;
 pub mod kdf;
 pub mod lan_rendezvous;
+pub mod lan_signal;
 pub mod ledger;
 pub mod link_ceremony;
 pub mod pqxdh;

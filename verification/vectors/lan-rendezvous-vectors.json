@@ -1,4 +1,28 @@
 {
+ "signal": [
+  {
+   "name": "offer",
+   "kind": 1,
+   "session_id": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf",
+   "epoch": 1994444,
+   "nonce": "e0e1e2e3e4e5e6e7e8e9eaeb",
+   "sdp": "v=0\r\no=- 1 1 IN IP4 192.168.1.20\r\ns=-\r\nt=0 0\r\na=ice-ufrag:abcd\r\na=ice-pwd:0123456789abcdef01234567\r\n",
+   "key": "3a11f25d5e40bb967b97bda9de805bdfd580c0b3f5d3f1b3b887c92bdea1d2ac",
+   "aad": "85744f4d2d4c414e2d5349474e414c2d4141442d7631010150c0c1c2c3c4c5c6c7c8c9cacbcccdcecf1a001e6ecc",
+   "envelope": "a6000101010250c0c1c2c3c4c5c6c7c8c9cacbcccdcecf031a001e6ecc044ce0e1e2e3e4e5e6e7e8e9eaeb055874703cb55d36baa7e7694b62425e0faebe23ee8067d73a9ac9af110e5de554e626f6ba42d7b2ffbc0513961e015f85ff0fb4e98f53087f093c1b9c8b9506ba8aaffac0140a462116af4e08fe66b6587be80a0f2872b246ec5cfc9ddd5e9fd66bb99f7301dba1c1bb56164ea7c155f93da2329e73d6"
+  },
+  {
+   "name": "answer",
+   "kind": 2,
+   "session_id": "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+   "epoch": 1994445,
+   "nonce": "f0f1f2f3f4f5f6f7f8f9fafb",
+   "sdp": "v=0\r\no=- 1 1 IN IP4 192.168.1.20\r\ns=-\r\nt=0 0\r\na=ice-ufrag:abcd\r\na=ice-pwd:0123456789abcdef01234567\r\n",
+   "key": "f7f57009e19aeb50095de66305acdf19f2a72819d58372779981c88f3b53bc76",
+   "aad": "85744f4d2d4c414e2d5349474e414c2d4141442d7631010250d0d1d2d3d4d5d6d7d8d9dadbdcdddedf1a001e6ecd",
+   "envelope": "a6000101020250d0d1d2d3d4d5d6d7d8d9dadbdcdddedf031a001e6ecd044cf0f1f2f3f4f5f6f7f8f9fafb05587476dde5063229b4b4d56f30ba2014214e515c03461114b60dc1f3fd7d8320071d2876255e2fda3be0f996fd8278e9b9d17b4fe0de646e453e0ffa2e7a860297386b5b20307d28f2166710c6367eb2d0d67b6e376daaaf7e58b9d6dac737375783ec7f1444d2334e1fd6c46080d5ebc151f093d1fc"
+  }
+ ],
  "profile": "LanDeliveryProfile-v1",
  "pair": {
   "sk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
