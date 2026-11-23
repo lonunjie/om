@@ -3058,6 +3058,16 @@
       "amends": [],
       "index_title": "W4 `services_bots` canonical wire freeze (delegated design decision; independent review required)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0263",
+      "title": "Adopt the OM-ZIP-v1 container, manifest and integrity rules (plain mode) for the portable archive",
+      "status": "Delegated design decision (additive; independent review remains required). Encryption is not adopted.",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0263-adopt-om-zip-v1-plain-portable-archive.md",
+      "amends": [],
+      "index_title": "Adopt the OM-ZIP-v1 container, manifest and integrity rules (plain mode) for the portable archive (delegated; encryption not adopted)",
+      "amended_by": []
     }
   ]
 }
