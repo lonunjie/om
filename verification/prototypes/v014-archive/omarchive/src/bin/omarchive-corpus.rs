@@ -659,6 +659,16 @@ fn main() {
         rows.push(format!("  {{\"id\": {}, \"category\": {}, \"expect\": {}, \"actual\": {}, \"ok\": {}, \"sha256\": {}}}",
             jstr(c.id), jstr(c.category), jstr(expected), jstr(&actual), ok, jstr(&hex(&sha256(&[&c.bytes])))));
     }
+    if let Some(i) = args.iter().position(|a| a == "--dump-cases") {
+        // Cases for the second reader's parity check: bytes, expected error class and the limits each case uses.
+        let rows: Vec<String> = cases.iter().map(|c| {
+            let (kind, want) = match &c.expect { Expect::Err(_, w) => ("err", *w), Expect::Ok(_, w) => ("ok", *w) };
+            format!("  {{\"id\": {}, \"category\": {}, \"kind\": {}, \"expect\": {}, \"encrypted\": {}, \"max_entries\": {}, \"max_entry_size\": {}, \"max_total_size\": {}, \"max_manifest_size\": {}, \"hex\": {}}}",
+                jstr(c.id), jstr(c.category), jstr(kind), jstr(want), !c.opts.keys.is_empty() && c.bytes.starts_with(b"OMAE") ,
+                c.opts.limits.max_entries, c.opts.limits.max_entry_size, c.opts.limits.max_total_size, c.opts.max_manifest_size, jstr(&hex(&c.bytes)))
+        }).collect();
+        std::fs::write(&args[i + 1], format!("[\n{}\n]\n", rows.join(",\n"))).unwrap();
+    }
     let checks = import_checks(&fx);
     for k in &checks {
         all_ok &= k.ok;

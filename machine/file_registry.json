@@ -1824,6 +1824,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-archive-reader/tests/parity.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-archive-reader/tests/readable.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -17022,6 +17029,13 @@
     },
     {
       "path": "verification/prototypes/v014-archive/criteria.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v014-archive/omarchive/.gitignore",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
