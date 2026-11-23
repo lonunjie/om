@@ -47,6 +47,8 @@ pub mod room_moderation;
 pub mod room_topics;
 pub mod route;
 pub mod service_authorship;
+pub mod service_automation;
+pub mod service_broker;
 pub mod service_control;
 pub mod service_invocation;
 pub mod service_room_member;
