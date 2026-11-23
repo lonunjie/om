@@ -32,11 +32,11 @@
 | V-007 | `sframe_interop` | calls | waived_by_adr | open | open | — |
 | V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
 | V-009 | `baseline_event_materialization_convergence` | groups | passed | open | evidenced | core_kernel |
-| V-010 | `plugin_sandbox_capability_model` | plugins | open | open | open | — |
-| V-011 | `service_principal_authority_and_automation_model` | services_bots | open | open | evidenced | core_kernel |
+| V-010 | `plugin_sandbox_capability_model` | plugins | waived_by_adr | open | open | — |
+| V-011 | `service_principal_authority_and_automation_model` | services_bots | waived_by_adr | open | evidenced | core_kernel |
 | V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | waived_by_adr | open | open | — |
-| V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | open | open | evidenced | core_kernel |
-| V-014 | `portable_archive_interop_and_import_safety` | portability | open | open | evidenced | core_kernel |
+| V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | waived_by_adr | open | evidenced | core_kernel |
+| V-014 | `portable_archive_interop_and_import_safety` | portability | waived_by_adr | open | evidenced | core_kernel |
 | V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference, local_delivery | passed | open | open | — |
 | V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | passed | open | open | — |
 | V-017 | `protocol_longevity_and_0m_continuity_drill` | none | passed | open | open | — |
@@ -46,7 +46,7 @@
 | V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | passed | open | open | — |
 | V-022 | `performance_budgets` | reference_client_ui, provider_reference | passed | open | open | — |
 | V-023 | `clienthost_update_lifecycle` | reference_client_ui | passed | open | open | — |
-| V-024 | `lan_delivery_binding` | local_delivery | open | open | open | — |
+| V-024 | `lan_delivery_binding` | local_delivery | waived_by_adr | open | open | — |
 
 ## Gates
 
@@ -329,10 +329,10 @@ Pre-release criteria:
 Prototype and adversarially test the OM WebAssembly Component Model/WIT plugin host on intended native and PWA runtimes, proving no ambient filesystem/network/process/environment/secret-store/key/DOM authority, explicit permission-upgrade prompts, plaintext-read vs network-egress separation, draft vs send separation, crash isolation and enforceable resource budgets.
 
 - **Scopes blocked:** plugins
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release external_review
 - **Execution class:** `platform_empirical_feasibility`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 
 Pre-engineering criteria:
 
@@ -364,10 +364,10 @@ Mechanically unfinished pre-engineering work:
 Model/property-test permissionless ServiceGenesis, ServicePrincipal endpoint/control authorization (including no-self-bootstrap), host migration/revocation, alias/catalog replacement, RepresentationGrant impersonation boundaries, Account-confirmed vs autonomous authorship, installation/data-access modes, full-Room admission/revocation, local/remote LLM tool capabilities, cheap-identity/no-unsolicited-reach behavior, and automation lineage/hop/rate rules so no service can self-escalate, become a hidden plaintext recipient, impersonate an Account, or create unbounded bot-to-bot loops.
 
 - **Scopes blocked:** services_bots
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 - **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/v011_service_authority_r16b.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v011-service-authority-r16b-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
 
 Pre-engineering criteria:
@@ -425,10 +425,10 @@ Mechanically unfinished pre-engineering work:
 Adversarially model/test BridgePrincipal control and Room admission/removal, foreign provenance/identity-link spoofing, cross-network loop/reflection and duplicate suppression across multiple bridges, edit/delete/reaction/topic/poll target mapping, capability/fidelity-loss signaling, E2EE-boundary state and origin-fingerprint metadata exposure.
 
 - **Scopes blocked:** bridges
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_model`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 - **Evidence:** `decisions/ADR-0124-service-information-flow-and-bridge-provenance.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v013-bridges-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
@@ -457,10 +457,10 @@ Mechanically unfinished pre-engineering work:
 Round-trip om-archive-v1 across at least two independent implementations and test exact canonical-object preservation, stale control-state non-authority, missing/partial blobs, encrypted-archive corruption/wrong-key behavior, hostile archive paths/decompression/media/foreign formats, fabricated foreign authorship, read-only import attempting live authority, and inability to clone DeviceIdentity/account authority from ordinary history archives.
 
 - **Scopes blocked:** portability
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 - **Evidence:** `decisions/ADR-0125-portable-archive-format-rulings.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v014-archive-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
@@ -745,10 +745,10 @@ Pre-release criteria:
 Verify ADR-0158 LanDeliveryProfile v1: sealed local routes with no clear sender, rotating/fixed-cardinality rendezvous, ordinary IntroGate first contact, registered derivations, bounded streaming/backpressure and interoperable native/browser framing.
 
 - **Scopes blocked:** local_delivery
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_model`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
+- **Pre-engineering independence status:** `waived_by_adr`
 - **Evidence:** `decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md`; `decisions/ADR-0158-lan-delivery-profile-v1.md`; `spec/cddl/lan.cddl`; `spec/protocol/lan-delivery-profile.json`; `verification/bounded/v024_lan_models_r16b.py`; `verification/prototypes/v024-lan-wire/node_lan_codec.mjs`; `verification/prototypes/v024-lan-wire/python_lan_codec.py`; `verification/prototypes/v024-lan-wire/run.py`; `verification/prototypes/v024-lan-wire/vectors.json`; `verification/results/v024-lan-models-r16b-latest.json`; `verification/results/v024-lan-wire-r16b-latest.json`
 
 Pre-engineering criteria:

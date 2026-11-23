@@ -2,7 +2,7 @@
 
 **Current architecture checkpoint:** 2026-09-29 (through ADR-0169; `core_kernel` authorized)  
 **Architecture design:** closed (`design_open=0`); A-055 is resolved by ADR-0158, while `local_delivery` remains verification-gated by V-024  
-**Engineering authorization:** **`core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217) and `expressive_media` (ADR-0250) only**; every other scope **NO** — use [`machine/repository_contract.json`](../../machine/repository_contract.json); a closed design is not an authorized scope. Engineering is not authorized.
+**Engineering authorization:** **`core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217), `expressive_media` (ADR-0250), `portability` (ADR-0256), `local_delivery` (ADR-0257), `services_bots` (ADR-0258), `plugins` (ADR-0259) and `bridges` (ADR-0260)**; `communities_publications` **NO** until its conformance suite is specified (ADR-0130 guard) — use [`machine/repository_contract.json`](../../machine/repository_contract.json); a closed design is not an authorized scope. Engineering is not authorized.
 
 This is the shortest correct entry point for a future repo/build agent. Do not reconstruct policy from chat history.
 
@@ -21,7 +21,7 @@ For the subsystem you are working on, then follow the architecture map/ADRs/spec
 
 ## Phase rule
 
-Architecture is **design-frozen**. Product engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217) and `expressive_media` (ADR-0250) only; for every other scope it is not authorized, and work the verification lifecycle permits before authorization stays under `verification/` as non-production evidence. Do not create production code for a scope just because its design is closed. No design item is open. `local_delivery` remains unauthorized until V-024 verifies ADR-0158, and later-wave scopes still require their own wire objects to be frozen as CDDL with two-codec vectors before authorization (ADR-0156/0157).
+Architecture is **design-frozen**. Product engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217), `expressive_media` (ADR-0250), `portability` (ADR-0256), `local_delivery` (ADR-0257), `services_bots` (ADR-0258), `plugins` (ADR-0259) and `bridges` (ADR-0260); it is not authorized for `communities_publications` (its `publication` conformance suite is only planned). Work the verification lifecycle permits before authorization stays under `verification/` as non-production evidence. Do not create production code for a scope just because its design is closed. No design item is open. Each later-wave scope still freezes its own wire objects as CDDL with two-codec vectors as its first slice (ADR-0156/0157), and its feature stays behind a capability flag that is off in every release until the gate evidence is in.
 
 A named engineering scope becomes legal only when [`machine/repository_contract.json`](../../machine/repository_contract.json) says its unlock conditions are satisfied and an accepted ADR explicitly authorizes that scope.
 

@@ -262,3 +262,8 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0253 — Expressive-media product boundaries delegated to engineering (accepted by delegation 2026-11-20, additive)](ADR-0253-expressive-media-delegated-product-boundaries.md)
 - [ADR-0254 — Expressive-media pack distribution: one portable file, carried as an ordinary attachment (accepted by delegation 2026-11-20, additive)](ADR-0254-expressive-media-pack-distribution.md)
 - [ADR-0255 — Canonical custom-reaction token (accepted by delegation 2026-11-21)](ADR-0255-canonical-custom-reaction-token.md)
+- [ADR-0256 — Authorize engineering scope `portability` (W1), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0256-authorize-portability-engineering.md)
+- [ADR-0257 — Authorize engineering scope `local_delivery` (W1), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0257-authorize-local-delivery-engineering.md)
+- [ADR-0258 — Authorize engineering scope `services_bots` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0258-authorize-services-bots-engineering.md)
+- [ADR-0259 — Authorize engineering scope `plugins` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0259-authorize-plugins-engineering.md)
+- [ADR-0260 — Authorize engineering scope `bridges` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)](ADR-0260-authorize-bridges-engineering.md)

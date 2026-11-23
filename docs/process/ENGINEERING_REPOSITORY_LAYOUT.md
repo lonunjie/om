@@ -1,6 +1,6 @@
 # OM Engineering Repository Layout
 
-> **LAYOUT:** `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217) and `expressive_media` (ADR-0250) are authorized, so their crates and `infra/` reference Homes below may now be created. The layout itself authorizes nothing for any other scope. A named scope must first satisfy [`machine/repository_contract.json`](../../machine/repository_contract.json) and its gate/dependency rules.
+> **LAYOUT:** `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217), `expressive_media` (ADR-0250), `portability` (ADR-0256), `local_delivery` (ADR-0257), `services_bots` (ADR-0258), `plugins` (ADR-0259) and `bridges` (ADR-0260) are authorized, so their crates and `infra/` reference Homes below may now be created. The layout itself authorizes nothing for any other scope. A named scope must first satisfy [`machine/repository_contract.json`](../../machine/repository_contract.json) and its gate/dependency rules.
 
 ## Goal
 

@@ -1,0 +1,34 @@
+# ADR-0260 — Authorize engineering scope `bridges` (W4), by explicit operator instruction
+
+- **Status:** **Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the operator, not a review result and not a delegation. The operator's instruction was conditional: authorize each remaining scope that is part of the design and aligns with the constitution. This ADR records that check for this scope.
+- **Date:** 2026-11-23
+- **Authorizes:** engineering scope `bridges` only. No other scope changes state through this ADR.
+- **Depends on:** the scopes named in `depends_on` for `bridges` in the repository contract, already authorized.
+- **Waives:** the **pre-engineering** phase of gate V-013 for engineering purposes only. Its pre-release phase is untouched and stays open.
+
+## Context
+
+`bridges` (W4) is part of the complete, audited design and its scope contract exists in [`engineering_scope_contracts.json`](../machine/engineering_scope_contracts.json). Constitution check: C-88 and C-65 (optional bridges may use external proprietary systems; none is mandatory), C-18. The design queue has no open blocking item for it. The unlock contract ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](../docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md) section 5) otherwise requires every gate that lists the scope to have `pre_engineering_status` passed or waived by an ADR. Gate V-013 still has criteria open: independent review of the bridge adapter contract and the ADR-0156 wire freeze with two-codec vectors (the loop-suppression model with two simulated bridges and the full-member and export-only contract statement are met). The operator may choose to authorize engineering now and keep that evidence as a release obligation. This is the same shape as ADR-0250, ADR-0217 and ADR-0183.
+
+## Decision
+
+1. **`bridges` is authorized**, by explicit operator instruction. Engineers follow [`ENGINEER_START_HERE.md`](../docs/process/ENGINEER_START_HERE.md), the `bridges` entry of [`engineering_scope_contracts.json`](../machine/engineering_scope_contracts.json) and the design gate in [`AGENTS.md`](../AGENTS.md).
+2. **What the scope covers.** external-network bridges: `BridgePrincipal`, `BridgeControlState`, `ConversationEvent` key 14 `foreign_provenance`, scoped origin fingerprints and loop and reflection suppression, with a bridge always a full Room member. Sources: [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md), [`EVENT_MODEL.md`](../docs/architecture/events/EVENT_MODEL.md).
+   - **Not covered:** any project-hosted bridge fleet or bridge endpoint (C-01), representing a bridge endpoint as a native account, any claim that bridged conversations keep end-to-end protection beyond the bridge. Each needs its own ADR.
+3. **Gate V-013 pre-engineering is waived by this ADR, for engineering only.**
+   - *Risk accepted:* bridge code can be written before the contract has independent review and before the wire is frozen, so a provenance or loop-suppression construction could be found wrong, and a user could be misled about what a bridged Room protects.
+   - *Compensating controls:* (a) the first build slice freezes this scope's wire objects (CDDL, registered numeric fields and domain-separation labels, positive and negative vectors, two independently written codecs agreeing) before any other product code, by the V-005 method, additively and under ADR-0165; (b) the feature is built behind a capability flag that is off in every release until the release evidence below is in, and no production build offers it; (c) every construction the design leaves open is written in an ADR by delegation that does not amend audited text, and where the design is silent the engineer writes the question in the scope's plan and stops; (d) no wire requirement is added to an earlier wave beyond the reserved extension and criticality points already frozen in V1 semantics (RELEASE_WAVES rule 1); (e) a bridge is always a full Room member and plaintext recipient and is shown to members as such; `allowed_event_classes` limits export, not reading; (f) foreign state never becomes native account authorship, restart preserves loop-suppression and outbound operation identity for the supported retry horizon, and an unknown external-send outcome is reconciled or retried only through that network's safe idempotency mechanism, never duplicated under a fresh identity.
+4. **Still required BEFORE RELEASE, not before engineering.** real adapters and multi-bridge traces meeting the model, plus the independent contract review; any release offering a bridge, declaring `bridges`, or claiming interoperability with a named network needs them. `om-open-beta-1` does not list `bridges` and stays as it is. Authorization is not release: nothing here edits a public release declaration.
+5. **Constraints.** No new cryptographic primitive and no weakened floor (C-20); no mandatory third-party service and no project-operated service for this scope (C-01); no design change. Where the design is silent the engineer writes the question in the scope's plan and stops, or an ADR by delegation records a construction that does not amend audited text. The first deliverable for the scope is a build plan that states which design documents were read.
+6. **Where did authority go?** Nowhere new. A bridge is a visible full member with a bounded export class; foreign identities stay labelled foreign.
+
+## Applied on acceptance
+
+- [`machine/repository_contract.json`](../machine/repository_contract.json): `engineering_scopes.bridges.authorized = true`, `authorizing_adr = "ADR-0260"`.
+- [`machine/architecture_verification_gates.jsonl`](../machine/architecture_verification_gates.jsonl): V-013 `pre_engineering_status` and `pre_engineering_independence_status` become `waived_by_adr` with a waiver sentence naming this ADR. Its overall `status` stays `open`.
+- [`machine/decisions.jsonl`](../machine/decisions.jsonl) D-239; [`INDEX.md`](INDEX.md); the authorized-scope lists in [`AGENTS.md`](../AGENTS.md), [`SNAPSHOT.md`](../SNAPSHOT.md), [`ENGINEER_START_HERE.md`](../docs/process/ENGINEER_START_HERE.md), [`ENGINEERING_REPOSITORY_LAYOUT.md`](../docs/process/ENGINEERING_REPOSITORY_LAYOUT.md) and the unlock table (generated rows via [`tools/render_gates.py`](../tools/render_gates.py)).
+
+## Consequences
+
+- The review basis becomes the operator's decision, not independent review. The open independence criteria of V-013 move to the release obligations in point 4.
+- The first slice is design-bound specification and test work (wire freeze and the evidence harness named above); no feature code is reachable in any build until the capability flag is turned on by a later, evidenced decision.

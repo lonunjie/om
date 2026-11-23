@@ -190,11 +190,12 @@
     },
     "portability": {
       "wave": "W1",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel"
       ],
-      "description": "om-archive-v1 export/import"
+      "description": "om-archive-v1 export/import",
+      "authorizing_adr": "ADR-0256"
     },
     "expressive_media": {
       "wave": "W1",
@@ -225,35 +226,39 @@
     },
     "services_bots": {
       "wave": "W4",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "groups"
       ],
-      "description": "ServicePrincipals, LLM agents"
+      "description": "ServicePrincipals, LLM agents",
+      "authorizing_adr": "ADR-0258"
     },
     "plugins": {
       "wave": "W4",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "reference_client_ui"
       ],
-      "description": "Wasm Component-Model plugin host"
+      "description": "Wasm Component-Model plugin host",
+      "authorizing_adr": "ADR-0259"
     },
     "bridges": {
       "wave": "W4",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "groups"
       ],
-      "description": "external-network bridges"
+      "description": "external-network bridges",
+      "authorizing_adr": "ADR-0260"
     },
     "local_delivery": {
       "wave": "W1",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel"
       ],
-      "description": "offline-local LAN message/file delivery binding frozen by ADR-0158; verification remains V-024"
+      "description": "offline-local LAN message/file delivery binding frozen by ADR-0158; verification remains V-024",
+      "authorizing_adr": "ADR-0257"
     }
   },
   "public_release_vocabulary": {

@@ -4645,6 +4645,41 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0256-authorize-portability-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0257-authorize-local-delivery-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0258-authorize-services-bots-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0259-authorize-plugins-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0260-authorize-bridges-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -9825,14 +9860,14 @@
       "authority": "product_implementation"
     },
     {
-      "path": "infra/cloudflare-home/test/__fixtures__/relay-0.1.1-worker.js",
+      "path": "infra/cloudflare-home/test/__fixtures__/home-v4-worker.js",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
-      "path": "infra/cloudflare-home/test/__fixtures__/home-v4-worker.js",
+      "path": "infra/cloudflare-home/test/__fixtures__/relay-0.1.1-worker.js",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",
@@ -10014,14 +10049,14 @@
       "authority": "product_implementation"
     },
     {
-      "path": "infra/cloudflare-home/test/upgrade.test.ts",
+      "path": "infra/cloudflare-home/test/upgrade-v5.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
-      "path": "infra/cloudflare-home/test/upgrade-v5.test.ts",
+      "path": "infra/cloudflare-home/test/upgrade.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",

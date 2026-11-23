@@ -2988,6 +2988,56 @@
       "amends": [],
       "index_title": "Canonical custom-reaction token (accepted by delegation 2026-11-21)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0256",
+      "title": "Authorize engineering scope `portability` (W1), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0256-authorize-portability-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `portability` (W1), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0257",
+      "title": "Authorize engineering scope `local_delivery` (W1), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0257-authorize-local-delivery-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `local_delivery` (W1), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0258",
+      "title": "Authorize engineering scope `services_bots` (W4), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0258-authorize-services-bots-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `services_bots` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0259",
+      "title": "Authorize engineering scope `plugins` (W4), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0259-authorize-plugins-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `plugins` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
+      "amended_by": []
+    },
+    {
+      "id": "ADR-0260",
+      "title": "Authorize engineering scope `bridges` (W4), by explicit operator instruction",
+      "status": "**Accepted** (operator, 2026-11-23, explicit instruction in chat; not delegation). Authorizing an engineering scope is a decision of the ope",
+      "date": "2026-11-23",
+      "path": "decisions/ADR-0260-authorize-bridges-engineering.md",
+      "amends": [],
+      "index_title": "Authorize engineering scope `bridges` (W4), by explicit operator instruction (accepted by the operator 2026-11-23, explicit instruction)",
+      "amended_by": []
     }
   ]
 }

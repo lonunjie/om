@@ -6,11 +6,7 @@ ADRs in [`decisions/INDEX.md`](decisions/INDEX.md) and git. Update this file whe
 
 ## State
 
-- **Phase:** scoped engineering (`scoped_engineering_w0`). Engineering is authorized for six of twelve scopes only: `core_kernel`
-  (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217) and
-  `expressive_media` (ADR-0250). The other six (`portability`, `local_delivery`, `communities_publications`, `services_bots`,
-  `plugins`, `bridges`) are not authorized: research, specification and bounded prototypes only, no product code.
-  [`machine/repository_contract.json`](machine/repository_contract.json) is the authority.
+- **Phase:** scoped engineering (`scoped_engineering_w0`). Engineering is authorized for eleven of twelve scopes (operator instruction 2026-11-23 for the last five: ADR-0256 to ADR-0260; `communities_publications` is held back because the `publication` conformance suite is only planned, ADR-0130 guard): `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172), `groups` (ADR-0177), `calls` (ADR-0217), `expressive_media` (ADR-0250), `portability` (ADR-0256), `local_delivery` (ADR-0257), `services_bots` (ADR-0258), `plugins` (ADR-0259) and `bridges` (ADR-0260). Each authorization waives its gate's pre-engineering phase for engineering only; the evidence stays a release obligation and every later-wave feature stays behind a capability flag that is off in every release. [`machine/repository_contract.json`](machine/repository_contract.json) is the authority.
 - **Design:** `design_open=0`. The design and the constitution are complete and were audited; agents implement them and do not amend
   them (see the design gate in [`AGENTS.md`](AGENTS.md)). Deviations of shipped code from the design are listed in the D-tables of the
   status reports, each citing the passage it departs from.
