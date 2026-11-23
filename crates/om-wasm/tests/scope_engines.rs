@@ -154,3 +154,62 @@ fn moderation_runs_through_the_bridge_and_stale_lifts_are_noops() {
     );
     assert_eq!(go(unban(9))["ok"]["applied"], true);
 }
+
+#[test]
+fn first_contact_never_activates_without_both_bindings() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"scope"),
+        || 1_790_000_000_000,
+    );
+    let mut go = |v: Value| -> Value {
+        serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+    };
+    let step = |k: Value| json!({"cmd":"lan_first_contact","step":k});
+    assert_eq!(
+        go(step(json!({"kind":"ticket","verified":true})))["ok"]["refused"],
+        "out_of_order"
+    );
+    assert_eq!(
+        go(step(json!({"kind":"reach"})))["ok"]["state"],
+        "reachable"
+    );
+    assert_eq!(
+        go(step(json!({"kind":"ticket","verified":false})))["ok"]["refused"],
+        "not_verified"
+    );
+    for k in [
+        json!({"kind":"ticket","verified":true}),
+        json!({"kind":"request","valid":true}),
+        json!({"kind":"own_binding","verified":true}),
+    ] {
+        go(step(k));
+    }
+    let half = go(step(json!({"kind":"state"})));
+    assert_eq!(
+        (
+            half["ok"]["state"].clone(),
+            half["ok"]["asyncKeyFetchAllowed"].clone()
+        ),
+        (json!("half_bound"), json!(false))
+    );
+    let done = go(step(json!({"kind":"peer_binding","verified":true})));
+    assert_eq!(
+        (
+            done["ok"]["state"].clone(),
+            done["ok"]["deviceEligible"].clone()
+        ),
+        (json!("active"), json!(true))
+    );
+}
+
+#[test]
+fn a_delegated_intent_is_checked_against_the_binding() {
+    let r = call(
+        json!({"cmd":"space_delegated_intent_check","body":"a0","binding":{"spaceId":"aa".repeat(32),"capabilities":["room.remove_member"],"freshnessBound":60,"acceptsSubdelegation":false},"heldHead":"bb".repeat(32),"heldVersion":1,"heldHeadAge":0,"viaSubdelegation":false}),
+    );
+    assert_eq!(r["ok"]["refusal"], "malformed");
+    let r = call(
+        json!({"cmd":"space_delegated_intent_check","body":"a0","binding":{"spaceId":"aa".repeat(32),"capabilities":["room.manage_governance"],"freshnessBound":60,"acceptsSubdelegation":false},"heldHead":"bb".repeat(32),"heldVersion":1,"heldHeadAge":0,"viaSubdelegation":false}),
+    );
+    assert_eq!(r["ok"]["refused"], "binding_protected");
+}

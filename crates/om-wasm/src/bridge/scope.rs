@@ -458,3 +458,122 @@ pub fn moderation_view(m: &RoomModeration, who: &str) -> Value {
     let w = who.as_bytes();
     json!({ "member": m.is_member(w), "banned": m.is_banned(w), "timedOut": m.is_timed_out(w) })
 }
+
+// ---- Space binding and LAN first contact -------------------------------------------------------------------------
+
+use om_core::lan_first_contact::{FirstContact, State, StepError};
+use om_core::space_binding::{Binding, ChildLink, IntentError, validate_delegated_intent};
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BindingIn {
+    pub space_id: String,
+    pub capabilities: Vec<String>,
+    pub freshness_bound: u64,
+    pub accepts_subdelegation: bool,
+}
+
+fn hex_vec(s: &str) -> Option<Vec<u8>> {
+    if !s.len().is_multiple_of(2) {
+        return None;
+    }
+    (0..s.len() / 2)
+        .map(|i| u8::from_str_radix(s.get(i * 2..i * 2 + 2)?, 16).ok())
+        .collect()
+}
+
+/// Checks one SpaceDelegatedIntent body against a Room binding. The link is taken as official (the Room's quorum approved
+/// the binding); the caller verified the envelope and the Space head signatures.
+pub fn space_intent_check(
+    body_hex: &str,
+    b: BindingIn,
+    held_head: &str,
+    held_version: u64,
+    held_age: u64,
+    via_sub: bool,
+) -> Value {
+    let (Some(body), Some(space), Some(head)) = (
+        hex_vec(body_hex),
+        hex_n::<32>(&b.space_id),
+        hex_n::<32>(held_head),
+    ) else {
+        return json!({ "refused": "malformed" });
+    };
+    let mut link = ChildLink::proposed_by_space();
+    link.child_accepts();
+    let binding = match Binding::new(
+        &link,
+        space,
+        Default::default(),
+        b.capabilities.into_iter().collect(),
+        b.freshness_bound,
+        b.accepts_subdelegation,
+    ) {
+        Ok(x) => x,
+        Err(e) => return json!({ "refused": format!("binding_{e:?}").to_lowercase() }),
+    };
+    match validate_delegated_intent(&body, &binding, (head, held_version), held_age, via_sub) {
+        Ok(d) => json!({
+            "valid": true,
+            "operation": d.operation,
+            "reducing": d.reducing,
+            "capabilities": d.capabilities.into_iter().collect::<Vec<_>>()
+        }),
+        Err(e) => json!({
+            "valid": false,
+            "refusal": match e {
+                IntentError::Malformed => "malformed",
+                IntentError::WrongSpace => "wrong_space",
+                IntentError::StaleHead => "stale_head",
+                IntentError::OutsideBinding => "outside_binding",
+                IntentError::Protected => "protected",
+                IntentError::CryptoProfile => "crypto_profile",
+                IntentError::SubDelegated => "sub_delegated",
+            }
+        }),
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FirstContactStep {
+    Reach,
+    Ticket { verified: bool },
+    Request { valid: bool },
+    OwnBinding { verified: bool },
+    PeerBinding { verified: bool },
+    Lost,
+    State,
+}
+
+pub fn first_contact(f: &mut FirstContact, step: FirstContactStep) -> Value {
+    let r: Result<(), StepError> = match step {
+        FirstContactStep::Reach => {
+            f.reach();
+            Ok(())
+        }
+        FirstContactStep::Ticket { verified } => f.ticket(verified),
+        FirstContactStep::Request { valid } => f.request(valid),
+        FirstContactStep::OwnBinding { verified } => f.own_binding(verified),
+        FirstContactStep::PeerBinding { verified } => f.peer_binding(verified),
+        FirstContactStep::Lost => {
+            f.reachability_lost();
+            Ok(())
+        }
+        FirstContactStep::State => Ok(()),
+    };
+    let state = match f.state() {
+        State::Unknown => "unknown",
+        State::Reachable => "reachable",
+        State::Ticketed => "ticketed",
+        State::Requested => "requested",
+        State::HalfBound => "half_bound",
+        State::Active => "active",
+    };
+    json!({
+        "state": state,
+        "asyncKeyFetchAllowed": f.async_key_fetch_allowed(),
+        "deviceEligible": f.device_eligible(),
+        "refused": match r { Ok(()) => Value::Null, Err(StepError::OutOfOrder) => json!("out_of_order"), Err(StepError::NotVerified) => json!("not_verified") }
+    })
+}

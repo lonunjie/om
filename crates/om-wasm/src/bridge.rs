@@ -232,6 +232,19 @@ enum Command {
         op: scope::ModOp,
     },
     #[cfg(feature = "scope-engines")]
+    SpaceDelegatedIntentCheck {
+        body: String,
+        binding: scope::BindingIn,
+        held_head: String,
+        held_version: u64,
+        held_head_age: u64,
+        via_subdelegation: bool,
+    },
+    #[cfg(feature = "scope-engines")]
+    LanFirstContact {
+        step: scope::FirstContactStep,
+    },
+    #[cfg(feature = "scope-engines")]
     ModerationView {
         who: String,
     },
@@ -1102,6 +1115,8 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     topics: om_core::room_topics::RoomTopics,
     #[cfg(feature = "scope-engines")]
     moderation: om_core::room_moderation::RoomModeration,
+    #[cfg(feature = "scope-engines")]
+    first_contact: om_core::lan_first_contact::FirstContact,
 }
 
 impl<R: RngCore + CryptoRng> Bridge<R> {
@@ -1114,6 +1129,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             topics: Default::default(),
             #[cfg(feature = "scope-engines")]
             moderation: Default::default(),
+            #[cfg(feature = "scope-engines")]
+            first_contact: Default::default(),
         }
     }
 
@@ -1295,6 +1312,26 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 &actor,
                 op,
             )),
+            #[cfg(feature = "scope-engines")]
+            Command::SpaceDelegatedIntentCheck {
+                body,
+                binding,
+                held_head,
+                held_version,
+                held_head_age,
+                via_subdelegation,
+            } => Ok(scope::space_intent_check(
+                &body,
+                binding,
+                &held_head,
+                held_version,
+                held_head_age,
+                via_subdelegation,
+            )),
+            #[cfg(feature = "scope-engines")]
+            Command::LanFirstContact { step } => {
+                Ok(scope::first_contact(&mut self.first_contact, step))
+            }
             #[cfg(feature = "scope-engines")]
             Command::ModerationView { who } => Ok(scope::moderation_view(&self.moderation, &who)),
             #[cfg(feature = "scope-engines")]
