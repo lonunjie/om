@@ -4960,6 +4960,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0265-v1-space-and-publication-size-limits.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",

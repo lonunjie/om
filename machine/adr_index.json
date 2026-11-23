@@ -3068,6 +3068,16 @@
       "amends": [],
       "index_title": "Adopt the OM-ZIP-v1 container, manifest and integrity rules (plain mode) for the portable archive (delegated; encryption not adopted)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0265",
+      "title": "V1 limits for Spaces and Publications are the frozen wire bounds",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-24",
+      "path": "decisions/ADR-0265-v1-space-and-publication-size-limits.md",
+      "amends": [],
+      "index_title": "V1 limits for Spaces and Publications are the frozen wire bounds (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
