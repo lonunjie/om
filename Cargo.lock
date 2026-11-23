@@ -1321,6 +1321,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "om-archive-reader"
+version = "0.1.0"
+dependencies = [
+ "crc32fast",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "om-codec"
 version = "0.0.0"
 dependencies = [
