@@ -354,3 +354,36 @@ fn service_principals_and_endpoints_never_count_toward_a_human_quorum() {
         vec![(1u64, vec![1u8; 32]), (1, vec![2; 32])]
     );
 }
+
+#[test]
+fn via_display_names_the_service_as_author_and_the_account_only_as_represented() {
+    let c = chain_with(vec![(0x10, ACTIVE)]);
+    let ins = installs();
+    let gt = grants_with(grant());
+    let rep = validate_service_event(
+        &vector("p16-event-represented"),
+        &EP,
+        &room(),
+        1_900_000_000,
+        &c,
+        &ins,
+        &gt,
+    )
+    .unwrap();
+    let v = rep.via();
+    assert_eq!(
+        (v.author_service, v.automated, v.via_account),
+        (SVC, true, Some(ACCOUNT))
+    );
+    let auto = validate_service_event(
+        &vector("p17-event-autonomous-unrepresented"),
+        &EP,
+        &room(),
+        1_900_000_000,
+        &c,
+        &ins,
+        &gt,
+    )
+    .unwrap();
+    assert_eq!(auto.via().via_account, None);
+}

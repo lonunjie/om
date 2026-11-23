@@ -256,10 +256,27 @@ pub struct Authorship {
     pub on_behalf_of: Option<[u8; 32]>,
 }
 
+/// What a client shows for a service-authored event. It always names the service and says automation; a represented
+/// event additionally names the account it acted for, but the account is never shown as the author.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ViaDisplay {
+    pub author_service: [u8; 32],
+    pub automated: bool,
+    pub via_account: Option<[u8; 32]>,
+}
+
 impl Authorship {
     /// Model fact: a service-authored event is always labelled as automation. There is no way to build one without it.
     pub fn automated(&self) -> bool {
         true
+    }
+    /// The display data a UI renders ("service X, automated, on behalf of account Y").
+    pub fn via(&self) -> ViaDisplay {
+        ViaDisplay {
+            author_service: self.service,
+            automated: self.automated(),
+            via_account: self.on_behalf_of,
+        }
     }
 }
 
