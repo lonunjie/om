@@ -72,7 +72,12 @@ fn deterministic_twenty_thousand_mutants_no_panic_no_unbound_acceptance() {
     let offsets: Vec<_> = bases.iter().map(|v| offset_classes(&v.bytes)).collect();
     let mut rng = Rng(0x4f4d_4152_4348_4956);
     let mut accepted = 0usize;
-    for n in 0..20_000 {
+    // OM_SWEEP_MUTANTS raises the count for the long run (200000 matches the prototype's long sweep).
+    let mutants: usize = std::env::var("OM_SWEEP_MUTANTS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20_000);
+    for n in 0..mutants {
         let i = n % bases.len();
         let original = &bases[i].bytes;
         let (protected, ignored) = &offsets[i];
@@ -136,5 +141,5 @@ fn deterministic_twenty_thousand_mutants_no_panic_no_unbound_acceptance() {
         accepted > 0,
         "the ignored-byte acceptance path was never exercised"
     );
-    eprintln!("mutation sweep: 20000 mutations, {accepted} metadata-only accepted");
+    eprintln!("mutation sweep: {mutants} mutations, {accepted} metadata-only accepted");
 }
