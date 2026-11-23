@@ -57,7 +57,8 @@ impl LanRouteTable {
         fill(&mut cap);
         let uri = format!("{URI_PREFIX}{}", b64url(&token));
         let expires = (epoch + 2) * EPOCH_SECONDS;
-        let entry = RelayEntry::new(&uri, &cap, expires).expect("a 16-byte token and 32-byte capability form a valid entry");
+        let entry = RelayEntry::new(&uri, &cap, expires)
+            .expect("a 16-byte token and 32-byte capability form a valid entry");
         token.zeroize();
         cap.zeroize();
         self.routes.push(Route {
@@ -86,9 +87,11 @@ impl LanRouteTable {
     /// Whether `(relay_uri, capability)` names a live route: the deposit check a LAN receiver makes before accepting a
     /// sealed envelope. Constant-time on the capability. It says nothing about who is sending.
     pub fn accepts(&self, now: u64, relay_uri: &str, capability: &[u8]) -> bool {
-        self.routes
-            .iter()
-            .any(|r| r.entry.relay_uri == relay_uri && ct_eq(&r.entry.capability, capability) && r.entry.expires_at > now)
+        self.routes.iter().any(|r| {
+            r.entry.relay_uri == relay_uri
+                && ct_eq(&r.entry.capability, capability)
+                && r.entry.expires_at > now
+        })
     }
 
     pub fn len(&self) -> usize {

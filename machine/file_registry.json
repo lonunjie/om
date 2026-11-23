@@ -2664,6 +2664,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/lan_delivery_loopback.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/lan_rendezvous_state.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

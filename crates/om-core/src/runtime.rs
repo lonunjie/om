@@ -41,6 +41,18 @@ pub fn loopback_home_uri(home: u8) -> String {
     }
 }
 
+/// What a LAN receiver would allocate (`local_delivery`, ADR-0158 section 5): an `om+lan://v1/<token>` route whose capability
+/// the loopback maps to the mailbox the same way it does for a Home route. Test shape only; the real table is `lan_route`.
+pub fn lan_offer(mailbox: [u8; 16]) -> RouteOffer {
+    let mut o = loopback_offer(mailbox);
+    o.relay_uri = format!(
+        "{}{}",
+        crate::lan_route::URI_PREFIX,
+        crate::flows::b64url(&mailbox)
+    );
+    o
+}
+
 /// What a provider adapter would allocate for one new mailbox at loopback Home `home`.
 pub fn loopback_offer_at(mailbox: [u8; 16], home: u8) -> RouteOffer {
     let mut o = loopback_offer(mailbox);
@@ -53,7 +65,8 @@ pub fn loopback_offer_at(mailbox: [u8; 16], home: u8) -> RouteOffer {
 fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
     match relay_uri {
         Some(u)
-            if u.starts_with(LOOPBACK_RELAY_URI)
+            if (u.starts_with(LOOPBACK_RELAY_URI)
+                || u.starts_with(crate::lan_route::URI_PREFIX))
                 && mailbox.len() == 32
                 && mailbox[..16] == LOOPBACK_CAP_PREFIX =>
         {
@@ -1057,6 +1070,8 @@ pub struct Runtime {
     offer_rng: InsecureTestRng,
     /// The loopback Homes this person has, most preferred first (offers rotate over them); `[0]` is the ordinary case.
     pub homes: Vec<u8>,
+    /// TEST ONLY: hand Core `om+lan://v1` route offers instead of Home offers (local_delivery loopback).
+    pub lan_routes: bool,
     /// What the host tells Core the BlobStore advertised (re-supplied after a restart, as a real host does at start).
     pub blob_limits: Option<crate::host::BlobLimits>,
     /// Where this Home keeps recovery records (re-supplied after a restart). `None` unless a test opts in.
@@ -1081,6 +1096,7 @@ impl Runtime {
             open: vec![],
             offer_rng: InsecureTestRng::from_label(format!("{label}/offers").as_bytes()),
             homes: vec![0],
+            lan_routes: false,
             blob_limits: Some(crate::host::BlobLimits {
                 max_blob_bytes: 4 * 1024 * 1024,
                 max_spool_bytes: 32 * 1024 * 1024,
@@ -1150,7 +1166,11 @@ impl Runtime {
                 let mut mb = [0u8; 16];
                 self.offer_rng.fill_bytes(&mut mb);
                 let at = i % homes.len();
-                let mut o = loopback_offer_at(mb, homes[at]);
+                let mut o = if self.lan_routes {
+                    lan_offer(mb)
+                } else {
+                    loopback_offer_at(mb, homes[at])
+                };
                 o.priority = at as u8;
                 o
             })
