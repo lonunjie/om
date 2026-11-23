@@ -1,0 +1,13 @@
+[package]
+name = "plugins-runtime-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "V-010 feasibility spike: Component Model runtime limits on a native host. Not product code."
+
+[workspace]
+
+[dependencies]
+wasmtime = { version = "36", default-features = false, features = ["runtime", "component-model", "cranelift", "wat"] }
+wat = "1"
+anyhow = "1"

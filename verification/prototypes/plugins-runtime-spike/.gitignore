@@ -1,0 +1,4 @@
+native/target/
+native/Cargo.lock
+browser/node_modules/
+native/hostile-browser.wasm
