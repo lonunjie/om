@@ -34,6 +34,7 @@ pub mod groups;
 pub mod host;
 pub mod intro;
 pub mod lan;
+pub mod lan_route;
 pub mod present;
 pub mod recovery;
 pub mod recovery_record;
