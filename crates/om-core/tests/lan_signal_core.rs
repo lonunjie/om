@@ -138,3 +138,53 @@ fn two_seals_use_two_nonces_and_oversized_sdp_is_refused() {
         Err(SignalError::Payload)
     );
 }
+
+#[test]
+fn blocking_a_person_destroys_the_seed_in_both_directions_of_use() {
+    let mut p = active_pair();
+    let before = p
+        .alice
+        .core
+        .lan_signal_seal(&p.a, &p.a_conv, Kind::Offer, [5; 16], SDP)
+        .unwrap()
+        .unwrap();
+    let chat: ConversationView = p.bob.query(Query::GetConversationView {
+        ctx: p.b.clone(),
+        conversation_id: p.b_conv.clone(),
+    });
+    let confirmation =
+        common::confirmation(&mut p.bob, &p.b, "BlockPerson", &chat.summary.person_id);
+    p.bob.dispatch(
+        &p.b,
+        "block",
+        IntentBody::BlockPerson {
+            person_id: chat.summary.person_id,
+            scope: BlockScope::Local,
+            confirmation,
+        },
+    );
+    assert_eq!(p.bob.outcome(&p.b, "block"), Some(OutcomeClass::Committed));
+    // The blocker can neither open what the blocked person sealed earlier nor seal anything for them.
+    assert_eq!(
+        p.bob
+            .core
+            .lan_signal_open(&p.b, &p.b_conv, &before)
+            .unwrap(),
+        Err(SignalError::NoSeed)
+    );
+    assert_eq!(
+        p.bob
+            .core
+            .lan_signal_seal(&p.b, &p.b_conv, Kind::Answer, [5; 16], "a")
+            .unwrap(),
+        Err(SignalError::NoSeed)
+    );
+    // The other person's seed is untouched (they have not blocked anyone), so nothing else changed for them.
+    assert!(
+        p.alice
+            .core
+            .lan_signal_seal(&p.a, &p.a_conv, Kind::Offer, [6; 16], SDP)
+            .unwrap()
+            .is_ok()
+    );
+}

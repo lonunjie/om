@@ -1503,7 +1503,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         &self,
         ctx: &ProfileExecutionContext,
         conversation_id: &str,
-    ) -> Result<[u8; 32], CoreError> {
+    ) -> Result<([u8; 32], bool), CoreError> {
         let slot = self.slot(ctx)?;
         let rel = slot
             .state
@@ -1511,10 +1511,23 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .relationships
             .get(conversation_id)
             .ok_or(CoreError::NotFound("conversation"))?;
-        crate::crypto::unhex(&rel.peer_ik)
+        let ik = crate::crypto::unhex(&rel.peer_ik)
             .ok()
             .and_then(|v| v.try_into().ok())
-            .ok_or(CoreError::CorruptState("bad key"))
+            .ok_or(CoreError::CorruptState("bad key"))?;
+        Ok((ik, rel.state == RelState::Active && !rel.blocked))
+    }
+
+    /// A relationship that is blocked or not active signals nothing, and its seed is destroyed on the spot
+    /// (ADR-0158 section 9), so a flow that ends or blocks a relationship by another path cannot leave one behind.
+    fn lan_retire_if_dead(&mut self, ctx: &ProfileExecutionContext, peer: &[u8; 32]) {
+        if let Some(dev) = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .and_then(|s| s.state.device.as_mut())
+        {
+            dev.retire_lan_seed(peer);
+        }
     }
 
     /// Seals a WebRTC offer or answer for the other person of `conversation_id` under that pair's LAN seed. The nonce is
@@ -1528,7 +1541,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
         session_id: [u8; 16],
         sdp: &str,
     ) -> Result<Result<Vec<u8>, crate::crypto::lan_signal::SignalError>, CoreError> {
-        let peer = self.lan_peer(ctx, conversation_id)?;
+        let (peer, live) = self.lan_peer(ctx, conversation_id)?;
+        if !live {
+            self.lan_retire_if_dead(ctx, &peer);
+            return Ok(Err(crate::crypto::lan_signal::SignalError::NoSeed));
+        }
         let mut nonce = [0u8; 12];
         self.rng.fill_bytes(&mut nonce);
         let now = self.clock.now_ms() / 1000;
@@ -1556,7 +1573,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
         Result<crate::crypto::lan_signal::Opened, crate::crypto::lan_signal::SignalError>,
         CoreError,
     > {
-        let peer = self.lan_peer(ctx, conversation_id)?;
+        let (peer, live) = self.lan_peer(ctx, conversation_id)?;
+        if !live {
+            self.lan_retire_if_dead(ctx, &peer);
+            return Ok(Err(crate::crypto::lan_signal::SignalError::NoSeed));
+        }
         let now = self.clock.now_ms() / 1000;
         let guard = self
             .lan_signal_guards

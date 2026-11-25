@@ -984,6 +984,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 {
                     Some(r) => {
                         r.blocked = true;
+                        // A blocked person gets no local-delivery signalling (ADR-0158 section 9): the pair seed is destroyed.
+                        let peer = crate::crypto::unhex(&r.peer_ik)
+                            .ok()
+                            .and_then(|v| <[u8; 32]>::try_from(v).ok());
+                        if let (Some(ik), Some(dev)) = (peer, self.st.device.as_mut()) {
+                            dev.retire_lan_seed(&ik);
+                        }
                         OutcomeClass::Committed
                     }
                     None => rejected(RejectReason::NotFound),
