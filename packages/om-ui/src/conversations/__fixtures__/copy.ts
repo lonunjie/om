@@ -23,7 +23,9 @@ export const testCopy: ConversationCopy = {
     chip: (k, n, mine) => (mine ? `${k} ${String(n)}, including you. Remove your reaction` : `${k} ${String(n)}. Add yours`), failed: "The reaction could not be sent.",
   },
   contact: {
-    open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", allowCalls: "Allow calls", allowCallsFailed: "Couldn’t change this setting.", nicknamePlaceholder: "A nickname only you see",
+    open: (n) => `About ${n}`, title: (n) => `About ${n}`, close: "Close", theirName: "Their name", nicknameLabel: "Your name for them", allowCalls: "Allow calls", allowCallsFailed: "Couldn’t change this setting.",
+    nearby: { label: "Find each other on the same Wi-Fi", hint: "When you are both on the same Wi-Fi, your devices can find each other and send straight across. They can tell when you are nearby. Off unless you turn it on, and only for this person.", on: "On for this person.", off: "Off.", notNow: "Not available right now.", platformUnavailable: "This device can’t do this.", partial: "This device may not find them every time.", failed: "Couldn’t change this setting." },
+    nicknamePlaceholder: "A nickname only you see",
     nicknameHint: "Only you see this.", save: "Save", clear: "Remove nickname", saved: "Saved.", cleared: "Removed.", invalid: "That nickname could not be used.", failed: "Could not save.",
     verification: {
       open: "Verify account", hint: "Ask them in person or another trusted way for their account ID.", theirAccount: "Their account ID", ownAccount: "Your account ID",

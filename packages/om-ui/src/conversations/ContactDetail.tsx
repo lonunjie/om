@@ -6,6 +6,7 @@ import { Sheet } from "../shell/layout/Sheet";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import type { ConversationCopy } from "./copy";
+import { NearbyRow } from "./Nearby";
 import type { ConversationServices } from "./services";
 import { shownName } from "./shownName";
 
@@ -60,6 +61,7 @@ export function ContactDetail({ services, summary, ownAccount, copy, onClose }: 
           <p className="om-settings__status" role={status === copy.invalid || status === copy.failed ? "alert" : "status"}>{status}</p>
         </form>
         {summary.allowCalls === undefined ? null : <AllowCalls services={services} summary={summary} allowed={summary.allowCalls} copy={copy} />}
+        {services.nearby === undefined ? null : <NearbyRow service={services.nearby} conversationId={summary.id} copy={copy.nearby} />}
         {canVerify ? <AccountCheck key={`${ownAccount}:${peer}`} own={ownAccount} peer={peer} copy={copy.verification} /> : null}
       </div>
     </Sheet>

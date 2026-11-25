@@ -1,4 +1,5 @@
 import type { CoreClient, MessageId, CoreIntent, ConfirmationToken, OperationId, OutcomeClass, ProfileExecutionContext } from "@om/platform-api";
+import type { NearbyService } from "./nearby";
 import type { ActionRegistry, ActionResult } from "../actions/registry";
 
 /** What the conversation slice needs from the host: Core, the Action Registry, and the captured profile context. */
@@ -15,6 +16,11 @@ export interface ConversationServices {
    * Starts another send of a file whose direct offer lapsed unconfirmed (ADR-0194). Unset today: nothing in the web app can
    * pick the same file again for an old message, so the "Send again" button is shown only when a host supplies this.
    */
+  /**
+   * The per-contact "find each other on the same Wi-Fi" choice. Unset today and off in every release: the row only shows when a
+   * host supplies it behind its own flag, so nothing is offered that the host cannot carry.
+   */
+  readonly nearby?: NearbyService;
   readonly sendAgain?: (messageId: MessageId, index: number) => void;
 }
 

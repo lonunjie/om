@@ -85,6 +85,20 @@ export interface ConversationCopy {
     readonly nicknameLabel: string;
     readonly allowCalls: string;
     readonly allowCallsFailed: string;
+    /** "Find each other on the same Wi-Fi" (LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE 2.1). Never says "LAN". */
+    readonly nearby: {
+      readonly label: string;
+      /** What it does and the cost: the other person can tell when you are on the same Wi-Fi. Off unless turned on, for this person only. */
+      readonly hint: string;
+      readonly on: string;
+      readonly off: string;
+      /** Core does not allow it now: the protection level or an inactive chat. */
+      readonly notNow: string;
+      readonly platformUnavailable: string;
+      /** The browser can do it only in part. */
+      readonly partial: string;
+      readonly failed: string;
+    };
     readonly nicknamePlaceholder: string;
     /** One plain sentence: only you see it, it is kept on this device and backup, never sent. */
     readonly nicknameHint: string;

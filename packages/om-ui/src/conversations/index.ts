@@ -20,3 +20,5 @@ export * from "./scheduledSend";
 export * from "./Schedule";
 export * from "./mentions";
 export * from "./MentionPicker";
+export * from "./nearby";
+export * from "./Nearby";
