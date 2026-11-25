@@ -133,3 +133,28 @@ fn state_written_before_the_seed_existed_loads_with_no_seed() {
     let back = Device::from_cbor(&v).unwrap();
     assert!(!back.has_lan_seed(&alice.ik()));
 }
+
+#[test]
+fn the_nearby_choice_persists_and_is_cleared_with_the_seed_and_absent_in_legacy_state() {
+    let (alice, mut bob, mut r) = pair("lan-nearby-persist");
+    assert!(!bob.lan_nearby_enabled(&alice.ik()), "off by default");
+    assert!(bob.lan_nearby_set(&alice.ik(), true));
+    let back = Device::from_bytes(&bob.to_bytes()).unwrap();
+    assert!(back.lan_nearby_enabled(&alice.ik()));
+    // A peer with no seed cannot be turned on.
+    let carol = Device::new(&mut r);
+    assert!(!bob.lan_nearby_set(&carol.ik(), true));
+    // Legacy state (no key 25) loads with it off.
+    let mut v = bob.to_cbor();
+    if let om_core::crypto::cbor::V::M(m) = &mut v {
+        m.retain(|(k, _)| *k != 25);
+    }
+    assert!(
+        !Device::from_cbor(&v)
+            .unwrap()
+            .lan_nearby_enabled(&alice.ik())
+    );
+    // Retiring the seed clears the choice.
+    assert!(bob.retire_lan_seed(&alice.ik()));
+    assert!(!bob.lan_nearby_enabled(&alice.ik()));
+}

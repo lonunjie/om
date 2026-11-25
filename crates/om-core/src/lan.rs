@@ -91,6 +91,27 @@ impl LanRendezvous {
         self.level = level;
     }
 
+    /// Replaces the contact set with the peers the person has turned on (each already has a seed), at the current privacy
+    /// level, keeping the rate limiter's state. Used by the engine, which holds the choice and the seeds in the Device.
+    pub fn replace_contacts(
+        &mut self,
+        level: Option<PrivacyPolicyLevel>,
+        enabled: impl IntoIterator<Item = (ContactRef, LanSeed)>,
+    ) {
+        self.level = level;
+        self.contacts.clear();
+        for (c, seed) in enabled {
+            self.contacts
+                .entry(c)
+                .or_insert(Entry {
+                    enabled: true,
+                    seeds: Vec::new(),
+                })
+                .seeds
+                .push(seed);
+        }
+    }
+
     /// Whether local delivery may run at all under the current privacy level.
     pub fn available(&self) -> bool {
         PrivacyPolicyLevel::rank(self.level) == 0

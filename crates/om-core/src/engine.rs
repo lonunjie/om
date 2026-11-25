@@ -93,6 +93,15 @@ enum CallHostEvent<'a> {
     Route(&'a str, crate::calls::CallRoute),
 }
 
+/// What the "find each other on the same Wi-Fi" row shows for one conversation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NearbyState {
+    /// The person turned it on and it is allowed now.
+    pub enabled: bool,
+    /// It could be turned on: the privacy level allows it and the relationship is active with a seed.
+    pub available: bool,
+}
+
 pub struct Core<R: RngCore + CryptoRng> {
     rng: R,
     clock: Box<dyn Clock>,
@@ -124,6 +133,7 @@ pub struct Core<R: RngCore + CryptoRng> {
     /// Replay and nonce-reuse memory of the LAN signalling envelopes, per profile. Memory only: it only has to outlive
     /// the accepted epoch window, and a restart that drops it also drops every in-flight rendezvous.
     lan_signal_guards: BTreeMap<ProfileId, crate::crypto::lan_signal::SignalGuard>,
+    lan_rendezvous: BTreeMap<ProfileId, crate::lan::LanRendezvous>,
 }
 
 /// A new engine for this device, or the one stored in `app` (the loader is chosen by the build: the real OpenMLS engine
@@ -182,6 +192,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             direct_fetches: BTreeMap::new(),
             group_engines: BTreeMap::new(),
             lan_signal_guards: BTreeMap::new(),
+            lan_rendezvous: BTreeMap::new(),
         }
     }
 
@@ -1516,6 +1527,142 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .and_then(|v| v.try_into().ok())
             .ok_or(CoreError::CorruptState("bad key"))?;
         Ok((ik, rel.state == RelState::Active && !rel.blocked))
+    }
+
+    /// Makes the rendezvous state match the Device: peers whose relationship is blocked or not active lose their seed on the
+    /// spot, and the rest of the turned-on peers are loaded at the profile's current privacy level.
+    fn lan_sync(&mut self, ctx: &ProfileExecutionContext) -> Result<(), CoreError> {
+        let slot = self.slot(ctx)?;
+        let level = slot.state.app.privacy_level;
+        let live: std::collections::BTreeSet<String> = slot
+            .state
+            .app
+            .relationships
+            .values()
+            .filter(|r| r.state == RelState::Active && !r.blocked)
+            .map(|r| r.peer_ik.clone())
+            .collect();
+        let Some(dev) = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .and_then(|s| s.state.device.as_mut())
+        else {
+            return Err(CoreError::Invalid("no identity"));
+        };
+        let entries = dev.lan_nearby_entries();
+        let mut kept = Vec::new();
+        for (key, seed) in entries {
+            let ik: Option<[u8; 32]> = key.get(1..).and_then(|k| k.try_into().ok());
+            match ik {
+                Some(ik) if live.contains(&crate::crypto::hex(&ik)) => kept.push((key, seed)),
+                Some(ik) => {
+                    dev.retire_lan_seed(&ik);
+                }
+                None => {}
+            }
+        }
+        self.lan_rendezvous
+            .entry(ctx.profile_id.clone())
+            .or_insert_with(|| {
+                crate::lan::LanRendezvous::new(level, crate::lan::RateLimit::new(32, 8))
+            })
+            .replace_contacts(
+                level,
+                kept.into_iter()
+                    .filter_map(|(k, s)| Some((<[u8; 16]>::try_from(k.get(1..17)?).ok()?, s))),
+            );
+        Ok(())
+    }
+
+    /// The person's per-contact choice "find each other on the same Wi-Fi". Off by default; refused (`Unavailable`) under
+    /// Hardened, Maximum and Custom, and for a relationship that is not active. Turning it off always works.
+    pub fn lan_nearby_set(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        on: bool,
+    ) -> Result<NearbyState, CoreError> {
+        let (peer, live) = self.lan_peer(ctx, conversation_id)?;
+        if !live {
+            self.lan_retire_if_dead(ctx, &peer);
+        }
+        let level = self.slot(ctx)?.state.app.privacy_level;
+        let allowed = crate::api::PrivacyPolicyLevel::rank(level) == 0 && live;
+        if let Some(dev) = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .and_then(|s| s.state.device.as_mut())
+        {
+            dev.lan_nearby_set(&peer, on && allowed);
+        }
+        self.lan_nearby_state(ctx, conversation_id)
+    }
+
+    pub fn lan_nearby_state(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+    ) -> Result<NearbyState, CoreError> {
+        let (peer, live) = self.lan_peer(ctx, conversation_id)?;
+        let level = self.slot(ctx)?.state.app.privacy_level;
+        let policy_ok = crate::api::PrivacyPolicyLevel::rank(level) == 0;
+        let Some(dev) = self
+            .profiles
+            .get(&ctx.profile_id)
+            .and_then(|s| s.state.device.as_ref())
+        else {
+            return Err(CoreError::Invalid("no identity"));
+        };
+        Ok(NearbyState {
+            enabled: policy_ok && live && dev.lan_nearby_enabled(&peer),
+            available: policy_ok && live && dev.has_lan_seed(&peer),
+        })
+    }
+
+    /// The K tags to advertise now (empty when the facility is off or nobody is turned on, so that nothing is advertised
+    /// that could show the feature is on).
+    pub fn lan_advertise(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Vec<crate::crypto::lan_rendezvous::Tag>, CoreError> {
+        self.lan_sync(ctx)?;
+        let now = self.clock.now_ms() / 1000;
+        let rng = &mut self.rng;
+        let rdv = self
+            .lan_rendezvous
+            .get(&ctx.profile_id)
+            .ok_or(CoreError::Invalid("no rendezvous"))?;
+        Ok(rdv.advertised_tags(now, &mut |b| rng.fill_bytes(b)))
+    }
+
+    /// Which conversation an observed tag belongs to, among the peers turned on. A match is possession of a rendezvous
+    /// capability only: it names no account and creates no relationship.
+    pub fn lan_observe(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        observed: &crate::crypto::lan_rendezvous::Tag,
+    ) -> Result<Option<String>, CoreError> {
+        self.lan_sync(ctx)?;
+        let now = self.clock.now_ms() / 1000;
+        let Some(contact) = self
+            .lan_rendezvous
+            .get_mut(&ctx.profile_id)
+            .and_then(|r| r.match_tag(now, observed))
+        else {
+            return Ok(None);
+        };
+        let slot = self.slot(ctx)?;
+        Ok(slot
+            .state
+            .app
+            .relationships
+            .iter()
+            .find(|(_, r)| {
+                crate::crypto::unhex(&r.peer_ik)
+                    .ok()
+                    .is_some_and(|ik| ik.len() == 32 && ik[..16] == contact)
+            })
+            .map(|(id, _)| id.clone()))
     }
 
     /// A relationship that is blocked or not active signals nothing, and its seed is destroyed on the spot

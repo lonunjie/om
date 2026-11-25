@@ -138,6 +138,8 @@ pub struct Device {
     /// [`Device::lan_signal_open`] use it. Persisted at key 24; absent in older state, which means no LAN seed for that
     /// relationship.
     lan_seeds: BTreeMap<Vec<u8>, zeroize::Zeroizing<[u8; 32]>>,
+    /// Peers the person chose to find on the same network (ADR-0158 section 1): off by default, one switch per peer.
+    lan_nearby: BTreeSet<Vec<u8>>,
 }
 
 /// A signed-prekey epoch that has been superseded but can still receive first messages.
@@ -243,6 +245,7 @@ impl Device {
             one_time_epoch: BTreeMap::new(),
             rotation_at: 0,
             lan_seeds: BTreeMap::new(),
+            lan_nearby: BTreeSet::new(),
         }
     }
 
@@ -864,9 +867,40 @@ impl Device {
 
     /// Destroys the peer's LAN seed (relationship retired or blocked, ADR-0158 section 9).
     pub fn retire_lan_seed(&mut self, peer_ik: &[u8; 32]) -> bool {
+        self.lan_nearby.remove(encode_ec(peer_ik).as_slice());
         self.lan_seeds
             .remove(encode_ec(peer_ik).as_slice())
             .is_some()
+    }
+
+    /// The per-peer "find each other on the same network" choice. Turning it on needs a seed (a live relationship);
+    /// turning it off always works. Returns whether the state is now on.
+    pub fn lan_nearby_set(&mut self, peer_ik: &[u8; 32], on: bool) -> bool {
+        let key = encode_ec(peer_ik).to_vec();
+        if on && self.lan_seeds.contains_key(&key) {
+            self.lan_nearby.insert(key);
+            true
+        } else {
+            self.lan_nearby.remove(&key);
+            false
+        }
+    }
+
+    pub fn lan_nearby_enabled(&self, peer_ik: &[u8; 32]) -> bool {
+        self.lan_nearby.contains(encode_ec(peer_ik).as_slice())
+    }
+
+    /// The enabled peers and their seeds, for building the advertisement and matching an observed tag. The key is the
+    /// 33-byte encoded identity key; the seed is a copy that zeroizes on drop.
+    pub(crate) fn lan_nearby_entries(&self) -> Vec<(Vec<u8>, lan_rendezvous::LanSeed)> {
+        self.lan_nearby
+            .iter()
+            .filter_map(|k| {
+                self.lan_seeds
+                    .get(k)
+                    .map(|s| (k.clone(), lan_rendezvous::LanSeed::from_derived(**s)))
+            })
+            .collect()
     }
 
     fn lan_seed(
@@ -944,6 +978,16 @@ impl Device {
                             .collect(),
                     ),
                 ));
+            }
+            // The nearby choice only exists for a peer that still has a seed (read back the same way).
+            let nearby: Vec<V> = self
+                .lan_nearby
+                .iter()
+                .filter(|k| self.lan_seeds.contains_key(*k) && self.sessions.contains_key(*k))
+                .map(|k| V::B(k.clone()))
+                .collect();
+            if !nearby.is_empty() {
+                m.push((25, V::A(nearby)));
             }
             if let Some(n) = self.prev.last() {
                 m.push((21, V::U(n.expires_at)));
@@ -1210,6 +1254,13 @@ impl Device {
                 return Err(Error::Decode("device: lan seed"));
             }
         }
+        let mut lan_nearby = BTreeSet::new();
+        for e in v.opt(25).map(|x| x.a()).transpose()?.unwrap_or(&[]) {
+            let key = e.b()?.to_vec();
+            if !lan_seeds.contains_key(&key) || !lan_nearby.insert(key) {
+                return Err(Error::Decode("device: lan nearby"));
+            }
+        }
         let bundle_expires_at = v
             .opt(18)
             .map(|x| x.u())
@@ -1271,6 +1322,7 @@ impl Device {
             one_time_epoch,
             rotation_at: v.opt(20).map(|x| x.u()).transpose()?.unwrap_or(0),
             lan_seeds,
+            lan_nearby,
         }
         .reindexed()
     }

@@ -188,3 +188,53 @@ fn blocking_a_person_destroys_the_seed_in_both_directions_of_use() {
             .is_ok()
     );
 }
+
+#[test]
+fn nearby_is_off_until_chosen_advertises_and_matches_only_when_both_turned_it_on() {
+    let mut p = active_pair();
+    let s = p.alice.core.lan_nearby_state(&p.a, &p.a_conv).unwrap();
+    assert!(
+        s.available && !s.enabled,
+        "off by default, available at the default level"
+    );
+    assert!(
+        p.alice.core.lan_advertise(&p.a).unwrap().is_empty(),
+        "nothing is advertised until someone is turned on"
+    );
+    assert!(
+        p.alice
+            .core
+            .lan_nearby_set(&p.a, &p.a_conv, true)
+            .unwrap()
+            .enabled
+    );
+    assert!(
+        p.bob
+            .core
+            .lan_nearby_set(&p.b, &p.b_conv, true)
+            .unwrap()
+            .enabled
+    );
+    let tags = p.alice.core.lan_advertise(&p.a).unwrap();
+    assert_eq!(tags.len(), 8);
+    // Real tags are mixed with decoys, so exactly one of the eight is the real one.
+    let hits: Vec<_> = tags
+        .iter()
+        .filter_map(|t| p.bob.core.lan_observe(&p.b, t).unwrap())
+        .collect();
+    assert_eq!(hits, vec![p.b_conv.clone()]);
+    assert_eq!(p.bob.core.lan_observe(&p.b, &[9u8; 16]).unwrap(), None);
+    // Turning it off stops advertising and matching.
+    assert!(
+        !p.bob
+            .core
+            .lan_nearby_set(&p.b, &p.b_conv, false)
+            .unwrap()
+            .enabled
+    );
+    assert!(
+        tags.iter()
+            .all(|t| p.bob.core.lan_observe(&p.b, t).unwrap().is_none())
+    );
+    assert!(p.bob.core.lan_advertise(&p.b).unwrap().is_empty());
+}
