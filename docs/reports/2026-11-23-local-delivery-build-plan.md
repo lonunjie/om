@@ -83,3 +83,9 @@ Slices 0 to 2 are well specified with checkable vectors and suit a mid tier work
 ## 8. What this plan did not do
 
 It wrote no code, ran no tests, edited no ledger and changed no ADR. The Q-list is for the operator; nothing in it amends audited text.
+
+## Update 2026-11-25: slice 6 wire and driver, without the real channel
+
+Design sources read for this update: none re-read this session beyond the frozen [`lan.cddl`](../../spec/cddl/lan.cddl) text and the corpus; the code replays the frozen V-024 vectors. Not done: the WebRTC `om-lan-v1` channel in `om-web-platform` (a design-bound path whose documents have not been read), the receipt MAC and digest bindings (host-injected here), `fetch_async_key` and `fetch_blob` frames, first-contact wiring.
+
+Added: `om_core::lan_frame` (typed transfer frames, replayed against the frozen corpus), `lan_frame_encode` and `lan_frame_decode` in om-wasm (`scope-engines`), and `packages/om-core-wasm/src/lan-driver.ts` (a sender and receiver over an abstract ordered channel). Tested with two real module instances over an in-memory channel: a 70,000-byte object in 16 KiB frames, confirmation only on an authenticated receipt, and resume from a durable offset. This is not a WebRTC, browser or real-LAN result.

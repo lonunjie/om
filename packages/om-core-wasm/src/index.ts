@@ -10,3 +10,5 @@ export { createDirectDriver } from "./direct-driver";
 export type { DirectCiphertextCache, DirectChannel, DirectDriver, DirectDriverOptions, DirectFetchFailure, DirectFetchResult, DirectTransport, PickedFile, SendAgainResult } from "./direct-driver";
 export { createScopeEngines } from "./scope-engines";
 export type { ScopeEngines } from "./scope-engines";
+export { createLanReceiver, createLanSender } from "./lan-driver";
+export type { LanChannel, LanReceiver, LanReceiverOptions, LanSender, LanSenderOptions } from "./lan-driver";
