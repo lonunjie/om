@@ -798,6 +798,129 @@ impl DirectFetch {
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// The `om-lan-v1` wire form (ADR-0158 section 6): every blob frame has exactly one `LanFrameV1` counterpart.
+
+impl DirectFrame {
+    /// The `LanFrameV1` of this frame. A transfer begins with the blob object kind.
+    pub fn to_lan(&self) -> crate::lan_frame::Frame {
+        use crate::lan_frame::Frame as L;
+        match self {
+            DirectFrame::FetchBlob {
+                request_id,
+                read_cap,
+                blob_id,
+                digest,
+            } => L::FetchBlob {
+                request_id: *request_id,
+                capability: read_cap.clone(),
+                blob_id: *blob_id,
+                ciphertext_digest: *digest,
+            },
+            DirectFrame::Begin {
+                transfer_id,
+                total_bytes,
+                sha256,
+            } => L::Begin {
+                transfer_id: *transfer_id,
+                object_kind: u64::from(OBJECT_KIND_BLOB),
+                total_bytes: *total_bytes,
+                sha256: *sha256,
+            },
+            DirectFrame::Chunk {
+                transfer_id,
+                offset,
+                bytes,
+            } => L::Chunk {
+                transfer_id: *transfer_id,
+                offset: *offset,
+                bytes: bytes.clone(),
+            },
+            DirectFrame::End { transfer_id } => L::End {
+                transfer_id: *transfer_id,
+            },
+            DirectFrame::Ack {
+                transfer_id,
+                offset,
+            } => L::Ack {
+                transfer_id: *transfer_id,
+                offset: *offset,
+            },
+            DirectFrame::Error { id, code } => L::Error {
+                id: *id,
+                code: *code as u64,
+            },
+            DirectFrame::Receipt { transfer_id, tag } => L::Receipt {
+                transfer_id: *transfer_id,
+                tag: *tag,
+            },
+        }
+    }
+
+    /// The blob frame for a `LanFrameV1`, or `None` for anything that is not part of a blob transfer: an async-key fetch, a
+    /// transfer of another object kind, or an error code this profile does not define (unknown values are rejected, not
+    /// guessed).
+    pub fn from_lan(f: &crate::lan_frame::Frame) -> Option<Self> {
+        use crate::lan_frame::Frame as L;
+        Some(match f {
+            L::FetchBlob {
+                request_id,
+                capability,
+                blob_id,
+                ciphertext_digest,
+            } => DirectFrame::FetchBlob {
+                request_id: *request_id,
+                read_cap: capability.clone(),
+                blob_id: *blob_id,
+                digest: *ciphertext_digest,
+            },
+            L::Begin {
+                transfer_id,
+                object_kind,
+                total_bytes,
+                sha256,
+            } if *object_kind == u64::from(OBJECT_KIND_BLOB) => DirectFrame::Begin {
+                transfer_id: *transfer_id,
+                total_bytes: *total_bytes,
+                sha256: *sha256,
+            },
+            L::Chunk {
+                transfer_id,
+                offset,
+                bytes,
+            } => DirectFrame::Chunk {
+                transfer_id: *transfer_id,
+                offset: *offset,
+                bytes: bytes.clone(),
+            },
+            L::End { transfer_id } => DirectFrame::End {
+                transfer_id: *transfer_id,
+            },
+            L::Ack {
+                transfer_id,
+                offset,
+            } => DirectFrame::Ack {
+                transfer_id: *transfer_id,
+                offset: *offset,
+            },
+            L::Error { id, code } => DirectFrame::Error {
+                id: *id,
+                code: match code {
+                    1 => ErrorCode::Unavailable,
+                    2 => ErrorCode::Protocol,
+                    3 => ErrorCode::Integrity,
+                    _ => return None,
+                },
+            },
+            L::Receipt { transfer_id, tag } => DirectFrame::Receipt {
+                transfer_id: *transfer_id,
+                tag: *tag,
+            },
+            L::Begin { .. } | L::FetchAsyncKey { .. } => return None,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -879,5 +1002,67 @@ mod receipt_work_tests {
             assert_eq!(s.state(), OfferState::PeerClaimsReceived);
         }
         assert_eq!(s.receipt_hashes, MAX_RECEIPT_HASHES);
+    }
+
+    #[test]
+    fn every_blob_frame_round_trips_through_the_lan_wire_form() {
+        let id = [7u8; TRANSFER_ID_LEN];
+        let frames = [
+            DirectFrame::FetchBlob {
+                request_id: id,
+                read_cap: vec![1; 32],
+                blob_id: [2; 32],
+                digest: [3; 32],
+            },
+            DirectFrame::Begin {
+                transfer_id: id,
+                total_bytes: 40_000,
+                sha256: [4; 32],
+            },
+            DirectFrame::Chunk {
+                transfer_id: id,
+                offset: 16_384,
+                bytes: vec![9; 100],
+            },
+            DirectFrame::End { transfer_id: id },
+            DirectFrame::Ack {
+                transfer_id: id,
+                offset: 100,
+            },
+            DirectFrame::Error {
+                id,
+                code: ErrorCode::Integrity,
+            },
+            DirectFrame::Receipt {
+                transfer_id: id,
+                tag: [5; 32],
+            },
+        ];
+        for f in frames {
+            let bytes = crate::lan_frame::encode_frame(&f.to_lan()).expect("encodes");
+            let back = crate::lan_frame::decode(&bytes).expect("decodes");
+            assert_eq!(DirectFrame::from_lan(&back), Some(f));
+        }
+        // Not a blob transfer: another object kind, an async-key fetch, an unknown error code.
+        use crate::lan_frame::Frame as L;
+        assert_eq!(
+            DirectFrame::from_lan(&L::Begin {
+                transfer_id: id,
+                object_kind: 1,
+                total_bytes: 1,
+                sha256: [0; 32]
+            }),
+            None
+        );
+        assert_eq!(
+            DirectFrame::from_lan(&L::FetchAsyncKey {
+                request_id: id,
+                device_id: [1; 16],
+                profile: 1,
+                capability: vec![0; 32]
+            }),
+            None
+        );
+        assert_eq!(DirectFrame::from_lan(&L::Error { id, code: 99 }), None);
     }
 }
