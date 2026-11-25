@@ -14,3 +14,9 @@ export * from "./home/index";
 export * from "./search/index";
 export { CallView, CallTimelineNotice, type CallCopy } from "./calls/CallView";
 export * from "./expressive/index";
+
+export { BridgeRoom, type BridgeRoomProps } from "./bridges/BridgeRoom";
+export { BridgeMessage } from "./bridges/BridgeMessage";
+export type { BridgeCopy } from "./bridges/copy";
+export type * from "./bridges/bridges";
+export * from "./portability/index";

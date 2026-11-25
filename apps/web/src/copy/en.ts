@@ -1,7 +1,8 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, ExpressiveCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, ProtectionCopy, AlertsCopy, RecoveryCopy, LostDevicesCopy, ApproveRecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import { createElement, Fragment } from "react";
+import type { BridgeCopy, ConversationCopy, DevicesCopy, ExpressiveCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, PortabilityCopy, ProfileSwitcherLabels, ProtectionCopy, AlertsCopy, RecoveryCopy, LostDevicesCopy, ApproveRecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -1983,4 +1984,289 @@ export const expressiveCopy: ExpressiveCopy = {
   unavailable: "Image unavailable.",
   play: "Play",
   pause: "Pause",
+};
+
+export const bridgeCopy: BridgeCopy = {
+  heading: "Bridges",
+  empty: "No bridges in this conversation.",
+  loading: "Checking bridge status…",
+  loadFailed: "Couldn’t check bridge status.",
+  changing: "Requesting the bridge change…",
+  changeUnknown: "OM couldn’t confirm the bridge change. Check its status.",
+  refresh: "Check bridge status",
+  review: "Review",
+  reviewName: (bridge) => `Review ${bridge}`,
+  reviewTitle: "Review bridge",
+  close: "Close bridge review",
+  action: { admit: "Add bridge", remove: "Remove bridge" },
+  consequence: {
+    admit:
+      "The bridge can read all content shared while it is a member. Export limits only control what it can send to the other network.",
+    remove:
+      "Once removal is complete, the bridge loses access to new messages and future sharing stops. The bridge and the other network may keep copies they already received.",
+  },
+  membership: {
+    proposed: "Bridge proposed",
+    member: "Bridge is a full member",
+    removed: "Bridge removed",
+  },
+  mapping: {
+    active: "Bridging is active",
+    revoked: "Bridge connection revoked",
+    stale:
+      "Sharing is paused. OM can’t confirm that the bridge connection is current.",
+    endpoint_stopped: "Sharing through this bridge connection has stopped.",
+  },
+  principal: "Bridge ID",
+  network: "Connected network",
+  scope: "Connected conversation",
+  directionLabel: "Direction",
+  direction: {
+    outbound: "From OM to the other network",
+    inbound: "From the other network to OM",
+    both: "Both ways",
+  },
+  exports: "What OM shares with the other network",
+  noExports: "Nothing",
+  eventClass: {
+    "message.create": "Messages and their attachments",
+    "message.edit": "Message edits",
+    "message.delete": "Message deletion requests",
+    "reaction.set": "Reactions",
+    "receipt.update": "Delivery and read receipts",
+    "pin.set": "Changes to pinned messages",
+    "moderation.redact": "Moderator deletion requests",
+    "poll.create": "New polls",
+    "poll.vote": "Poll votes",
+    "poll.close": "Poll closures",
+    "topic.create": "New topics",
+    "topic.update": "Topic edits",
+    "topic.status.set": "Topic status changes",
+    "message.topic.set": "Messages moved between topics",
+    "group.invite": "Group invitations",
+    "group.accept": "Accepted group invitations",
+    "group.decline": "Declined group invitations",
+    "group.rejoin_request": "Requests to rejoin a group",
+  },
+  admissionBoundary:
+    "For messages the bridge sends out, OM encryption will end at the bridge.",
+  encryptionTo: (bridge) =>
+    createElement(
+      Fragment,
+      null,
+      "OM encryption protects this message to ",
+      bridge,
+      ".",
+    ),
+  externalSeparate: "Security on the other network is separate from OM.",
+  externalClaim: "What the other network claims",
+  noExternalClaim: "OM has no security claim for the other network.",
+  outcome: {
+    Committed: "Bridge change confirmed.",
+    PendingAuthorization: "Waiting for approval.",
+    PendingNetwork: "Waiting for a connection.",
+    PendingReconciliation: "Checking whether the bridge change went through.",
+  },
+  rejected: {
+    invalid: "OM couldn’t use these bridge details.",
+    unsupported: "This version of OM doesn’t support this bridge change.",
+    unauthorized: "You don’t have permission to make this bridge change.",
+    revoked: "The authorization for this bridge change was withdrawn.",
+    expired: "This bridge change has expired.",
+    stale_state: "The bridge details changed. Review the current details.",
+    conflict: "This bridge change conflicts with another change.",
+    policy_denied: "The conversation’s rules prevent this bridge change.",
+    quota: "This conversation has reached its bridge limit.",
+    rate_limited: "Too many bridge changes were requested. Try again later.",
+    integrity_failure: "OM couldn’t verify the bridge details.",
+    unavailable: "This bridge change is unavailable right now.",
+    not_found: "OM couldn’t find the bridge for this change.",
+    too_large: "The bridge details exceed the size limit.",
+    peer_recovering: "A participant is recovering their OM identity.",
+  },
+  needsAction: {
+    authorize_with_device: "Approve this change on an authorized device.",
+    confirm_security_change: "This bridge change needs security confirmation.",
+    reauthenticate: "Unlock OM to continue this bridge change.",
+    update_client: "Update OM to continue this bridge change.",
+  },
+  message: {
+    author: "Message sent by bridge",
+    foreignActor: "Name reported by the bridge",
+    unknownActor: "Unknown sender",
+    linkedIdentity: "Linked OM identity",
+    noIdentityLink: "No current link",
+    fidelity: "How the bridge carried this",
+    flag: {
+      exact: "Carried without changes.",
+      lossy_formatting: "Some details could not be carried as written.",
+      reply_target_unavailable: "The original message could not be linked.",
+      edit_represented_as_new_message:
+        "The bridge carried this edit as a new message.",
+      delete_not_propagated:
+        "The bridge couldn’t pass on the deletion request.",
+      reaction_not_supported: "The bridge couldn’t pass on the reaction.",
+      attachment_transcoded: "The bridge converted the attachment.",
+      foreign_actor_unverified:
+        "The sender’s identity on the other network is unverified.",
+      origin_unverified: "The message’s original source is unverified.",
+    },
+    carry: {
+      flattened:
+        "The bridge carried this without its original thread or topic.",
+      read_only_summary:
+        "The bridge carried this as a read-only summary or link.",
+      not_carried: "The bridge couldn’t carry this action.",
+    },
+  },
+};
+
+export const portabilityCopy: PortabilityCopy = {
+  title: "Import and export",
+  loading: "Checking which import and export options are available…",
+  loadFailed: "Couldn’t load the import and export options.",
+  retry: "Try again",
+  back: "Back",
+  reasons: {
+    device_unavailable: "This device can’t do this.",
+    unsupported: "This version of OM doesn’t support this.",
+    policy_denied: "Your current settings don’t allow this.",
+    unauthorized_device: "Use a device that’s already linked to this account.",
+    wrong_account: "This archive belongs to a different account.",
+    invalid_scope: "Check the chats and dates you chose, then try again.",
+    not_an_archive: "Choose an OM Portable Archive file.",
+    encrypted_unsupported:
+      "This version of OM can’t open encrypted portable archives.",
+    invalid_archive: "OM couldn’t read this archive. Try another file.",
+    integrity_failure: "The archive didn’t pass its checks. Try another copy.",
+    too_large: "This file is too large for this device to handle.",
+    read_failed:
+      "OM couldn’t open the file. Choose it again or try another file.",
+    write_failed: "OM couldn’t save the export. Try again.",
+  },
+  format: {
+    archive: "OM Portable Archive",
+    readable: "Readable copy",
+  },
+  mode: {
+    read_only: "Read-only history",
+    same_account: "Restore history to this account",
+  },
+  export: {
+    title: "Export history",
+    scope: "Choose what to export",
+    format: "File format",
+    formatHint: {
+      archive: "A file that apps supporting the OM archive format can import.",
+      readable: "Text files you can open and read.",
+    },
+    history: "History",
+    historyKind: {
+      chat: "Chats",
+      space: "Spaces",
+      publication: "Publications",
+    },
+    allHistory: "All available history",
+    chooseHistory: "Choose individual chats, spaces or publications",
+    noHistory: "There’s no history available to export in this format.",
+    dates: "Date range",
+    dateHint: "Leave a date blank for no limit on that end.",
+    from: "From",
+    to: "To",
+    contents: "Include in the export",
+    content: {
+      media: "Attachments and media",
+      contacts: "Contacts",
+      aliases: "Aliases and profiles",
+      provenance: "Information about where messages came from",
+      local_preferences: "Bookmarks, pins and preferences",
+    },
+    noFormats: "No export formats are available.",
+    chooseFormat: "Choose an available file format to continue.",
+    chooseScope: "Choose the history or other items you want to export.",
+    review: "Review export",
+    plaintext:
+      "The export is unencrypted. Anyone who gets a copy can read its contents.",
+    archiveRetention:
+      "This archive leaves out disappearing and view-once messages.",
+    readableRetention: "A readable copy always leaves out view-once messages.",
+    includeDisappearing: "Include disappearing messages in this copy",
+    disappearingWarning:
+      "Disappearing messages you include will stay in the exported files after their timers end.",
+    save: "Save unencrypted export",
+    saving: "Saving your export…",
+    cancelled: "Export cancelled.",
+    failed: "Couldn’t start the export. Try again.",
+    saved: "Export saved",
+    again: "Export again",
+  },
+  import: {
+    title: "Import history",
+    chooseFile: "Choose archive file",
+    changeFile: "Choose another archive",
+    choosing: "Opening the archive…",
+    chooseFirst: "Choose an archive file to continue.",
+    mode: "Import as",
+    modeHint: {
+      read_only:
+        "You can read the imported history on this device. It gives you no access to send in those chats.",
+      same_account:
+        "Restore history on a device already linked to this account. The archive can’t change who has access.",
+    },
+    start: "Import history",
+    importing: "Importing history…",
+    fileCancelled: "File selection cancelled.",
+    cancelled: "Import cancelled.",
+    chooseFailed: "Couldn’t open the file chooser. Try again.",
+    failed: "Couldn’t start the import. Try again.",
+    imported: {
+      read_only: "Imported as read-only history",
+      same_account: "History restored to this account",
+    },
+  },
+  report: {
+    title: "What carried over",
+    source: "Source",
+    destination: "Destination",
+    from: {
+      local_history: "History on this device",
+      archive: "OM Portable Archive",
+    },
+    section: {
+      preserved: "Kept",
+      lossy: "Changed or left out",
+      unverifiableAuthorship: "Who wrote it",
+      missingMedia: "Missing attachments",
+      timestampLimitations: "Dates and times",
+      unsupportedFeatures: "Features that couldn’t carry over",
+    },
+    detail: {
+      history: "History records kept",
+      media: "Attachments kept",
+      contacts: "Contacts kept",
+      aliases: "Aliases and profiles kept",
+      provenance: "Source information kept",
+      local_preferences: "Bookmarks, pins and preferences kept",
+      canonical_evidence: "Original message evidence kept",
+      outside_scope: "Items outside your selection",
+      private_material: "Private account material left out",
+      view_once: "View-once items left out",
+      disappearing: "Disappearing items left out",
+      expired: "Expired items left out",
+      stale_control: "Older account or chat settings left inactive",
+      control_needs_live_validation:
+        "Archived access settings that need a current check",
+      unverified_objects: "Items OM couldn’t verify",
+      unverified_authorship: "Messages whose sender OM couldn’t verify",
+      quarantined_records: "History records left out after checks",
+      missing_media: "Attachments missing from the archive",
+      unverified_timestamps: "Dates and times OM couldn’t verify",
+      reactions_flattened: "Reactions were simplified",
+      edits_unavailable: "Message edits couldn’t carry over",
+      topics_unavailable: "Chat topics couldn’t carry over",
+      deletion_history_unknown: "Past deletions couldn’t be checked",
+    },
+    count: (label, count) => `${label} (${count.toLocaleString("en")})`,
+    empty: "No details were reported.",
+  },
 };
