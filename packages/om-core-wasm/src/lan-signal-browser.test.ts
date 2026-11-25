@@ -21,7 +21,7 @@ const boot = `(async (js) => {
 
 interface Channel { send(b: Uint8Array): void; canSend(): boolean; onDrain(cb: () => void): void; onMessage(cb: (b: Uint8Array) => void): void }
 interface Peer { offer(): Promise<string>; accept(s: string): Promise<string>; finish(s: string): Promise<void>; opened(): Promise<Channel> }
-interface Lan { mod: { createLanPeer(e: unknown): Peer; browserLanEnvironment(): unknown; lanChannelCapability(e: unknown): string }; peer: Peer; got: number; order: boolean; last: number; drains: number }
+interface Lan { mod: { createLanPeer(e: unknown): Peer; browserLanEnvironment(): unknown; lanChannelCapability(e: unknown): string; probeLanChannel(e: unknown): Promise<string> }; peer: Peer; got: number; order: boolean; last: number; drains: number }
 type LanWindow = { __lan: Lan };
 
 describe.skipIf(!enabled)("sealed signalling in real browser engines", () => {
@@ -38,8 +38,8 @@ describe.skipIf(!enabled)("sealed signalling in real browser engines", () => {
           await p.evaluate(`(${boot})(${JSON.stringify(js)})`);
           await p.evaluate(() => { const L = (window as unknown as LanWindow).__lan; L.peer = L.mod.createLanPeer(L.mod.browserLanEnvironment()); L.drains = 0; });
         }
-        const capability = await a.evaluate(() => { const L = (window as unknown as LanWindow).__lan; return L.mod.lanChannelCapability(L.mod.browserLanEnvironment()); });
-        expect(capability).toBe("available");
+        const capability = await a.evaluate(() => { const L = (window as unknown as LanWindow).__lan; return L.mod.probeLanChannel(L.mod.browserLanEnvironment()); });
+        if (name !== "webkit") expect(capability).toBe("available");
         const sessionId = "ab".repeat(16);
         const offer = await a.evaluate(() => (window as unknown as LanWindow).__lan.peer.offer());
         const sealedOffer = alice.engines.lanSignal.seal(alice.ctx, aConv, { kind: "offer", sessionId, sdp: offer });
@@ -65,6 +65,7 @@ describe.skipIf(!enabled)("sealed signalling in real browser engines", () => {
         ]);
         if (!established[0] || !established[1]) {
           expect(name).toBe("webkit"); // only the engine the spike already found unable to establish may fail to
+          expect(capability).toBe("unavailable"); // and the capability row must have said so before the attempt
           return;
         }
         await a.evaluate(async (n) => {
@@ -78,6 +79,7 @@ describe.skipIf(!enabled)("sealed signalling in real browser engines", () => {
         }, FRAMES);
         const got = await c.evaluate(async (n) => { const L = (window as unknown as LanWindow).__lan; for (let i = 0; i < 200 && L.got < n; i++) await new Promise((r) => setTimeout(r, 50)); return { got: L.got, order: L.order }; }, FRAMES);
         expect(got).toEqual({ got: FRAMES, order: true });
+        expect(capability).toBe("available"); // an engine that carried frames was reported available
       } finally { await b.close(); }
     }, 180_000);
   }
