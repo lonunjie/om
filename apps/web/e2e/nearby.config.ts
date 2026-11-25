@@ -1,5 +1,5 @@
 // Runs only the dev-harness build (port 4174), for specs that need no other server: `playwright test -c e2e/nearby.config.ts`.
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
@@ -10,5 +10,10 @@ export default defineConfig({
   reporter: [["list"]],
   outputDir: "../test-results",
   use: { baseURL: "http://localhost:4174" },
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
   webServer: [{ command: "pnpm exec vite preview --outDir dist-harness --port 4174 --strictPort", cwd: "..", url: "http://localhost:4174", reuseExistingServer: true }],
 });
