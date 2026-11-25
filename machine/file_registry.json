@@ -11344,6 +11344,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-core-wasm/src/lan-transfer-browser.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-core-wasm/src/recovery-runtime.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
