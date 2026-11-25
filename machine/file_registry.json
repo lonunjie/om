@@ -11302,13 +11302,6 @@
       "authority": "product_implementation"
     },
     {
-      "path": "packages/om-core-wasm/src/lan-signal-support.ts",
-      "class": "product_code",
-      "domain": "client_endpoint_distribution",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
       "path": "packages/om-core-wasm/src/lan-signal.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -11352,6 +11345,13 @@
     },
     {
       "path": "packages/om-core-wasm/src/scope-engines.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/test-support-lan-signal.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

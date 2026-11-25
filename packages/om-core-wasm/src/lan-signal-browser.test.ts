@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { chromium, firefox, webkit } from "@playwright/test";
 import ts from "typescript";
-import { SCOPE_WASM, connectPair } from "./lan-signal-support";
+import { SCOPE_WASM, connectPair } from "./test-support-lan-signal";
 
 const enabled = process.env.OM_LAN_BROWSERS === "1" && existsSync(SCOPE_WASM);
 const adapter = readFileSync(new URL("../../om-web-platform/src/lan/channel.ts", import.meta.url), "utf8");

@@ -3,7 +3,7 @@
 // one seals a WebRTC offer for the other and the other opens it. Needs `pnpm --filter @om/core-wasm build:wasm:scope`.
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { SCOPE_WASM, connectPair } from "./lan-signal-support";
+import { SCOPE_WASM, connectPair } from "./test-support-lan-signal";
 
 describe.skipIf(!existsSync(SCOPE_WASM))("sealed LAN signalling through the real module", () => {
   it("an accepted pair signals in both directions; a replay is refused", async () => {
