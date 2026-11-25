@@ -2,6 +2,7 @@
 // Typed client for the engineering-only `scope-engines` module (om_wasm_scope.wasm, never bundled; the flag is off in every
 // release). State lives in the module under caller-chosen handles; control heads are facts the caller already validated.
 // This file adds no behaviour: it names the commands and their answers.
+import type { ProfileExecutionContext } from "@om/platform-api";
 import type { WasmCore } from "./wasm";
 
 export type Refusal = { readonly refused: string };
@@ -59,6 +60,12 @@ export interface ScopeEngines {
     /** Only an authenticated receipt confirms delivery. */
     receipt(handle: string, a: { authenticated: boolean; blobId: string; digest: string; length: number }): Done | Refusal;
   };
+  /** Sealed WebRTC signalling for an accepted relationship. The pair seed stays inside Core: the host names the
+   * conversation, never a key. */
+  readonly lanSignal: {
+    seal(ctx: ProfileExecutionContext, conversationId: string, a: { kind: "offer" | "answer"; sessionId: string; sdp: string }): { readonly envelope: string } | Refusal;
+    open(ctx: ProfileExecutionContext, conversationId: string, envelope: string): { readonly kind: "offer" | "answer"; readonly sessionId: string; readonly sdp: string } | Refusal;
+  };
   readonly spaceBinding: {
     propose(handle: string): Done | Refusal;
     childAccepts(handle: string): LinkState | Refusal;
@@ -101,6 +108,10 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
       accept: (h, offset, len) => lt("receiver", h, { kind: "accept", offset, len }),
       transportAck: (h, upTo) => lt("sender", h, { kind: "transport_ack", upTo }),
       receipt: (h, a) => lt("sender", h, { kind: "receipt", ...a }),
+    },
+    lanSignal: {
+      seal: (ctx, conversationId, a) => q({ cmd: "lan_signal_seal", ctx, conversationId, kind: a.kind, sessionId: a.sessionId, sdp: a.sdp }),
+      open: (ctx, conversationId, envelope) => q({ cmd: "lan_signal_open", ctx, conversationId, bytes: envelope }),
     },
     spaceBinding: {
       propose: (h) => sb(h, { kind: "propose" }),

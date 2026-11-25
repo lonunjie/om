@@ -44,6 +44,9 @@ pub enum SignalError {
     NoSeed,
 }
 
+/// What an opened envelope yields: kind, session id and SDP.
+pub type Opened = (Kind, [u8; 16], String);
+
 pub fn signal_key(seed: &LanSeed, session_id: &[u8; 16], epoch: u64) -> [u8; 32] {
     let info = cbor::encode(&V::A(vec![
         V::T(LBL_KEY.into()),

@@ -262,6 +262,24 @@ enum Command {
         handle: String,
         op: scope::TransferOp,
     },
+    /// `local_delivery`: seal a WebRTC offer or answer for the other person of `conversationId` under the pair's LAN seed
+    /// (which stays inside Core). `kind` is `offer` or `answer`, `sessionId` 16 hex bytes. Answers `{envelope}` (hex) or
+    /// `{refused}`.
+    #[cfg(feature = "scope-engines")]
+    LanSignalSeal {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+        kind: String,
+        session_id: String,
+        sdp: String,
+    },
+    /// Open a sealed signal from the other person. Answers `{kind, sessionId, sdp}` or `{refused}`.
+    #[cfg(feature = "scope-engines")]
+    LanSignalOpen {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+        bytes: String,
+    },
     #[cfg(feature = "scope-engines")]
     LanFrameEncode {
         frame: scope::FrameIn,
@@ -1382,6 +1400,34 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 &handle,
                 op,
             )),
+            #[cfg(feature = "scope-engines")]
+            Command::LanSignalSeal {
+                ctx,
+                conversation_id,
+                kind,
+                session_id,
+                sdp,
+            } => {
+                let Some((kind, sid)) = scope::lan_signal_args(&kind, &session_id) else {
+                    return Ok(json!({ "refused": "malformed" }));
+                };
+                let r = self
+                    .core()?
+                    .lan_signal_seal(&ctx, &conversation_id, kind, sid, &sdp)?;
+                Ok(scope::lan_signal_sealed(r))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::LanSignalOpen {
+                ctx,
+                conversation_id,
+                bytes,
+            } => {
+                let Some(b) = scope::lan_bytes(&bytes) else {
+                    return Ok(json!({ "refused": "malformed" }));
+                };
+                let r = self.core()?.lan_signal_open(&ctx, &conversation_id, &b)?;
+                Ok(scope::lan_signal_opened(r))
+            }
             #[cfg(feature = "scope-engines")]
             Command::LanFrameEncode { frame } => Ok(scope::lan_frame_encode(frame)),
             #[cfg(feature = "scope-engines")]

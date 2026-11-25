@@ -1381,6 +1381,60 @@ pub fn lan_frame_encode(f: FrameIn) -> Value {
 }
 
 /// One channel message to a typed frame, or the codec's stable refusal class.
+/// The signalling kind and 16-byte session id of a seal request, or `None` when either is malformed.
+pub fn lan_signal_args(
+    kind: &str,
+    session_id: &str,
+) -> Option<(om_core::crypto::lan_signal::Kind, [u8; 16])> {
+    use om_core::crypto::lan_signal::Kind;
+    let kind = match kind {
+        "offer" => Kind::Offer,
+        "answer" => Kind::Answer,
+        _ => return None,
+    };
+    Some((kind, hex_vec(session_id)?.try_into().ok()?))
+}
+
+pub fn lan_bytes(hex: &str) -> Option<Vec<u8>> {
+    hex_vec(hex)
+}
+
+fn signal_refusal(e: om_core::crypto::lan_signal::SignalError) -> &'static str {
+    use om_core::crypto::lan_signal::SignalError::*;
+    match e {
+        Malformed => "malformed",
+        Epoch => "epoch",
+        Replay => "replay",
+        Decrypt => "decrypt",
+        Payload => "payload",
+        NoSeed => "no_seed",
+    }
+}
+
+pub fn lan_signal_sealed(r: Result<Vec<u8>, om_core::crypto::lan_signal::SignalError>) -> Value {
+    match r {
+        Ok(b) => json!({ "envelope": hex_out(&b) }),
+        Err(e) => refused(signal_refusal(e)),
+    }
+}
+
+pub fn lan_signal_opened(
+    r: Result<
+        (om_core::crypto::lan_signal::Kind, [u8; 16], String),
+        om_core::crypto::lan_signal::SignalError,
+    >,
+) -> Value {
+    use om_core::crypto::lan_signal::Kind;
+    match r {
+        Ok((k, sid, sdp)) => json!({
+            "kind": if k == Kind::Offer { "offer" } else { "answer" },
+            "sessionId": hex_out(&sid),
+            "sdp": sdp,
+        }),
+        Err(e) => refused(signal_refusal(e)),
+    }
+}
+
 pub fn lan_frame_decode(bytes_hex: &str) -> Value {
     let Some(b) = hex_vec(bytes_hex) else {
         return refused("malformed");

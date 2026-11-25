@@ -121,6 +121,9 @@ pub struct Core<R: RngCore + CryptoRng> {
     /// `AppState.group_crypto`: it is dropped whenever a transition fails or the host does not make it durable, and
     /// rebuilt from the committed snapshot on next use.
     group_engines: BTreeMap<ProfileId, Box<dyn GroupCrypto>>,
+    /// Replay and nonce-reuse memory of the LAN signalling envelopes, per profile. Memory only: it only has to outlive
+    /// the accepted epoch window, and a restart that drops it also drops every in-flight rendezvous.
+    lan_signal_guards: BTreeMap<ProfileId, crate::crypto::lan_signal::SignalGuard>,
 }
 
 /// A new engine for this device, or the one stored in `app` (the loader is chosen by the build: the real OpenMLS engine
@@ -178,6 +181,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             direct_senders: BTreeMap::new(),
             direct_fetches: BTreeMap::new(),
             group_engines: BTreeMap::new(),
+            lan_signal_guards: BTreeMap::new(),
         }
     }
 
@@ -1491,6 +1495,81 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }
         let ct = self.restage_attachment(ctx, blob_id, plaintext)?;
         self.build_direct_sender(ctx, blob_id, ct)
+    }
+
+    /// `local_delivery` (ADR-0158 section 3): the peer device's identity key for `conversation_id`, with the profile's
+    /// device. The seed itself never leaves the device; this only names which relationship's seed to use.
+    fn lan_peer(
+        &self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+    ) -> Result<[u8; 32], CoreError> {
+        let slot = self.slot(ctx)?;
+        let rel = slot
+            .state
+            .app
+            .relationships
+            .get(conversation_id)
+            .ok_or(CoreError::NotFound("conversation"))?;
+        crate::crypto::unhex(&rel.peer_ik)
+            .ok()
+            .and_then(|v| v.try_into().ok())
+            .ok_or(CoreError::CorruptState("bad key"))
+    }
+
+    /// Seals a WebRTC offer or answer for the other person of `conversation_id` under that pair's LAN seed. The nonce is
+    /// drawn here (never chosen by the host); `session_id` is the host's fresh 16 bytes, echoed from the offer for an
+    /// answer. Refusals are the signalling errors (no seed for this peer, a repeated nonce, an oversized SDP).
+    pub fn lan_signal_seal(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        kind: crate::crypto::lan_signal::Kind,
+        session_id: [u8; 16],
+        sdp: &str,
+    ) -> Result<Result<Vec<u8>, crate::crypto::lan_signal::SignalError>, CoreError> {
+        let peer = self.lan_peer(ctx, conversation_id)?;
+        let mut nonce = [0u8; 12];
+        self.rng.fill_bytes(&mut nonce);
+        let now = self.clock.now_ms() / 1000;
+        let guard = self
+            .lan_signal_guards
+            .entry(ctx.profile_id.clone())
+            .or_default();
+        let Some(device) = self
+            .profiles
+            .get(&ctx.profile_id)
+            .and_then(|s| s.state.device.as_ref())
+        else {
+            return Err(CoreError::Invalid("no identity"));
+        };
+        Ok(device.lan_signal_seal(guard, &peer, now, kind, session_id, nonce, sdp))
+    }
+
+    /// Opens a signalling envelope from the other person of `conversation_id`.
+    pub fn lan_signal_open(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        bytes: &[u8],
+    ) -> Result<
+        Result<crate::crypto::lan_signal::Opened, crate::crypto::lan_signal::SignalError>,
+        CoreError,
+    > {
+        let peer = self.lan_peer(ctx, conversation_id)?;
+        let now = self.clock.now_ms() / 1000;
+        let guard = self
+            .lan_signal_guards
+            .entry(ctx.profile_id.clone())
+            .or_default();
+        let Some(device) = self
+            .profiles
+            .get(&ctx.profile_id)
+            .and_then(|s| s.state.device.as_ref())
+        else {
+            return Err(CoreError::Invalid("no identity"));
+        };
+        Ok(device.lan_signal_open(guard, &peer, now, bytes))
     }
 
     /// Drop senders whose offer is no longer live and record the ones that finished. The only durable effect of serving.
