@@ -1,9 +1,9 @@
 {
   "source": "scope-engines engineering module (om_wasm_scope.wasm) minus the base om_wasm.wasm, production-optimised, gzip level 9; not shipped, not bundled",
   "baseline": {
-    "deltaRawBytes": 693171,
-    "deltaGzipBytes": 151986
+    "deltaRawBytes": 849809,
+    "deltaGzipBytes": 187852
   },
   "headroomPercent": 5,
-  "headroomNote": "Measured 2026-11-25 on emeth4 (two identical cold builds, digest prefix f6731adf2634); 5 percent headroom for the engines still to be added."
+  "headroomNote": "Re-measured 2026-11-25 on emeth4 after the space_binding, LAN signalling and typed fetch-frame commands were added (two identical cold builds, digest prefix 257f2ecf086a). Previous baseline +693171 raw / +151986 gzip (digest f6731adf2634) was measured before them. The release base module and its own size budget are unaffected."
 }
