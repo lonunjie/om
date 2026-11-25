@@ -86,6 +86,8 @@ It wrote no code, ran no tests, edited no ledger and amended no ADR. Nothing in 
 
 ## Update 2026-11-25: wasm host surface, handle-based commands
 
-Design sources read for this slice: the six domain document sets listed by `design_gate.py needs` for `crates/om-wasm` (the constitution through its digest); not read in full: documents outside those domains.
+Design sources read for this slice: none re-read in this session; the commands wrap Core modules (service_room_member, bridge_room, lan_transfer) built in earlier slices from their design documents and add no behaviour of their own beyond handle storage and JSON shape. The design gate output for `crates/om-wasm` was listed, not read in full; this wording replaces an earlier line that overstated it.
 
 `om-wasm` (feature `scope-engines`, off in every release) gained `room_services_do`, `bridge_room_do` and `lan_transfer_do`. State sits in the host instance under a caller-chosen handle (64 per kind); control heads arrive as already-validated facts. Tests cover the human-quorum rule (a bridge principal never counts), the protected capability, export blocking (class, stale, revoked) and receipt-only confirmation. Still open: space-binding state handle, the TypeScript binding, and the separate build variant.
+
+Build variant (2026-11-25): `pnpm --filter @om/core-wasm build:wasm:scope` writes `dist/om_wasm_scope.wasm` (never bundled, release artifacts unchanged). `pnpm --filter @om/core-wasm repro:scope` builds it twice from cold target directories: identical (digest prefix f6731adf2634), +693,171 raw / +151,986 gzip over the base module, budget recorded in [`packages/om-core-wasm/scripts/size-budget-scope.json`](../../packages/om-core-wasm/scripts/size-budget-scope.json). Not covered: the TypeScript binding and the space-binding handle command.

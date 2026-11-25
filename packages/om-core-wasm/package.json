@@ -9,12 +9,15 @@
     "./test-support": "./src/test-support.ts",
     "./om_wasm.wasm": "./dist/om_wasm.wasm",
     "./om_wasm_groups.wasm": "./dist/om_wasm_groups.wasm",
-    "./om_wasm_expressive.wasm": "./dist/om_wasm_expressive.wasm"
+    "./om_wasm_expressive.wasm": "./dist/om_wasm_expressive.wasm",
+    "./om_wasm_scope.wasm": "./dist/om_wasm_scope.wasm"
   },
   "scripts": {
     "build:wasm": "node build.mjs",
     "build:wasm:groups": "node build.mjs --groups",
-    "build:wasm:expressive": "node build.mjs --expressive"
+    "build:wasm:expressive": "node build.mjs --expressive",
+    "build:wasm:scope": "node build.mjs --scope-engines",
+    "repro:scope": "node scripts/check-scope-variant.mjs"
   },
   "dependencies": {
     "@om/platform-api": "workspace:*"

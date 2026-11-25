@@ -18,14 +18,18 @@ const env = { ...process.env, PATH: `/opt/homebrew/opt/rustup/bin:${process.env.
 // dist/om_wasm_groups.wasm. It is never the default artifact and never what `make core-wasm` ships.
 const groups = process.argv.includes("--groups");
 const expressive = process.argv.includes("--expressive");
-if (groups && expressive) throw new Error("Choose one engineering artifact");
+// `--scope-engines` builds the engineering artifact that carries the services, bridges, topics, moderation and LAN engines
+// (feature `scope-engines`, off in every release) to dist/om_wasm_scope.wasm. Never bundled into the web app.
+const scope = process.argv.includes("--scope-engines");
+if ([groups, expressive, scope].filter(Boolean).length > 1) throw new Error("Choose one engineering artifact");
 const features = ["om-core/production"];
 if (groups) features.push("groups-openmls");
 // The opt-in expressive client also carries Room attachments through the existing group engine.
 if (expressive) features.push("expressive-media", "groups-openmls");
+if (scope) features.push("scope-engines");
 execFileSync("cargo", ["build", "-p", "om-wasm", "--target", "wasm32-unknown-unknown", "--release", "--locked", "--features", features.join(",")], { cwd: root, env, stdio: "inherit" });
 mkdirSync(outDir, { recursive: true });
-const name = groups ? "om_wasm_groups.wasm" : expressive ? "om_wasm_expressive.wasm" : "om_wasm.wasm";
+const name = groups ? "om_wasm_groups.wasm" : scope ? "om_wasm_scope.wasm" : expressive ? "om_wasm_expressive.wasm" : "om_wasm.wasm";
 const out = join(outDir, name);
 copyFileSync(join(targetDir, "wasm32-unknown-unknown/release/om_wasm.wasm"), out);
 const sha256 = createHash("sha256").update(readFileSync(out)).digest("hex");
