@@ -416,3 +416,47 @@ fn a_lan_transfer_confirms_only_on_an_authenticated_receipt() {
     ));
     assert!(bad["refused"] == "bad_chunk" || bad["refused"] == "overrun");
 }
+
+#[test]
+fn a_space_binding_needs_an_official_link_and_dies_with_the_unlink() {
+    let mut c = session();
+    let ok = |v: &Value| v["ok"].clone();
+    let create = |caps: Value| json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"create_binding","spaceId":"aa".repeat(32),"governance":[{"kind":1,"id":"01".repeat(32)}],"capabilities":caps,"freshnessBound":60,"acceptsSubdelegation":false}});
+    assert_eq!(
+        ok(&c(create(json!(["room.remove_member"])))),
+        json!({"refused": "unknown_handle"})
+    );
+    c(json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"propose"}}));
+    assert_eq!(
+        ok(&c(create(json!(["room.remove_member"])))),
+        json!({"refused": "link_not_official"})
+    );
+    let v = ok(&c(
+        json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"child_accepts"}}),
+    ));
+    assert_eq!(v["official"], true);
+    assert_eq!(
+        ok(&c(create(json!(["room.manage_governance"])))),
+        json!({"refused": "binding_protected"})
+    );
+    assert_eq!(
+        ok(&c(create(json!([])))),
+        json!({"refused": "empty_capabilities"})
+    );
+    assert_eq!(
+        ok(&c(create(json!(["room.remove_member"])))),
+        json!({"done": true})
+    );
+    let v = ok(&c(
+        json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"unlink"}}),
+    ));
+    assert_eq!(
+        (v["official"].clone(), v["bound"].clone()),
+        (json!(false), json!(false))
+    );
+    // Re-accepting does not restore the binding.
+    let v = ok(&c(
+        json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"child_accepts"}}),
+    ));
+    assert_eq!(v["bound"], false);
+}

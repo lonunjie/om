@@ -263,6 +263,11 @@ enum Command {
         op: scope::TransferOp,
     },
     #[cfg(feature = "scope-engines")]
+    SpaceBindingDo {
+        handle: String,
+        op: scope::LinkOp,
+    },
+    #[cfg(feature = "scope-engines")]
     ModerationView {
         who: String,
     },
@@ -1369,6 +1374,10 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 &handle,
                 op,
             )),
+            #[cfg(feature = "scope-engines")]
+            Command::SpaceBindingDo { handle, op } => {
+                Ok(scope::space_binding_do(&mut self.handles, &handle, op))
+            }
             #[cfg(feature = "scope-engines")]
             Command::ModerationView { who } => Ok(scope::moderation_view(&self.moderation, &who)),
             #[cfg(feature = "scope-engines")]

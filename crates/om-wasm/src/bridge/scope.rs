@@ -597,6 +597,8 @@ pub struct Handles {
     bridge_rooms: BTreeMap<String, BridgeRoom>,
     senders: BTreeMap<String, (Sender, bool)>,
     receivers: BTreeMap<String, Receiver>,
+    links: BTreeMap<String, om_core::space_binding::ChildLink>,
+    bindings: BTreeMap<String, om_core::space_binding::Binding>,
 }
 
 #[derive(Deserialize)]
@@ -1174,4 +1176,89 @@ pub fn lan_transfer_do(h: &mut Handles, side: &str, handle: &str, op: TransferOp
             }
         }
     }
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum LinkOp {
+    Propose,
+    ChildAccepts,
+    SpaceRevokes,
+    ChildRevokes,
+    /// Needs an official link under the same handle; the Room's quorum approval is the caller's check.
+    CreateBinding {
+        space_id: String,
+        governance: Vec<ApproverIn>,
+        capabilities: Vec<String>,
+        freshness_bound: u64,
+        accepts_subdelegation: bool,
+    },
+    /// A Space-side unlink ends the binding for good; re-linking never restores it.
+    Unlink,
+    View,
+}
+
+/// One Room-to-Space link and its binding under a handle. In memory only: the Room-side binding wire is not frozen.
+pub fn space_binding_do(h: &mut Handles, handle: &str, op: LinkOp) -> Value {
+    use om_core::space_binding::{Binding, BindingError, ChildLink};
+    if matches!(op, LinkOp::Propose) {
+        if !h.links.contains_key(handle) && h.links.len() >= MAX_HANDLES {
+            return refused("too_many_handles");
+        }
+        h.links
+            .insert(handle.to_string(), ChildLink::proposed_by_space());
+        h.bindings.remove(handle);
+        return done();
+    }
+    let Some(l) = h.links.get_mut(handle) else {
+        return refused("unknown_handle");
+    };
+    match op {
+        LinkOp::Propose => unreachable!(),
+        LinkOp::ChildAccepts => l.child_accepts(),
+        LinkOp::SpaceRevokes => l.space_revokes(),
+        LinkOp::ChildRevokes => l.child_revokes(),
+        LinkOp::CreateBinding {
+            space_id,
+            governance,
+            capabilities,
+            freshness_bound,
+            accepts_subdelegation,
+        } => {
+            let (Some(sp), Some(gov)) = (hex_n::<32>(&space_id), approvers(&governance)) else {
+                return refused("malformed");
+            };
+            return match Binding::new(
+                l,
+                sp,
+                gov.into_iter().collect(),
+                capabilities.into_iter().collect(),
+                freshness_bound,
+                accepts_subdelegation,
+            ) {
+                Ok(b) => {
+                    h.bindings.insert(handle.to_string(), b);
+                    done()
+                }
+                Err(e) => refused(match e {
+                    BindingError::LinkNotOfficial => "link_not_official",
+                    BindingError::Protected => "binding_protected",
+                    BindingError::EmptyCapabilities => "empty_capabilities",
+                }),
+            };
+        }
+        LinkOp::Unlink => {
+            l.space_revokes();
+            if let Some(b) = h.bindings.remove(handle) {
+                b.space_unlinked();
+            }
+        }
+        LinkOp::View => {}
+    }
+    let l = h.links[handle];
+    json!({ "official": l.is_official(), "spaceSide": l.space_side, "childSide": l.child_side, "bound": h.bindings.contains_key(handle) })
 }
