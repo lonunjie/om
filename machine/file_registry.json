@@ -1894,6 +1894,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/fuzz/fuzz_targets/check_lan_frame.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/fuzz/fuzz_targets/check_wire.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

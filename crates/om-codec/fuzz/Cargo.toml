@@ -19,3 +19,10 @@ doc = false
 bench = false
 
 [workspace]
+
+[[bin]]
+name = "check_lan_frame"
+path = "fuzz_targets/check_lan_frame.rs"
+test = false
+doc = false
+bench = false
