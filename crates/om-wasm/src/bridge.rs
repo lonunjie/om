@@ -263,6 +263,14 @@ enum Command {
         op: scope::TransferOp,
     },
     #[cfg(feature = "scope-engines")]
+    LanFrameEncode {
+        frame: scope::FrameIn,
+    },
+    #[cfg(feature = "scope-engines")]
+    LanFrameDecode {
+        bytes: String,
+    },
+    #[cfg(feature = "scope-engines")]
     SpaceBindingDo {
         handle: String,
         op: scope::LinkOp,
@@ -1374,6 +1382,10 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 &handle,
                 op,
             )),
+            #[cfg(feature = "scope-engines")]
+            Command::LanFrameEncode { frame } => Ok(scope::lan_frame_encode(frame)),
+            #[cfg(feature = "scope-engines")]
+            Command::LanFrameDecode { bytes } => Ok(scope::lan_frame_decode(&bytes)),
             #[cfg(feature = "scope-engines")]
             Command::SpaceBindingDo { handle, op } => {
                 Ok(scope::space_binding_do(&mut self.handles, &handle, op))

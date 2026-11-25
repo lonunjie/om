@@ -460,3 +460,27 @@ fn a_space_binding_needs_an_official_link_and_dies_with_the_unlink() {
     ));
     assert_eq!(v["bound"], false);
 }
+
+#[test]
+fn lan_frames_round_trip_through_the_bridge_and_hostile_ones_are_refused() {
+    let mut c = session();
+    let t = "07".repeat(16);
+    let e = c(
+        json!({"cmd":"lan_frame_encode","frame":{"kind":"chunk","transferId":t,"offset":16384,"bytes":"ab".repeat(100)}}),
+    );
+    let hex = e["ok"]["frame"].as_str().unwrap().to_string();
+    let d = c(json!({"cmd":"lan_frame_decode","bytes":hex}));
+    assert_eq!(
+        (d["ok"]["kind"].clone(), d["ok"]["offset"].clone()),
+        (json!("chunk"), json!(16384))
+    );
+    let big = c(
+        json!({"cmd":"lan_frame_encode","frame":{"kind":"chunk","transferId":t,"offset":0,"bytes":"ab".repeat(16385)}}),
+    );
+    assert_eq!(big["ok"], json!({"refused":"value_range"}));
+    assert!(c(json!({"cmd":"lan_frame_decode","bytes":"a0"}))["ok"]["refused"].is_string());
+    assert_eq!(
+        c(json!({"cmd":"lan_frame_decode","bytes":"zz"}))["ok"],
+        json!({"refused":"malformed"})
+    );
+}

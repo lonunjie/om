@@ -1262,3 +1262,159 @@ pub fn space_binding_do(h: &mut Handles, handle: &str, op: LinkOp) -> Value {
     let l = h.links[handle];
     json!({ "official": l.is_official(), "spaceSide": l.space_side, "childSide": l.child_side, "bound": h.bindings.contains_key(handle) })
 }
+
+// ---- LanFrameV1 transfer frames ---------------------------------------------------------------------------------------
+
+use om_core::lan_frame::{Frame, encode_frame};
+
+fn hex_out(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum FrameIn {
+    Begin {
+        transfer_id: String,
+        object_kind: u64,
+        total_bytes: u64,
+        sha256: String,
+    },
+    Chunk {
+        transfer_id: String,
+        offset: u64,
+        bytes: String,
+    },
+    End {
+        transfer_id: String,
+    },
+    Ack {
+        transfer_id: String,
+        offset: u64,
+    },
+    Error {
+        id: String,
+        code: u64,
+    },
+    Receipt {
+        transfer_id: String,
+        tag: String,
+    },
+}
+
+/// Canonical `LanFrameV1` bytes (hex) for one transfer frame; the codec refuses an out-of-range value on the way back in.
+pub fn lan_frame_encode(f: FrameIn) -> Value {
+    let id = |s: &str| hex_n::<16>(s);
+    let frame = match f {
+        FrameIn::Begin {
+            transfer_id,
+            object_kind,
+            total_bytes,
+            sha256,
+        } => {
+            let (Some(t), Some(d)) = (id(&transfer_id), hex_n::<32>(&sha256)) else {
+                return refused("malformed");
+            };
+            Frame::Begin {
+                transfer_id: t,
+                object_kind,
+                total_bytes,
+                sha256: d,
+            }
+        }
+        FrameIn::Chunk {
+            transfer_id,
+            offset,
+            bytes,
+        } => {
+            let (Some(t), Some(b)) = (id(&transfer_id), hex_vec(&bytes)) else {
+                return refused("malformed");
+            };
+            Frame::Chunk {
+                transfer_id: t,
+                offset,
+                bytes: b,
+            }
+        }
+        FrameIn::End { transfer_id } => {
+            let Some(t) = id(&transfer_id) else {
+                return refused("malformed");
+            };
+            Frame::End { transfer_id: t }
+        }
+        FrameIn::Ack {
+            transfer_id,
+            offset,
+        } => {
+            let Some(t) = id(&transfer_id) else {
+                return refused("malformed");
+            };
+            Frame::Ack {
+                transfer_id: t,
+                offset,
+            }
+        }
+        FrameIn::Error { id: i, code } => {
+            let Some(t) = id(&i) else {
+                return refused("malformed");
+            };
+            Frame::Error { id: t, code }
+        }
+        FrameIn::Receipt { transfer_id, tag } => {
+            let (Some(t), Some(g)) = (id(&transfer_id), hex_n::<32>(&tag)) else {
+                return refused("malformed");
+            };
+            Frame::Receipt {
+                transfer_id: t,
+                tag: g,
+            }
+        }
+    };
+    match encode_frame(&frame) {
+        Some(b) if om_core::lan_frame::decode(&b).is_ok() => json!({ "frame": hex_out(&b) }),
+        _ => refused("value_range"),
+    }
+}
+
+/// One channel message to a typed frame, or the codec's stable refusal class.
+pub fn lan_frame_decode(bytes_hex: &str) -> Value {
+    let Some(b) = hex_vec(bytes_hex) else {
+        return refused("malformed");
+    };
+    match om_core::lan_frame::decode(&b) {
+        Err(e) => refused(e),
+        Ok(Frame::Begin {
+            transfer_id,
+            object_kind,
+            total_bytes,
+            sha256,
+        }) => {
+            json!({ "kind": "begin", "transferId": hex_out(&transfer_id), "objectKind": object_kind, "totalBytes": total_bytes, "sha256": hex_out(&sha256) })
+        }
+        Ok(Frame::Chunk {
+            transfer_id,
+            offset,
+            bytes,
+        }) => {
+            json!({ "kind": "chunk", "transferId": hex_out(&transfer_id), "offset": offset, "bytes": hex_out(&bytes) })
+        }
+        Ok(Frame::End { transfer_id }) => {
+            json!({ "kind": "end", "transferId": hex_out(&transfer_id) })
+        }
+        Ok(Frame::Ack {
+            transfer_id,
+            offset,
+        }) => json!({ "kind": "ack", "transferId": hex_out(&transfer_id), "offset": offset }),
+        Ok(Frame::Error { id, code }) => {
+            json!({ "kind": "error", "id": hex_out(&id), "code": code })
+        }
+        Ok(Frame::Receipt { transfer_id, tag }) => {
+            json!({ "kind": "receipt", "transferId": hex_out(&transfer_id), "tag": hex_out(&tag) })
+        }
+        Ok(Frame::Request { kind }) => json!({ "kind": "request", "frameKind": kind }),
+    }
+}
