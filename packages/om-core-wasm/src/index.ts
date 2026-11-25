@@ -12,3 +12,5 @@ export { createScopeEngines } from "./scope-engines";
 export type { ScopeEngines } from "./scope-engines";
 export { createLanReceiver, createLanSender } from "./lan-driver";
 export type { LanChannel, LanReceiver, LanReceiverOptions, LanSender, LanSenderOptions } from "./lan-driver";
+export { LanSessionError, lanInitiate, lanRespond } from "./lan-session";
+export type { LanSessionFailure, LanSessionOptions, SessionPeer, Signaller } from "./lan-session";

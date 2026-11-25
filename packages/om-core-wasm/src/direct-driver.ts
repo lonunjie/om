@@ -13,8 +13,8 @@
 // opened bytes back to the caller in memory.
 //
 // The transport is abstract. ADR-0158 section 4 defines the real one (a WebRTC data channel `om-lan-v1`, signalled by sealed
-// `LanSignalEnvelopeV1`) but `local_delivery` is not an authorized scope and no signalling codec exists (D120), so this package
-// ships the interface and a loopback in tests; no product transport is wired.
+// `LanSignalEnvelopeV1`): the channel is `@om/web-platform/lan`, the sealed signalling is `lan-session.ts`, and the loopback in
+// tests stands in for both. No product transport is wired to this driver yet.
 import type { AttachmentMeta, AttachmentOpenResult, MessageId, OperationId, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { asConversationId, asOperationId } from "@om/platform-api";
 import type { DirectFrame } from "./types";
