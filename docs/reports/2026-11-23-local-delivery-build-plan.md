@@ -95,3 +95,15 @@ Added: `om_core::lan_frame` (typed transfer frames, replayed against the frozen 
 Design sources read in full this session: [`LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`](../architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md) and [`ADR-0158`](../../decisions/ADR-0158-lan-delivery-profile-v1.md). Listed by the design gate for `packages/om-web-platform` and **not read this session**: the client documents (PWA reference client, client and extension architecture, vault, profile isolation, update lifecycle, notifications, plugin architecture, endpoint coercion) and ADRs, the discovery documents, and the UX documents. The adapter adds no UI and no product semantics, but it was written without them, so a reviewer should read it against those documents.
 
 Added: `packages/om-web-platform/src/lan/channel.ts` (export `@om/web-platform/lan`): the ordered `om-lan-v1` DataChannel with `iceServers: []`, text offer and answer for the host to seal in `LanSignalEnvelopeV1`, the profile's 262,144 and 65,536 byte backpressure marks, a `lanChannelCapability` row (`unavailable` when no peer connection exists; no weaker fallback), a 12,288-byte SDP bound. Five unit tests with a fake peer connection pass. Not covered: real browsers (the earlier feasibility spike covers Chromium and Firefox on one machine; WebKit not established), the seed-sealed signal envelope wiring, real phones or networks.
+
+### Real-browser run of the adapter (2026-11-25, build host, one machine)
+
+[`adapter-e2e.mjs`](../../verification/prototypes/lan-datachannel/adapter-e2e.mjs) runs the real adapter in two pages per engine and streams 128 frames of 16 KiB with the adapter's backpressure; raw result: [`lan-adapter-e2e-2026-11-25.json`](../../verification/results/lan-adapter-e2e-2026-11-25.json).
+
+| Engine | Capability row | Established | Frames in order | Backpressure pauses | STUN or relay in SDP |
+|---|---|---|---|---|---|
+| Chromium | available | yes | 128 of 128 | 7 | none |
+| Firefox | available | yes | 128 of 128 | 7 | none |
+| WebKit (Playwright, Linux) | available | **no**: `connection` error | n/a | n/a | n/a |
+
+Findings: the adapter reports `unavailable` on a page that is not a secure context (`about:blank`), as intended. On WebKit the peer connection exists but the channel does not come up between two pages on one machine, the same as the first spike; whether real Safari on a real network differs is untested, so the capability row must come from an actual establish attempt, not from API presence alone. Not covered: iOS Safari, real phones, real Wi-Fi, client isolation, the local-network permission.

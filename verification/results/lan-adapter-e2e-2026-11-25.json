@@ -1,0 +1,34 @@
+{
+ "kind": "lan_adapter_e2e",
+ "frames": 128,
+ "engines": {
+  "chromium": {
+   "engine": "chromium",
+   "capability": "available",
+   "established": true,
+   "frames": 128,
+   "bytes": 2097152,
+   "inOrder": true,
+   "pausedForBackpressure": 7,
+   "sdpHasStun": false,
+   "pass": true
+  },
+  "firefox": {
+   "engine": "firefox",
+   "capability": "available",
+   "established": true,
+   "frames": 128,
+   "bytes": 2097152,
+   "inOrder": true,
+   "pausedForBackpressure": 7,
+   "sdpHasStun": false,
+   "pass": true
+  },
+  "webkit": {
+   "engine": "webkit",
+   "capability": "available",
+   "established": false,
+   "error": "Error: page.evaluate: Error: connection"
+  }
+ }
+}

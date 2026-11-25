@@ -15600,6 +15600,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/lan-datachannel/adapter-e2e.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/lan-datachannel/feasibility.mjs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -17561,6 +17568,13 @@
     },
     {
       "path": "verification/results/introgate-sybil-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/lan-adapter-e2e-2026-11-25.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
