@@ -40,6 +40,10 @@ impl LanSeed {
     pub(crate) fn expose_for_derivation(&self) -> [u8; 32] {
         self.0
     }
+    /// Rebuilds a seed from bytes this module derived earlier and the Device stored (never from outside Core).
+    pub(crate) fn from_derived(b: [u8; 32]) -> Self {
+        Self(b)
+    }
     fn from_okm(mut okm: [u8; 32]) -> Self {
         let s = Self(okm);
         okm.zeroize();

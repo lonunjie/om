@@ -40,6 +40,8 @@ pub enum SignalError {
     Decrypt,
     /// The plaintext is not UTF-8, or the SDP is empty or over [`MAX_SDP`].
     Payload,
+    /// No LAN seed is held for this peer.
+    NoSeed,
 }
 
 pub fn signal_key(seed: &LanSeed, session_id: &[u8; 16], epoch: u64) -> [u8; 32] {

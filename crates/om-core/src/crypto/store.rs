@@ -22,12 +22,13 @@ use crate::crypto::binding::{
     PeerView, RelationshipContext, StaticKeys, TrustedPeer, VerifiedBundle,
 };
 use crate::crypto::cbor::{self, V};
+use crate::crypto::lan_signal;
 use crate::crypto::ledger::LastResortLedger;
 use crate::crypto::pqxdh::{self, InitHeader, PqKind, encode_ec};
 use crate::crypto::rng::{CryptoRng, RngCore, arr32, arr64};
 use crate::crypto::session::{MsgKeys, SessionState};
 use crate::crypto::sig::DeviceSigner;
-use crate::crypto::{Error, PROFILE_V1};
+use crate::crypto::{Error, PROFILE_V1, lan_rendezvous};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Fixed prototype clock values (bundle expiry is checked against `NOW`).
@@ -131,6 +132,12 @@ pub struct Device {
     pub one_time_epoch: BTreeMap<u32, u64>,
     /// Wall-clock seconds at which the current signed prekeys were made (key 20); 0 = not recorded yet. Never lowered.
     pub rotation_at: u64,
+    /// Relationship-private LAN rendezvous seeds (ADR-0158 section 2), by EncodeEC(peer IK) like `sessions`. Each is the
+    /// purpose-separated export of the PQXDH `SK` of the session that created the pair's ratchet, derived at establishment
+    /// (never from a ratchet key) and never handed to a caller: only [`Device::lan_signal_seal`] and
+    /// [`Device::lan_signal_open`] use it. Persisted at key 24; absent in older state, which means no LAN seed for that
+    /// relationship.
+    lan_seeds: BTreeMap<Vec<u8>, zeroize::Zeroizing<[u8; 32]>>,
 }
 
 /// A signed-prekey epoch that has been superseded but can still receive first messages.
@@ -235,6 +242,7 @@ impl Device {
             bundle_expires_at: BUNDLE_EXPIRES,
             one_time_epoch: BTreeMap::new(),
             rotation_at: 0,
+            lan_seeds: BTreeMap::new(),
         }
     }
 
@@ -603,6 +611,10 @@ impl Device {
         self.trust_peer_device(peer.acs_body, peer.credential_body)?;
         let est = pqxdh::initiate(&self.ik_secret, &vb, rng)?;
         let dr = SessionState::init_alice(&est.sk, est.ad.clone(), &vb.spk, rng);
+        let lan = zeroize::Zeroizing::new(
+            lan_rendezvous::pair_seed(&est.sk, PROFILE_V1, &self.device_id, &vb.device_id)
+                .expose_for_derivation(),
+        );
         let kind = if vb.pq_one_time {
             PqKind::OneTime
         } else {
@@ -616,6 +628,7 @@ impl Device {
             pq_kind: kind,
         };
         self.sessions.insert(encode_ec(&vb.ik).to_vec(), sess);
+        self.lan_seeds.insert(encode_ec(&vb.ik).to_vec(), lan);
         Ok((vb, est.transcript))
     }
 
@@ -719,7 +732,8 @@ impl Device {
         }
         // ADR-0137: relationship identity is checked before *any* session lookup/decrypt.
         // This closes the established-session bypass as well as new-session initiation.
-        binding::verify_initiator(&sender_ik, &self.peer_devices, relationship)?;
+        let (_, initiator_device) =
+            binding::verify_initiator(&sender_ik, &self.peer_devices, relationship)?;
         match (self.sessions.get_mut(sender), init) {
             (Some(s), init) => {
                 if let Some(h) = &init {
@@ -728,7 +742,7 @@ impl Device {
                     if s.initiator && s.pending_init.is_some() && h.ek_a != s.init_ek {
                         if h.ek_a < s.init_ek {
                             return self
-                                .accept_initial(h, header, ct, &ctx, rng)
+                                .accept_initial(h, initiator_device, header, ct, &ctx, rng)
                                 .map(|(ik, pt, keys)| (ik, pt, keys, false));
                         }
                         return Err(Error::CrossedInitiation);
@@ -751,7 +765,7 @@ impl Device {
                 Ok((sender_ik, pt, keys, call))
             }
             (None, Some(h)) => self
-                .accept_initial(&h, header, ct, &ctx, rng)
+                .accept_initial(&h, initiator_device, header, ct, &ctx, rng)
                 .map(|(ik, pt, keys)| (ik, pt, keys, false)),
             (None, None) => Err(Error::NoSession),
         }
@@ -761,6 +775,7 @@ impl Device {
     fn accept_initial<R: RngCore + CryptoRng>(
         &mut self,
         h: &InitHeader,
+        initiator_device: [u8; 16],
         header: &[u8],
         ct: &[u8],
         ctx: &[u8],
@@ -804,6 +819,10 @@ impl Device {
             self.ledger.check(spk.epoch, &hid)?;
         }
         let (sk, ad) = pqxdh::respond(&self.ik_secret, &spk.secret, opk.as_deref(), &pq_seed, h)?;
+        let lan = zeroize::Zeroizing::new(
+            lan_rendezvous::pair_seed(&sk, PROFILE_V1, &initiator_device, &self.device_id)
+                .expose_for_derivation(),
+        );
         let mut dr = SessionState::init_bob(&sk, ad, &spk.secret);
         let (pt, keys) = dr.decrypt(header, ct, ctx, rng)?;
         // Success: delete used one-time private keys (forward secrecy + single use) or record the ledger.
@@ -832,7 +851,59 @@ impl Device {
                 pq_kind: kind,
             },
         );
+        self.lan_seeds.insert(encode_ec(&h.ik_a).to_vec(), lan);
         Ok((h.ik_a, pt, keys))
+    }
+
+    // ---- LAN signalling (ADR-0158 sections 2 and 3) ---------------------------------------
+
+    /// True when a LAN seed exists for this peer (the relationship was established by a session that exported one).
+    pub fn has_lan_seed(&self, peer_ik: &[u8; 32]) -> bool {
+        self.lan_seeds.contains_key(encode_ec(peer_ik).as_slice())
+    }
+
+    /// Destroys the peer's LAN seed (relationship retired or blocked, ADR-0158 section 9).
+    pub fn retire_lan_seed(&mut self, peer_ik: &[u8; 32]) -> bool {
+        self.lan_seeds
+            .remove(encode_ec(peer_ik).as_slice())
+            .is_some()
+    }
+
+    fn lan_seed(
+        &self,
+        peer_ik: &[u8; 32],
+    ) -> Result<lan_rendezvous::LanSeed, lan_signal::SignalError> {
+        self.lan_seeds
+            .get(encode_ec(peer_ik).as_slice())
+            .map(|k| lan_rendezvous::LanSeed::from_derived(**k))
+            .ok_or(lan_signal::SignalError::NoSeed)
+    }
+
+    /// Seals an SDP offer or answer for this peer under the pair's LAN seed. The seed never leaves the Device.
+    pub fn lan_signal_seal(
+        &self,
+        guard: &mut lan_signal::SignalGuard,
+        peer_ik: &[u8; 32],
+        now: u64,
+        kind: lan_signal::Kind,
+        session_id: [u8; 16],
+        nonce: [u8; 12],
+        sdp: &str,
+    ) -> Result<Vec<u8>, lan_signal::SignalError> {
+        let seed = self.lan_seed(peer_ik)?;
+        lan_signal::seal(&seed, guard, now, kind, session_id, nonce, sdp)
+    }
+
+    /// Opens an envelope from this peer.
+    pub fn lan_signal_open(
+        &self,
+        guard: &mut lan_signal::SignalGuard,
+        peer_ik: &[u8; 32],
+        now: u64,
+        bytes: &[u8],
+    ) -> Result<(lan_signal::Kind, [u8; 16], String), lan_signal::SignalError> {
+        let seed = self.lan_seed(peer_ik)?;
+        lan_signal::open(&seed, guard, now, bytes)
     }
 
     // ---- persistence --------------------------------------------------------------------
@@ -856,6 +927,23 @@ impl Device {
             }
             if self.rotation_at != 0 {
                 m.push((20, V::U(self.rotation_at)));
+            }
+            // A seed without its session is never written (it could not be read back): the session is the relationship.
+            let seeds: Vec<_> = self
+                .lan_seeds
+                .iter()
+                .filter(|(k, _)| self.sessions.contains_key(*k))
+                .collect();
+            if !seeds.is_empty() {
+                m.push((
+                    24,
+                    V::A(
+                        seeds
+                            .into_iter()
+                            .map(|(k, s)| V::A(vec![V::B(k.clone()), V::B(s.to_vec())]))
+                            .collect(),
+                    ),
+                ));
             }
             if let Some(n) = self.prev.last() {
                 m.push((21, V::U(n.expires_at)));
@@ -1107,6 +1195,21 @@ impl Device {
                 return Err(Error::Decode("device: one-time epoch"));
             }
         }
+        let mut lan_seeds = BTreeMap::new();
+        for e in v.opt(24).map(|x| x.a()).transpose()?.unwrap_or(&[]) {
+            let a = e.a()?;
+            if a.len() != 2 {
+                return Err(Error::Decode("device: lan seed"));
+            }
+            let key = a[0].b()?.to_vec();
+            if !sessions.contains_key(&key)
+                || lan_seeds
+                    .insert(key, zeroize::Zeroizing::new(a[1].b32()?))
+                    .is_some()
+            {
+                return Err(Error::Decode("device: lan seed"));
+            }
+        }
         let bundle_expires_at = v
             .opt(18)
             .map(|x| x.u())
@@ -1167,6 +1270,7 @@ impl Device {
             bundle_expires_at,
             one_time_epoch,
             rotation_at: v.opt(20).map(|x| x.u()).transpose()?.unwrap_or(0),
+            lan_seeds,
         }
         .reindexed()
     }
