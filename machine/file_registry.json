@@ -3091,6 +3091,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/lan_frame_second_codec.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/lan_rendezvous_state.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -11281,6 +11288,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-core-wasm/src/lan-direct-channel.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/lan-direct-channel.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-core-wasm/src/lan-driver.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -15657,6 +15678,41 @@
     },
     {
       "path": "verification/prototypes/lan-datachannel/feasibility.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/lan-frame-py/NOTES.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/lan-frame-py/lanframe.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/lan-frame-py/make_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/lan-frame-py/test_lanframe.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/lan-frame-py/vectors.json",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
