@@ -83,3 +83,9 @@ Slice 0 is well specified once the contract is reviewed and fits a mid tier work
 ## 8. What this plan did not do
 
 It wrote no code, ran no tests, edited no ledger and amended no ADR. Nothing in the Q-list changes audited text.
+
+## Update 2026-11-25: wasm host surface, handle-based commands
+
+Design sources read for this slice: the six domain document sets listed by `design_gate.py needs` for `crates/om-wasm` (the constitution through its digest); not read in full: documents outside those domains.
+
+`om-wasm` (feature `scope-engines`, off in every release) gained `room_services_do`, `bridge_room_do` and `lan_transfer_do`. State sits in the host instance under a caller-chosen handle (64 per kind); control heads arrive as already-validated facts. Tests cover the human-quorum rule (a bridge principal never counts), the protected capability, export blocking (class, stale, revoked) and receipt-only confirmation. Still open: space-binding state handle, the TypeScript binding, and the separate build variant.

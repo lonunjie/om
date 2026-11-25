@@ -213,3 +213,206 @@ fn a_delegated_intent_is_checked_against_the_binding() {
     );
     assert_eq!(r["ok"]["refused"], "binding_protected");
 }
+
+fn session() -> impl FnMut(Value) -> Value {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"scope"),
+        || 1_790_000_000_000,
+    );
+    move |v| serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+}
+
+fn head(version: u64, hash: &str, state: u64) -> Value {
+    json!({"serviceId": "61".repeat(32), "version": version, "hash": hash.repeat(32),
+           "endpoints": [{"id": "10".repeat(16), "state": state}]})
+}
+
+#[test]
+fn a_room_service_keeps_its_state_under_a_handle() {
+    let mut c = session();
+    let svc = "61".repeat(32);
+    let ep = "10".repeat(16);
+    let ok = |v: &Value| v["ok"].clone();
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"open","quorum":2,"sequencingTimeout":300}})
+        )),
+        json!({"done": true})
+    );
+    let humans = json!([{"kind":1,"id":"01".repeat(32)},{"kind":1,"id":"02".repeat(32)}]);
+    let install = |caps: Value, ap: &Value| json!({"cmd":"room_services_do","room":"r1","caps":caps,"op":{"kind":"install","head":head(1,"01",1),"incarnation":"05","filterClasses":[1],"approvers":ap}});
+    assert_eq!(
+        ok(&c(install(json!([]), &humans))),
+        json!({"refused": "not_authorized"})
+    );
+    let one = json!([{"kind":1,"id":"01".repeat(32)},{"kind":2,"id":"09".repeat(32)}]);
+    assert_eq!(
+        ok(&c(install(json!(["room.install_service"]), &one))),
+        json!({"refused": "quorum_not_met"})
+    );
+    assert_eq!(
+        ok(&c(install(json!(["room.install_service"]), &humans))),
+        json!({"done": true})
+    );
+    let v = ok(&c(
+        json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"view","service":svc}}),
+    ));
+    assert_eq!(
+        (
+            v["installed"].clone(),
+            v["canReadAllContent"].clone(),
+            v["filterClasses"].clone()
+        ),
+        (json!(true), json!(true), json!([1]))
+    );
+    // A head that revokes the endpoint stops it; a second Room handle is untouched; rollback is refused.
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"observe_head","head":head(2,"02",3),"now":10}})
+        )),
+        json!({"done": true})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"must_stop","service":svc,"endpoint":ep}})
+        )),
+        json!({"mustStopSending": true})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"observe_head","head":head(1,"01",1),"now":11}})
+        )),
+        json!({"refused": "rollback"})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"may_commit_removal","service":svc,"endpoint":ep,"isCoordinator":false,"now":20}})
+        )),
+        json!({"refused": "too_early"})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"may_commit_removal","service":svc,"endpoint":ep,"isCoordinator":false,"now":310}})
+        )),
+        json!({"done": true})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"removal_committed","service":svc,"endpoint":ep}})
+        )),
+        json!({"applied": true})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"room_services_do","room":"zz","caps":[],"op":{"kind":"view","service":svc}})
+        )),
+        json!({"refused": "unknown_handle"})
+    );
+}
+
+#[test]
+fn a_bridge_room_decides_every_export() {
+    let mut c = session();
+    let b = "61".repeat(32);
+    let ep = "10".repeat(16);
+    let ok = |v: &Value| v["ok"].clone();
+    c(
+        json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"open","quorum":2,"sequencingTimeout":300,"freshnessBound":600}}),
+    );
+    let mapping = json!({"incarnation":"05".repeat(16),"namespace":"test.net","direction":3,"allowedClasses":[1,2]});
+    let admit = |caps: Value, ap: Value| json!({"cmd":"bridge_room_do","room":"b1","caps":caps,"op":{"kind":"admit","head":head(1,"01",1),"mapping":mapping,"approvers":ap,"now":0}});
+    // Another bridge principal (kind 3) must not count toward the human quorum.
+    let mixed = json!([{"kind":1,"id":"01".repeat(32)},{"kind":3,"id":b}]);
+    assert_eq!(
+        ok(&c(admit(json!(["room.add_bridge"]), mixed))),
+        json!({"refused": "quorum_not_met"})
+    );
+    assert_eq!(
+        ok(&c(admit(
+            json!(["room.install_service"]),
+            json!([{"kind":1,"id":"01".repeat(32)},{"kind":1,"id":"02".repeat(32)}])
+        ))),
+        json!({"refused": "not_authorized"})
+    );
+    assert_eq!(
+        ok(&c(admit(
+            json!(["room.add_bridge"]),
+            json!([{"kind":1,"id":"01".repeat(32)},{"kind":1,"id":"02".repeat(32)}])
+        ))),
+        json!({"done": true})
+    );
+    let export = |class: u8, now: u64| json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"may_export","bridge":b,"endpoint":ep,"class":class,"now":now}});
+    assert_eq!(ok(&c(export(1, 100))), json!({"allowed": true}));
+    assert_eq!(ok(&c(export(9, 100)))["blocked"], "class_not_allowed");
+    assert_eq!(ok(&c(export(1, 601)))["blocked"], "stale_mapping");
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"bridge_room_do","room":"b1","caps":["room.add_bridge"],"op":{"kind":"revoke_mapping","bridge":b}})
+        )),
+        json!({"done": true})
+    );
+    assert_eq!(ok(&c(export(1, 100)))["blocked"], "revoked");
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"import_author_ok","authorKind":1}})
+        )),
+        json!({"allowed": false})
+    );
+    assert_eq!(
+        ok(&c(
+            json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"import_author_ok","authorKind":3}})
+        )),
+        json!({"allowed": true})
+    );
+}
+
+#[test]
+fn a_lan_transfer_confirms_only_on_an_authenticated_receipt() {
+    let mut c = session();
+    let ok = |v: &Value| v["ok"].clone();
+    let (blob, dig) = ("aa".repeat(32), "bb".repeat(32));
+    c(
+        json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"sender_open","blobId":blob,"digest":dig,"total":40000}}),
+    );
+    c(
+        json!({"cmd":"lan_transfer_do","side":"receiver","handle":"t","op":{"kind":"receiver_open","total":40000,"restoredOffset":null}}),
+    );
+    let mut off = 0u64;
+    loop {
+        let r = ok(&c(
+            json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"next_chunk"}}),
+        ));
+        if r["chunk"].is_null() {
+            break;
+        }
+        let len = r["chunk"]["len"].as_u64().unwrap();
+        assert_eq!(r["chunk"]["offset"], off);
+        let a = ok(&c(
+            json!({"cmd":"lan_transfer_do","side":"receiver","handle":"t","op":{"kind":"accept","offset":off,"len":len}}),
+        ));
+        off += len;
+        assert_eq!(a["acknowledged"], off);
+    }
+    assert_eq!(off, 40000);
+    c(
+        json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"transport_ack","upTo":40000}}),
+    );
+    let v = ok(&c(
+        json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"view"}}),
+    ));
+    assert_eq!(v["confirmed"], false);
+    let rc = |auth: bool, d: &str| json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"receipt","authenticated":auth,"blobId":blob,"digest":d,"length":40000}});
+    assert_eq!(
+        ok(&c(rc(false, &dig))),
+        json!({"refused": "receipt_not_authenticated"})
+    );
+    assert_eq!(
+        ok(&c(rc(true, &"cc".repeat(32)))),
+        json!({"refused": "receipt_mismatch"})
+    );
+    assert_eq!(ok(&c(rc(true, &dig))), json!({"done": true}));
+    let bad = ok(&c(
+        json!({"cmd":"lan_transfer_do","side":"receiver","handle":"t","op":{"kind":"accept","offset":1,"len":5}}),
+    ));
+    assert!(bad["refused"] == "bad_chunk" || bad["refused"] == "overrun");
+}

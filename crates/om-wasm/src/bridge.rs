@@ -245,6 +245,24 @@ enum Command {
         step: scope::FirstContactStep,
     },
     #[cfg(feature = "scope-engines")]
+    RoomServicesDo {
+        room: String,
+        caps: Vec<String>,
+        op: scope::RoomOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    BridgeRoomDo {
+        room: String,
+        caps: Vec<String>,
+        op: scope::BridgeRoomOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    LanTransferDo {
+        side: String,
+        handle: String,
+        op: scope::TransferOp,
+    },
+    #[cfg(feature = "scope-engines")]
     ModerationView {
         who: String,
     },
@@ -1117,6 +1135,8 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     moderation: om_core::room_moderation::RoomModeration,
     #[cfg(feature = "scope-engines")]
     first_contact: om_core::lan_first_contact::FirstContact,
+    #[cfg(feature = "scope-engines")]
+    handles: scope::Handles,
 }
 
 impl<R: RngCore + CryptoRng> Bridge<R> {
@@ -1131,6 +1151,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             moderation: Default::default(),
             #[cfg(feature = "scope-engines")]
             first_contact: Default::default(),
+            #[cfg(feature = "scope-engines")]
+            handles: Default::default(),
         }
     }
 
@@ -1332,6 +1354,21 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::LanFirstContact { step } => {
                 Ok(scope::first_contact(&mut self.first_contact, step))
             }
+            #[cfg(feature = "scope-engines")]
+            Command::RoomServicesDo { room, caps, op } => {
+                Ok(scope::room_services_do(&mut self.handles, &room, &caps, op))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::BridgeRoomDo { room, caps, op } => {
+                Ok(scope::bridge_room_do(&mut self.handles, &room, &caps, op))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::LanTransferDo { side, handle, op } => Ok(scope::lan_transfer_do(
+                &mut self.handles,
+                &side,
+                &handle,
+                op,
+            )),
             #[cfg(feature = "scope-engines")]
             Command::ModerationView { who } => Ok(scope::moderation_view(&self.moderation, &who)),
             #[cfg(feature = "scope-engines")]

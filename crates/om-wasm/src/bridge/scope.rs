@@ -577,3 +577,601 @@ pub fn first_contact(f: &mut FirstContact, step: FirstContactStep) -> Value {
         "refused": match r { Ok(()) => Value::Null, Err(StepError::OutOfOrder) => json!("out_of_order"), Err(StepError::NotVerified) => json!("not_verified") }
     })
 }
+
+// ---- Handle-based room services, bridge room and LAN transfer ---------------------------------------------------------
+// State lives in the host instance under a caller-chosen handle (a short string). Control heads arrive as facts the caller
+// already validated (chain and signatures are the caller's, as in the Core modules); nothing here holds keys or authority.
+
+use om_core::bridge_room::{BridgeRoom, BridgeRoomError, Mapping};
+use om_core::lan_transfer::{Chunk, Receiver, Sender, TransferError};
+use om_core::service_control::{Endpoint, ServiceState};
+use om_core::service_room_member::{RoomError, RoomServices, TriggerFilter};
+use std::collections::BTreeMap;
+
+/// Upper bound per handle kind; a host that needs more closes one first.
+const MAX_HANDLES: usize = 64;
+
+#[derive(Default)]
+pub struct Handles {
+    rooms: BTreeMap<String, RoomServices>,
+    bridge_rooms: BTreeMap<String, BridgeRoom>,
+    senders: BTreeMap<String, (Sender, bool)>,
+    receivers: BTreeMap<String, Receiver>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EndpointIn {
+    id: String,
+    state: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeadIn {
+    service_id: String,
+    version: u64,
+    hash: String,
+    endpoints: Vec<EndpointIn>,
+}
+
+#[derive(Deserialize)]
+pub struct ApproverIn {
+    kind: u64,
+    id: String,
+}
+
+fn head(h: &HeadIn) -> Option<ServiceState> {
+    let mut endpoints = BTreeMap::new();
+    for e in &h.endpoints {
+        let id = hex_vec(&e.id)?;
+        endpoints.insert(
+            id.clone(),
+            Endpoint {
+                id,
+                state: e.state,
+                profile: 0,
+                key: Vec::new(),
+                mode: 0,
+                host_ref: None,
+            },
+        );
+    }
+    Some(ServiceState {
+        service_id: hex_n::<32>(&h.service_id)?,
+        version: h.version,
+        prev: None,
+        controllers: BTreeSet::new(),
+        threshold: 0,
+        endpoints,
+        hash: hex_n::<32>(&h.hash)?,
+    })
+}
+
+fn approvers(a: &[ApproverIn]) -> Option<Vec<(u64, Vec<u8>)>> {
+    a.iter().map(|p| Some((p.kind, hex_vec(&p.id)?))).collect()
+}
+
+fn room_err(e: &RoomError) -> &'static str {
+    match e {
+        RoomError::NotAuthorized => "not_authorized",
+        RoomError::QuorumNotMet => "quorum_not_met",
+        RoomError::AlreadyInstalled => "already_installed",
+        RoomError::NotInstalled => "not_installed",
+        RoomError::Rollback => "rollback",
+        RoomError::WrongService => "wrong_service",
+        RoomError::NotRevoked => "not_revoked",
+        RoomError::TooEarly => "too_early",
+    }
+}
+
+fn bridge_room_err(e: &BridgeRoomError) -> &'static str {
+    match e {
+        BridgeRoomError::Room(r) => room_err(r),
+        BridgeRoomError::NoMapping => "no_mapping",
+        BridgeRoomError::BadDirection => "bad_direction",
+        BridgeRoomError::EmptyClasses => "empty_classes",
+    }
+}
+
+fn refused(r: &str) -> Value {
+    json!({ "refused": r })
+}
+fn done() -> Value {
+    json!({ "done": true })
+}
+fn caps_set(c: &[String]) -> BTreeSet<String> {
+    c.iter().cloned().collect()
+}
+fn filter(f: &Option<Vec<u8>>) -> Option<TriggerFilter> {
+    f.as_ref().map(|c| TriggerFilter {
+        event_classes: c.iter().copied().collect(),
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum RoomOp {
+    Open {
+        quorum: Option<usize>,
+        sequencing_timeout: u64,
+    },
+    Close,
+    Install {
+        head: HeadIn,
+        incarnation: String,
+        filter_classes: Option<Vec<u8>>,
+        approvers: Vec<ApproverIn>,
+    },
+    SetFilter {
+        service: String,
+        filter_classes: Option<Vec<u8>>,
+    },
+    ObserveHead {
+        head: HeadIn,
+        now: u64,
+    },
+    MustStop {
+        service: String,
+        endpoint: String,
+    },
+    MayCommitRemoval {
+        service: String,
+        endpoint: String,
+        is_coordinator: bool,
+        now: u64,
+    },
+    RemovalCommitted {
+        service: String,
+        endpoint: String,
+    },
+    Remove {
+        service: String,
+    },
+    View {
+        service: String,
+    },
+}
+
+fn roster_view(
+    e: Option<&om_core::service_room_member::RosterEntry>,
+    held: Option<(u64, [u8; 32])>,
+) -> Value {
+    match e {
+        None => json!({ "installed": false }),
+        Some(e) => json!({
+            "installed": true,
+            "canReadAllContent": e.can_read_all_content(),
+            "endpoints": e.endpoints.iter().map(|x| x.iter().map(|b| format!("{b:02x}")).collect::<String>()).collect::<Vec<_>>(),
+            "filterClasses": e.filter.as_ref().map(|f| f.event_classes.iter().copied().collect::<Vec<u8>>()),
+            "admittedVersion": e.admitted_under.0,
+            "heldVersion": held.map(|h| h.0),
+        }),
+    }
+}
+
+pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp) -> Value {
+    let bad = || refused("malformed");
+    if let RoomOp::Open {
+        quorum,
+        sequencing_timeout,
+    } = op
+    {
+        if !h.rooms.contains_key(room) && h.rooms.len() >= MAX_HANDLES {
+            return refused("too_many_handles");
+        }
+        h.rooms.insert(
+            room.to_string(),
+            RoomServices::new(quorum, sequencing_timeout),
+        );
+        return done();
+    }
+    if matches!(op, RoomOp::Close) {
+        return json!({ "done": h.rooms.remove(room).is_some() });
+    }
+    let Some(r) = h.rooms.get_mut(room) else {
+        return refused("unknown_handle");
+    };
+    let caps = caps_set(caps);
+    match op {
+        RoomOp::Open { .. } | RoomOp::Close => unreachable!(),
+        RoomOp::Install {
+            head: hd,
+            incarnation,
+            filter_classes,
+            approvers: ap,
+        } => {
+            let (Some(hd), Some(inc), Some(ap)) =
+                (head(&hd), hex_vec(&incarnation), approvers(&ap))
+            else {
+                return bad();
+            };
+            match r.install(&caps, &hd, inc, filter(&filter_classes), &ap) {
+                Ok(()) => done(),
+                Err(e) => refused(room_err(&e)),
+            }
+        }
+        RoomOp::SetFilter {
+            service,
+            filter_classes,
+        } => {
+            let Some(s) = hex_n::<32>(&service) else {
+                return bad();
+            };
+            match r.set_filter(&caps, &s, filter(&filter_classes)) {
+                Ok(()) => done(),
+                Err(e) => refused(room_err(&e)),
+            }
+        }
+        RoomOp::ObserveHead { head: hd, now } => {
+            let Some(hd) = head(&hd) else {
+                return bad();
+            };
+            match r.observe_head(&hd, now) {
+                Ok(()) => done(),
+                Err(e) => refused(room_err(&e)),
+            }
+        }
+        RoomOp::MustStop { service, endpoint } => {
+            let (Some(s), Some(e)) = (hex_n::<32>(&service), hex_vec(&endpoint)) else {
+                return bad();
+            };
+            json!({ "mustStopSending": r.must_stop_sending(&s, &e) })
+        }
+        RoomOp::MayCommitRemoval {
+            service,
+            endpoint,
+            is_coordinator,
+            now,
+        } => {
+            let (Some(s), Some(e)) = (hex_n::<32>(&service), hex_vec(&endpoint)) else {
+                return bad();
+            };
+            match r.may_commit_removal(&s, &e, is_coordinator, now) {
+                Ok(()) => done(),
+                Err(e) => refused(room_err(&e)),
+            }
+        }
+        RoomOp::RemovalCommitted { service, endpoint } => {
+            let (Some(s), Some(e)) = (hex_n::<32>(&service), hex_vec(&endpoint)) else {
+                return bad();
+            };
+            json!({ "applied": r.removal_committed(&s, &e) })
+        }
+        RoomOp::Remove { service } => {
+            let Some(s) = hex_n::<32>(&service) else {
+                return bad();
+            };
+            match r.remove_installation(&caps, &s) {
+                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
+                Err(e) => refused(room_err(&e)),
+            }
+        }
+        RoomOp::View { service } => {
+            let Some(s) = hex_n::<32>(&service) else {
+                return bad();
+            };
+            roster_view(r.entry(&s), r.held_head(&s))
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MappingIn {
+    incarnation: String,
+    namespace: String,
+    direction: u64,
+    allowed_classes: Vec<u8>,
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum BridgeRoomOp {
+    Open {
+        quorum: Option<usize>,
+        sequencing_timeout: u64,
+        freshness_bound: u64,
+    },
+    Close,
+    Admit {
+        head: HeadIn,
+        mapping: MappingIn,
+        approvers: Vec<ApproverIn>,
+        now: u64,
+    },
+    ObserveHead {
+        head: HeadIn,
+        now: u64,
+    },
+    Remove {
+        bridge: String,
+    },
+    RevokeMapping {
+        bridge: String,
+    },
+    MayExport {
+        bridge: String,
+        endpoint: String,
+        class: u8,
+        now: u64,
+    },
+    ImportAuthorOk {
+        author_kind: u64,
+    },
+    View {
+        bridge: String,
+    },
+}
+
+pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRoomOp) -> Value {
+    use om_core::bridge_room::Blocked;
+    let bad = || refused("malformed");
+    if let BridgeRoomOp::Open {
+        quorum,
+        sequencing_timeout,
+        freshness_bound,
+    } = op
+    {
+        if !h.bridge_rooms.contains_key(room) && h.bridge_rooms.len() >= MAX_HANDLES {
+            return refused("too_many_handles");
+        }
+        h.bridge_rooms.insert(
+            room.to_string(),
+            BridgeRoom::new(quorum, sequencing_timeout, freshness_bound),
+        );
+        return done();
+    }
+    if matches!(op, BridgeRoomOp::Close) {
+        return json!({ "done": h.bridge_rooms.remove(room).is_some() });
+    }
+    if let BridgeRoomOp::ImportAuthorOk { author_kind } = op {
+        return json!({ "allowed": om_core::bridge_room::import_author_ok(author_kind) });
+    }
+    let Some(r) = h.bridge_rooms.get_mut(room) else {
+        return refused("unknown_handle");
+    };
+    let caps = caps_set(caps);
+    match op {
+        BridgeRoomOp::Open { .. } | BridgeRoomOp::Close | BridgeRoomOp::ImportAuthorOk { .. } => {
+            unreachable!()
+        }
+        BridgeRoomOp::Admit {
+            head: hd,
+            mapping,
+            approvers: ap,
+            now,
+        } => {
+            let (Some(hd), Some(inc), Some(ap)) =
+                (head(&hd), hex_n::<16>(&mapping.incarnation), approvers(&ap))
+            else {
+                return bad();
+            };
+            let m = Mapping {
+                incarnation: inc,
+                namespace: mapping.namespace,
+                direction: mapping.direction,
+                allowed_classes: mapping.allowed_classes.into_iter().collect(),
+                active: true,
+            };
+            match r.admit(&caps, &hd, m, &ap, now) {
+                Ok(()) => done(),
+                Err(e) => refused(bridge_room_err(&e)),
+            }
+        }
+        BridgeRoomOp::ObserveHead { head: hd, now } => {
+            let Some(hd) = head(&hd) else {
+                return bad();
+            };
+            match r.observe_head(&hd, now) {
+                Ok(()) => done(),
+                Err(e) => refused(bridge_room_err(&e)),
+            }
+        }
+        BridgeRoomOp::Remove { bridge } => {
+            let Some(b) = hex_n::<32>(&bridge) else {
+                return bad();
+            };
+            match r.remove(&caps, &b) {
+                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
+                Err(e) => refused(bridge_room_err(&e)),
+            }
+        }
+        BridgeRoomOp::RevokeMapping { bridge } => {
+            let Some(b) = hex_n::<32>(&bridge) else {
+                return bad();
+            };
+            match r.revoke_mapping(&caps, &b) {
+                Ok(()) => done(),
+                Err(e) => refused(bridge_room_err(&e)),
+            }
+        }
+        BridgeRoomOp::MayExport {
+            bridge,
+            endpoint,
+            class,
+            now,
+        } => {
+            let (Some(b), Some(e)) = (hex_n::<32>(&bridge), hex_vec(&endpoint)) else {
+                return bad();
+            };
+            match r.may_export(&b, &e, class, now) {
+                Ok(()) => json!({ "allowed": true }),
+                Err(x) => json!({ "allowed": false, "blocked": match x {
+                    Blocked::NoMapping => "no_mapping",
+                    Blocked::Revoked => "revoked",
+                    Blocked::Direction => "direction",
+                    Blocked::ClassNotAllowed => "class_not_allowed",
+                    Blocked::StaleMapping => "stale_mapping",
+                    Blocked::EndpointStopped => "endpoint_stopped",
+                }}),
+            }
+        }
+        BridgeRoomOp::View { bridge } => {
+            let Some(b) = hex_n::<32>(&bridge) else {
+                return bad();
+            };
+            roster_view(r.roster(&b), r.members().held_head(&b))
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum TransferOp {
+    SenderOpen {
+        blob_id: String,
+        digest: String,
+        total: u64,
+    },
+    ReceiverOpen {
+        total: u64,
+        restored_offset: Option<u64>,
+    },
+    Close,
+    ResumeFrom {
+        receiver_offset: u64,
+    },
+    NextChunk,
+    TransportAck {
+        up_to: u64,
+    },
+    Receipt {
+        authenticated: bool,
+        blob_id: String,
+        digest: String,
+        length: u64,
+    },
+    Accept {
+        offset: u64,
+        len: usize,
+    },
+    View,
+}
+
+fn transfer_err(e: &TransferError) -> &'static str {
+    match e {
+        TransferError::BadAck => "bad_ack",
+        TransferError::ReceiptMismatch => "receipt_mismatch",
+        TransferError::ReceiptNotAuthenticated => "receipt_not_authenticated",
+        TransferError::BadChunk => "bad_chunk",
+        TransferError::Overrun => "overrun",
+    }
+}
+
+/// `side` is "sender" or "receiver"; a handle names one object of that side.
+pub fn lan_transfer_do(h: &mut Handles, side: &str, handle: &str, op: TransferOp) -> Value {
+    let bad = || refused("malformed");
+    let sender = side == "sender";
+    if !sender && side != "receiver" {
+        return bad();
+    }
+    match op {
+        TransferOp::SenderOpen {
+            blob_id,
+            digest,
+            total,
+        } => {
+            let (true, Some(b), Some(d)) = (sender, hex_n::<32>(&blob_id), hex_n::<32>(&digest))
+            else {
+                return bad();
+            };
+            if !h.senders.contains_key(handle) && h.senders.len() >= MAX_HANDLES {
+                return refused("too_many_handles");
+            }
+            h.senders
+                .insert(handle.to_string(), (Sender::new(b, d, total), false));
+            done()
+        }
+        TransferOp::ReceiverOpen {
+            total,
+            restored_offset,
+        } => {
+            if sender {
+                return bad();
+            }
+            if !h.receivers.contains_key(handle) && h.receivers.len() >= MAX_HANDLES {
+                return refused("too_many_handles");
+            }
+            let r = match restored_offset {
+                Some(o) => Receiver::restore(total, o),
+                None => Receiver::new(total),
+            };
+            h.receivers.insert(handle.to_string(), r);
+            done()
+        }
+        TransferOp::Close => {
+            json!({ "done": if sender { h.senders.remove(handle).is_some() } else { h.receivers.remove(handle).is_some() } })
+        }
+        op if sender => {
+            let Some((s, paused)) = h.senders.get_mut(handle) else {
+                return refused("unknown_handle");
+            };
+            match op {
+                TransferOp::ResumeFrom { receiver_offset } => {
+                    match s.resume_from(receiver_offset) {
+                        Ok(()) => done(),
+                        Err(e) => refused(transfer_err(&e)),
+                    }
+                }
+                TransferOp::NextChunk => match s.next_chunk(paused) {
+                    Some(Chunk { offset, len }) => {
+                        json!({ "chunk": { "offset": offset, "len": len }, "paused": *paused })
+                    }
+                    None => json!({ "chunk": null, "paused": *paused }),
+                },
+                TransferOp::TransportAck { up_to } => match s.transport_ack(up_to) {
+                    Ok(()) => done(),
+                    Err(e) => refused(transfer_err(&e)),
+                },
+                TransferOp::Receipt {
+                    authenticated,
+                    blob_id,
+                    digest,
+                    length,
+                } => {
+                    let (Some(b), Some(d)) = (hex_n::<32>(&blob_id), hex_n::<32>(&digest)) else {
+                        return bad();
+                    };
+                    match s.receipt(authenticated, &b, &d, length) {
+                        Ok(()) => done(),
+                        Err(e) => refused(transfer_err(&e)),
+                    }
+                }
+                TransferOp::View => {
+                    json!({ "inFlight": s.in_flight(), "confirmed": s.is_confirmed(), "paused": *paused })
+                }
+                _ => bad(),
+            }
+        }
+        op => {
+            let Some(r) = h.receivers.get_mut(handle) else {
+                return refused("unknown_handle");
+            };
+            match op {
+                TransferOp::Accept { offset, len } => match r.accept(&Chunk { offset, len }) {
+                    Ok(()) => {
+                        json!({ "acknowledged": r.acknowledged(), "complete": r.is_complete() })
+                    }
+                    Err(e) => refused(transfer_err(&e)),
+                },
+                TransferOp::View => {
+                    json!({ "acknowledged": r.acknowledged(), "complete": r.is_complete() })
+                }
+                _ => bad(),
+            }
+        }
+    }
+}
