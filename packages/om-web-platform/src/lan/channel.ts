@@ -28,9 +28,43 @@ export function browserLanEnvironment(): LanChannelEnvironment {
   return ok ? { peer: (config) => new RTCPeerConnection(config) } : {};
 }
 
-/** The capability row: `available` only where a peer connection can be made. Never claims more than that. */
+/** Static precondition only: a peer connection can be constructed. It does not show the engine can establish a channel;
+ *  the capability row comes from `probeLanChannel` (PLATFORM_CAPABILITY_MATRIX: report unavailable if the browser cannot
+ *  establish it). */
 export function lanChannelCapability(env: LanChannelEnvironment): "available" | "unavailable" {
   return env.peer ? "available" : "unavailable";
+}
+
+const PROBE_MS = 8000;
+
+/** The capability row, from an actual establish attempt: two peers of this runtime are connected to each other on the
+ *  host (host candidates only, nothing leaves the device) and a channel must open on both. Any failure or timeout is
+ *  `unavailable`; there is no weaker answer. It proves the engine can build the channel, not that a given network or
+ *  permission setting allows reaching another device. */
+export async function probeLanChannel(env: LanChannelEnvironment): Promise<"available" | "unavailable"> {
+  if (lanChannelCapability(env) === "unavailable") return "unavailable";
+  const a = createLanPeer(env);
+  const b = createLanPeer(env);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const attempt = (async (): Promise<boolean> => {
+      const answer = await b.accept(await a.offer());
+      await a.finish(answer);
+      const [x, y] = await Promise.all([a.opened(), b.opened()]);
+      x.close();
+      y.close();
+      return true;
+    })();
+    const limit = new Promise<boolean>((resolve) => { timer = setTimeout(() => { resolve(false); }, PROBE_MS); });
+    void attempt.catch(() => undefined);
+    return (await Promise.race([attempt.catch(() => false), limit])) ? "available" : "unavailable";
+  } catch {
+    return "unavailable";
+  } finally {
+    clearTimeout(timer);
+    a.close();
+    b.close();
+  }
 }
 
 export interface LanDataChannel {

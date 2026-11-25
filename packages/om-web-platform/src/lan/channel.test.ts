@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it, vi } from "vitest";
-import { HIGH_WATER, LAN_CHANNEL_LABEL, LOW_WATER, LanChannelError, createLanPeer, lanChannelCapability } from "./channel";
+import { HIGH_WATER, LAN_CHANNEL_LABEL, LOW_WATER, LanChannelError, createLanPeer, lanChannelCapability, probeLanChannel } from "./channel";
 
 class FakeChannel extends EventTarget {
   binaryType = "blob";
@@ -27,7 +27,7 @@ class FakeConnection extends EventTarget {
   createOffer = vi.fn(() => Promise.resolve({ type: "offer", sdp: "offer-sdp" } satisfies RTCSessionDescriptionInit));
   createAnswer = vi.fn(() => Promise.resolve({ type: "answer", sdp: "answer-sdp" } satisfies RTCSessionDescriptionInit));
   setLocalDescription = vi.fn((d: RTCSessionDescriptionInit) => { this.localDescription = d; return Promise.resolve(); });
-  setRemoteDescription = vi.fn(() => Promise.resolve());
+  setRemoteDescription = vi.fn((_d: RTCSessionDescriptionInit) => Promise.resolve());
 }
 
 const env = (made: FakeConnection[]) => ({ peer: (config: RTCConfiguration) => {
@@ -106,5 +106,30 @@ describe("om-lan-v1 channel", () => {
     made2[0]!.connectionState = "failed";
     made2[0]!.dispatchEvent(new Event("connectionstatechange"));
     await expect(peer2.opened()).rejects.toMatchObject({ reason: "connection" });
+  });
+
+  it("the capability row comes from a real establish attempt, not from the constructor existing", async () => {
+    expect(await probeLanChannel({})).toBe("unavailable");
+    // A runtime whose connections construct but never open reports unavailable.
+    class Stuck extends FakeConnection {
+      override createDataChannel = vi.fn((label: string) => { const c = new FakeChannel(label); c.readyState = "connecting"; return c; });
+    }
+    vi.useFakeTimers();
+    const p = probeLanChannel({ peer: () => new Stuck() as unknown as RTCPeerConnection });
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(await p).toBe("unavailable");
+    vi.useRealTimers();
+    // One whose channels open on both sides reports available and leaves nothing open.
+    const made: FakeConnection[] = [];
+    class Delivers extends FakeConnection {
+      override setRemoteDescription = vi.fn((d: RTCSessionDescriptionInit) => {
+        if (d.type === "offer") queueMicrotask(() => { this.dispatchEvent(Object.assign(new Event("datachannel"), { channel: new FakeChannel(LAN_CHANNEL_LABEL) })); });
+        return Promise.resolve();
+      });
+    }
+    const peer = (): RTCPeerConnection => { const c = new Delivers(); made.push(c); return c as unknown as RTCPeerConnection; };
+    expect(await probeLanChannel({ peer })).toBe("available");
+    expect(made).toHaveLength(2);
+    for (const c of made) expect(c.close).toHaveBeenCalled();
   });
 });
