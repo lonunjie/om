@@ -484,3 +484,29 @@ fn lan_frames_round_trip_through_the_bridge_and_hostile_ones_are_refused() {
         json!({"refused":"malformed"})
     );
 }
+
+#[test]
+fn lan_fetch_requests_round_trip_through_the_bridge_and_a_bad_capability_size_is_refused() {
+    let mut c = session();
+    let r = "09".repeat(16);
+    let e = c(
+        json!({"cmd":"lan_frame_encode","frame":{"kind":"fetch_blob","requestId":r,"capability":"aa".repeat(24),"blobId":"bb".repeat(32),"ciphertextDigest":"cc".repeat(32)}}),
+    );
+    let hex = e["ok"]["frame"].as_str().unwrap().to_string();
+    let d = c(json!({"cmd":"lan_frame_decode","bytes":hex}));
+    assert_eq!(d["ok"]["kind"], "fetch_blob");
+    assert_eq!(d["ok"]["blobId"], "bb".repeat(32));
+    let k = c(
+        json!({"cmd":"lan_frame_encode","frame":{"kind":"fetch_async_key","requestId":r,"deviceId":"0a".repeat(16),"profile":1,"capability":"dd".repeat(32)}}),
+    );
+    let d = c(json!({"cmd":"lan_frame_decode","bytes":k["ok"]["frame"]}));
+    assert_eq!(
+        (d["ok"]["kind"].clone(), d["ok"]["profile"].clone()),
+        (json!("fetch_async_key"), json!(1))
+    );
+    // A capability outside 16..64 bytes is refused by the codec on the way back in.
+    let bad = c(
+        json!({"cmd":"lan_frame_encode","frame":{"kind":"fetch_blob","requestId":r,"capability":"aa".repeat(8),"blobId":"bb".repeat(32),"ciphertextDigest":"cc".repeat(32)}}),
+    );
+    assert!(bad["ok"]["refused"].is_string());
+}

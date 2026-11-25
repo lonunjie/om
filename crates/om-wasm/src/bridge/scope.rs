@@ -1304,6 +1304,18 @@ pub enum FrameIn {
         transfer_id: String,
         tag: String,
     },
+    FetchAsyncKey {
+        request_id: String,
+        device_id: String,
+        profile: u64,
+        capability: String,
+    },
+    FetchBlob {
+        request_id: String,
+        capability: String,
+        blob_id: String,
+        ciphertext_digest: String,
+    },
 }
 
 /// Canonical `LanFrameV1` bytes (hex) for one transfer frame; the codec refuses an out-of-range value on the way back in.
@@ -1338,6 +1350,45 @@ pub fn lan_frame_encode(f: FrameIn) -> Value {
                 transfer_id: t,
                 offset,
                 bytes: b,
+            }
+        }
+        FrameIn::FetchAsyncKey {
+            request_id,
+            device_id,
+            profile,
+            capability,
+        } => {
+            let (Some(r), Some(d), Some(c)) =
+                (id(&request_id), id(&device_id), hex_vec(&capability))
+            else {
+                return refused("malformed");
+            };
+            Frame::FetchAsyncKey {
+                request_id: r,
+                device_id: d,
+                profile,
+                capability: c,
+            }
+        }
+        FrameIn::FetchBlob {
+            request_id,
+            capability,
+            blob_id,
+            ciphertext_digest,
+        } => {
+            let (Some(r), Some(c), Some(b), Some(d)) = (
+                id(&request_id),
+                hex_vec(&capability),
+                hex_n::<32>(&blob_id),
+                hex_n::<32>(&ciphertext_digest),
+            ) else {
+                return refused("malformed");
+            };
+            Frame::FetchBlob {
+                request_id: r,
+                capability: c,
+                blob_id: b,
+                ciphertext_digest: d,
             }
         }
         FrameIn::End { transfer_id } => {
@@ -1469,6 +1520,21 @@ pub fn lan_frame_decode(bytes_hex: &str) -> Value {
         Ok(Frame::Receipt { transfer_id, tag }) => {
             json!({ "kind": "receipt", "transferId": hex_out(&transfer_id), "tag": hex_out(&tag) })
         }
-        Ok(Frame::Request { kind }) => json!({ "kind": "request", "frameKind": kind }),
+        Ok(Frame::FetchAsyncKey {
+            request_id,
+            device_id,
+            profile,
+            capability,
+        }) => {
+            json!({ "kind": "fetch_async_key", "requestId": hex_out(&request_id), "deviceId": hex_out(&device_id), "profile": profile, "capability": hex_out(&capability) })
+        }
+        Ok(Frame::FetchBlob {
+            request_id,
+            capability,
+            blob_id,
+            ciphertext_digest,
+        }) => {
+            json!({ "kind": "fetch_blob", "requestId": hex_out(&request_id), "capability": hex_out(&capability), "blobId": hex_out(&blob_id), "ciphertextDigest": hex_out(&ciphertext_digest) })
+        }
     }
 }

@@ -43,19 +43,19 @@ fn corpus_frames_decode_and_re_encode_exactly() {
         }
         let bytes = bytes_of(&v["value"]);
         let f = decode_frame(&reg, &bytes).unwrap_or_else(|e| panic!("{}: {e}", v["id"]));
-        match encode_frame(&f) {
-            Some(again) => {
-                assert_eq!(again, bytes, "{}", v["id"]);
-                transfer += 1;
-            }
-            None => {
-                assert!(matches!(f, Frame::Request { .. }));
-                requests += 1;
-            }
+        let again = encode_frame(&f).expect("every frame kind encodes");
+        assert_eq!(again, bytes, "{}", v["id"]);
+        if matches!(f, Frame::FetchAsyncKey { .. } | Frame::FetchBlob { .. }) {
+            requests += 1;
+        } else {
+            transfer += 1;
         }
     }
     assert!(transfer >= 4, "corpus shrank: {transfer} transfer frames");
-    let _ = requests;
+    assert!(
+        requests >= 2,
+        "corpus has no fetch request vectors: {requests}"
+    );
 }
 
 #[test]

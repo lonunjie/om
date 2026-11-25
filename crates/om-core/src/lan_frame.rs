@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Typed `LanFrameV1` for the transfer kinds (`spec/cddl/lan.cddl`, ADR-0158, ADR-0194): object_begin, object_chunk,
-//! object_end, ack, error and object_receipt. Pure. `decode` goes through the product registry check first
+//! object_end, ack, error, object_receipt and the two fetch requests. Pure. `decode` goes through the product registry check first
 //! ([`om_codec::schema::Registry::check_lan_frame`]), so a frame that the codec refuses never reaches the caller; the
-//! request kinds (fetch_async_key, fetch_blob) decode to [`Frame::Request`] with their kind only, because their
-//! capability handling belongs to the first-contact and file slices.
+//! fetch requests decode to typed frames that carry their capability bytes as opaque values: whether a capability is
+//! valid, and what answers a request, belongs to the first-contact and file slices (the frame grants nothing).
 //!
 //! One DataChannel message carries exactly one frame (the caller enforces that), and chunks are at most 16 KiB.
 
@@ -41,9 +41,19 @@ pub enum Frame {
         transfer_id: [u8; 16],
         tag: [u8; 32],
     },
-    /// fetch_async_key (5) or fetch_blob (6): shape-checked, contents handled elsewhere.
-    Request {
-        kind: u64,
+    /// fetch_async_key (5): the relationship-scoped key-material fetch capability is opaque here.
+    FetchAsyncKey {
+        request_id: [u8; 16],
+        device_id: [u8; 16],
+        profile: u64,
+        capability: Vec<u8>,
+    },
+    /// fetch_blob (6): the object-scoped read capability is opaque here; the digest is what the reply must match.
+    FetchBlob {
+        request_id: [u8; 16],
+        capability: Vec<u8>,
+        blob_id: [u8; 32],
+        ciphertext_digest: [u8; 32],
     },
 }
 
@@ -59,10 +69,38 @@ fn m(kind: u64, rest: Vec<(u64, Value)>) -> Vec<u8> {
     ))
 }
 
-/// Canonical bytes of a frame, or `None` for [`Frame::Request`] (not built here).
+/// Canonical bytes of a frame.
 pub fn encode_frame(f: &Frame) -> Option<Vec<u8>> {
     let b = |x: &[u8]| Value::Bytes(x.to_vec());
     Some(match f {
+        Frame::FetchAsyncKey {
+            request_id,
+            device_id,
+            profile,
+            capability,
+        } => m(
+            5,
+            vec![
+                (2, b(request_id)),
+                (8, b(device_id)),
+                (9, Value::Uint(*profile)),
+                (10, b(capability)),
+            ],
+        ),
+        Frame::FetchBlob {
+            request_id,
+            capability,
+            blob_id,
+            ciphertext_digest,
+        } => m(
+            6,
+            vec![
+                (2, b(request_id)),
+                (10, b(capability)),
+                (11, b(blob_id)),
+                (12, b(ciphertext_digest)),
+            ],
+        ),
         Frame::Begin {
             transfer_id,
             object_kind,
@@ -96,7 +134,6 @@ pub fn encode_frame(f: &Frame) -> Option<Vec<u8>> {
         } => m(4, vec![(2, b(transfer_id)), (14, Value::Uint(*offset))]),
         Frame::Error { id, code } => m(7, vec![(2, b(id)), (13, Value::Uint(*code))]),
         Frame::Receipt { transfer_id, tag } => m(8, vec![(2, b(transfer_id)), (15, b(tag))]),
-        Frame::Request { .. } => return None,
     })
 }
 
@@ -141,7 +178,24 @@ pub fn decode_frame(reg: &Registry, bytes: &[u8]) -> Result<Frame, &'static str>
             transfer_id: arr(g(2)).ok_or(bad)?,
             offset: uint(g(14)).ok_or(bad)?,
         },
-        5 | 6 => Frame::Request { kind },
+        5 => Frame::FetchAsyncKey {
+            request_id: arr(g(2)).ok_or(bad)?,
+            device_id: arr(g(8)).ok_or(bad)?,
+            profile: uint(g(9)).ok_or(bad)?,
+            capability: match g(10) {
+                Some(Value::Bytes(x)) => x.clone(),
+                _ => return Err(bad),
+            },
+        },
+        6 => Frame::FetchBlob {
+            request_id: arr(g(2)).ok_or(bad)?,
+            capability: match g(10) {
+                Some(Value::Bytes(x)) => x.clone(),
+                _ => return Err(bad),
+            },
+            blob_id: arr(g(11)).ok_or(bad)?,
+            ciphertext_digest: arr(g(12)).ok_or(bad)?,
+        },
         7 => Frame::Error {
             id: arr(g(2)).ok_or(bad)?,
             code: uint(g(13)).ok_or(bad)?,
