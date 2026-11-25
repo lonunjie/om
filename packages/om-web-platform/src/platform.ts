@@ -6,6 +6,8 @@ import type {
 import { FAMILY_NAMES, available, partial, unavailable } from "@om/platform-api";
 import type { BlobLike, FileInputLike, FileLike, MediaStreamLike, WebEnv } from "./env";
 import { browserEnv } from "./env";
+import { browserLanEnvironment, probeLanChannel } from "./lan/channel";
+import type { LanChannelEnvironment } from "./lan/channel";
 
 const isFn = (v: unknown): boolean => typeof v === "function";
 const perm = (p: "granted" | "denied" | "default"): PermissionState => (p === "default" ? "prompt" : p);
@@ -121,7 +123,7 @@ function currentPosition(env: WebEnv): Promise<LocationFix | "denied" | "unavail
 
 type Builders = { [K in FamilyName]: (env: WebEnv) => Capability<FamilyApis[K]> };
 
-const builders: Omit<Builders, "expressiveMedia"> = {
+const builders: Omit<Builders, "expressiveMedia" | "localDelivery"> = {
   secureStorage: (env) =>
     env.indexedDB !== undefined && env.crypto?.subtle !== undefined
       ? partial({ protection: "devicevault_wrapped" }, "not_at_rest_sealed_by_os")
@@ -293,7 +295,21 @@ const builders: Omit<Builders, "expressiveMedia"> = {
 };
 
 /** Capabilities are decided by feature probes on `env`; never by user agent. Probing is side-effect free. */
-export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonly expressiveMedia?: boolean } = {}): PlatformAdapter {
+export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonly expressiveMedia?: boolean; readonly lan?: LanChannelEnvironment } = {}): PlatformAdapter {
+  // The local-delivery row comes from a real establish attempt (PLATFORM_CAPABILITY_MATRIX), run once on request and remembered:
+  // before it runs the row is `partial` ("not_probed"); a runtime that cannot build a peer connection is `unavailable` at once.
+  const lan = options.lan ?? browserLanEnvironment();
+  let probed: Promise<"available" | "unavailable"> | undefined;
+  let outcome: "available" | "unavailable" | undefined;
+  const probe = (): Promise<"available" | "unavailable"> => {
+    probed ??= probeLanChannel(lan).then((r) => { outcome = r; return r; });
+    return probed;
+  };
+  const localDelivery = (): Capability<FamilyApis["localDelivery"]> => {
+    if (lan.peer === undefined) return unavailable("no_peer_connection");
+    if (outcome === "unavailable") return unavailable("establish_failed");
+    return outcome === "available" ? available({ probe }, "this_device_only") : partial({ probe }, "not_probed");
+  };
   const expressiveMedia = (): Capability<FamilyApis["expressiveMedia"]> => {
     if (options.expressiveMedia !== true) return unavailable("feature_disabled");
     if (typeof Worker !== "function") return unavailable("no_media_worker");
@@ -309,9 +325,9 @@ export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonl
       },
     }, "decoder_support_checked_in_worker");
   };
-  const get = <K extends Exclude<FamilyName, "expressiveMedia">>(k: K): Capability<FamilyApis[K]> => builders[k](env);
+  const get = <K extends Exclude<FamilyName, "expressiveMedia" | "localDelivery">>(k: K): Capability<FamilyApis[K]> => builders[k](env);
   const entry = (k: FamilyName): CapabilityEntry => {
-    const c = k === "expressiveMedia" ? expressiveMedia() : get(k);
+    const c = k === "expressiveMedia" ? expressiveMedia() : k === "localDelivery" ? localDelivery() : get(k);
     return c.detail === undefined ? { state: c.state } : { state: c.state, detail: c.detail };
   };
   const capabilities = (): CapabilityReport => {
@@ -341,6 +357,7 @@ export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonl
     inputPrivacy: () => get("inputPrivacy"),
     notificationRemoval: () => get("notificationRemoval"),
     localDiscovery: () => get("localDiscovery"),
+    localDelivery,
     callSystemIntegration: () => get("callSystemIntegration"),
     networkHints: () => get("networkHints"),
     windowSystem: () => get("windowSystem"),

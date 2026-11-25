@@ -189,3 +189,22 @@ describe("voice-note recording and one-shot location", () => {
     expect(createWebPlatform({}).location().state).toBe("unavailable");
   });
 });
+
+describe("local delivery row", () => {
+  const conn = (): RTCPeerConnection => { throw new Error("blocked"); };
+  it("is unavailable without a peer connection and never constructs one while capabilities are read", () => {
+    expect(createWebPlatform(fakeEnv({}), { lan: {} }).capabilities().families.localDelivery).toEqual({ state: "unavailable", detail: "no_peer_connection" });
+    const peer = vi.fn(conn);
+    const row = createWebPlatform(fakeEnv({}), { lan: { peer } }).capabilities().families.localDelivery;
+    expect(row).toEqual({ state: "partial", detail: "not_probed" });
+    expect(peer).not.toHaveBeenCalled();
+  });
+
+  it("follows the establish attempt: a runtime that cannot establish becomes unavailable and stays so", async () => {
+    const platform = createWebPlatform(fakeEnv({}), { lan: { peer: conn } });
+    const api = platform.localDelivery();
+    if (api.state === "unavailable") throw new Error("expected a probe");
+    expect(await api.api.probe()).toBe("unavailable");
+    expect(platform.capabilities().families.localDelivery).toEqual({ state: "unavailable", detail: "establish_failed" });
+  });
+});

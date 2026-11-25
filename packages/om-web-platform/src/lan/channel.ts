@@ -43,14 +43,17 @@ const PROBE_MS = 8000;
  *  permission setting allows reaching another device. */
 export async function probeLanChannel(env: LanChannelEnvironment): Promise<"available" | "unavailable"> {
   if (lanChannelCapability(env) === "unavailable") return "unavailable";
-  const a = createLanPeer(env);
-  const b = createLanPeer(env);
+  let a: LanPeer | undefined;
+  let b: LanPeer | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
+    a = createLanPeer(env);
+    b = createLanPeer(env);
+    const [pa, pb] = [a, b];
     const attempt = (async (): Promise<boolean> => {
-      const answer = await b.accept(await a.offer());
-      await a.finish(answer);
-      const [x, y] = await Promise.all([a.opened(), b.opened()]);
+      const answer = await pb.accept(await pa.offer());
+      await pa.finish(answer);
+      const [x, y] = await Promise.all([pa.opened(), pb.opened()]);
       x.close();
       y.close();
       return true;
@@ -62,8 +65,8 @@ export async function probeLanChannel(env: LanChannelEnvironment): Promise<"avai
     return "unavailable";
   } finally {
     clearTimeout(timer);
-    a.close();
-    b.close();
+    a?.close();
+    b?.close();
   }
 }
 

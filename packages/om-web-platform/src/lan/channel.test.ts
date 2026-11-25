@@ -132,4 +132,8 @@ describe("om-lan-v1 channel", () => {
     expect(made).toHaveLength(2);
     for (const c of made) expect(c.close).toHaveBeenCalled();
   });
+
+  it("a runtime whose peer connection throws on construction reports unavailable instead of rejecting", async () => {
+    expect(await probeLanChannel({ peer: () => { throw new Error("SecurityError"); } })).toBe("unavailable");
+  });
 });

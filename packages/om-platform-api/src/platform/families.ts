@@ -54,6 +54,9 @@ export interface BackupExclusionApi { exclude(path: string): Promise<void> }
 export interface InputPrivacyApi { fieldAttributes(): Readonly<Record<string, string>> }
 export interface NotificationRemovalApi { remove(tag?: string): Promise<number> }
 export interface LocalDiscoveryApi { readonly mode: Exclude<LocalDiscoveryMode, "unavailable"> }
+/** `om-lan-v1` local delivery (ADR-0158). `probe` makes a real establish attempt on this device and reports the outcome; it
+ * proves the runtime can build the channel, not that a given network or permission setting reaches another device. */
+export interface LocalDeliveryApi { probe(): Promise<"available" | "unavailable"> }
 export interface CallSystemIntegrationApi { reportIncoming(callId: string): Promise<void> }
 export interface NetworkHintsApi { isOnline(): boolean }
 export interface WindowSystemApi { visibility(): "visible" | "hidden" }
@@ -80,6 +83,7 @@ export interface FamilyApis {
   inputPrivacy: InputPrivacyApi;
   notificationRemoval: NotificationRemovalApi;
   localDiscovery: LocalDiscoveryApi;
+  localDelivery: LocalDeliveryApi;
   callSystemIntegration: CallSystemIntegrationApi;
   networkHints: NetworkHintsApi;
   windowSystem: WindowSystemApi;
@@ -93,7 +97,7 @@ export type FamilyName = keyof FamilyApis;
 export const FAMILY_NAMES = [
   "secureStorage", "biometrics", "push", "notifications", "backgroundExecution", "share",
   "openExternal", "files", "camera", "microphone", "location", "contactsLocal", "clipboard",
-  "secureSurface", "backupExclusion", "inputPrivacy", "notificationRemoval", "localDiscovery",
+  "secureSurface", "backupExclusion", "inputPrivacy", "notificationRemoval", "localDiscovery", "localDelivery",
   "callSystemIntegration", "networkHints", "windowSystem", "haptics", "externalTransport",
   "expressiveMedia",
 ] as const satisfies readonly FamilyName[];
