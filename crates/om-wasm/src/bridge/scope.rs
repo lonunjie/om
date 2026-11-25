@@ -1446,6 +1446,10 @@ pub fn lan_signal_args(
     Some((kind, hex_vec(session_id)?.try_into().ok()?))
 }
 
+pub fn lan_hex(b: &[u8]) -> String {
+    hex_out(b)
+}
+
 pub fn lan_bytes(hex: &str) -> Option<Vec<u8>> {
     hex_vec(hex)
 }

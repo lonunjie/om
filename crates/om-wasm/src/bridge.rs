@@ -280,6 +280,30 @@ enum Command {
         conversation_id: String,
         bytes: String,
     },
+    /// `local_delivery`: the person's "find each other on the same Wi-Fi" choice for one conversation. Answers
+    /// `{enabled, available}`.
+    #[cfg(feature = "scope-engines")]
+    LanNearbySet {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+        on: bool,
+    },
+    #[cfg(feature = "scope-engines")]
+    LanNearbyState {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+    },
+    /// The tags to advertise now (hex list; empty when nobody is turned on).
+    #[cfg(feature = "scope-engines")]
+    LanAdvertise {
+        ctx: ProfileExecutionContext,
+    },
+    /// The conversation an observed tag belongs to, or `{conversationId: null}`.
+    #[cfg(feature = "scope-engines")]
+    LanObserve {
+        ctx: ProfileExecutionContext,
+        tag: String,
+    },
     #[cfg(feature = "scope-engines")]
     LanFrameEncode {
         frame: scope::FrameIn,
@@ -1427,6 +1451,38 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 };
                 let r = self.core()?.lan_signal_open(&ctx, &conversation_id, &b)?;
                 Ok(scope::lan_signal_opened(r))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::LanNearbySet {
+                ctx,
+                conversation_id,
+                on,
+            } => {
+                let s = self.core()?.lan_nearby_set(&ctx, &conversation_id, on)?;
+                Ok(json!({ "enabled": s.enabled, "available": s.available }))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::LanNearbyState {
+                ctx,
+                conversation_id,
+            } => {
+                let s = self.core()?.lan_nearby_state(&ctx, &conversation_id)?;
+                Ok(json!({ "enabled": s.enabled, "available": s.available }))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::LanAdvertise { ctx } => {
+                let tags = self.core()?.lan_advertise(&ctx)?;
+                let tags: Vec<String> = tags.iter().map(|t| scope::lan_hex(t)).collect();
+                Ok(json!({ "tags": tags }))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::LanObserve { ctx, tag } => {
+                let Some(t) = scope::lan_bytes(&tag).and_then(|b| <[u8; 16]>::try_from(b).ok())
+                else {
+                    return Ok(json!({ "refused": "malformed" }));
+                };
+                let c = self.core()?.lan_observe(&ctx, &t)?;
+                Ok(json!({ "conversationId": c }))
             }
             #[cfg(feature = "scope-engines")]
             Command::LanFrameEncode { frame } => Ok(scope::lan_frame_encode(frame)),

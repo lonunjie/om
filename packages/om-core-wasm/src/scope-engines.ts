@@ -7,6 +7,8 @@ import type { WasmCore } from "./wasm";
 
 export type Refusal = { readonly refused: string };
 export type Done = { readonly done: true };
+export interface NearbyState { readonly enabled: boolean; readonly available: boolean }
+
 export interface HeadFacts {
   readonly serviceId: string;
   readonly version: number;
@@ -66,6 +68,13 @@ export interface ScopeEngines {
     seal(ctx: ProfileExecutionContext, conversationId: string, a: { kind: "offer" | "answer"; sessionId: string; sdp: string }): { readonly envelope: string } | Refusal;
     open(ctx: ProfileExecutionContext, conversationId: string, envelope: string): { readonly kind: "offer" | "answer"; readonly sessionId: string; readonly sdp: string } | Refusal;
   };
+  /** The per-contact "find each other on the same Wi-Fi" choice and the rendezvous tags. Core holds the choice and the seeds. */
+  readonly lanNearby: {
+    set(ctx: ProfileExecutionContext, conversationId: string, on: boolean): NearbyState;
+    state(ctx: ProfileExecutionContext, conversationId: string): NearbyState;
+    advertise(ctx: ProfileExecutionContext): { readonly tags: readonly string[] };
+    observe(ctx: ProfileExecutionContext, tag: string): { readonly conversationId: string | null } | Refusal;
+  };
   readonly spaceBinding: {
     propose(handle: string): Done | Refusal;
     childAccepts(handle: string): LinkState | Refusal;
@@ -112,6 +121,12 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
     lanSignal: {
       seal: (ctx, conversationId, a) => q({ cmd: "lan_signal_seal", ctx, conversationId, kind: a.kind, sessionId: a.sessionId, sdp: a.sdp }),
       open: (ctx, conversationId, envelope) => q({ cmd: "lan_signal_open", ctx, conversationId, bytes: envelope }),
+    },
+    lanNearby: {
+      set: (ctx, conversationId, on) => q({ cmd: "lan_nearby_set", ctx, conversationId, on }),
+      state: (ctx, conversationId) => q({ cmd: "lan_nearby_state", ctx, conversationId }),
+      advertise: (ctx) => q({ cmd: "lan_advertise", ctx }),
+      observe: (ctx, tag) => q({ cmd: "lan_observe", ctx, tag }),
     },
     spaceBinding: {
       propose: (h) => sb(h, { kind: "propose" }),
