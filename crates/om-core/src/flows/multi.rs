@@ -7,7 +7,7 @@
 //! trusted because a message claims it.
 
 use super::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Our AccountControl chain and credentials, sent inside a relationship: `{0: 8, 1: [signed state], 2: [credential]}`.
 pub(super) const KIND_ACS_UPDATE: u64 = 8;
@@ -44,6 +44,26 @@ impl From<bool> for Inner {
 pub(super) struct PeerPlan {
     pub head: Acs,
     pub kept: Vec<Vec<u8>>,
+    /// Some adopted state revoked or quarantined a device that was active in the head replaced (ADR-0268 item 2).
+    /// Any state on the way counts, so a quarantine lifted by a later state is still seen.
+    pub touched: bool,
+}
+
+/// True when any of `next` revokes or quarantines a device that was active in `old` (control or messaging, not
+/// quarantined). Every state counts, so a quarantine that a later state lifts is still seen.
+pub(super) fn removes_active(old: &Acs, next: &[Acs]) -> bool {
+    let active: BTreeSet<[u8; 16]> = old
+        .control
+        .union(&old.messaging)
+        .filter(|d| !old.quarantined.contains(*d))
+        .copied()
+        .collect();
+    next.iter().any(|s| {
+        s.revoked
+            .iter()
+            .chain(&s.quarantined)
+            .any(|d| active.contains(d))
+    })
 }
 
 /// The state ids (hashes) of a signed chain, in order, or `None` when any state is malformed.
@@ -625,7 +645,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 all.push(c.clone());
             }
         }
-        let (head, _) = control::verify_extension_partial(old, rest, 0, &all, &[]).ok()?;
+        let (head, _) = control::verify_extension_partial(old.clone(), rest, 0, &all, &[]).ok()?;
         // Keep exactly the credentials the new head commits; one it does not commit never authenticates anyone.
         let kept: Vec<Vec<u8>> = all
             .into_iter()
@@ -639,14 +659,36 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 })
             })
             .collect();
-        Some(PeerPlan { head, kept })
+        let touched = chain_states(rest).is_some_and(|states| removes_active(&old, &states));
+        Some(PeerPlan {
+            head,
+            kept,
+            touched,
+        })
     }
 
     /// Pin the planned head for the relationship (the one place a peer head is replaced).
     pub(super) fn peer_commit(&mut self, conv: &str, plan: PeerPlan) -> Option<()> {
-        let PeerPlan { head, kept } = plan;
+        let PeerPlan {
+            head,
+            kept,
+            touched,
+        } = plan;
         let dev = self.st.device.as_mut()?;
         dev.trust_peer(head.body(), kept.clone()).ok()?;
+        if touched {
+            // ADR-0268 item 2: a removed device may hold the pair seed, so the seeds of this contact's devices end.
+            // Local signalling then reports no_seed; delivery over the Home is unaffected.
+            if let Some(rel) = self.st.app.relationships.get(conv) {
+                let iks =
+                    std::iter::once(&rel.peer_ik).chain(rel.multi.extra.values().map(|d| &d.ik));
+                for ik in iks {
+                    if let Ok(ik) = h32(ik) {
+                        dev.retire_lan_seed(&ik);
+                    }
+                }
+            }
+        }
         let r = self.st.app.relationships.get_mut(conv)?;
         r.peer_acs_body = hex(&head.body());
         r.peer_credentials = kept.iter().map(|c| hex(c)).collect();

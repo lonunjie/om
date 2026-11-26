@@ -10,7 +10,7 @@
 //! completion with this verifier's own interval (`verify_recovery_successor`), and messages from the new device wait,
 //! unprocessed, until then (ADR-0190 section 5).
 
-use super::multi::{PeerPlan, chain_states};
+use super::multi::{PeerPlan, chain_states, removes_active};
 use super::recovery_watch::{
     committed_key, credit, is_stale, live, verify_held, verify_successor_for,
 };
@@ -1034,8 +1034,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             request: rec.obs.request.clone(),
             elapsed_seconds: rec.obs.credited_ms / 1000,
         };
+        let touched = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .and_then(|r| Acs::from_body(&hb(&r.peer_acs_body).ok()?).ok())
+            .is_some_and(|old| removes_active(&old, std::slice::from_ref(&child)));
         if self
-            .peer_commit(conv, PeerPlan { head: child, kept })
+            .peer_commit(
+                conv,
+                PeerPlan {
+                    head: child,
+                    kept,
+                    touched,
+                },
+            )
             .is_none()
         {
             return;

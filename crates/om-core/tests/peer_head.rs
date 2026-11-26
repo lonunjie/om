@@ -354,6 +354,70 @@ fn a_revoked_device_is_rejected_for_good_once_the_revocation_is_known() {
     assert_eq!(failures(&p), 1);
 }
 
+fn alice_can_signal(p: &mut Pair) -> bool {
+    use om_core::crypto::lan_signal::{Kind, SignalError};
+    match p
+        .alice
+        .core
+        .lan_signal_seal(&p.a, &p.a_conv, Kind::Offer, [9; 16], "v=0")
+        .unwrap()
+    {
+        Ok(_) => true,
+        Err(SignalError::NoSeed) => false,
+        Err(e) => panic!("unexpected signal refusal {e:?}"),
+    }
+}
+
+#[test]
+fn a_contact_adding_a_device_keeps_the_pair_seed() {
+    let mut p = active_pair();
+    let b2 = Bob2::new(&p);
+    assert!(alice_can_signal(&mut p));
+    b2.link(&mut p);
+    settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+    assert_eq!(peer_generation(&rel(&p.alice, &p.a)), 2);
+    assert!(alice_can_signal(&mut p), "adding a device removes nothing");
+}
+
+#[test]
+fn a_contact_revoking_a_device_ends_the_pair_seed_but_not_delivery() {
+    // ADR-0268 item 2: adopting a head that revokes a device active when the seed was made destroys the seed.
+    let mut p = active_pair();
+    let b2 = Bob2::new(&p);
+    let id = b2.link(&mut p);
+    settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+    assert!(alice_can_signal(&mut p));
+    let confirmation = nonce(&mut p.bob, &p.b, "RevokeDevice", &id);
+    p.bob.dispatch(
+        &p.b,
+        "rev",
+        IntentBody::RevokeDevice {
+            device_id: id,
+            confirmation,
+        },
+    );
+    settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+    assert_eq!(peer_generation(&rel(&p.alice, &p.a)), 3);
+    assert!(!alice_can_signal(&mut p), "the seed is gone: no_seed");
+    // Delivery over the Home is unaffected: a message from Bob's first device still arrives.
+    p.bob.dispatch(
+        &p.b,
+        "m",
+        IntentBody::SendMessage {
+            conversation_id: p.b_conv.clone(),
+            draft: Draft {
+                text: "still here".into(),
+                reply_to: None,
+            },
+        },
+    );
+    settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+    assert_eq!(
+        timeline(&p.alice, &p.a, &p.a_conv),
+        vec!["still here".to_string()]
+    );
+}
+
 #[test]
 fn a_wrapper_held_for_a_head_that_never_lists_its_device_is_dropped_after_the_ttl() {
     let mut p = active_pair();
