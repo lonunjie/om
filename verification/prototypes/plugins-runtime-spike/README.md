@@ -49,3 +49,102 @@ path and the CSP-confined host are measured. No independent review has been done
 
 Run on a build host with Rust and Node: `cd native && cargo run --release` (writes `hostile-browser.wasm`), then
 `cd ../browser && pnpm install --ignore-workspace && node spike.mjs ../native/hostile-browser.wasm`.
+
+## PWA runtime measurements
+
+**Design sources read.** The design gate returned no mapped code path for this prototype. The spike used the
+[plugin architecture](../../../docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md),
+[client and extension architecture](../../../docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md),
+[ADR-0093](../../../decisions/ADR-0093-capability-sandboxed-plugin-extension-classes.md),
+[ADR-0129](../../../decisions/ADR-0129-extension-service-and-client-trust-boundaries.md),
+[ADR-0259](../../../decisions/ADR-0259-authorize-plugins-engineering.md),
+[ADR-0266](../../../decisions/ADR-0266-plugins-wire-freeze.md),
+[the slice 3 build-plan text](../../../docs/reports/2026-11-23-plugins-build-plan.md#4-slices), and
+[the WIT world](../../../spec/wit/om-plugin.wit) introduced in `32f7b4d`. Repository instructions, the agent architecture
+rules, the architecture contract, the constitution digest and the V-010 criteria were also consulted. The original
+constitution documents and other architecture domains were outside this reading.
+
+### Earlier local native run (Mac), 2026-11-26 (superseded by the emeth4 results below for the browser path)
+
+Wasmtime 51.0.0 on arm64 macOS ran the component assembled from the WIT export declarations and the spike's core WAT.
+`init` succeeded, `on-event` round-tripped empty and nonempty byte lists, and `render` preserved the UTF-8 input and its
+error payload in separate calls. In the growth case, three one-page grows succeeded and five failed. Linear memory went
+from one to four pages (256 KiB). The loop trapped after consuming the 5,000,000-fuel budget. Raw WAVE output and
+process wall times are in [preflight.json](browser/results/preflight.json). These timings include CLI startup, parsing,
+compilation, instantiation and the call.
+
+### Measured results, emeth4, 2026-11-26
+
+Linux x64, Node 24.15.0, pnpm 12.11.2, jco 1.40.0, Playwright 1.63.0, Wasmtime 51.0.0. The transpiled fixture (core 0.52 KiB, glue
+about 130 KiB uncompressed) matched the native results on every call (init, empty and nonempty event, render, render error, memory
+growth); the same component sha256 was used for both. Five fresh Workers per engine, medians:
+
+| Engine | Version | Script load, ms | Compile and instantiate, ms | Parity | CSP `connect-src 'none'` | 500 ms termination | Origin binding |
+|---|---|---|---|---|---|---|---|
+| Chromium | 153.0.8010.12 | 7.3 | 1.7 | passed | fetch, WebSocket, XHR, importScripts, frame sendBeacon blocked | passed | passed |
+| Firefox | 155.0 | 12.7 | 2.4 | passed | same | passed | passed |
+| WebKit | 26.6 | 5.3 | 3.5 | passed | same | passed | passed |
+
+`sendBeacon` is unavailable inside a Worker on all three engines (reported as `api-unavailable`); from the sandboxed frame it is blocked. Memory is
+bounded only by the fixture's declared linear-memory maximum (one Wasm memory); the browsers give no fuel metering, so wall-clock
+termination is the only compute limit. Raw records: [chromium.json](browser/results/chromium.json), [firefox.json](browser/results/firefox.json),
+[webkit.json](browser/results/webkit.json), [preflight.json](browser/results/preflight.json).
+
+**Coverage and limits.** One tiny hand-written fixture with no capability imports, not a real plugin: size and start-up numbers say nothing about a
+realistic plugin, and jco glue size will grow with the WIT surface. Loopback origins on one host exercise the handshake and CSP, not
+separate-registrable-domain deployment or process isolation. Headless Playwright builds only; no real phones. No independent review has been done.
+
+**Feasibility.** On this fixture the transpile step and a CSP-confined Worker or frame behave as the design needs on all three engines, with
+wall-clock rather than fuel limits. This closes the two items the earlier spike left unmeasured for a tiny component; it does not select a product runtime
+and V-010 stays partially met until a realistic plugin and the production host are measured.
+
+### Unattended measurement
+
+From this spike's `browser/` directory, use Node 22 or newer, a Wasmtime CLI with component `--invoke` support, and
+the browsers for Playwright 1.63.0 already installed. The package pins jco 1.40.0, its transpiler 0.21.0, Playwright
+1.63.0 and pnpm 12.11.2. The local native measurement used the available pnpm 12.23.0. A transitive lockfile could not
+be generated in the offline environment.
+
+```sh
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --ignore-scripts
+pnpm measure
+```
+
+`pnpm measure --native-only` exercises the WIT-derived component in Wasmtime without JavaScript dependencies or
+browsers. `pnpm measure --no-browser` attempts the transpile and invokes Wasmtime without starting Playwright. A full
+run executes every engine, writes each engine's raw JSON even when a launch or check fails, and exits nonzero if any
+required observation fails. The build and results use fixed paths. Non-browser runs preserve existing engine records.
+
+- **Transpile and startup.** In a full run, Wasmtime and jco take the exact same component binary. The component uses
+  no capability imports. The runner records raw and gzip byte counts for the component, jco files and the equivalent
+  browser payload, including an ES module containing the core bytes. It records five fresh Workers per policy, with
+  script loading, compilation and instantiation, and elapsed time from worker construction to readiness. The samples
+  share a browser context. Parity compares success values, UTF-8/list marshalling and the error payload against the
+  native results. [jco instantiation mode](https://bytecodealliance.github.io/jco/transpiling.html#instantiation)
+- **Network policy.** Both the plugin frame and classic Worker receive an enforcing HTTP CSP. The confined phase uses
+  `connect-src 'none'` for fetch, WebSocket, XMLHttpRequest and `sendBeacon`. The remote `importScripts` probe is governed
+  by `script-src`, with the remote source omitted in the confined phase. The probes execute in the JavaScript host
+  around the component, exercising CSP even if wrapper code attempts to use ambient APIs. The control policy explicitly
+  permits a separate loopback sink origin. A blocked result requires a working control, no confined receipt at the
+  sink and either an API failure or matching CSP violation. A beacon can report that it was queued without showing it
+  was sent. The sandboxed frame exercises `sendBeacon` explicitly, and the Worker reports API availability separately.
+  [Content Security Policy Level 3](https://www.w3.org/TR/CSP3/)
+- **Resources.** The Worker invokes the same component's growth and loop cases. The growth case reports successful and
+  denied `memory.grow` attempts at the fixture's declared maximum. This measures one Wasm linear memory. The frame
+  calls `Worker.terminate()` 500 ms after it receives the loop-start signal, records elapsed time and any return or pong
+  received before termination, then services another timer. The measured deadline starts at the signal, and timer
+  scheduling varies by engine.
+- **Origin binding.** A foreign-origin document in the expected iframe claims the plugin origin in its bootstrap message.
+  The host checks the browser's `MessageEvent.origin` and the frame's `WindowProxy`, then withholds the port from the
+  foreign origin. The genuine document receives the transferred port via exact `targetOrigin` and completes a sequenced
+  exchange. Delivery uses the bound endpoint and sequence. The loopback origins exercise the handshake and CSP but do
+  not establish separate-registrable-domain deployment or process isolation. The runner records `crossOriginIsolated`
+  as an observation. [HTML cross-document and channel messaging](https://html.spec.whatwg.org/multipage/web-messaging.html)
+
+### Open design questions
+
+1. How will a PWA host enforce each plugin's memory budget across every core module emitted by the transpiler, including
+   guest-defined memories and allocations in the JavaScript binding? The fixture's one declared Wasm maximum gives no
+   measurement of that general enforcement.
+2. How will the product host invalidate a bound `MessagePort` when an iframe navigates or a port is transferred? This run
+   tests the initial transfer boundary. Port messages do not supply a fresh cross-document origin.

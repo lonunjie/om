@@ -1,0 +1,509 @@
+{
+  "date": "2026-11-26T04:30:18.174Z",
+  "engine": "chromium",
+  "playwright": "1.63.0",
+  "component_sha256": "b2800647f5a30a234b59b6ef44820a4f5b591cb6b788d5a535a867590db8d92f",
+  "origins": {
+    "client": "http://127.0.0.1:42439",
+    "plugin": "http://localhost:42439",
+    "sink": "http://127.0.0.1:45985"
+  },
+  "policies": {
+    "control": "default-src 'none'; script-src 'self' http://127.0.0.1:45985 'wasm-unsafe-eval'; connect-src http://127.0.0.1:45985 ws://127.0.0.1:45985; worker-src 'self'; base-uri 'none'",
+    "confined": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'self'; base-uri 'none'"
+  },
+  "console": [
+    {
+      "type": "warning",
+      "text": "An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.",
+      "url": "http://127.0.0.1:42439/client.js"
+    },
+    {
+      "type": "warning",
+      "text": "An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.",
+      "url": "http://127.0.0.1:42439/client.js"
+    },
+    {
+      "type": "error",
+      "text": "Connecting to 'http://127.0.0.1:45985/probe/chromium/confined/frame/sendBeacon' violates the following Content Security Policy directive: \"connect-src 'none'\". The action has been blocked.",
+      "url": "http://localhost:42439/probe.js"
+    }
+  ],
+  "errors": [],
+  "version": "153.0.8010.12",
+  "control": {
+    "client_origin": "http://127.0.0.1:42439",
+    "secure_context": true,
+    "cross_origin_isolated": true,
+    "component_api": "undefined",
+    "ports_transferred": 1,
+    "plugin_origin": {
+      "actual_origin": "http://localhost:42439",
+      "claimed_origin": "http://localhost:42439",
+      "same_window": true,
+      "decision": "accept"
+    },
+    "channel": {
+      "result": {
+        "startup": [
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 10.495000004768372,
+            "compile_instantiate_ms": 2.625,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 26.375
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 12.225000023841858,
+            "compile_instantiate_ms": 2.7100000381469727,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 35.955000042915344
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 11.639999985694885,
+            "compile_instantiate_ms": 2.6049998998641968,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 27.335000038146973
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 9.034999966621399,
+            "compile_instantiate_ms": 2.024999976158142,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 21.889999985694885
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 8.704999923706055,
+            "compile_instantiate_ms": 1.6950000524520874,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 20.980000019073486
+          }
+        ],
+        "frame": {
+          "origin": "http://localhost:42439",
+          "secure_context": true,
+          "cross_origin_isolated": true
+        },
+        "calls": {
+          "type": "calls",
+          "results": {
+            "init": {
+              "ok": null
+            },
+            "empty-event": {
+              "ok": []
+            },
+            "event": {
+              "ok": [
+                0,
+                42,
+                255
+              ]
+            },
+            "render": {
+              "ok": [
+                112,
+                97,
+                110,
+                101,
+                108,
+                45,
+                207,
+                128
+              ]
+            },
+            "render-error": {
+              "err": "empty surface"
+            },
+            "grow": {
+              "ok": [
+                1,
+                3,
+                4,
+                5
+              ]
+            }
+          }
+        },
+        "worker_network": {
+          "type": "network",
+          "results": [
+            {
+              "api": "fetch",
+              "url": "http://127.0.0.1:45985/probe/chromium/control/worker/fetch",
+              "outcome": "completed",
+              "status": 200,
+              "elapsed_ms": 8.129999995231628
+            },
+            {
+              "api": "websocket",
+              "url": "http://127.0.0.1:45985/probe/chromium/control/worker/websocket",
+              "outcome": "opened",
+              "elapsed_ms": 8.31499993801117
+            },
+            {
+              "api": "xhr",
+              "url": "http://127.0.0.1:45985/probe/chromium/control/worker/xhr",
+              "outcome": "completed",
+              "status": 200,
+              "elapsed_ms": 7.509999990463257
+            },
+            {
+              "api": "importScripts",
+              "url": "http://127.0.0.1:45985/probe/chromium/control/worker/importScripts",
+              "outcome": "executed",
+              "elapsed_ms": 5.789999961853027
+            },
+            {
+              "api": "sendBeacon",
+              "url": "http://127.0.0.1:45985/probe/chromium/control/worker/sendBeacon",
+              "outcome": "unavailable"
+            }
+          ],
+          "violations": []
+        },
+        "frame_beacon": {
+          "api": "sendBeacon",
+          "url": "http://127.0.0.1:45985/probe/chromium/control/frame/sendBeacon",
+          "outcome": "queued",
+          "elapsed_ms": 1.0950000286102295
+        },
+        "frame_violations": []
+      },
+      "received": [
+        {
+          "type": "bound",
+          "sequence": 0,
+          "valid_endpoint": true
+        },
+        {
+          "type": "result",
+          "sequence": 1,
+          "valid_endpoint": true
+        }
+      ]
+    }
+  },
+  "confined": {
+    "client_origin": "http://127.0.0.1:42439",
+    "secure_context": true,
+    "cross_origin_isolated": true,
+    "component_api": "undefined",
+    "ports_transferred": 1,
+    "wrong_origin": {
+      "actual_origin": "http://127.0.0.1:45985",
+      "claimed_origin": "http://localhost:42439",
+      "same_window": true,
+      "decision": "reject-origin",
+      "ports_transferred": 0
+    },
+    "plugin_origin": {
+      "actual_origin": "http://localhost:42439",
+      "claimed_origin": "http://localhost:42439",
+      "same_window": true,
+      "decision": "accept"
+    },
+    "channel": {
+      "result": {
+        "startup": [
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 7.485000014305115,
+            "compile_instantiate_ms": 1.690000057220459,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 19.450000047683716
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 6.744999885559082,
+            "compile_instantiate_ms": 1.755000114440918,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 20.375
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 7.184999942779541,
+            "compile_instantiate_ms": 2.2200000286102295,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 19.365000009536743
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 7.745000004768372,
+            "compile_instantiate_ms": 1.5799999237060547,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 19.34499990940094
+          },
+          {
+            "type": "ready",
+            "load_glue_and_bytes_ms": 7.304999947547913,
+            "compile_instantiate_ms": 1.4950000047683716,
+            "exports": [
+              "init",
+              "onEvent",
+              "render"
+            ],
+            "secure_context": true,
+            "cross_origin_isolated": true,
+            "worker_round_trip_ms": 29.039999961853027
+          }
+        ],
+        "frame": {
+          "origin": "http://localhost:42439",
+          "secure_context": true,
+          "cross_origin_isolated": true
+        },
+        "calls": {
+          "type": "calls",
+          "results": {
+            "init": {
+              "ok": null
+            },
+            "empty-event": {
+              "ok": []
+            },
+            "event": {
+              "ok": [
+                0,
+                42,
+                255
+              ]
+            },
+            "render": {
+              "ok": [
+                112,
+                97,
+                110,
+                101,
+                108,
+                45,
+                207,
+                128
+              ]
+            },
+            "render-error": {
+              "err": "empty surface"
+            },
+            "grow": {
+              "ok": [
+                1,
+                3,
+                4,
+                5
+              ]
+            }
+          }
+        },
+        "worker_network": {
+          "type": "network",
+          "results": [
+            {
+              "api": "fetch",
+              "url": "http://127.0.0.1:45985/probe/chromium/confined/worker/fetch",
+              "outcome": "threw",
+              "error": "TypeError: Failed to fetch",
+              "elapsed_ms": 10.684999942779541
+            },
+            {
+              "api": "websocket",
+              "url": "http://127.0.0.1:45985/probe/chromium/confined/worker/websocket",
+              "outcome": "error-event",
+              "elapsed_ms": 9.68500006198883
+            },
+            {
+              "api": "xhr",
+              "url": "http://127.0.0.1:45985/probe/chromium/confined/worker/xhr",
+              "outcome": "error-event",
+              "status": 0,
+              "elapsed_ms": 9.464999914169312
+            },
+            {
+              "api": "importScripts",
+              "url": "http://127.0.0.1:45985/probe/chromium/confined/worker/importScripts",
+              "outcome": "threw",
+              "error": "NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://127.0.0.1:45985/probe/chromium/confined/worker/importScripts' failed to load.",
+              "elapsed_ms": 8.894999980926514
+            },
+            {
+              "api": "sendBeacon",
+              "url": "http://127.0.0.1:45985/probe/chromium/confined/worker/sendBeacon",
+              "outcome": "unavailable"
+            }
+          ],
+          "violations": [
+            {
+              "blockedURI": "http://127.0.0.1:45985/probe/chromium/confined/worker/fetch",
+              "effectiveDirective": "connect-src",
+              "violatedDirective": "connect-src",
+              "disposition": "enforce"
+            },
+            {
+              "blockedURI": "ws://127.0.0.1:45985/probe/chromium/confined/worker/websocket",
+              "effectiveDirective": "connect-src",
+              "violatedDirective": "connect-src",
+              "disposition": "enforce"
+            },
+            {
+              "blockedURI": "http://127.0.0.1:45985/probe/chromium/confined/worker/xhr",
+              "effectiveDirective": "connect-src",
+              "violatedDirective": "connect-src",
+              "disposition": "enforce"
+            },
+            {
+              "blockedURI": "http://127.0.0.1:45985/probe/chromium/confined/worker/importScripts",
+              "effectiveDirective": "script-src-elem",
+              "violatedDirective": "script-src-elem",
+              "disposition": "enforce"
+            }
+          ]
+        },
+        "spin": {
+          "reason": "watchdog-terminated",
+          "limit_ms": 500,
+          "start_signal_ms": 0.17500007152557373,
+          "call_to_terminate_ms": 500.4950000047684,
+          "messages": [
+            {
+              "type": "spin-started"
+            }
+          ]
+        },
+        "frame_alive_after_spin": true,
+        "frame_beacon": {
+          "api": "sendBeacon",
+          "url": "http://127.0.0.1:45985/probe/chromium/confined/frame/sendBeacon",
+          "outcome": "queued",
+          "elapsed_ms": 0.5800000429153442
+        },
+        "frame_violations": [
+          {
+            "blockedURI": "http://127.0.0.1:45985/probe/chromium/confined/frame/sendBeacon",
+            "effectiveDirective": "connect-src",
+            "violatedDirective": "connect-src",
+            "disposition": "enforce"
+          }
+        ]
+      },
+      "received": [
+        {
+          "type": "bound",
+          "sequence": 0,
+          "valid_endpoint": true
+        },
+        {
+          "type": "result",
+          "sequence": 1,
+          "valid_endpoint": true
+        }
+      ]
+    }
+  },
+  "traffic": [
+    {
+      "transport": "http",
+      "method": "GET",
+      "path": "/probe/chromium/control/worker/fetch"
+    },
+    {
+      "transport": "websocket",
+      "method": "GET",
+      "path": "/probe/chromium/control/worker/websocket"
+    },
+    {
+      "transport": "http",
+      "method": "GET",
+      "path": "/probe/chromium/control/worker/importScripts"
+    },
+    {
+      "transport": "http",
+      "method": "GET",
+      "path": "/probe/chromium/control/worker/xhr"
+    },
+    {
+      "transport": "http",
+      "method": "POST",
+      "path": "/probe/chromium/control/frame/sendBeacon"
+    }
+  ],
+  "checks": {
+    "pass": true,
+    "startup": "passed",
+    "parity": {
+      "init": "passed",
+      "empty-event": "passed",
+      "event": "passed",
+      "render": "passed",
+      "render-error": "passed",
+      "grow": "passed"
+    },
+    "memory": "bounded-fixture-linear-memory",
+    "watchdog": "passed",
+    "origin_binding": "passed",
+    "network": {
+      "fetch": "blocked",
+      "websocket": "blocked",
+      "xhr": "blocked",
+      "importScripts": "blocked",
+      "sendBeacon": "api-unavailable",
+      "frameSendBeacon": "blocked"
+    }
+  },
+  "status": "passed"
+}

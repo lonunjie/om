@@ -1,0 +1,175 @@
+{
+  "date": "2026-11-26T04:30:18.174Z",
+  "node": "v24.15.0",
+  "platform": "linux",
+  "arch": "x64",
+  "pins": {
+    "pnpm": "pnpm@12.11.2",
+    "@bytecodealliance/jco": "1.40.0",
+    "playwright": "1.63.0"
+  },
+  "pnpm_used": "12.11.2",
+  "input": {
+    "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+    "fixture_wat_sha256": "c04f838e0b0e193df5d982e9e1c8a61cdc0c03ed05b97e6cf62f3d1abb400dc4"
+  },
+  "transpile": {
+    "status": "measured",
+    "version": "1.40.0",
+    "parsed": {
+      "status": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "error": "",
+      "elapsed_ms": 283.70992300000006
+    },
+    "transpile": {
+      "status": 0,
+      "signal": null,
+      "stdout": "\n  Transpiled JS Component Files:\n\n - .pwa-build/transpiled/fixture.core.wasm  0.52 KiB\n - .pwa-build/transpiled/fixture.d.ts       2.16 KiB\n - .pwa-build/transpiled/fixture.js          130 KiB",
+      "stderr": "",
+      "error": "",
+      "elapsed_ms": 634.9306379999999
+    },
+    "component": {
+      "bytes": 827,
+      "sha256": "b2800647f5a30a234b59b6ef44820a4f5b591cb6b788d5a535a867590db8d92f",
+      "gzip_bytes": 545
+    },
+    "output": {
+      "fixture.core.wasm": {
+        "bytes": 534,
+        "gzip_bytes": 398
+      },
+      "fixture.d.ts": {
+        "bytes": 2212,
+        "gzip_bytes": 878
+      },
+      "fixture.js": {
+        "bytes": 133465,
+        "gzip_bytes": 28780
+      },
+      "fixture-bytes.js": {
+        "bytes": 753,
+        "gzip_bytes": 544
+      }
+    },
+    "browser_payload_bytes": 134218,
+    "browser_payload_gzip_bytes": 29324
+  },
+  "native": {
+    "wasmtime": "wasmtime 51.0.0",
+    "input": "component binary",
+    "timing": "process wall clock including Wasmtime startup, compilation, instantiation and call",
+    "calls": {
+      "init": {
+        "wave": "init()",
+        "status": 0,
+        "signal": null,
+        "stdout": "ok",
+        "stderr": "",
+        "error": "",
+        "elapsed_ms": 20.832010999999966,
+        "result": {
+          "ok": null
+        },
+        "pass": true
+      },
+      "empty-event": {
+        "wave": "on-event([])",
+        "status": 0,
+        "signal": null,
+        "stdout": "ok([])",
+        "stderr": "",
+        "error": "",
+        "elapsed_ms": 7.67507999999998,
+        "result": {
+          "ok": []
+        },
+        "pass": true
+      },
+      "event": {
+        "wave": "on-event([0, 42, 255])",
+        "status": 0,
+        "signal": null,
+        "stdout": "ok([0, 42, 255])",
+        "stderr": "",
+        "error": "",
+        "elapsed_ms": 6.7745380000001205,
+        "result": {
+          "ok": [
+            0,
+            42,
+            255
+          ]
+        },
+        "pass": true
+      },
+      "render": {
+        "wave": "render(\"panel-π\")",
+        "status": 0,
+        "signal": null,
+        "stdout": "ok([112, 97, 110, 101, 108, 45, 207, 128])",
+        "stderr": "",
+        "error": "",
+        "elapsed_ms": 7.195308000000068,
+        "result": {
+          "ok": [
+            112,
+            97,
+            110,
+            101,
+            108,
+            45,
+            207,
+            128
+          ]
+        },
+        "pass": true
+      },
+      "render-error": {
+        "wave": "render(\"\")",
+        "status": 0,
+        "signal": null,
+        "stdout": "err(\"empty surface\")",
+        "stderr": "",
+        "error": "",
+        "elapsed_ms": 7.63728900000001,
+        "result": {
+          "err": "empty surface"
+        },
+        "pass": true
+      },
+      "grow": {
+        "wave": "on-event([254])",
+        "status": 0,
+        "signal": null,
+        "stdout": "ok([1, 3, 4, 5])",
+        "stderr": "",
+        "error": "",
+        "elapsed_ms": 7.068247000000156,
+        "result": {
+          "ok": [
+            1,
+            3,
+            4,
+            5
+          ]
+        },
+        "pass": true
+      }
+    },
+    "spin": {
+      "wave": "on-event([255])",
+      "status": 134,
+      "signal": null,
+      "stdout": "",
+      "stderr": "Error: failed to run main module `.pwa-build/fixture.wasm`\n\nCaused by:\n    0: error while executing at wasm backtrace:\n    0:     0xe9 - guest!<wasm function 3>\n    1: wasm trap: all fuel consumed by WebAssembly",
+      "error": "",
+      "elapsed_ms": 11.694400000000087,
+      "fuel_trap": true
+    },
+    "pass": true
+  }
+}

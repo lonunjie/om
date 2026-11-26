@@ -1,4 +1,5 @@
 native/target/
 native/Cargo.lock
 browser/node_modules/
+browser/.pwa-build/
 native/hostile-browser.wasm

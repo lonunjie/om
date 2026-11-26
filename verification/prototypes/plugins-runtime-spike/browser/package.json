@@ -1,1 +1,14 @@
-{ "name": "plugins-runtime-spike-browser", "private": true, "type": "module", "devDependencies": { "playwright": "1.63.0" } }
+{
+  "name": "plugins-runtime-spike-browser",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.11.2",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "measure": "node measure.mjs"
+  },
+  "devDependencies": {
+    "@bytecodealliance/jco": "1.40.0",
+    "playwright": "1.63.0"
+  }
+}

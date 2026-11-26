@@ -16125,6 +16125,41 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/client.js",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/fixture.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/fixture.wat",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/frame.js",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/measure.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/plugins-runtime-spike/browser/package.json",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -16132,7 +16167,70 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/pnpm-workspace.yaml",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/probe.js",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/chromium.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/firefox.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/preflight.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/webkit.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/server.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/plugins-runtime-spike/browser/spike.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/verdict.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/worker.js",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
