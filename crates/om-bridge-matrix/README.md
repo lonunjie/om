@@ -33,10 +33,16 @@ lookup uses Core's verified link state for the exact handle.
 ## Evidence and scope
 
 The offline tests use frozen JSON and a two-room fake homeserver with two
-bridges and a Room model. No real homeserver was run. The tests do not exercise
+bridges and a Room model. A separate test (`tests/real_homeserver.rs`, skipped
+unless `OM_MATRIX_LOOPBACK` is set) drives two bridge devices and a Room model
+against one disposable Synapse 1.166 homeserver on loopback: send retry,
+echo, reflection, metadata stripping, hop limit, edit, reaction, thread and
+redaction targets, opt-in relay, inert content and removal. That run maps the
+adapter's HTTPS origin to plain HTTP, so TLS was not exercised, and it covers
+one server version only. In it the experimental Matrix content key survived
+the send and the dedicated redaction endpoint. The tests do not exercise
 Matrix E2EE, room discovery, media transfer, profile lookup, Matrix proof
-issuance, reaction removal or live OM MLS. Test-network evidence is still
-needed for preservation of the experimental Matrix content key, particularly
-on the dedicated redaction endpoint.
+issuance, reaction removal, live OM MLS, federation or other homeserver
+implementations.
 
 Matrix wire shapes follow the [Matrix Client-Server API](https://spec.matrix.org/v1.18/client-server-api/).
