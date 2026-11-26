@@ -1,0 +1,54 @@
+[
+  {
+    "type": "m.room.message", "event_id": "$text", "sender": "@alice:matrix.test",
+    "room_id": "!left:matrix.test", "origin_server_ts": 1234,
+    "content": {"msgtype": "m.text", "body": "Hello", "format": "org.matrix.custom.html",
+                "formatted_body": "<b>Hello</b><img src='https://example.invalid/tracker'>"}
+  },
+  {
+    "type": "m.room.message", "event_id": "$edit", "sender": "@alice:matrix.test",
+    "content": {"msgtype": "m.text", "body": "* Updated",
+                "m.relates_to": {"rel_type": "m.replace", "event_id": "$text"},
+                "m.new_content": {"msgtype": "m.text", "body": "Updated"}}
+  },
+  {
+    "type": "m.reaction", "event_id": "$reaction", "sender": "@bob:matrix.test",
+    "content": {"m.relates_to": {"rel_type": "m.annotation", "event_id": "$text", "key": "👍"}}
+  },
+  {
+    "type": "m.room.redaction", "event_id": "$redaction", "sender": "@alice:matrix.test",
+    "redacts": "$text", "content": {"reason": "Requested"}
+  },
+  {
+    "type": "m.room.redaction", "event_id": "$redaction-v11", "sender": "@alice:matrix.test",
+    "content": {"redacts": "$text"}
+  },
+  {
+    "type": "m.room.message", "event_id": "$reply", "sender": "@alice:matrix.test",
+    "content": {"msgtype": "m.text", "body": "Reply",
+                "m.relates_to": {"m.in_reply_to": {"event_id": "$text"}}}
+  },
+  {
+    "type": "m.room.message", "event_id": "$thread", "sender": "@alice:matrix.test",
+    "content": {"msgtype": "m.text", "body": "Thread",
+                "m.relates_to": {"rel_type": "m.thread", "event_id": "$text",
+                                "is_falling_back": true, "m.in_reply_to": {"event_id": "$text"}}}
+  },
+  {
+    "type": "m.room.message", "event_id": "$file", "sender": "@alice:matrix.test",
+    "content": {"msgtype": "m.file", "body": "example.txt", "url": "mxc://matrix.test/abc_123",
+                "info": {"size": 17}}
+  },
+  {
+    "type": "m.room.message", "event_id": "$trace", "sender": "@alice:matrix.test",
+    "content": {"msgtype": "m.text", "body": "With metadata",
+                "org.lonunjie.om.interop.v1": {
+                  "trace": {
+                    "origin_namespace": "om",
+                    "origin_fingerprint": [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    "traversed_bridge_ids": [], "hop_count": 0, "hop_limit": 3, "transformation_ids": []
+                  },
+                  "fidelity_flags": [1]
+                }}
+  }
+]

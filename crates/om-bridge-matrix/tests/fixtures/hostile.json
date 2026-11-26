@@ -1,0 +1,11 @@
+[
+  {"error": "DuplicateKey", "raw": "{\"type\":\"m.reaction\",\"ty\\u0070e\":\"m.room.message\"}"},
+  {"error": "DepthLimit", "raw": "{\"x\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}"},
+  {"error": "InvalidJson", "raw": "{\"content\": ["},
+  {"error": "InvalidJson", "raw": "{}{}"},
+  {"error": "InvalidEvent", "raw": "{\"type\":\"m.room.message\",\"event_id\":\"$bad\",\"sender\":\"@bob:matrix.test\",\"content\":{\"msgtype\":\"m.file\",\"body\":\"bad\",\"url\":\"javascript:alert(1)\"}}"},
+  {"error": "InvalidEvent", "raw": "{\"type\":\"m.room.redaction\",\"event_id\":\"$bad\",\"sender\":\"@bob:matrix.test\",\"redacts\":\"$one\",\"content\":{\"redacts\":\"$two\"}}"},
+  {"error": "InvalidEvent", "raw": "{\"type\":\"m.room.message\",\"room_id\":\"!other:matrix.test\",\"event_id\":\"$bad\",\"sender\":\"@bob:matrix.test\",\"content\":{\"msgtype\":\"m.text\",\"body\":\"Other room\"}}"},
+  {"error": "InvalidTrace", "raw": "{\"type\":\"m.room.message\",\"event_id\":\"$bad\",\"sender\":\"@bob:matrix.test\",\"content\":{\"msgtype\":\"m.text\",\"body\":\"Hello\",\"org.lonunjie.om.interop.v1\":null}}"},
+  {"error": "EncryptedEvent", "raw": "{\"type\":\"m.room.encrypted\",\"event_id\":\"$encrypted\",\"sender\":\"@bob:matrix.test\",\"content\":{}}"}
+]
