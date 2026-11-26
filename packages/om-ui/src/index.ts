@@ -22,3 +22,4 @@ export type * from "./bridges/bridges";
 export * from "./portability/index";
 export * from "./services/index";
 export * from "./communities/index";
+export * from "./plugins/index";

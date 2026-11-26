@@ -1,0 +1,56 @@
+.om-plugin-stack {
+  display: grid;
+  gap: var(--om-space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.om-plugin-stack > :is(h2, h3, p, dl, ul),
+.om-plugin-facts :is(p, ul) {
+  margin: 0;
+}
+
+.om-plugin-reserved { font-family: system-ui, sans-serif; }
+.om-plugin-facts dt { font-weight: var(--om-weight-bold); }
+.om-plugin-facts dd { margin-inline-start: var(--om-space-3); }
+.om-plugin-facts dd + dt { margin-block-start: var(--om-space-2); }
+.om-plugin-facts ul { padding-inline-start: var(--om-space-4); }
+.om-plugin-exact { white-space: pre-wrap; }
+
+.om-plugin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--om-space-2);
+}
+
+.om-plugin-tree,
+.om-plugin-card {
+  border: 1px solid var(--om-color-border-subtle);
+  padding: var(--om-space-3);
+}
+
+.om-plugin-tree {
+  contain: paint;
+  background: var(--om-color-bg-sunken);
+}
+
+.om-plugin-tree :is(.om-button, input) { max-inline-size: 100%; }
+.om-plugin-tree .om-button bdi { min-inline-size: 0; }
+
+.om-plugin-input {
+  box-sizing: border-box;
+  min-inline-size: 0;
+  min-block-size: var(--om-target-min);
+  padding-inline: var(--om-space-3);
+  border: 1px solid var(--om-color-border);
+  border-radius: var(--om-radius-md);
+  font: inherit;
+  background: var(--om-color-bg-surface);
+  color: var(--om-color-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .om-plugin-sheet .om-sheet__panel { animation: none; }
+  :is(.om-plugin-stack, .om-plugin-sheet) .om-button { transition: none; }
+  :is(.om-plugin-stack, .om-plugin-sheet) .om-button:active { transform: none; }
+}
