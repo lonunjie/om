@@ -1,0 +1,961 @@
+{
+  "status": "Status: frozen (ADR-0119). Assigned values are immutable; a 'reserved...' construction may be filled once.",
+  "registry": "om-object-types",
+  "registry_version": 1,
+  "rules": [
+    "object_type ids are assigned here and never reused. 0 is reserved. 1..32767 = public registry; 32768..65279 = reserved for future public allocation; 65280..65535 = experimental/private (never valid in a production profile).",
+    "A 'signed' type travels as a SignedEnvelope {1: body bstr, 2: [+ Signature]} whose body is the canonical encoding of the top-level object. Each signature is over DS-SIG(label, crypto_profile, role, signer, body) as defined in om-domain-separation.json.",
+    "A 'hash' label defines the object's identity/chain hash: Digest = H(DS-HASH(label, body)). The hash covers the body only, never the signatures.",
+    "max_bytes bounds the encoded top-level item (envelope included) and is checked before decoding."
+  ],
+  "types": [
+    {
+      "type_id": 1,
+      "name": "AccountControlState",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-ACS-SIG-v1",
+        "roles": [
+          "controller",
+          "recovery"
+        ]
+      },
+      "hash": "OM-ACS-HASH-v1",
+      "max_bytes": 65536,
+      "source": "ACCOUNT_CONTINUITY_AND_CONTROL.md §2",
+      "logical_schema": "spec/protocol/account-control-state.logical.schema.json"
+    },
+    {
+      "type_id": 2,
+      "name": "AccountControlHead",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-ACH-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "ACCOUNT_CONTINUITY_AND_CONTROL.md §7",
+      "logical_schema": "spec/protocol/account-control-head.logical.schema.json"
+    },
+    {
+      "type_id": 3,
+      "name": "RecoveryPolicy",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": "OM-RECOVERY-POLICY-HASH-v1",
+      "max_bytes": 32768,
+      "source": "RECOVERY_AND_BACKUP_POLICY.md §10",
+      "logical_schema": "spec/protocol/recovery-policy.logical.schema.json"
+    },
+    {
+      "type_id": 4,
+      "name": "RecoveryRequest",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-RECOVERY-REQUEST-SIG-v1",
+        "roles": [
+          "recovery"
+        ]
+      },
+      "hash": "OM-RECOVERY-REQUEST-HASH-v1",
+      "max_bytes": 16384,
+      "source": "RECOVERY_AND_BACKUP_POLICY.md §10.3",
+      "logical_schema": null
+    },
+    {
+      "type_id": 5,
+      "name": "RecoveryVeto",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-RECOVERY-VETO-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "RECOVERY_AND_BACKUP_POLICY.md §10.3",
+      "logical_schema": null
+    },
+    {
+      "type_id": 6,
+      "name": "AccountRetirement",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-ACCOUNT-RETIREMENT-SIG-v1",
+        "roles": [
+          "controller",
+          "recovery",
+          "legacy"
+        ]
+      },
+      "hash": "OM-ACCOUNT-RETIREMENT-HASH-v1",
+      "max_bytes": 65536,
+      "source": "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md §2",
+      "logical_schema": "spec/protocol/account-retirement.logical.schema.json"
+    },
+    {
+      "type_id": 7,
+      "name": "DeviceCredential",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-DEVICE-CREDENTIAL-SIG-v1",
+        "roles": [
+          "device",
+          "controller",
+          "recovery"
+        ]
+      },
+      "hash": "OM-DEVICE-CREDENTIAL-HASH-v1",
+      "max_bytes": 32768,
+      "source": "IDENTITY_PROTOCOL.md DeviceIdentity",
+      "logical_schema": null
+    },
+    {
+      "type_id": 8,
+      "name": "DeviceEnrollmentNotice",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1",
+        "roles": [
+          "controller",
+          "recovery"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md §2 (R-166)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 9,
+      "name": "AsyncKeyBundle",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-PREKEY-BUNDLE-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "ASYNC_KEY_MATERIAL.md §3-4",
+      "logical_schema": "spec/protocol/async-key-material.logical.schema.json"
+    },
+    {
+      "type_id": 10,
+      "name": "ConversationEvent",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "aead_authenticated": true,
+      "max_bytes": 65536,
+      "source": "EVENT_MODEL.md native event envelope; size limit 64 KiB",
+      "logical_schema": "spec/protocol/conversation-event.logical.schema.json"
+    },
+    {
+      "type_id": 11,
+      "name": "ContactDescriptor",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-CONTACT-DESCRIPTOR-SIG-v1",
+        "roles": [
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 32768,
+      "source": "CONTACT_SHARING.md §2; IDENTITY_DISCOVERY_VERIFICATION.md",
+      "logical_schema": "spec/protocol/contact-descriptor.logical.schema.json"
+    },
+    {
+      "type_id": 12,
+      "name": "ContactCapsule",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-CONTACT-CAPSULE-SIG-v1",
+        "roles": [
+          "intro_identity"
+        ]
+      },
+      "hash": "OM-CONTACT-CAPSULE-HASH-v1",
+      "max_bytes": 49152,
+      "source": "CONTACT_SHARING.md §2-3",
+      "logical_schema": "spec/protocol/contact-capsule.logical.schema.json"
+    },
+    {
+      "type_id": 13,
+      "name": "ReferralAttestation",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-REFERRAL-ATTESTATION-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "CONTACT_SHARING.md §3",
+      "logical_schema": null
+    },
+    {
+      "type_id": 14,
+      "name": "Invite",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-INVITE-SIG-v1",
+        "roles": [
+          "device",
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §2; HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md §3.1",
+      "logical_schema": "spec/protocol/invite.logical.schema.json"
+    },
+    {
+      "type_id": 15,
+      "name": "IntroductionTicket",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-INTRO-TICKET-SIG-v1",
+        "roles": [
+          "provider",
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5",
+      "logical_schema": "spec/protocol/introduction-ticket.logical.schema.json"
+    },
+    {
+      "type_id": 16,
+      "name": "SponsoredMailboxGrant",
+      "wave": "W0",
+      "scope": "provider_reference",
+      "signed": {
+        "label": "OM-SPONSOR-GRANT-SIG-v1",
+        "roles": [
+          "provider"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md §3.2",
+      "logical_schema": "spec/protocol/sponsored-mailbox-grant.logical.schema.json"
+    },
+    {
+      "type_id": 17,
+      "name": "RelaySet",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-RELAYSET-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-RELAYSET-HASH-v1",
+      "max_bytes": 32768,
+      "source": "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md §2; RELAY_AND_DELIVERY_ARCHITECTURE.md 2026-09-23",
+      "logical_schema": "spec/protocol/relay-set.logical.schema.json"
+    },
+    {
+      "type_id": 18,
+      "name": "BlobLocationRecord",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-BLOB-LOCATION-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-BLOB-LOCATION-HASH-v1",
+      "max_bytes": 32768,
+      "source": "REACHABILITY_AND_OBJECT_REPAIR.md §3; STORAGE_AND_BLOB_ARCHITECTURE.md",
+      "logical_schema": "spec/protocol/blob-location-record.logical.schema.json"
+    },
+    {
+      "type_id": 19,
+      "name": "MessageRequest",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "hpke_sealed": true,
+      "max_bytes": 73728,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; ADR-0126",
+      "logical_schema": null
+    },
+    {
+      "type_id": 20,
+      "name": "MessageRequestPayload",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1",
+        "roles": [
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; ADR-0126",
+      "logical_schema": null
+    },
+    {
+      "type_id": 21,
+      "name": "IntroIdentityBinding",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-INTRO-IDENTITY-BINDING-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; DISCOVERY_FABRIC.md §7; ADR-0126",
+      "logical_schema": null
+    },
+    {
+      "type_id": 22,
+      "name": "SealedDeliveryKeyRecord",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-SEALED-DELIVERY-KEY-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 8192,
+      "source": "SEALED_SENDER_DELIVERY_PROFILE.md §4; ADR-0142",
+      "logical_schema": null
+    },
+    {
+      "type_id": 23,
+      "name": "SealedDeliveryEnvelope",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "hpke_sealed": true,
+      "max_bytes": 139264,
+      "source": "SEALED_SENDER_DELIVERY_PROFILE.md §5-7; ADR-0142",
+      "logical_schema": null
+    },
+    {
+      "type_id": 24,
+      "name": "SpaceControlState",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-SPACE-CONTROL-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-SPACE-CONTROL-HASH-v1",
+      "max_bytes": 131072,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
+      "logical_schema": "spec/protocol/space-control-state.logical.schema.json"
+    },
+    {
+      "type_id": 25,
+      "name": "SpaceDelegatedIntent",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-SPACE-DELEGATED-INTENT-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 73728,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md §SpaceDelegatedIntent; ADR-0160",
+      "logical_schema": "spec/protocol/space-control-state.logical.schema.json"
+    },
+    {
+      "type_id": 26,
+      "name": "PublicationControlState",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-PUBLICATION-CONTROL-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-PUBLICATION-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
+      "logical_schema": "spec/protocol/publication-event.logical.schema.json"
+    },
+    {
+      "type_id": 27,
+      "name": "PublicationEvent",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-PUBLICATION-EVENT-SIG-v1",
+        "roles": [
+          "publication_signing_key"
+        ]
+      },
+      "hash": "OM-PUBLICATION-EVENT-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
+      "logical_schema": "spec/protocol/publication-event.logical.schema.json"
+    },
+    {
+      "type_id": 28,
+      "name": "GroupControlState",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-CONTROL-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-GROUP-CONTROL-HASH-v1",
+      "max_bytes": 131072,
+      "source": "GROUP_CHAT_ARCHITECTURE.md; GROUP_COMMIT_AND_STATE_CONVERGENCE.md; ADR-0176",
+      "logical_schema": "spec/protocol/group-control-transition.logical.schema.json"
+    },
+    {
+      "type_id": 29,
+      "name": "GroupControlIntent",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-INTENT-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-GROUP-INTENT-HASH-v1",
+      "max_bytes": 73728,
+      "source": "GROUP_COMMIT_AND_STATE_CONVERGENCE.md §4; ADR-0163; ADR-0176",
+      "logical_schema": "spec/protocol/group-control-transition.logical.schema.json"
+    },
+    {
+      "type_id": 30,
+      "name": "GroupCommitBinding",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-COMMIT-BINDING-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-GROUP-COMMIT-BINDING-HASH-v1",
+      "max_bytes": 16384,
+      "source": "GROUP_COMMIT_AND_STATE_CONVERGENCE.md §3.2, §4; ADR-0173; ADR-0176",
+      "logical_schema": "spec/protocol/group-control-transition.logical.schema.json"
+    },
+    {
+      "type_id": 31,
+      "name": "GroupHistoryBundle",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-HISTORY-BUNDLE-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 131072,
+      "source": "GROUP_CHAT_ARCHITECTURE.md (Group history); ADR-0161; ADR-0176",
+      "logical_schema": "spec/protocol/group-history-bundle.logical.schema.json"
+    },
+    {
+      "type_id": 32,
+      "name": "GroupRouteRecord",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-ROUTE-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "ADR-0189 section 1.3 (CDDL in the ADR appendix until moved to spec/cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 33,
+      "name": "GroupTransportFrame",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 131068,
+      "source": "ADR-0189 section 1.2 (CDDL in the ADR appendix until moved to spec/cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 34,
+      "name": "RecoveryNotice",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 131068,
+      "source": "ADR-0190 section 2 (CDDL: spec/cddl/recovery-notice.cddl); additive_noncritical_extension per ADR-0190 ruling 5",
+      "logical_schema": null
+    },
+    {
+      "type_id": 35,
+      "name": "RecoveryRecordEnvelope",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1048576,
+      "source": "ADR-0199 section 3 (CDDL: spec/cddl/recovery-record.cddl); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 36,
+      "name": "RecoveryRecord",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1048000,
+      "source": "ADR-0199 sections 1, 2, 4 and 5 (CDDL: spec/cddl/recovery-record.cddl); decrypted plaintext of type 35; additive_noncritical_extension",
+      "logical_schema": "spec/protocol/recovery-record.logical.schema.json"
+    },
+    {
+      "type_id": 37,
+      "name": "RecoveryRedirect",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1048000,
+      "source": "ADR-0200 section 6 (CDDL: spec/cddl/recovery-record.cddl); second plaintext kind of type 35",
+      "logical_schema": null
+    },
+    {
+      "type_id": 38,
+      "name": "RecoveryKit",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 4096,
+      "source": "ADR-0199 section 5 (CDDL: spec/cddl/recovery-record.cddl); device-private, in-session only, class om.recovery_secret",
+      "logical_schema": null
+    },
+    {
+      "type_id": 39,
+      "name": "OwnerRecoveryCheckpoint",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 90,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 40,
+      "name": "RecoveryApprovalProposal",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 98976,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 41,
+      "name": "RecoveryApprovalReply",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1024,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 42,
+      "name": "RecoveryApprovalChunk",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 50128,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 43,
+      "name": "RecoveryApprovalEvidence",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 3200000,
+      "source": "ADR-0203 (CDDL appendix); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 44,
+      "name": "CallSignal",
+      "wave": "W2",
+      "scope": "calls",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 32768,
+      "source": "ADR-0218 (CDDL: spec/cddl/call.cddl); unsigned: it travels only as the plaintext of a message sealed in an established one-to-one session, so the session authenticates the sender (ADR-0132 rule 2, CALLS_AND_REALTIME_MEDIA.md signalling)",
+      "logical_schema": "spec/protocol/call-session.logical.schema.json"
+    },
+    {
+      "type_id": 45,
+      "name": "ContentPackRelease",
+      "wave": "W1",
+      "scope": "expressive_media",
+      "signed": null,
+      "hash": "OM-CONTENT-PACK-RELEASE-HASH-v1",
+      "max_bytes": 2097152,
+      "source": "ADR-0252 (CDDL: spec/cddl/expressive.cddl); unsigned immutable manifest identified by its hash; authenticity comes from the ContentPackControlState that endorses its release_id",
+      "logical_schema": "spec/protocol/content-pack.logical.schema.json"
+    },
+    {
+      "type_id": 46,
+      "name": "ContentPackControlState",
+      "wave": "W1",
+      "scope": "expressive_media",
+      "signed": {
+        "label": "OM-CONTENT-PACK-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-CONTENT-PACK-CONTROL-HASH-v1",
+      "max_bytes": 131072,
+      "source": "ADR-0252 (CDDL: spec/cddl/expressive.cddl); hash-chained, authorized by a threshold of the previous state's pack controllers",
+      "logical_schema": null
+    },
+    {
+      "type_id": 47,
+      "name": "ServicePrincipal",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 256,
+      "source": "ServiceID identity wrapper; unsigned; ServiceID is random and not hash-derived (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 48,
+      "name": "ServiceControlState",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-SERVICE-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-SERVICE-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ServiceControlState; ADR-0129 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": "spec/protocol/service-principal.logical.schema.json"
+    },
+    {
+      "type_id": 49,
+      "name": "ServiceDefinition",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-SERVICE-DEFINITION-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-SERVICE-DEFINITION-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ServiceDefinition (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 50,
+      "name": "ServiceInstallation",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-SERVICE-INSTALLATION-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-SERVICE-INSTALLATION-HASH-v1",
+      "max_bytes": 32768,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §Installation scope; ADR-0129 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": "spec/protocol/service-installation.logical.schema.json"
+    },
+    {
+      "type_id": 51,
+      "name": "RepresentationGrant",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": {
+        "label": "OM-REPRESENTATION-GRANT-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-REPRESENTATION-GRANT-HASH-v1",
+      "max_bytes": 32768,
+      "source": "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md §9; ADR-0129 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 52,
+      "name": "ContextDisclosureBundle",
+      "wave": "W4",
+      "scope": "services_bots",
+      "signed": null,
+      "hash": "OM-CONTEXT-DISCLOSURE-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md §ContextDisclosureBundle; ADR-0124 (ADR-0262; CDDL: spec/cddl/service.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 53,
+      "name": "BridgePrincipal",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 256,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Unsigned random provider-independent BridgeID wrapper",
+      "logical_schema": null
+    },
+    {
+      "type_id": 54,
+      "name": "BridgeControlState",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": {
+        "label": "OM-BRIDGE-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-BRIDGE-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Bridge controller threshold and endpoint/adapter state",
+      "logical_schema": "spec/protocol/bridge-principal.logical.schema.json"
+    },
+    {
+      "type_id": 55,
+      "name": "BridgeMapping",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": {
+        "label": "OM-BRIDGE-MAPPING-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-BRIDGE-MAPPING-HASH-v1",
+      "max_bytes": 32768,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Explicit Room to foreign-scope mapping, export policy and approval evidence",
+      "logical_schema": null
+    },
+    {
+      "type_id": 56,
+      "name": "InteropTrace",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 8192,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Diagnostic lineage wrapper; Room-scoped fingerprint in inner trace",
+      "logical_schema": null
+    },
+    {
+      "type_id": 57,
+      "name": "ForeignProvenance",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Bridge-attested foreign source metadata wrapper; inner body is event key 14",
+      "logical_schema": "spec/protocol/foreign-provenance.logical.schema.json"
+    },
+    {
+      "type_id": 58,
+      "name": "ForeignIdentityLink",
+      "wave": "W4",
+      "scope": "bridges",
+      "signed": {
+        "label": "OM-FOREIGN-IDENTITY-LINK-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-FOREIGN-IDENTITY-LINK-HASH-v1",
+      "max_bytes": 32768,
+      "source": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md; ADR-0124, ADR-0129, ADR-0260, ADR-0264 (CDDL: spec/cddl/bridge.cddl). Account-authorized foreign identity proof; never native authorship",
+      "logical_schema": null
+    },
+    {
+      "type_id": 59,
+      "name": "PluginPackageManifest",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": {
+        "label": "OM-PLUGIN-MANIFEST-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-PLUGIN-MANIFEST-HASH-v1",
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": "spec/protocol/plugin-package.logical.schema.json"
+    },
+    {
+      "type_id": 60,
+      "name": "PluginControlState",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": {
+        "label": "OM-PLUGIN-CONTROL-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": "OM-PLUGIN-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 61,
+      "name": "PluginCapabilityGrant",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": {
+        "label": "OM-PLUGIN-GRANT-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-PLUGIN-GRANT-HASH-v1",
+      "max_bytes": 16384,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 62,
+      "name": "PluginHostRequest",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 63,
+      "name": "PluginHostResponse",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 64,
+      "name": "PluginCapabilityCall",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 65,
+      "name": "PluginUiTreeUpdate",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 49152,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 66,
+      "name": "PluginEvent",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 67,
+      "name": "PluginError",
+      "wave": "W4",
+      "scope": "plugins",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 8192,
+      "source": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md §§ OM host capabilities, Plugin package and publisher continuity; ADR-0129; ADR-0266 (spec/cddl/plugin.cddl)",
+      "logical_schema": null
+    }
+  ]
+}

@@ -1,0 +1,1051 @@
+{
+  "status": "Status: frozen (ADR-0119). Assigned values are immutable; a 'reserved...' construction may be filled once.",
+  "registry": "om-domain-separation",
+  "registry_version": 1,
+  "rules": [
+    "Every label is printable ASCII, unique across the whole registry and never reused, including after retirement. A label names exactly one use (signature, hash, KDF, MAC or AEAD associated data) of exactly one object or construction.",
+    "New labels follow the pattern OM-<NAME>-<USE>-v<N>. The two 'documented' labels in lower-case style are copied verbatim from RECOVERY_AND_BACKUP_POLICY.md §10.2 and keep their spelling unless an ADR changes that document.",
+    "DS-SIG(label, crypto_profile, role, signer, body) = the canonical OM-CBOR encoding of the 5-element array [label: tstr, crypto_profile: uint, role: uint, signer: bstr, body: bstr]. The signature algorithm signs these bytes.",
+    "DS-HASH(label, body) = the canonical OM-CBOR encoding of the 2-element array [label: tstr, body: bstr]. Digest = {0: hash_alg, 1: H(DS-HASH(...))}. For hash_alg 1, H = SHA-256.",
+    "Both constructions carry the label as a CBOR text string whose header encodes its length, so no label is a prefix-collision of another input.",
+    "KDF/MAC/AEAD labels marked 'reserved' are allocated so that no other use can take them; their exact input construction is fixed by the CryptoProfile ADR that closes V-001."
+  ],
+  "constructions": {
+    "DS-SIG": "[label: tstr, crypto_profile: uint, role: uint, signer: bstr, body: bstr]",
+    "DS-HASH": "[label: tstr, body: bstr]"
+  },
+  "labels": [
+    {
+      "label": "OM-ACS-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AccountControlState",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-ACS-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "AccountControlState (state_hash, previous_state_hash)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-ACH-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AccountControlHead",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-POLICY-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RecoveryPolicy (AccountControlState.recovery_policy_commitment)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-REQUEST-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RecoveryRequest",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-REQUEST-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RecoveryRequest (RecoveryVeto.request_digest)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-VETO-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RecoveryVeto",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-ACCOUNT-RETIREMENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AccountRetirement",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-ACCOUNT-RETIREMENT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "AccountRetirement (terminal chain member)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-CREDENTIAL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "DeviceCredential",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-CREDENTIAL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "DeviceCredential (AccountControlState.device_credentials, RecoveryRequest.new_device_credential)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "DeviceEnrollmentNotice",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PREKEY-BUNDLE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG over canonical AsyncKeyBundle v1 body; fetcher authorizes signer through relationship-pinned ACS -> DeviceCredential and applies ADR-0140 generation freshness checks",
+      "object": "AsyncKeyBundle",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PREKEY-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG; for one-time kinds body = OM-CBOR [1, subject_device_id, crypto_profile, bundle_generation, provider_pool_id, kind, key_id, public_key] (ADR-0140)",
+      "object": "PrekeyItem one-time kinds 3/4",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PREKEY-GENERATION-CORE-v1",
+      "use": "hash",
+      "construction": "DS-HASH over OM-CBOR [DeviceID, CryptoProfile, generation, signed_prekey, pq_signed_prekey, pq_last_resort_prekey-or-null] (ADR-0140)",
+      "object": "AsyncKeyBundle recipient freshness/equivocation state",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTACT-DESCRIPTOR-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ContactDescriptor",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTACT-CAPSULE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ContactCapsule",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTACT-CAPSULE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContactCapsule (ReferralAttestation.capsule_digest)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-REFERRAL-ATTESTATION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ReferralAttestation",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-INVITE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "Invite",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-INVITE-SECRET-VERIFIER-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = raw invite_secret bytes)",
+      "object": "IntroGate one-way representation of Invite.invite_secret",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-INTRO-TICKET-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "IntroductionTicket",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SPONSOR-GRANT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "SponsoredMailboxGrant",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RELAYSET-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RelaySet",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RELAYSET-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RelaySet (previous_set_hash chain)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BLOB-LOCATION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "BlobLocationRecord",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BLOB-LOCATION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "BlobLocationRecord (previous_record_hash chain)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BLOB-CIPHERTEXT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = ciphertext bytes)",
+      "object": "AttachmentRef.ciphertext_digest",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-LOCATOR-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = recovery_record_read_cap)",
+      "object": "opaque RecoveryStore index for encrypted RecoveryRecord (ADR-0138)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "om/recovery-root/v1",
+      "use": "kdf",
+      "construction": "WebAuthn PRF salt input: label || epoch (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "object": "RecoveryRoot (synced passkey custodian)",
+      "wave": "W0",
+      "status": "documented"
+    },
+    {
+      "label": "om recovery root",
+      "use": "kdf",
+      "construction": "HKDF info: label || RecoveryHandle (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "object": "RecoveryRoot (synced passkey custodian)",
+      "wave": "W0",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-PROVIDER-METADATA-KEY-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "provider-metadata recovery key for RecoveryRecord v1 (ADR-0141)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-AUTH-KEY-SEED-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot (no salt); info = label || recovery_rotation_epoch (uint, big-endian 8 bytes); output 64 bytes = 32-byte Ed25519 seed || 32-byte ML-DSA-65 seed; the RecoveryPolicy method commitment is the composite public key",
+      "object": "recovery signing key pair that signs RecoveryRequest (role recovery) and the recovery-role signature of a recovery successor AccountControlState",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1",
+      "use": "kdf",
+      "construction": "normal profile: HKDF-SHA256 from RecoveryRoot, info = label || recovery_scope_id, output 32 bytes; Maximum Privacy may instead use an independent RelationshipRecoveryKey not derived from/wrapped by RecoveryRoot",
+      "object": "RelationshipSnapshot encryption/custody key (ADR-0141)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "canonical OM-CBOR [label, recovery_scope_id, opaque_locator, record_version=1]",
+      "object": "AEAD associated data for encrypted RecoveryRecord v1 (ADR-0141)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-Crypto-v1_PQXDH_X25519_SHA-256_ML-KEM-768",
+      "use": "kdf",
+      "construction": "PQXDH 'info' parameter (Signal PQXDH rev 3 §2.1/§2.2) for OM-Crypto-v1; KDF(KM) = HKDF-SHA256(salt 0^32, IKM 0xFF^32 || KM, info = this label) (ADR-0135 §4)",
+      "object": "1:1 session establishment",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-1TO1-RATCHET-KDF-v1",
+      "use": "kdf",
+      "construction": "Double Ratchet KDF_RK info: HKDF-SHA256(salt = rk, ikm = DH output, info = this label, 64 bytes); KDF_CK uses DR §5.2 HMAC constants and no label (ADR-0135 §4)",
+      "object": "1:1 ratchet",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-1TO1-EVENT-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "AES-256-GCM-SIV associated data = OM-CBOR [this label, crypto_profile, session_AD, header_hash, envelope_context] (ADR-0135 §4)",
+      "object": "ConversationEvent in a 1:1 session",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BLOB-CONTENT-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "reserved: attachment content encryption AD (V-001)",
+      "object": "encrypted blob",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 over OM-CBOR [label, role, body: bstr]; role 1 = comparison code (key K_code, body = the exact request bytes; code = big-endian u64 of the first 8 MAC bytes mod 1000000, six digits), role 2 = approval binding (key K_bind, body = OM-CBOR [request_digest, approver_device_id, new_state_hash, notice_digest, roster_count, history_count]) (ADR-0192)",
+      "object": "device link ceremony",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-KDF-v1",
+      "use": "kdf",
+      "construction": "ceremony_id = DS-HASH(label, CTX) with CTX = OM-CBOR [2, expiry_s, home_uri bstr, A_cap, B_recv]; PRK = HKDF-Extract(salt = ceremony_id, IKM = S); K_purpose = HKDF-Expand(PRK, info = OM-CBOR [label, purpose tstr], 32) for purpose req, resp, code, bind (ADR-0192)",
+      "object": "device link ceremony",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "OM-CBOR [label, ceremony_id, role]; role 1 = request direction, 2 = response direction; XChaCha20-Poly1305 with a fresh 24-byte nonce (ADR-0192)",
+      "object": "device link ceremony message",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-MAILBOX-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, B_recv), first 16 bytes: a local polling id of the response queue (ADR-0192)",
+      "object": "device link ceremony response queue",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SAFETY-REF-v1",
+      "use": "hash",
+      "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md §14)",
+      "object": "labeler-scoped subject reference",
+      "wave": "W3",
+      "status": "superseded: unused; raw concatenation is ambiguous (ADR-0128 rule 19)"
+    },
+    {
+      "label": "OM-REQUEST-KEY-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RequestKey (MessageRequest/MessageRequestPayload/IntroIdentityBinding.request_key_digest)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "MessageRequestPayload",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-INTRO-IDENTITY-BINDING-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "IntroIdentityBinding",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1",
+      "use": "kdf",
+      "construction": "HPKE base-mode info = OM-CBOR [this label, crypto_profile, ticket_id, request_key_digest]; suite draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305; aad empty (ADR-0131 rule 9, ADR-0135 §5)",
+      "object": "MessageRequest",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SAFETY-REF-v2",
+      "use": "hash",
+      "construction": "DS-HASH over the canonical CBOR array [issuer_scope_id, principal_ref]",
+      "object": "labeler-scoped subject reference",
+      "wave": "W3",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-PQXDH-HANDSHAKE-ID-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PQXDH last-resort canonical initiation transcript",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DR-AEAD-KEY-v1",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info",
+      "object": "Double Ratchet message-key to AES-256-GCM-SIV key",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DR-AEAD-NONCE-v1",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info + authenticated header hash",
+      "object": "Double Ratchet message-key to AES-256-GCM-SIV nonce",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DR-HEADER-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH over the canonical OM-CBOR ratchet header [crypto_profile, dh_pub, pn, n] (ADR-0135 §4)",
+      "object": "Double Ratchet header (input to OM-DR-AEAD-NONCE-v1 and the AEAD associated data)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-REFERRAL-PRIVPASS-CHALLENGE-v1",
+      "use": "context",
+      "construction": "canonical challenge context",
+      "object": "RFC 9578 referral admission token challenge",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-READ-CAP-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "RecoveryRecord ciphertext-read capability",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-WRITE-CAP-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "RecoveryRecord ciphertext-write capability",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-KEY-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "outer RecoveryRecord v1 AEAD key (ADR-0141)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-KEY-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG over canonical SealedDeliveryKeyRecord v1 body; exactly one device-role signer equal to recipient_device_id (ADR-0142)",
+      "object": "SealedDeliveryKeyRecord",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-ROUTE-v1",
+      "use": "hash",
+      "construction": "SHA-256 over OM-CBOR [this label, relay_uri, deposit_capability]; binds relationship-private delivery key material to one RelayEntry without exposing the capability in the outer wrapper (ADR-0142)",
+      "object": "DeliveryKeyMaterial route_binding",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-HPKE-INFO-v1",
+      "use": "kdf",
+      "construction": "HPKE base-mode info = OM-CBOR [this label, crypto_profile, delivery_key_id, route_binding]; suite is profile-defined and OM-Crypto-v1 pins draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 (ADR-0142)",
+      "object": "SealedDeliveryEnvelope",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-HPKE-AAD-v1",
+      "use": "aead_ad",
+      "construction": "HPKE aad = OM-CBOR [this label, 23, 1, crypto_profile, delivery_key_id, delivery_id, expires_at, plaintext_bucket_bytes] (ADR-0142)",
+      "object": "SealedDeliveryEnvelope",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-PAIR-SEED-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from PQXDH SK; salt empty; info = OM-CBOR [this label, crypto_profile, initiator_device_id, responder_device_id]; output 32 bytes",
+      "object": "LanDeliveryProfile existing-relationship rendezvous seed",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-INVITE-SEED-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from Invite.invite_secret; salt empty; info = OM-CBOR [this label, invite_id]; output 32 bytes",
+      "object": "LanDeliveryProfile invite rendezvous seed",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-RENDEZVOUS-TAG-v1",
+      "use": "mac",
+      "construction": "Trunc16(HMAC-SHA256(LanSeed, OM-CBOR [this label, floor(posix_seconds/900)]))",
+      "object": "LanDeliveryProfile rendezvous advertisement tag",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-SIGNAL-KEY-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from LanSeed; salt empty; info = OM-CBOR [this label, session_id, rendezvous_epoch]; output 32 bytes",
+      "object": "LanSignalEnvelopeV1 AES-256-GCM-SIV key",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-SIGNAL-AAD-v1",
+      "use": "aead_ad",
+      "construction": "AES-256-GCM-SIV associated data = OM-CBOR [this label, version, kind, session_id, rendezvous_epoch]; nonce is 12 fresh random bytes; plaintext is UTF-8 WebRTC SDP",
+      "object": "LanSignalEnvelopeV1",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SPACE-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "SpaceControlState",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SPACE-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "SpaceControlState state hash",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SPACE-DELEGATED-INTENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "SpaceDelegatedIntent",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PublicationControlState",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PublicationControlState state hash",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-EVENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PublicationEvent",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-EVENT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PublicationEvent chain identity / prev_post_hash",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupControlState",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "GroupControlState state hash (previous_state_hash chain, bundle binding)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-INTENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupControlIntent",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-INTENT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "GroupControlIntent hash (GroupCommitBinding.intent_hash)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-COMMIT-BINDING-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupCommitBinding",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-COMMIT-BINDING-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "GroupCommitBinding hash (ADR-0173 same-parent tie-break)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-MLS-COMMIT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH over the exact MLS Commit message bytes",
+      "object": "GroupCommitBinding.mls_commit_hash",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-HISTORY-BUNDLE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupHistoryBundle",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BACKUP-v1 aead key",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info",
+      "object": "chat-history backup file (OMB-1): XChaCha20-Poly1305 key",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BACKUP-v1 key check",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info",
+      "object": "chat-history backup file (OMB-1): 16-byte wrong-password check",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-ROUTE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupRouteRecord",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-MLS-LEAF-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "MLS leaf attestation: a device (role device) signs its DeviceID and the dedicated MLS leaf signature key; carried in the BasicCredential, no registered object type",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DIRECT-RECEIPT-KDF-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256; salt = ciphertext_digest (32 raw bytes), IKM = the attachment content key, info = OM-CBOR [label, blob_id]; output 32 bytes (K_rcpt) (ADR-0194)",
+      "object": "direct-transfer integrity receipt key",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DIRECT-RECEIPT-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 under K_rcpt over OM-CBOR [label, transfer_id, blob_id, total_bytes, ciphertext_digest, H_pos]; the 32-byte output is receipt_tag of lan object_receipt (ADR-0194)",
+      "object": "LanDeliveryProfile object_receipt",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DIRECT-RECEIPT-POSSESSION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, OM-CBOR [transfer_id, ciphertext]), raw 32 bytes: proof that the confirmer holds every byte of the object for this transfer id (ADR-0194)",
+      "object": "direct-transfer integrity receipt possession hash",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-MANIFEST-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, OM-CBOR [ [state bstr, ...], [credential bstr, ...] ]), raw 32 bytes: the digest a continuation approval's manifest names over the chain states then the credential bodies, in order (ADR-0195)",
+      "object": "device link ceremony continuation manifest",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-CONTINUATION-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256(K_bind, OM-CBOR [label, OM-CBOR [binding, digest, n_states, n_creds, n_chunks] as bstr]) where binding is the ADR-0192 approval binding; ties the binding to the continuation manifest (ADR-0195)",
+      "object": "device link ceremony continuation approval",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-SHEET-CHECK-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = every byte of the recovery sheet string before its check); check = first 4 bytes of the digest value",
+      "object": "recovery sheet string v1 whole-string checksum (ADR-0200, spec/protocol/recovery-sheet.md)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-SHEET-LINE-CHECK-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = line index (1 byte) || the line's payload characters, upper case, no separators); line check = first 10 bits of the digest value as two base32 characters",
+      "object": "recovery sheet string v1 per-line transcription check (ADR-0200)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-INBOX-ID-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = the 32-byte AccountID); inbox_id = the 32-byte digest value",
+      "object": "Home recovery inbox index for one account (ADR-0201)",
+      "wave": "W1",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-INBOX-ID-v2",
+      "use": "hash",
+      "construction": "DS-HASH (body = deterministic OM-CBOR [account_id bstr, recovery_epoch uint]); inbox_id = the 32-byte digest value",
+      "object": "Home recovery inbox index for one account and recovery epoch (ADR-0226)",
+      "wave": "W1",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "canonical OM-CBOR [label, recovery_scope_id, record_generation, record_version=1]",
+      "object": "AEAD associated data for the Maximum Privacy second-layer relationship snapshot of a RecoveryRecord v1 (ADR-0199)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-KDF-v1",
+      "use": "kdf",
+      "construction": "id = DS-HASH(label, OM-CBOR [\"recovery_approval\", 1, expiry_s, home_uri bstr, A_cap, B_recv]); HKDF-SHA256(salt = id, IKM = S, info = OM-CBOR [label, purpose tstr], L = 32) for req, resp, code, bind (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "OM-CBOR [label, id bstr, role], 1 for restricted device to controller and 2 for reverse; XChaCha20-Poly1305 with a fresh 24-byte nonce (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 over OM-CBOR [label, role, bytes bstr]; role 1 with K_code and exact proposal bytes; role 2 with K_bind and OM-CBOR [id bstr, SHA-256(proposal_bytes) bstr, canonical descriptor bytes bstr] (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-MAILBOX-HASH-v1",
+      "use": "hash",
+      "construction": "First 16 raw bytes of DS-HASH(label, B_recv), the local polling ID (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-APPROVAL-EVIDENCE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, canonical RecoveryApprovalEvidence bytes) (ADR-0203)",
+      "object": "owner recovery approval ceremony",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CALL-SIGNAL-CTX-v1",
+      "use": "aead_ad",
+      "construction": "the ctx argument of the one-to-one ratchet encryption of a CallSignal: the label as the whole ctx, so a call signal cannot be replayed as an ordinary message or the reverse (ADR-0218 rule 2)",
+      "object": "CallSignal inside a one-to-one session",
+      "wave": "W2",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CALL-MEDIA-BASE-KDF-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256; salt = call_session_id (16 bytes), IKM = call_secret (32 bytes), info = OM-CBOR [this label, sender_device_id bstr, recipient_device_id bstr, key_generation uint]; output 32 bytes = the SFrame base_key of the sender's media toward that recipient (ADR-0218 rule 3)",
+      "object": "one-to-one call SFrame base key",
+      "wave": "W2",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-RELEASE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContentPackRelease (ContentPackReleaseID, ExpressivePackRef.release_id, previous_release_id, forked_from)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ContentPackControlState (role controller)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContentPackControlState (state hash, previous_state_hash chain)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTENT-PACK-CONTROLLER-KEY-ID-v1",
+      "use": "hash",
+      "construction": "DS-HASH over the OM-CBOR array [crypto_profile uint, public_key bstr]; the PackController key_id is the first 16 bytes of the 32-byte digest value",
+      "object": "PackController.key_id (Signature.signer of a ContentPackControlState)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ServiceControlState (controller role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ServiceControlState (predecessor chain and authenticated head reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-DEFINITION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ServiceDefinition (controller role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-DEFINITION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ServiceDefinition (immutable signed definition identity and release reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-INSTALLATION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ServiceInstallation (controller/device role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SERVICE-INSTALLATION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ServiceInstallation (predecessor chain and authenticated head reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-REPRESENTATION-GRANT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RepresentationGrant (controller/device role; authorizes canonical body only subject to ADR-0262 external authority checks)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-REPRESENTATION-GRANT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RepresentationGrant (predecessor chain and authenticated head reference)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-CONTEXT-DISCLOSURE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContextDisclosureBundle (receipt/dedup hash for one-shot selected-context bundle, not authorization)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "BridgeControlState (controller role; signer eligibility externally verified)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "BridgeControlState (state predecessor and authenticated head)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-MAPPING-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "BridgeMapping (controller role, plus external Room-governance approval)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BRIDGE-MAPPING-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "BridgeMapping (incarnation version chain, not Room approval)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-FOREIGN-IDENTITY-LINK-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ForeignIdentityLink (account controller role, live ACS authority separately required)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-FOREIGN-IDENTITY-LINK-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ForeignIdentityLink (incarnation, revocation chain, not native authorship)",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-INTEROP-FP-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 with a 32-byte Room-scoped secret derivable by every admitted bridge from authenticated Room-only secret state, message = canonical OM-CBOR array [this label tstr, origin_network_namespace tstr, stable_foreign_origin_ref tstr]; never expose secret or derive key from public Room identifier",
+      "object": "InteropTraceBody.origin_fingerprint and ForeignProvenanceBody.origin_fingerprint; Room-scoped cross-bridge deduplication",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-MANIFEST-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PluginPackageManifest",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-MANIFEST-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginPackageManifest",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PluginControlState",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginControlState",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-GRANT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PluginCapabilityGrant",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-GRANT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginCapabilityGrant",
+      "wave": "W4",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PLUGIN-CONFIRMATION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PluginCapabilityCall (host-confirmed exact arguments and destination binding)",
+      "wave": "W4",
+      "status": "frozen"
+    }
+  ]
+}
