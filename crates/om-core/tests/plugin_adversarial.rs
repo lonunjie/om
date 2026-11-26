@@ -4,12 +4,14 @@
 //! registry of ADR-0266), and every benign control must be allowed, so a deny-everything host fails too. The suite is
 //! generic over [`PluginHost`]; slice 3 runs its sans-IO host through [`run_suite`]. Today the only hosts are the two
 //! deliberately wrong stubs below, and the meta-tests prove the suite detects each of them: the permissive stub fails
-//! every hostile case and the deny-all stub fails every control. Sources: PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md
+//! every hostile case and the deny-all stub fails every control. Slice 3: [`RealHost`] drives `om_core::plugin_host`
+//! through the same suite. Sources: PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md
 //! (capabilities, taint, host-owned UI, mini-app surface, resource isolation, update ceilings), ADR-0129, V-010.
 
 // The step fields are read by the slice 3 host that runs this suite; the two stubs here ignore them on purpose.
 #![allow(dead_code)]
 
+use om_core::plugin_host as ph;
 use std::collections::BTreeSet;
 
 /// Error classes, named as in the `plugin_error_code` enum.
@@ -441,4 +443,142 @@ fn a_deny_all_host_fails_every_control_so_refusing_everything_is_not_a_pass() {
                 .any(|c| c.id == *id && c.expect != Some(Deny::HostPolicyDenied))
     }));
     assert!(wrong.len() >= 6, "{wrong:?}");
+}
+
+/// The slice 3 sans-IO host, driven through the suite. The step flags become the host's own facts; the budgets are test
+/// values only (the host has no default).
+struct RealHost {
+    host: ph::PluginHost,
+}
+
+impl RealHost {
+    fn new() -> Self {
+        Self {
+            host: ph::PluginHost::new(ph::HostConfig {
+                site_isolation: true,
+                budgets: ph::Budgets {
+                    max_memory_bytes: 16 << 20,
+                    max_fuel: 10_000_000,
+                },
+            }),
+        }
+    }
+}
+
+fn deny(e: ph::PluginError) -> Deny {
+    use ph::PluginError as E;
+    match e {
+        E::UnknownCapability => Deny::UnknownCapability,
+        E::CapabilityNotGranted => Deny::CapabilityNotGranted,
+        E::TaintedEgressDenied => Deny::TaintedEgressDenied,
+        E::UserConfirmationRequired => Deny::UserConfirmationRequired,
+        E::BilateralConsentRequired => Deny::BilateralConsentRequired,
+        E::OriginChannelMismatch => Deny::OriginChannelMismatch,
+        E::ResourceBudgetExceeded => Deny::ResourceBudgetExceeded,
+        E::ReleaseNotAuthorized => Deny::ReleaseNotAuthorized,
+        E::InvalidUiTree => Deny::InvalidUiTree,
+        E::MalformedRequest | E::GrantExpired | E::HostPolicyDenied => Deny::HostPolicyDenied,
+    }
+}
+
+fn node(id: u8, kind: u8, parent: Option<u8>, action: Option<&str>) -> ph::UiNode {
+    ph::UiNode {
+        id: [id; 16],
+        kind,
+        parent: parent.map(|p| [p; 16]),
+        text: Some("Label".into()),
+        action: action.map(str::to_string),
+    }
+}
+
+impl PluginHost for RealHost {
+    fn step(&mut self, s: &Step) -> Verdict {
+        let r = match s {
+            Step::Instantiate { imports, granted } => {
+                let g: BTreeSet<ph::Capability> = granted
+                    .iter()
+                    .filter_map(|n| ph::Capability::parse(n))
+                    .collect();
+                self.host.instantiate(imports, &g)
+            }
+            Step::ReadContent { cap } => match ph::Capability::parse(cap) {
+                Some(c) => self.host.read_content(c),
+                None => Err(ph::PluginError::UnknownCapability),
+            },
+            Step::Egress {
+                cap,
+                policy_allows,
+                one_to_one,
+                both_consented,
+                one_shot_confirmed,
+                continuous,
+                export_authorized,
+            } => match ph::Capability::parse(cap) {
+                Some(c) => self.host.egress(
+                    c,
+                    &ph::EgressFacts {
+                        policy_allows: *policy_allows,
+                        one_to_one: *one_to_one,
+                        both_consented: *both_consented,
+                        one_shot_confirmed: *one_shot_confirmed,
+                        continuous: *continuous,
+                        export_authorized: *export_authorized,
+                    },
+                ),
+                None => Err(ph::PluginError::UnknownCapability),
+            },
+            Step::WritePrivate => self.host.write_private(),
+            Step::NextInvocationReadsPrivate => self.host.begin_invocation(),
+            Step::Send {
+                user_confirmed_exact_content,
+            } => self.host.send_message(*user_confirmed_exact_content),
+            Step::Update {
+                extra_cap,
+                fresh_release_grant,
+            } => match ph::Capability::parse(extra_cap) {
+                Some(c) => self.host.update(c, *fresh_release_grant),
+                None => Err(ph::PluginError::UnknownCapability),
+            },
+            Step::Allocate { memory_bytes, fuel } => self.host.account(*memory_bytes, *fuel),
+            Step::UiTree {
+                covers_security_surface,
+                spoofs_host_prompt,
+                raw_dom,
+            } => {
+                let surface = if *covers_security_surface {
+                    "om.security.verification"
+                } else {
+                    "panel"
+                };
+                let action = spoofs_host_prompt.then_some("om.permission.allow");
+                let kind = if *raw_dom { 7 } else { 2 };
+                ph::validate_ui_tree(
+                    surface,
+                    &[node(1, 4, None, None), node(2, kind, Some(1), action)],
+                )
+            }
+            Step::ReachHostState => self.host.reach_host_state(),
+            Step::MiniAppMessage {
+                origin_matches,
+                channel_matches,
+                imitates_host_prompt,
+            } => {
+                self.host
+                    .mini_app_message(*origin_matches, *channel_matches, *imitates_host_prompt)
+            }
+        };
+        match r {
+            Ok(()) => Verdict::Allowed,
+            Err(e) => Verdict::Denied(deny(e)),
+        }
+    }
+}
+
+#[test]
+fn the_slice_3_host_passes_every_control_and_refuses_every_hostile_case_with_the_named_error() {
+    let wrong = run_suite(RealHost::new);
+    assert!(
+        wrong.is_empty(),
+        "the real host got these cases wrong: {wrong:?}"
+    );
 }
