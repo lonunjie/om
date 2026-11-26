@@ -20,3 +20,4 @@ export { BridgeMessage } from "./bridges/BridgeMessage";
 export type { BridgeCopy } from "./bridges/copy";
 export type * from "./bridges/bridges";
 export * from "./portability/index";
+export * from "./services/index";

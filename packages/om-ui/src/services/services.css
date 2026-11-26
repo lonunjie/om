@@ -1,0 +1,46 @@
+.om-service-stack {
+  display: grid;
+  gap: var(--om-space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.om-service-stack > :is(h2, h3, h4, p, ul, dl, ol),
+.om-service-facts ul {
+  margin: 0;
+}
+
+.om-service-reserved {
+  font-family: system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.om-service-panel {
+  padding: var(--om-space-3);
+}
+
+.om-service-panel,
+.om-service-authorship {
+  background: var(--om-color-security-notice-bg);
+  color: var(--om-color-security-notice-fg);
+}
+
+.om-service-facts dt {
+  font-weight: var(--om-weight-bold);
+}
+
+.om-service-facts dd {
+  margin-inline-start: var(--om-space-3);
+}
+
+.om-service-facts dd + dt {
+  margin-block-start: var(--om-space-2);
+}
+
+.om-service-stack :is(ul, ol) {
+  padding-inline-start: var(--om-space-4);
+}
+
+.om-service-disclosure-value {
+  white-space: pre-wrap;
+}
