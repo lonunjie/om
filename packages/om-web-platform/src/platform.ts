@@ -295,18 +295,23 @@ const builders: Omit<Builders, "expressiveMedia" | "localDelivery"> = {
 };
 
 /** Capabilities are decided by feature probes on `env`; never by user agent. Probing builds no persistent state; the local-delivery probe opens two loopback peers on this device, so it runs only on request, and the host decides whether a security profile allows it; `available` from it means this runtime can build the channel, not that another device is reachable. */
-export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonly expressiveMedia?: boolean; readonly lan?: LanChannelEnvironment } = {}): PlatformAdapter {
+export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonly expressiveMedia?: boolean; readonly lan?: LanChannelEnvironment; readonly lanProbeAllowed?: () => boolean } = {}): PlatformAdapter {
   // The local-delivery row comes from a real establish attempt (PLATFORM_CAPABILITY_MATRIX), run once on request and remembered:
   // before it runs the row is `partial` ("not_probed"); a runtime that cannot build a peer connection is `unavailable` at once.
   const lan = options.lan ?? browserLanEnvironment();
   let probed: Promise<"available" | "unavailable"> | undefined;
   let outcome: "available" | "unavailable" | undefined;
+  // ADR-0268 decision 3: the host says whether the active security profile allows the probe (never under Hardened or Maximum).
+  // When it does not, no peer connection is built and nothing is remembered, so a later allowed attempt still runs.
+  const probeAllowed = (): boolean => options.lanProbeAllowed?.() !== false;
   const probe = (): Promise<"available" | "unavailable"> => {
+    if (!probeAllowed()) return Promise.resolve("unavailable");
     probed ??= probeLanChannel(lan).then((r) => { outcome = r; return r; });
     return probed;
   };
   const localDelivery = (): Capability<FamilyApis["localDelivery"]> => {
     if (lan.peer === undefined) return unavailable("no_peer_connection");
+    if (!probeAllowed()) return unavailable("off_by_policy");
     if (outcome === "unavailable") return unavailable("establish_failed");
     return outcome === "available" ? available({ probe }, "this_device_only") : partial({ probe }, "not_probed");
   };

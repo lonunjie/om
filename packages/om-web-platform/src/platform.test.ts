@@ -207,4 +207,19 @@ describe("local delivery row", () => {
     expect(await api.api.probe()).toBe("unavailable");
     expect(platform.capabilities().families.localDelivery).toEqual({ state: "unavailable", detail: "establish_failed" });
   });
+  it("never builds a peer connection when the host's security profile forbids the probe, and a later allowed attempt still runs", async () => {
+    let allowed = true;
+    const peer = vi.fn(conn);
+    const platform = createWebPlatform(fakeEnv({}), { lan: { peer }, lanProbeAllowed: () => allowed });
+    const api = platform.localDelivery();
+    if (api.state === "unavailable") throw new Error("expected a probe");
+    allowed = false;
+    expect(platform.capabilities().families.localDelivery).toEqual({ state: "unavailable", detail: "off_by_policy" });
+    expect(await api.api.probe()).toBe("unavailable");
+    expect(peer).not.toHaveBeenCalled();
+    allowed = true;
+    expect(platform.capabilities().families.localDelivery).toEqual({ state: "partial", detail: "not_probed" });
+    expect(await api.api.probe()).toBe("unavailable");
+    expect(peer).toHaveBeenCalled();
+  });
 });
