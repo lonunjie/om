@@ -294,7 +294,7 @@ const builders: Omit<Builders, "expressiveMedia" | "localDelivery"> = {
   externalTransport: () => unavailable("web_has_no_sms_transport"),
 };
 
-/** Capabilities are decided by feature probes on `env`; never by user agent. Probing is side-effect free. */
+/** Capabilities are decided by feature probes on `env`; never by user agent. Probing builds no persistent state; the local-delivery probe opens two loopback peers on this device, so it runs only on request, and the host decides whether a security profile allows it; `available` from it means this runtime can build the channel, not that another device is reachable. */
 export function createWebPlatform(env: WebEnv = browserEnv(), options: { readonly expressiveMedia?: boolean; readonly lan?: LanChannelEnvironment } = {}): PlatformAdapter {
   // The local-delivery row comes from a real establish attempt (PLATFORM_CAPABILITY_MATRIX), run once on request and remembered:
   // before it runs the row is `partial` ("not_probed"); a runtime that cannot build a peer connection is `unavailable` at once.

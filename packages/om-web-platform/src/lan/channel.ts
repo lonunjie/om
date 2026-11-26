@@ -109,31 +109,50 @@ function gathered(pc: RTCPeerConnection): Promise<void> {
   });
 }
 
-function wrap(dc: RTCDataChannel): LanDataChannel {
+function wrap(dc: RTCDataChannel, pc: RTCPeerConnection): LanDataChannel {
   dc.binaryType = "arraybuffer";
   dc.bufferedAmountLowThreshold = LOW_WATER;
   let drained: (() => void) | undefined;
-  dc.addEventListener("bufferedamountlow", () => { drained?.(); });
+  // Hysteresis (ADR-0158 section 6): once the buffer passes the high mark, sending stays paused until it is at or below the low mark.
+  let paused = false;
+  dc.addEventListener("bufferedamountlow", () => { paused = false; drained?.(); });
+  // Frames that arrive before the consumer attaches are kept, not dropped.
+  let listener: ((bytes: Uint8Array) => void) | undefined;
+  const early: Uint8Array[] = [];
+  dc.addEventListener("message", (e: MessageEvent<ArrayBuffer>) => {
+    if (!(e.data instanceof ArrayBuffer)) return;
+    const bytes = new Uint8Array(e.data);
+    if (listener) listener(bytes); else early.push(bytes);
+  });
   return {
-    send: (bytes) => { dc.send(bytes as Uint8Array<ArrayBuffer>); },
-    canSend: () => dc.bufferedAmount <= HIGH_WATER,
+    send: (bytes) => {
+      dc.send(bytes as Uint8Array<ArrayBuffer>);
+      if (dc.bufferedAmount > HIGH_WATER) paused = true;
+    },
+    canSend: () => {
+      if (paused && dc.bufferedAmount <= LOW_WATER) paused = false;
+      return !paused && dc.bufferedAmount <= HIGH_WATER;
+    },
     onDrain: (cb) => { drained = cb; },
-    onMessage: (cb) => { dc.addEventListener("message", (e: MessageEvent<ArrayBuffer>) => { if (e.data instanceof ArrayBuffer) cb(new Uint8Array(e.data)); }); },
+    onMessage: (cb) => { listener = cb; for (const b of early.splice(0)) cb(b); },
     onClose: (cb) => { dc.addEventListener("close", cb); },
-    close: () => { dc.close(); },
+    // Closing the channel also tears down the peer connection (ICE and DTLS state, ADR-0158 section 9).
+    close: () => { dc.close(); pc.close(); },
   };
 }
 
 /** Resolves with the wrapped channel once `dc` is open; rejects on timeout or a failed connection. */
 function opening(pc: RTCPeerConnection, attach: (onChannel: (dc: RTCDataChannel) => void) => void): Promise<LanDataChannel> {
   const result = new Promise<LanDataChannel>((resolve, reject) => {
-    const fail = (): void => { clearTimeout(timer); reject(new LanChannelError("connection")); };
+    const fail = (): void => { clearTimeout(timer); pc.close(); reject(new LanChannelError("connection")); };
     const timer = setTimeout(fail, CONNECT_MS);
     pc.addEventListener("connectionstatechange", () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") fail();
     });
     attach((dc) => {
-      const ready = (): void => { clearTimeout(timer); resolve(wrap(dc)); };
+      // The channel must be ordered and fully reliable (ADR-0158 section 4); any other shape is refused.
+      if (!dc.ordered || dc.maxRetransmits != null || dc.maxPacketLifeTime != null) return fail();
+      const ready = (): void => { clearTimeout(timer); resolve(wrap(dc, pc)); };
       if (dc.readyState === "open") ready(); else dc.addEventListener("open", ready, { once: true });
     });
   });
@@ -146,6 +165,8 @@ export function createLanPeer(env: LanChannelEnvironment): LanPeer {
   // Host candidates only: no ICE servers, no candidate pool.
   const pc = env.peer({ iceServers: [], iceCandidatePoolSize: 0 });
   let open: Promise<LanDataChannel> | undefined;
+  // One attempt per peer: fresh ICE and DTLS credentials every time (ADR-0158 sections 3 and 9).
+  const once = (): void => { if (open) throw new LanChannelError("signal"); };
   const sdp = (): string => {
     const d = pc.localDescription;
     if (!d) throw new LanChannelError("signal");
@@ -153,6 +174,7 @@ export function createLanPeer(env: LanChannelEnvironment): LanPeer {
   };
   return {
     async offer() {
+      once();
       const dc = pc.createDataChannel(LAN_CHANNEL_LABEL, { ordered: true });
       open = opening(pc, (on) => { on(dc); });
       await pc.setLocalDescription(await pc.createOffer());
@@ -160,6 +182,7 @@ export function createLanPeer(env: LanChannelEnvironment): LanPeer {
       return sdp();
     },
     async accept(offerSdp) {
+      once();
       bounded(offerSdp);
       open = opening(pc, (on) => {
         pc.addEventListener("datachannel", (e) => { if (e.channel.label === LAN_CHANNEL_LABEL) on(e.channel); });

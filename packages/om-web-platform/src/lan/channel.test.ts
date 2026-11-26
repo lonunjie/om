@@ -7,6 +7,9 @@ class FakeChannel extends EventTarget {
   bufferedAmountLowThreshold = 0;
   bufferedAmount = 0;
   readyState = "open";
+  ordered = true;
+  maxRetransmits: number | null = null;
+  maxPacketLifeTime: number | null = null;
   sent: Uint8Array[] = [];
   constructor(readonly label: string) { super(); }
   send(b: Uint8Array) { this.sent.push(b); }
@@ -135,5 +138,58 @@ describe("om-lan-v1 channel", () => {
 
   it("a runtime whose peer connection throws on construction reports unavailable instead of rejecting", async () => {
     expect(await probeLanChannel({ peer: () => { throw new Error("SecurityError"); } })).toBe("unavailable");
+  });
+
+  const opened = async (): Promise<{ raw: FakeConnection; ch: FakeChannel; peer: ReturnType<typeof createLanPeer> }> => {
+    const made: FakeConnection[] = [];
+    const peer = createLanPeer(env(made));
+    await peer.offer();
+    const raw = made[0];
+    if (!raw?.channel) throw new Error("no channel");
+    return { raw, ch: raw.channel, peer };
+  };
+
+  it("refuses an answerer-side channel that is not ordered and fully reliable", async () => {
+    for (const shape of [{ ordered: false }, { maxRetransmits: 0 }, { maxPacketLifeTime: 100 }]) {
+      const made: FakeConnection[] = [];
+      const peer = createLanPeer(env(made));
+      await peer.accept("offer-sdp");
+      const bad = Object.assign(new FakeChannel(LAN_CHANNEL_LABEL), shape);
+      made[0]!.dispatchEvent(Object.assign(new Event("datachannel"), { channel: bad }));
+      await expect(peer.opened()).rejects.toMatchObject({ reason: "connection" });
+      expect(made[0]!.close).toHaveBeenCalled();
+    }
+  });
+
+  it("send stays paused above the high mark until the buffer is at or below the low mark", async () => {
+    const { ch, peer } = await opened();
+    const dc = await peer.opened();
+    expect(dc.canSend()).toBe(true);
+    ch.bufferedAmount = HIGH_WATER + 1;
+    dc.send(new Uint8Array(1));
+    expect(dc.canSend()).toBe(false);
+    ch.bufferedAmount = HIGH_WATER - 1; // below the high mark but not yet at the low mark
+    expect(dc.canSend()).toBe(false);
+    ch.bufferedAmount = LOW_WATER;
+    expect(dc.canSend()).toBe(true);
+  });
+
+  it("keeps frames that arrive before the consumer attaches", async () => {
+    const { ch, peer } = await opened();
+    const dc = await peer.opened();
+    const buf = new Uint8Array([1, 2]).buffer;
+    ch.dispatchEvent(Object.assign(new Event("message"), { data: buf }));
+    const got: number[][] = [];
+    dc.onMessage((b) => got.push([...b]));
+    ch.dispatchEvent(Object.assign(new Event("message"), { data: new Uint8Array([3]).buffer }));
+    expect(got).toEqual([[1, 2], [3]]);
+  });
+
+  it("closing the channel tears down the peer connection, and a peer is single use", async () => {
+    const { raw, peer } = await opened();
+    await expect(peer.offer()).rejects.toMatchObject({ reason: "signal" });
+    await expect(peer.accept("offer-sdp")).rejects.toMatchObject({ reason: "signal" });
+    (await peer.opened()).close();
+    expect(raw.close).toHaveBeenCalled();
   });
 });
