@@ -148,3 +148,14 @@ required observation fails. The build and results use fixed paths. Non-browser r
    measurement of that general enforcement.
 2. How will the product host invalidate a bound `MessagePort` when an iframe navigates or a port is transferred? This run
    tests the initial transfer boundary. Port messages do not supply a fresh cross-document origin.
+
+## Native gate on real components (2026-11-26)
+
+`native/tests/gate.rs` compiles real Component Model components with Wasmtime 36, reads the imports Wasmtime itself reports,
+and gates them through `om_core::plugin_host` (the product policy): ambient WASI imports (filesystem, sockets, environment)
+are refused as unknown capabilities; an ungranted `conversation-send-message` import is refused next to a granted one; a
+`content.*` plugin is refused where isolation is unavailable and accepted where it is; and a component whose core module
+loops forever consumes its whole fuel allowance, traps, and the host terminates the plugin when the measured use exceeds its
+configured budget (5 tests, emeth4, `cargo test --test gate` in `native/`). Coverage: the import gate and the fuel path on
+the native runtime with components that declare imports but have no behaviour behind them; capability calls through a real
+linker, taint across real calls, and a native process boundary are not exercised here. No independent review.

@@ -104,6 +104,15 @@ impl Capability {
         Self::ALL.into_iter().find(|c| c.name() == name)
     }
 
+    /// Maps a Component Model import name of the `om:plugin` world (for example `om:plugin/ui-panel@0.1.0`) to its
+    /// capability. Any other import, including every WASI interface, is not a capability.
+    pub fn from_wit_import(import: &str) -> Option<Self> {
+        let rest = import.strip_prefix("om:plugin/")?;
+        let iface = rest.strip_suffix("@0.1.0")?;
+        let (family, tail) = iface.split_once('-')?;
+        Self::parse(&format!("{family}.{}", tail.replace('-', "_")))
+    }
+
     /// Capabilities that read conversation plaintext and so taint the invocation.
     pub fn is_content(self) -> bool {
         matches!(
@@ -464,6 +473,23 @@ mod tests {
             assert_eq!(Capability::parse(c.name()), Some(*c));
         }
         assert_eq!(Capability::parse("wasi:filesystem/types"), None);
+        // every capability is reachable through exactly its WIT interface name, and nothing else is
+        for c in Capability::ALL {
+            let wit = format!(
+                "om:plugin/{}@0.1.0",
+                c.name().replacen('.', "-", 1).replace('_', "-")
+            );
+            assert_eq!(Capability::from_wit_import(&wit), Some(c), "{wit}");
+        }
+        for bad in [
+            "wasi:filesystem/types@0.2.0",
+            "om:plugin/ui-panel@0.2.0",
+            "om:plugin/unknown-thing@0.1.0",
+            "om:plugin/ui-panel",
+            "other:plugin/ui-panel@0.1.0",
+        ] {
+            assert_eq!(Capability::from_wit_import(bad), None, "{bad}");
+        }
         assert_eq!(PluginError::InvalidUiTree.code(), 12);
         assert_eq!(PluginError::UnknownCapability.code(), 2);
     }

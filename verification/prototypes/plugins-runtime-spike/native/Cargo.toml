@@ -11,3 +11,6 @@ description = "V-010 feasibility spike: Component Model runtime limits on a nati
 wasmtime = { version = "36", default-features = false, features = ["runtime", "component-model", "cranelift", "wat"] }
 wat = "1"
 anyhow = "1"
+
+[dev-dependencies]
+om-core = { path = "../../../../crates/om-core" }
