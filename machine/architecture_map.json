@@ -914,6 +914,17 @@
       ]
     },
     {
+      "glob": "packages/om-plugin-frame/**",
+      "domains": [
+        "crypto_1to1",
+        "identity_control_recovery",
+        "time_ordering_events",
+        "discovery_first_contact",
+        "relay_reachability",
+        "metadata_privacy"
+      ]
+    },
+    {
       "glob": "packages/om-core-harness/**",
       "domains": [
         "crypto_1to1",
