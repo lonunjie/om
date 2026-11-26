@@ -1,5 +1,5 @@
 // Walking skeleton: onboarding, then the shell, composed against the dev-only Core harness. Copy comes from ../copy/en.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DeviceVault, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { asConversationId } from "@om/platform-api";
 import { HARNESS_MARKER, type Harness } from "@om/core-harness";
@@ -9,9 +9,14 @@ import {
 } from "@om/ui";
 import { BridgeMessage, BridgeRoom, type BridgeEntryView, type BridgeMappingView, type BridgeRoomView, type BridgeService } from "@om/ui";
 import { ConnectedServices, ServiceAuthorship, type ConnectedServicesService, type ConnectedServicesView, type ServiceEntryView, type ServiceInvocationView } from "@om/ui";
+import { Communities } from "@om/ui";
+import {
+  createCommunitiesPreview, previewHref, previewPlace,
+  type CommunitiesPreviewMode,
+} from "../../../../packages/om-ui/src/communities/__fixtures__/service";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { Landing } from "../landing/Landing";
-import { appStrings as t, bridgeCopy, devicesCopy, onboardingCopy, portabilityCopy, scannerCopy, servicesCopy } from "../copy/en";
+import { appStrings as t, bridgeCopy, communitiesCopy, devicesCopy, onboardingCopy, portabilityCopy, scannerCopy, servicesCopy } from "../copy/en";
 import { Shell } from "../core/Shell";
 import type { GroupsSetup } from "../core/GroupsGate";
 import { QrCode } from "../qr/QrCode";
@@ -32,6 +37,7 @@ export interface DevAppProps {
 export function DevApp({ harness, vault, platform, pendingProfileId, onboarded, expressiveHost }: DevAppProps) {
   const registry = useMemo(() => createActionRegistry(), []);
   const store = useMemo(() => createProfileScopedState(createMemoryKeyValue()), []); // in memory only: nothing persisted
+  const communitiesMode = new URLSearchParams(window.location.search).get("communities");
   const servicesMode = new URLSearchParams(window.location.search).get("services");
   const bridgeMode = new URLSearchParams(window.location.search).get("bridges");
   const portability = useMemo(devPortability, []);
@@ -39,13 +45,34 @@ export function DevApp({ harness, vault, platform, pendingProfileId, onboarded, 
     <ThemeProvider>
       <div className="om-app">
       <div className="om-dev-banner" role="note">DEV HARNESS — NOT PRODUCTION ({HARNESS_MARKER})</div>
-      {servicesMode !== null ? <DevServicesPreview mode={servicesMode} /> : portability !== undefined ? <main className="om-card"><Portability service={portability} copy={portabilityCopy} /></main> : bridgeMode === null ? (
+      {communitiesMode !== null ? <DevCommunitiesPreview mode={communitiesMode} /> : servicesMode !== null ? <DevServicesPreview mode={servicesMode} /> : portability !== undefined ? <main className="om-card"><Portability service={portability} copy={portabilityCopy} /></main> : bridgeMode === null ? (
       <ProfileProvider client={harness} contexts={harness} store={store} initialProfileId={pendingProfileId}>
         <Gate harness={harness} registry={registry} vault={vault} platform={platform} initiallyOnboarded={onboarded} expressiveHost={expressiveHost} />
       </ProfileProvider>
       ) : <DevBridgePreview mode={bridgeMode} />}
       </div>
     </ThemeProvider>
+  );
+}
+
+/** Dev gallery only. All places and state changes use sample answers. */
+function DevCommunitiesPreview({ mode }: { readonly mode: string }) {
+  const preview: CommunitiesPreviewMode =
+    mode === "slow" || mode === "failed" || mode === "orphan" ? mode : "active";
+  const service = useMemo(() => createCommunitiesPreview(preview), [preview]);
+  const [place, setPlace] = useState(() => previewPlace(window.location.hash));
+
+  useEffect(() => {
+    const followHash = () => { setPlace(previewPlace(window.location.hash)); };
+    window.addEventListener("hashchange", followHash);
+    return () => { window.removeEventListener("hashchange", followHash); };
+  }, []);
+
+  return (
+    <main className="om-card">
+      {place.kind === "publication" ? <a href="#community/garden">{communitiesCopy.place.community}</a> : null}
+      <Communities copy={communitiesCopy} service={service} place={place} hrefFor={previewHref} />
+    </main>
   );
 }
 

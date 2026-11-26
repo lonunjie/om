@@ -21,3 +21,4 @@ export type { BridgeCopy } from "./bridges/copy";
 export type * from "./bridges/bridges";
 export * from "./portability/index";
 export * from "./services/index";
+export * from "./communities/index";
