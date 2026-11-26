@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { createPluginEngines } from "../../om-core-wasm/src/scope-engines";
 import type { PluginCapability, PluginEgressFacts, PluginHostConfig } from "../../om-core-wasm/src/scope-engines";
+import { reserveInstance } from "./budget";
 import { deadline, entry, keys, packet, receive, verdict, wire, workerRequest } from "../protocol";
 import type { Call, EgressIntent, SendIntent, Verdict } from "../protocol";
 
@@ -90,8 +91,13 @@ export function bindFrame(container: HTMLElement, frame: HTMLIFrameElement, orig
     }
   };
 
+  // Host budgets (ADR-0268 decision 4): a named refusal, never an eviction of a running instance.
+  const releaseBudget = reserveInstance(Number(options.host.budgets.maxMemoryBytes));
   const opened = safe(() => host.open(binding, options.host));
-  if ("refused" in opened) throw new Error(opened.refused);
+  if ("refused" in opened) {
+    releaseBudget();
+    throw new Error(opened.refused);
+  }
 
   function close() {
     if (controller.signal.aborted) return;
@@ -104,6 +110,7 @@ export function bindFrame(container: HTMLElement, frame: HTMLIFrameElement, orig
     frame.remove();
     safe(() => host.terminate(binding));
     safe(() => host.close(binding));
+    releaseBudget();
   }
 
   function stop(reason: Extract<Observation, { type: "stop" }>["reason"]) {

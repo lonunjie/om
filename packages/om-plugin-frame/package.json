@@ -4,13 +4,18 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.11.2",
-  "exports": { "./embedder": "./embedder/index.ts" },
+  "exports": {
+    "./embedder": "./embedder/index.ts"
+  },
   "scripts": {
     "build:frame": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test:browsers": "node browser/run.mjs"
+    "test:browsers": "node browser/run.mjs",
+    "test:budget": "node --test embedder/budget.test.ts"
   },
-  "dependencies": { "@om/core-wasm": "workspace:*" },
+  "dependencies": {
+    "@om/core-wasm": "workspace:*"
+  },
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "esbuild": "0.27.3",
