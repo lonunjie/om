@@ -51,6 +51,7 @@ pub mod recovery;
 pub mod recovery_record;
 pub mod recovery_sheet;
 pub mod relayset;
+pub mod room_control;
 pub mod room_moderation;
 pub mod room_topics;
 pub mod route;
