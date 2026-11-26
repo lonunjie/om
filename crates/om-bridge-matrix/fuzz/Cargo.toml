@@ -1,0 +1,21 @@
+[package]
+name = "om-bridge-matrix-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+om-bridge-matrix = { path = ".." }
+
+[workspace]
+
+[[bin]]
+name = "parse_foreign"
+path = "fuzz_targets/parse_foreign.rs"
+test = false
+doc = false
+bench = false
