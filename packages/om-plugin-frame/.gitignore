@@ -1,0 +1,3 @@
+/dist/
+/results/*.json
+/results/*.json.tmp

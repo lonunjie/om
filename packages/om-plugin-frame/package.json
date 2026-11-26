@@ -1,0 +1,19 @@
+{
+  "name": "@om/plugin-frame",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.11.2",
+  "exports": { "./embedder": "./embedder/index.ts" },
+  "scripts": {
+    "build:frame": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:browsers": "node browser/run.mjs"
+  },
+  "dependencies": { "@om/core-wasm": "workspace:*" },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "esbuild": "0.27.3",
+    "typescript": "6.0.3"
+  }
+}
