@@ -1330,6 +1330,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "om-bridge-matrix"
+version = "0.0.0"
+dependencies = [
+ "om-codec",
+ "om-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "om-codec"
 version = "0.0.0"
 dependencies = [

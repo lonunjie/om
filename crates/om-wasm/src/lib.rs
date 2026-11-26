@@ -16,3 +16,5 @@ pub mod bridge;
 mod abi;
 #[cfg(feature = "groups-openmls")]
 mod groups_selftest;
+#[cfg(feature = "scope-engines")]
+mod plugins;

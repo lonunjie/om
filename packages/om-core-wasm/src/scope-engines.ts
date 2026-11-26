@@ -137,3 +137,9 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
     },
   };
 }
+
+export { createPluginEngines } from "./plugins";
+export type {
+  PluginCapability, PluginEgressFacts, PluginEngines, PluginErrorCodes, PluginHostConfig, PluginRefusal, PluginRegistry,
+  PluginUiNode, PluginUint,
+} from "./plugins";

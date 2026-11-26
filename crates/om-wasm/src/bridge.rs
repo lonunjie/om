@@ -251,6 +251,10 @@ enum Command {
         op: scope::RoomOp,
     },
     #[cfg(feature = "scope-engines")]
+    PluginsDo {
+        request: serde_json::Value,
+    },
+    #[cfg(feature = "scope-engines")]
     BridgeRoomDo {
         room: String,
         caps: Vec<String>,
@@ -1192,6 +1196,8 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     first_contact: om_core::lan_first_contact::FirstContact,
     #[cfg(feature = "scope-engines")]
     handles: scope::Handles,
+    #[cfg(feature = "scope-engines")]
+    plugin_handles: crate::plugins::Handles,
 }
 
 impl<R: RngCore + CryptoRng> Bridge<R> {
@@ -1208,6 +1214,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             first_contact: Default::default(),
             #[cfg(feature = "scope-engines")]
             handles: Default::default(),
+            #[cfg(feature = "scope-engines")]
+            plugin_handles: Default::default(),
         }
     }
 
@@ -1413,6 +1421,11 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::RoomServicesDo { room, caps, op } => {
                 Ok(scope::room_services_do(&mut self.handles, &room, &caps, op))
             }
+            #[cfg(feature = "scope-engines")]
+            Command::PluginsDo { request } => Ok(crate::plugins::plugins_do(
+                &mut self.plugin_handles,
+                request,
+            )),
             #[cfg(feature = "scope-engines")]
             Command::BridgeRoomDo { room, caps, op } => {
                 Ok(scope::bridge_room_do(&mut self.handles, &room, &caps, op))

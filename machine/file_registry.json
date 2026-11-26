@@ -3630,6 +3630,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-wasm/SHARED_EDITS.md",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-wasm/src/abi.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -3659,6 +3666,13 @@
     },
     {
       "path": "crates/om-wasm/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/src/plugins.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -11555,6 +11569,20 @@
     },
     {
       "path": "packages/om-core-wasm/src/lan-transfer-browser.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/plugins.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/plugins.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
