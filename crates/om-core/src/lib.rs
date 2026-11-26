@@ -43,6 +43,7 @@ pub mod lan_first_contact;
 pub mod lan_frame;
 pub mod lan_route;
 pub mod lan_transfer;
+pub mod plugin_control;
 pub mod plugin_host;
 pub mod present;
 pub mod publication;
