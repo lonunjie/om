@@ -22,7 +22,7 @@ pub const LBL_BRIDGE_SIG: &str = "OM-BRIDGE-CONTROL-SIG-v1";
 /// The principal kind of a single account controller.
 pub const KIND_ACCOUNT: u64 = 1;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ObjectKind {
     Service,
     Bridge,

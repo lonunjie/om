@@ -3532,6 +3532,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/room_control_engine.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/room_moderation.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

@@ -186,7 +186,7 @@ fn same_credential(a: &Endpoint, b: &Endpoint) -> bool {
     a.key == b.key && a.profile == b.profile && a.mode == b.mode && a.host_ref == b.host_ref
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ControlError {
     WrongService,
     /// A genesis state offered when a head exists, or a non-genesis state without a `prev`.

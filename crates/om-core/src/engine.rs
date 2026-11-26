@@ -134,6 +134,41 @@ pub struct Core<R: RngCore + CryptoRng> {
     /// the accepted epoch window, and a restart that drops it also drops every in-flight rendezvous.
     lan_signal_guards: BTreeMap<ProfileId, crate::crypto::lan_signal::SignalGuard>,
     lan_rendezvous: BTreeMap<ProfileId, crate::lan::LanRendezvous>,
+    /// Service and bridge control heads each Room has observed (ADR-0269). Memory only for now: the host observes the
+    /// signed states again after a restart, so a restart forgets rollback memory until it does.
+    room_controls: BTreeMap<RoomControlKey, RoomControl>,
+}
+
+/// (profile, Room, object kind, service or bridge id).
+type RoomControlKey = (ProfileId, String, crate::room_control::ObjectKind, [u8; 32]);
+
+struct RoomControl {
+    chain: crate::service_control::ServiceChain,
+    /// The approvers a host reported at install: a recorded governance fact, never proof of a verified quorum.
+    reported_approvers: Vec<crate::service_control::Principal>,
+    observed_ms: u64,
+}
+
+/// Why a signed control state was not taken (ADR-0269 item 2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObserveError {
+    Open(crate::room_control::OpenError),
+    Control(crate::service_control::ControlError),
+}
+
+/// One service or bridge as a Room last observed it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RoomControlEntry {
+    pub kind: crate::room_control::ObjectKind,
+    pub id: [u8; 32],
+    /// `None` while the chain is forked.
+    pub head_version: Option<u64>,
+    pub frozen: bool,
+    /// (endpoint id, state, usable): usable only while active in every tip and revoked in none.
+    pub endpoints: Vec<(Vec<u8>, u64, bool)>,
+    /// Time since the last accepted head, from the monotonic clock.
+    pub observed_age_ms: u64,
+    pub reported_approvers: Vec<crate::service_control::Principal>,
 }
 
 /// A new engine for this device, or the one stored in `app` (the loader is chosen by the build: the real OpenMLS engine
@@ -193,6 +228,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             group_engines: BTreeMap::new(),
             lan_signal_guards: BTreeMap::new(),
             lan_rendezvous: BTreeMap::new(),
+            room_controls: BTreeMap::new(),
         }
     }
 
@@ -1506,6 +1542,129 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }
         let ct = self.restage_attachment(ctx, blob_id, plaintext)?;
         self.build_direct_sender(ctx, blob_id, ct)
+    }
+
+    /// A Room observes a signed service or bridge control state (ADR-0269). Core verifies every signature against the
+    /// control head of our own account or a contact's, then lets the chain decide rollback, forks and thresholds.
+    /// `reported_approvers` is recorded only when this is the first state seen for the service or bridge.
+    pub fn room_control_observe(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        room: &str,
+        kind: crate::room_control::ObjectKind,
+        signed: &[u8],
+        reported_approvers: Vec<crate::service_control::Principal>,
+    ) -> Result<Result<crate::service_control::ControlOutcome, ObserveError>, CoreError> {
+        let accounts = self.room_control_accounts(ctx)?;
+        let opened = match crate::room_control::open_signed_state(kind, signed, &accounts) {
+            Ok(o) => o,
+            Err(e) => return Ok(Err(ObserveError::Open(e))),
+        };
+        let now = self.clock.now_ms();
+        let id = opened.state.service_id;
+        let key = (ctx.profile_id.clone(), room.to_string(), kind, id);
+        let entry = self
+            .room_controls
+            .entry(key)
+            .or_insert_with(|| RoomControl {
+                chain: crate::service_control::ServiceChain::new(id),
+                reported_approvers,
+                observed_ms: now,
+            });
+        let outcome = entry.chain.accept(opened.state, &opened.approvers);
+        match outcome {
+            Ok(o) => {
+                entry.observed_ms = now;
+                Ok(Ok(o))
+            }
+            Err(e) => {
+                let empty = entry.chain.head().is_none() && !entry.chain.is_frozen();
+                if empty {
+                    self.room_controls.remove(&(
+                        ctx.profile_id.clone(),
+                        room.to_string(),
+                        kind,
+                        id,
+                    ));
+                }
+                Ok(Err(ObserveError::Control(e)))
+            }
+        }
+    }
+
+    /// What a Room has observed of its services and bridges. Read-only.
+    pub fn room_control_view(
+        &self,
+        ctx: &ProfileExecutionContext,
+        room: &str,
+    ) -> Result<Vec<RoomControlEntry>, CoreError> {
+        self.slot(ctx)?;
+        let now = self.clock.now_ms();
+        Ok(self
+            .room_controls
+            .iter()
+            .filter(|((p, r, _, _), _)| *p == ctx.profile_id && r == room)
+            .map(|((_, _, kind, id), c)| {
+                let mut endpoints = Vec::new();
+                if let Some(head) = c.chain.head() {
+                    for (eid, e) in &head.endpoints {
+                        endpoints.push((eid.clone(), e.state, c.chain.endpoint_usable(eid)));
+                    }
+                }
+                RoomControlEntry {
+                    kind: *kind,
+                    id: *id,
+                    head_version: c.chain.head().map(|h| h.version),
+                    frozen: c.chain.is_frozen(),
+                    endpoints,
+                    observed_age_ms: now.saturating_sub(c.observed_ms),
+                    reported_approvers: c.reported_approvers.clone(),
+                }
+            })
+            .collect())
+    }
+
+    /// Our own account and every contact's account, each with the control head Core already holds.
+    fn room_control_accounts(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Vec<crate::room_control::ControllerAccount>, CoreError> {
+        use crate::crypto::{binding::Acs, unhex};
+        let app = &self.slot(ctx)?.state.app;
+        let mut accounts = Vec::new();
+        let own_head = app.acs_chain.last().and_then(|s| {
+            let v = crate::crypto::cbor::decode(&unhex(s).ok()?).ok()?;
+            Acs::from_body(v.get(1).ok()?.b().ok()?).ok()
+        });
+        if let Some(head) = own_head {
+            accounts.push(crate::room_control::ControllerAccount {
+                head,
+                credentials: app
+                    .acs_credentials
+                    .iter()
+                    .filter_map(|c| unhex(c).ok())
+                    .collect(),
+            });
+        }
+        for rel in app.relationships.values() {
+            if rel.state != RelState::Active || rel.blocked {
+                continue;
+            }
+            let head = unhex(&rel.peer_acs_body)
+                .ok()
+                .and_then(|b| Acs::from_body(&b).ok());
+            if let Some(head) = head {
+                accounts.push(crate::room_control::ControllerAccount {
+                    head,
+                    credentials: rel
+                        .peer_credentials
+                        .iter()
+                        .filter_map(|c| unhex(c).ok())
+                        .collect(),
+                });
+            }
+        }
+        Ok(accounts)
     }
 
     /// `local_delivery` (ADR-0158 section 3): the peer device's identity key for `conversation_id`, with the profile's
@@ -3048,6 +3207,59 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
     ) -> Result<serde_json::Value, CoreError> {
         serde_json::to_value(&self.slot(ctx)?.state.app).map_err(|_| CoreError::Invalid("state"))
+    }
+
+    /// TEST ONLY: a `SignedEnvelope` over `body` signed as this profile's own control device under the control-state
+    /// label of `kind`, so a test can make a service or bridge this account controls. Compiled only with `test-loopback`.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_sign_room_control(
+        &self,
+        ctx: &ProfileExecutionContext,
+        kind: crate::room_control::ObjectKind,
+        body: &[u8],
+    ) -> Result<Vec<u8>, CoreError> {
+        use crate::crypto::sig;
+        let dev = self
+            .slot(ctx)?
+            .state
+            .device
+            .as_ref()
+            .ok_or(CoreError::Invalid("no device"))?;
+        let label = match kind {
+            crate::room_control::ObjectKind::Service => crate::room_control::LBL_SERVICE_SIG,
+            crate::room_control::ObjectKind::Bridge => crate::room_control::LBL_BRIDGE_SIG,
+        };
+        let sg = dev.signer.sign_with(
+            &sig::ds_sig(
+                label,
+                crate::crypto::PROFILE_V1,
+                sig::ROLE_CONTROLLER,
+                &dev.device_id,
+                body,
+            ),
+            [7; 32],
+        );
+        Ok(sig::envelope(
+            body.to_vec(),
+            vec![sig::signature_entry(
+                &dev.device_id,
+                crate::crypto::PROFILE_V1,
+                sig::ROLE_CONTROLLER,
+                sg,
+            )],
+        ))
+    }
+
+    /// TEST ONLY: this profile's account id (the identity a controller principal names).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_account_id(&self, ctx: &ProfileExecutionContext) -> Result<[u8; 32], CoreError> {
+        Ok(self
+            .slot(ctx)?
+            .state
+            .device
+            .as_ref()
+            .ok_or(CoreError::Invalid("no device"))?
+            .account_id)
     }
 
     /// TEST ONLY: SHA-256 (hex) of the profile's device/session state (ratchets, prekeys, ledger). Lets a test prove
