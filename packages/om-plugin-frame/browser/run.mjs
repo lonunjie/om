@@ -10,6 +10,7 @@ import { startServer } from "./server.mjs";
 const names = ["chromium", "firefox", "webkit"];
 const fixtures = [
   "opaque",
+  "app_mount",
   "wrong_origin",
   "foreign",
   "forged_ready",
@@ -76,6 +77,8 @@ function checkFixture(name, data, server) {
     case "opaque":
       return data.defaultDisabled && data.sandbox === "allow-scripts" && noTransfer &&
         (bootstrap.length === 0 || rejected("null", true));
+    case "app_mount":
+      return data.sandbox === "allow-scripts allow-same-origin" && denial("read", "capability_not_granted");
     case "wrong_origin":
       return noTransfer && rejected(server.sink, true);
     case "foreign":

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-import { bindFrame, mountOpaqueFrame } from "../embedder/broker";
+import { bindFrame, mountSiteFrame } from "../embedder/broker";
 import type { FrameOptions, Observation } from "../embedder/broker";
 import { mountPluginFrame } from "../embedder/index";
 import { instantiateCore } from "../../om-core-wasm/src/wasm";
@@ -8,6 +8,7 @@ import { packet, wire } from "../protocol";
 
 type Fixture =
   | "opaque"
+  | "app_mount"
   | "foreign"
   | "wrong_origin"
   | "forged_ready"
@@ -42,6 +43,14 @@ function measuredFrame(src: string) {
   const frame = document.createElement("iframe");
   frame.sandbox.add("allow-scripts", "allow-same-origin");
   frame.allow = `cross-origin-isolated ${PLUGIN_ORIGIN}`;
+  frame.referrerPolicy = "no-referrer";
+  frame.src = src;
+  return frame;
+}
+
+function opaqueFrame(src: string) {
+  const frame = document.createElement("iframe");
+  frame.sandbox.add("allow-scripts");
   frame.referrerPolicy = "no-referrer";
   frame.src = src;
   return frame;
@@ -99,7 +108,7 @@ async function run(fixture: Fixture) {
     host: { siteIsolation: fixture !== "opaque", budgets: { maxMemoryBytes: 65_536, maxFuel: 1_000_000 } },
     imports,
     grants: [5, 14, 11, 3],
-    entrypoint: fixture === "foreign" ? "host_state" : fixture,
+    entrypoint: fixture === "foreign" ? "host_state" : fixture === "app_mount" ? "ungranted" : fixture,
     wallClockMs: fixture === "spin" ? 1_500 : 2_500,
     sessionMs: 4_000,
     confirmSend: (intent) => {
@@ -131,10 +140,9 @@ async function run(fixture: Fixture) {
     : probe
     ? frameUrl(SINK_ORIGIN, "/quiet")
     : frameUrl(PLUGIN_ORIGIN);
-  const frame = fixture === "opaque" ? undefined : measuredFrame(src);
-  const session = frame
-    ? bindFrame(document.body, frame, PLUGIN_ORIGIN, options)
-    : mountOpaqueFrame(document.body, PLUGIN_ORIGIN, options);
+  const session = fixture === "app_mount"
+    ? mountSiteFrame(document.body, PLUGIN_ORIGIN, options)
+    : bindFrame(document.body, fixture === "opaque" ? opaqueFrame(src) : measuredFrame(src), PLUGIN_ORIGIN, options);
   if (foreign) document.body.append(foreign);
   if (fixture === "forged_ready") {
     window.dispatchEvent(

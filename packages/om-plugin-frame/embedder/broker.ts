@@ -35,7 +35,11 @@ const deniedEgress: PluginEgressFacts = {
   exportAuthorized: false,
 };
 
-export function mountOpaqueFrame(container: HTMLElement, origin: string, options: FrameOptions) {
+/**
+ * The plugin frame lives on a separate registrable domain, so `allow-same-origin` gives it only its own origin, never the
+ * app's: the app can bind the port to the exact plugin origin while the frame stays cross-site isolated.
+ */
+export function mountSiteFrame(container: HTMLElement, origin: string, options: FrameOptions) {
   const frame = document.createElement("iframe");
   const url = new URL("/", origin);
   url.searchParams.set("app", location.origin);
@@ -43,7 +47,8 @@ export function mountOpaqueFrame(container: HTMLElement, origin: string, options
   frame.title = "OM plugin sandbox";
   frame.hidden = true;
   frame.referrerPolicy = "no-referrer";
-  frame.setAttribute("sandbox", "allow-scripts");
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+  frame.allow = `cross-origin-isolated ${origin}`;
   return bindFrame(container, frame, origin, options);
 }
 

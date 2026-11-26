@@ -27,14 +27,15 @@ outside this review. The spike results apply to the original harness only.
 ## Frame and app boundary
 
 The package has no release entry point. The app-facing `mountPluginFrame` returns `null` unless explicitly enabled. Its
-iframe uses `sandbox="allow-scripts"` and `referrerpolicy="no-referrer"`. The configuration names
+iframe uses `sandbox="allow-scripts allow-same-origin"` and `referrerpolicy="no-referrer"`. The configuration names
 `https://om-plugins.majalmirasol.com` and the exact reference app origin. Rebuilding takes the same configured app
 origins for the frame admission check and the Pages `frame-ancestors` response header.
 
-The spike used `allow-scripts allow-same-origin` on its separate-site iframe. Omitting `allow-same-origin` gives the
-app-facing frame an opaque origin, so the app cannot establish the exact plugin-origin binding required by ADR-0129 and
-ADR-0266. The app path fails closed and transfers no port. The loopback harness supplies a separate iframe with the
-spike's measured sandbox attributes to exercise the broker and Worker with synthetic data. The broker uses an exact
+The frame is on a separate registrable domain, so `allow-same-origin` gives it only its own origin and never the app's:
+the app can bind the port to the exact plugin origin (ADR-0129, ADR-0266) while the frame stays cross-site isolated. An
+iframe without `allow-same-origin` has an opaque origin and cannot satisfy the exact-origin binding; the harness keeps that
+case as the `opaque` fixture and the broker refuses it and transfers no port (default-disabled). The `app_mount` fixture
+runs the production mount with the production attributes through the host. The broker uses an exact
 `targetOrigin`, checks the browser-reported origin and iframe WindowProxy, and transfers one channel endpoint. The frame
 accepts a transfer only from the exact configured parent origin and WindowProxy. The first sequenced port message
 confirms that binding. Subsequent messages check the endpoint, binding, direction, sequence and bounded shape.
@@ -74,7 +75,7 @@ exists and zero confined sink receipts. The frame also tests the beacon when the
 
 ## Measured on emeth4 (2026-11-26, Playwright 1.63.0)
 
-All 15 hostile and boundary fixtures (opaque frame refusal, wrong and foreign origin, forged bootstrap and port, oversized
+All 16 hostile and boundary fixtures (including the production app mount) (opaque frame refusal, wrong and foreign origin, forged bootstrap and port, oversized
 and unknown messages, taint, bilateral consent, unconfirmed send, UI overflow, host state, runaway Wasm, memory growth,
 ungranted capability) pass on Chromium, Firefox and WebKit, each refused with the named plugin error. The network phase
 (fetch, WebSocket, XHR, remote `importScripts`, `sendBeacon`) shows every confined request blocked on all three engines,
@@ -100,8 +101,8 @@ and release gate V-010 remain open.
 
 ## Design questions
 
-1. Which browser construction will establish the exact plugin origin while preserving the requested opaque iframe? The
-   app mount denies the port until this is resolved.
+1. Resolved by delegation (safest reading): a cross-site frame with `allow-scripts allow-same-origin`; an opaque frame is
+   refused. Open for the independent sandbox review.
 2. What reviewed runtime will enforce the aggregate memory budget across all Wasm modules and binding allocations, and
    what compute budget semantics should replace fuel in the browser? This harness observes fixture linear memory and
    enforces wall-clock termination.
