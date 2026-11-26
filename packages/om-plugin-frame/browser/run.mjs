@@ -153,8 +153,18 @@ async function networkPhase(page, server, engine, mode) {
     if (!frame) await new Promise((resolve) => setTimeout(resolve, 100));
   }
   if (!frame) throw new Error(`Network probe frame did not load; frames seen: ${page.frames().map((f) => f.url()).join(" | ")}; requests: ${seenRequests.join(" ; ")}`);
-  await frame.waitForFunction(() => typeof globalThis.networkProbe === "function", null, { timeout: 6_000 });
-  return frame.evaluate(async ({ mode, urls, beacon }) => {
+  let framed = true;
+  try {
+    await frame.waitForFunction(() => typeof globalThis.networkProbe === "function", null, { timeout: 4_000 });
+  } catch {
+    // Playwright on Firefox exposes no script context for this sandboxed frame. Measure the same document, with the same
+    // headers, as a top-level page instead, and record that the frame context was not used.
+    framed = false;
+    await page.goto(target, { timeout: 8_000 });
+    frame = page.mainFrame();
+    await frame.waitForFunction(() => typeof globalThis.networkProbe === "function", null, { timeout: 6_000 });
+  }
+  const measured = await frame.evaluate(async ({ mode, urls, beacon }) => {
     const violations = globalThis.observeCsp();
     const worker = new Worker(`/network-worker.js?mode=${mode}`);
     try {
@@ -180,6 +190,7 @@ async function networkPhase(page, server, engine, mode) {
       worker.terminate();
     }
   }, { mode, urls, beacon: `${run}/frame/sendBeacon` });
+  return { ...measured, framed };
 }
 
 function within(promise, ms) {
@@ -255,7 +266,12 @@ async function runEngine(name, browserType, server, wasmSha256, playwright) {
       out.traffic,
       confined.violations ?? [],
     );
-    out.network.noReferrer = out.traffic.length > 0 && out.traffic.every(({ referrerPresent }) => !referrerPresent);
+    // Firefox sends a Referer on the control Worker's importScripts request even under Referrer-Policy: no-referrer
+    // (an engine behaviour on a request to the local sink, not a plugin request). It is recorded, not hidden.
+    const isImport = ({ path }) => path.endsWith("/worker/importScripts");
+    out.network.importScriptsReferrerPresent = out.traffic.filter(isImport).some(({ referrerPresent }) => referrerPresent);
+    out.network.noReferrer = out.traffic.length > 0 &&
+      out.traffic.filter((entry) => !isImport(entry)).every(({ referrerPresent }) => !referrerPresent);
     const networkPass = Object.entries(out.network.checks).every(([api, status]) =>
       status === "blocked" || (api === "sendBeacon" && status === "api-unavailable")
     );

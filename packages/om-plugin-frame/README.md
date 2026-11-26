@@ -77,11 +77,13 @@ exists and zero confined sink receipts. The frame also tests the beacon when the
 All 15 hostile and boundary fixtures (opaque frame refusal, wrong and foreign origin, forged bootstrap and port, oversized
 and unknown messages, taint, bilateral consent, unconfirmed send, UI overflow, host state, runaway Wasm, memory growth,
 ungranted capability) pass on Chromium, Firefox and WebKit, each refused with the named plugin error. The network phase
-(fetch, WebSocket, XHR, remote `importScripts`, `sendBeacon`) passes on Chromium and WebKit (all blocked, control requests
-reached the sink, no receipt for the confined worker, referrer absent). On Firefox the network phase did NOT run: the
-harness times out waiting for the probe frame's script context, so `pnpm test:browsers` exits nonzero for Firefox and
-Firefox network blocking is not re-measured here. The earlier spike measured it on Firefox with its own harness. This is a
-harness problem to fix, not a result.
+(fetch, WebSocket, XHR, remote `importScripts`, `sendBeacon`) shows every confined request blocked on all three engines,
+with a working control request reaching the local sink and no receipt for any confined request. Two engine differences
+are recorded in the raw results: on Firefox, Playwright exposes no script context for the sandboxed probe frame, so the
+network phase loads the same document with the same headers as a top-level page (`framed: false`), which is a weaker
+stand-in for the framed case measured on Chromium and WebKit; and Firefox sends a Referer on the control Worker's
+`importScripts` request despite `Referrer-Policy: no-referrer` (a request to the local sink, not by a confined plugin; the
+other requests carry none). Worker `sendBeacon` is absent on all three.
 
 The sections below describe the harness as built; the engine-difference observations quoted in them come from the spike.
 
