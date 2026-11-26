@@ -3118,6 +3118,16 @@
       "amends": [],
       "index_title": "v1 rulings: scoped engines stay engineering-only, pair-seed revocation, probe policy, plugin host budgets (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0269",
+      "title": "How a client learns a Room's service and bridge control heads, and where approvers come from (v1)",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0269-room-service-control-head-observation.md",
+      "amends": [],
+      "index_title": "v1 rulings: Room control heads enter Core only by verified host-supplied observation, approvers are a labelled install-time record (delegated; additive)",
+      "amended_by": []
     }
   ]
 }

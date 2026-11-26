@@ -275,3 +275,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0266 — W4 plugins wire freeze and the first om:plugin WIT world (designer-built, adopted; delegated)](ADR-0266-plugins-wire-freeze.md)
 - [ADR-0267 — Default bridge hop limit and the fingerprint-secret boundary (delegated; additive)](ADR-0267-bridge-hop-limit-and-fingerprint-secret-boundary.md)
 - [ADR-0268 — v1 rulings: scoped engines stay engineering-only, pair-seed revocation, probe policy, plugin host budgets (delegated; additive)](ADR-0268-v1-local-delivery-and-plugin-host-rulings.md)
+- [ADR-0269 — v1 rulings: Room control heads enter Core only by verified host-supplied observation, approvers are a labelled install-time record (delegated; additive)](ADR-0269-room-service-control-head-observation.md)
