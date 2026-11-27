@@ -3138,6 +3138,16 @@
       "amends": [],
       "index_title": "v1 rulings: a Room holds a proposed bridge as an offer bound to a review target (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0271",
+      "title": "Host adapters for the bridge, portability and nearby services in the engineering host (v1)",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0271-engineering-host-service-adapters.md",
+      "amends": [],
+      "index_title": "v1 rulings: engineering-host adapters for the bridge, portability and nearby services (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
