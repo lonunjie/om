@@ -280,3 +280,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0271 — v1 rulings: engineering-host adapters for the bridge, portability and nearby services (delegated; additive)](ADR-0271-engineering-host-service-adapters.md)
 - [ADR-0272 — v1 rulings: service offers mirror bridge offers; the engineering host offers no invocation review (delegated; additive)](ADR-0272-service-offers-and-invocation-scope.md)
 - [ADR-0273 — v1 rulings: communities and publications read model for the engineering host, local follow, no join request in v1 (delegated; additive)](ADR-0273-communities-host-read-model.md)
+- [ADR-0274 — v1 rulings: invocation review in the engineering host from an injected selection, no send (delegated; additive)](ADR-0274-engineering-host-invocation-review.md)

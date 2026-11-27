@@ -3168,6 +3168,16 @@
       "amends": [],
       "index_title": "v1 rulings: communities and publications read model for the engineering host, local follow, no join request in v1 (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0274",
+      "title": "Invocation review in the engineering host, driven by an injected selection (v1)",
+      "status": "Delegated design decision (additive; independent review remains required). Supersedes only item 3 of ADR-0272, which was written before the ",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0274-engineering-host-invocation-review.md",
+      "amends": [],
+      "index_title": "v1 rulings: invocation review in the engineering host from an injected selection, no send (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
