@@ -22,11 +22,11 @@ const expressive = process.argv.includes("--expressive");
 // (feature `scope-engines`, off in every release) to dist/om_wasm_scope.wasm. Never bundled into the web app.
 const scope = process.argv.includes("--scope-engines");
 if ([groups, expressive, scope].filter(Boolean).length > 1) throw new Error("Choose one engineering artifact");
-const features = ["om-core/production"];
+// Core rejects combining its engineering-only scope feature with the production marker.
+const features = scope ? ["scope-engines"] : ["om-core/production"];
 if (groups) features.push("groups-openmls");
 // The opt-in expressive client also carries Room attachments through the existing group engine.
 if (expressive) features.push("expressive-media", "groups-openmls");
-if (scope) features.push("scope-engines");
 execFileSync("cargo", ["build", "-p", "om-wasm", "--target", "wasm32-unknown-unknown", "--release", "--locked", "--features", features.join(",")], { cwd: root, env, stdio: "inherit" });
 mkdirSync(outDir, { recursive: true });
 const name = groups ? "om_wasm_groups.wasm" : scope ? "om_wasm_scope.wasm" : expressive ? "om_wasm_expressive.wasm" : "om_wasm.wasm";

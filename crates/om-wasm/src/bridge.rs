@@ -293,6 +293,12 @@ enum Command {
         handle: String,
         op: scope::TransferOp,
     },
+    #[cfg(feature = "scope-engines")]
+    LanAsyncKey {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+        op: scope::LanAsyncKeyOp,
+    },
     /// `local_delivery`: seal a WebRTC offer or answer for the other person of `conversationId` under the pair's LAN seed
     /// (which stays inside Core). `kind` is `offer` or `answer`, `sessionId` 16 hex bytes. Answers `{envelope}` (hex) or
     /// `{refused}`.
@@ -1767,6 +1773,12 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     op,
                 ))
             }
+            #[cfg(feature = "scope-engines")]
+            Command::LanAsyncKey {
+                ctx,
+                conversation_id,
+                op,
+            } => scope::lan_async_key(self.core()?, &ctx, &conversation_id, op),
             #[cfg(feature = "scope-engines")]
             Command::LanSignalSeal {
                 ctx,

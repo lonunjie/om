@@ -4,10 +4,21 @@
 // This file adds no behaviour: it names the commands and their answers.
 import { captureProfileContext, type ProfileExecutionContext } from "@om/platform-api";
 import type { WasmCore } from "./wasm";
+import { toHex } from "./types";
 import { createCommunitiesEngines, type CommunitiesEngines } from "./communities";
 
 export type Refusal = { readonly refused: string };
 export type Done = { readonly done: true };
+export type LanAsyncKeyBundle = {
+  readonly kind: "bundle";
+  readonly requestId: string;
+  readonly sealedBundle: string;
+};
+export type LanAsyncKeyReply =
+  | LanAsyncKeyBundle
+  | { readonly kind: "error"; readonly frame: string }
+  | { readonly kind: "ignored" }
+  | Refusal;
 export type RoomMutationResult = Done | { readonly removedEndpoints: number } | Refusal;
 export interface RoomOperation {
   readonly operationId: string;
@@ -151,6 +162,13 @@ export interface ScopeEngines extends CommunitiesEngines {
     seal(ctx: ProfileExecutionContext, conversationId: string, a: { kind: "offer" | "answer"; sessionId: string; sdp: string }): { readonly envelope: string } | Refusal;
     open(ctx: ProfileExecutionContext, conversationId: string, envelope: string): { readonly kind: "offer" | "answer"; readonly sessionId: string; readonly sdp: string } | Refusal;
   };
+  /** The channel's conversation is supplied by the host. Relationship state and sealing authority stay in Core. */
+  readonly lanAsyncKey: {
+    /** Issues a fresh capability with an expiry in local POSIX seconds. */
+    issue(ctx: ProfileExecutionContext, conversationId: string, expiresAt: number): { readonly capability: string } | Refusal;
+    handleFrame(ctx: ProfileExecutionContext, conversationId: string, bytes: Uint8Array): LanAsyncKeyReply;
+    retire(ctx: ProfileExecutionContext, conversationId: string): Done;
+  };
   /** The per-contact "find each other on the same Wi-Fi" choice and the rendezvous tags. Core holds the choice and the seeds. */
   readonly lanNearby: {
     set(ctx: ProfileExecutionContext, conversationId: string, on: boolean): NearbyState;
@@ -237,6 +255,11 @@ export function createScopeEngines(core: Pick<WasmCore, "call">, inputCtx?: Prof
     lanSignal: {
       seal: (ctx, conversationId, a) => q({ cmd: "lan_signal_seal", ctx, conversationId, kind: a.kind, sessionId: a.sessionId, sdp: a.sdp }),
       open: (ctx, conversationId, envelope) => q({ cmd: "lan_signal_open", ctx, conversationId, bytes: envelope }),
+    },
+    lanAsyncKey: {
+      issue: (ctx, conversationId, expiresAt) => q({ cmd: "lan_async_key", ctx, conversationId, op: { kind: "issue", expiresAt } }),
+      handleFrame: (ctx, conversationId, bytes) => q({ cmd: "lan_async_key", ctx, conversationId, op: { kind: "handle", bytes: toHex(bytes) } }),
+      retire: (ctx, conversationId) => q({ cmd: "lan_async_key", ctx, conversationId, op: { kind: "retire" } }),
     },
     lanNearby: {
       set: (ctx, conversationId, on) => q({ cmd: "lan_nearby_set", ctx, conversationId, on }),

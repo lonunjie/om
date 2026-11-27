@@ -2,10 +2,12 @@
 // Runs the typed client against the real engineering module when it has been built (`pnpm --filter @om/core-wasm build:wasm:scope`);
 // the module is not part of any release, so the suite skips when the file is absent.
 import { existsSync, readFileSync } from "node:fs";
-import type { ProfileExecutionContext } from "@om/platform-api";
+import { asOperationId, type ConfirmationToken, type ProfileExecutionContext } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
 import { instantiateCore } from "./wasm";
 import { createScopeEngines } from "./scope-engines";
+import { connectPair } from "./test-support-lan-signal";
+import { fromHex } from "./types";
 
 const wasm = new URL("../dist/om_wasm_scope.wasm", import.meta.url);
 const hex = (b: string, n: number) => b.repeat(n);
@@ -60,5 +62,52 @@ describe.skipIf(!existsSync(wasm))("scope-engines typed client", () => {
     expect(() => a.spaceBinding.view("s")).toThrow();
     expect(reopened.spaceBinding.view("s")).toEqual({ refused: "unknown_handle" });
     expect(reopened.lanTransfer.receiverView("t")).toEqual({ refused: "unknown_handle" });
+  });
+
+  it("issues to an active relationship, uniformly denies fetch and replay, and retires the issued slots", async () => {
+    const { alice, aConv } = await connectPair();
+    const { core, ctx, rt } = alice;
+    const responder = alice.engines.lanAsyncKey;
+    const expiresAt = Math.floor(Date.now() / 1000) + 600;
+    const device = (await rt.query({ kind: "GetDevices", ctx })).devices.find((d) => d.isCurrent);
+    const [conversation] = await rt.query({ kind: "GetConversationList", ctx });
+    if (!device || !conversation) throw new Error("expected a local device and active conversation");
+
+    const issue = () => responder.issue(ctx, aConv, expiresAt);
+    expect(responder.issue(ctx, "unknown", expiresAt)).toEqual({ refused: "unavailable" });
+    const issued = issue();
+    if ("refused" in issued) throw new Error(issued.refused);
+    expect(issued.capability).toMatch(/^[0-9a-f]{64}$/);
+    const requestId = hex("03", 16);
+    const encode = (frame: Record<string, unknown>) => {
+      const encoded = core.call({ cmd: "lan_frame_encode", frame }) as { frame?: string };
+      if (encoded.frame === undefined) throw new Error("expected a canonical LAN frame");
+      return encoded.frame;
+    };
+    const request = fromHex(encode({ kind: "fetch_async_key", requestId, deviceId: device.id, profile: 1, capability: issued.capability }));
+    const denied = { kind: "error", frame: encode({ kind: "error", id: requestId, code: 1 }) };
+    expect(responder.handleFrame(ctx, aConv, request)).toEqual(denied);
+    expect(responder.handleFrame(ctx, aConv, request)).toEqual(denied);
+    expect(responder.handleFrame(ctx, "unknown", request)).toEqual(denied);
+    expect(responder.handleFrame(ctx, aConv, fromHex(denied.frame))).toEqual({ kind: "ignored" });
+
+    for (let i = 1; i < 64; i++) expect(issue()).toHaveProperty("capability");
+    expect(issue()).toEqual({ refused: "unavailable" });
+    expect(responder.retire(ctx, aConv)).toEqual({ done: true });
+    expect(responder.handleFrame(ctx, aConv, request)).toEqual(denied);
+    for (let i = 0; i < 64; i++) expect(issue()).toHaveProperty("capability");
+
+    const confirmId = asOperationId("confirm-lan-block");
+    await rt.dispatch({ kind: "IssueConfirmation", ctx, operationId: confirmId, intentKind: "BlockPerson", target: conversation.personId });
+    const confirmed = await rt.query({ kind: "GetConfirmation", ctx, operationId: confirmId });
+    if (!confirmed) throw new Error("expected a block confirmation");
+    const blockId = asOperationId("block-lan-peer");
+    await rt.dispatch({
+      kind: "BlockPerson", ctx, operationId: blockId, personId: conversation.personId, scope: "local",
+      confirmation: { nonce: confirmed.nonce } as ConfirmationToken,
+    });
+    expect((await rt.pendingOperations(ctx)).find((op) => op.operationId === blockId)?.outcome).toEqual({ kind: "Committed" });
+    expect(responder.handleFrame(ctx, aConv, request)).toEqual(denied);
+    expect(issue()).toEqual({ refused: "unavailable" });
   });
 });

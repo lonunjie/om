@@ -36,7 +36,7 @@ groups-openmls = ["om-core/groups-openmls", "dep:getrandom02"]
 expressive-media = []
 
 # Opt-in scope commands for the separate engineering artifact. Off in every release.
-scope-engines = ["dep:om-archive-reader"]
+scope-engines = ["dep:om-archive-reader", "om-core/scope-engines"]
 
 [dev-dependencies]
 om-core = { path = "../om-core", features = ["insecure-test-rng", "test-loopback"] }

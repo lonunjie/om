@@ -4,11 +4,11 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import type { ProfileExecutionContext } from "@om/platform-api";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createLanReceiver, createLanSender } from "./lan-driver";
-import type { LanChannel } from "./lan-driver";
+import type { LanAsyncKeyResponder, LanChannel } from "./lan-driver";
 import { createScopeEngines } from "./scope-engines";
-import { toHex } from "./types";
+import { fromHex, toHex } from "./types";
 import { instantiateCore, type WasmCore } from "./wasm";
 
 const wasm = new URL("../dist/om_wasm_scope.wasm", import.meta.url);
@@ -80,5 +80,44 @@ describe.skipIf(!existsSync(wasm))("LAN transfer driver over an in-memory channe
     expect(t.receiver.complete).toBe(true);
     expect(t.sender.confirmed).toBe(true);
     expect(toHex(t.stored)).toBe(toHex(payload));
+  });
+});
+
+describe("LAN driver async-key routing over a fake channel", () => {
+  it.each(["sender", "receiver"] as const)("answers fetch frames on the %s only when a responder is supplied", (side) => {
+    const fetch = Uint8Array.of(1);
+    const refused = Uint8Array.of(2);
+    const requestId = "03".repeat(16);
+    const error = `a4000101070250${requestId}0d01`;
+    const bundle = { kind: "bundle", requestId, sealedBundle: "cafe" } as const;
+    const core = {
+      call: vi.fn((cmd: Record<string, unknown>) => cmd.bytes === toHex(fetch)
+        ? { kind: "fetch_async_key" }
+        : { refused: "wrong_type" }),
+    };
+    const channel = { send: vi.fn<(bytes: Uint8Array) => void>() };
+    const engines = createScopeEngines(core);
+    const handleFrame = vi.fn<LanAsyncKeyResponder["handleFrame"]>()
+      .mockReturnValueOnce({ kind: "error", frame: error })
+      .mockReturnValueOnce(bundle);
+    const sendBundle = vi.fn<LanAsyncKeyResponder["sendBundle"]>();
+    const driver = (asyncKeyResponder?: LanAsyncKeyResponder) => {
+      const options = { core, channel, engines, handle: "transfer", ...(asyncKeyResponder && { asyncKeyResponder }) };
+      return side === "sender"
+        ? createLanSender({ ...options, transferId, blobId, digest, objectKind: 8, total: TOTAL, read: () => payload, verifyReceipt: () => false })
+        : createLanReceiver({ ...options, storedOffset: 0, write: () => {}, digestMatches: () => false, receiptTag: () => tag });
+    };
+
+    driver().onFrame(fetch);
+    expect(channel.send).not.toHaveBeenCalled();
+    const enabled = driver({ handleFrame, sendBundle });
+    enabled.onFrame(refused);
+    expect(handleFrame).not.toHaveBeenCalled();
+    enabled.onFrame(fetch);
+    expect(handleFrame).toHaveBeenCalledWith(fetch);
+    expect(channel.send).toHaveBeenCalledExactlyOnceWith(fromHex(error));
+    enabled.onFrame(fetch);
+    expect(sendBundle).toHaveBeenCalledExactlyOnceWith(channel, bundle);
+    expect(channel.send).toHaveBeenCalledTimes(1);
   });
 });

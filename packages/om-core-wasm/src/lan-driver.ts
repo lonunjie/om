@@ -5,12 +5,26 @@
 // binding: transport ACKs move the window only and only an authenticated receipt confirms delivery. Keys, the receipt MAC
 // and the digest check are injected by the host; this file holds none.
 import { fromHex, toHex } from "./types";
-import type { ScopeEngines } from "./scope-engines";
+import type { LanAsyncKeyBundle, LanAsyncKeyReply, ScopeEngines } from "./scope-engines";
 import type { WasmCore } from "./wasm";
 
 export interface LanChannel {
   /** One message is exactly one canonical frame. */
   send(bytes: Uint8Array): void;
+}
+
+/** An optional responder bound to the conversation for this channel. */
+export interface LanAsyncKeyResponder {
+  handleFrame(bytes: Uint8Array): LanAsyncKeyReply;
+  /** Carries the sealed object on this channel through the LAN object-transfer adapter. */
+  sendBundle(channel: LanChannel, bundle: LanAsyncKeyBundle): void;
+}
+
+function answerAsyncKey(channel: LanChannel, responder: LanAsyncKeyResponder, bytes: Uint8Array): void {
+  const reply = responder.handleFrame(bytes);
+  if ("refused" in reply) return;
+  if (reply.kind === "error") channel.send(fromHex(reply.frame));
+  else if (reply.kind === "bundle") responder.sendBundle(channel, reply);
 }
 
 type Core = Pick<WasmCore, "call">;
@@ -26,6 +40,7 @@ export interface LanSenderOptions {
   readonly core: Core;
   readonly engines: ScopeEngines;
   readonly channel: LanChannel;
+  readonly asyncKeyResponder?: LanAsyncKeyResponder;
   readonly handle: string;
   readonly transferId: string;
   readonly blobId: string;
@@ -76,7 +91,9 @@ export function createLanSender(o: LanSenderOptions): LanSender {
     },
     onFrame(bytes) {
       const f = decode(o.core, bytes);
-      if (f.kind === "ack" && f.transferId === o.transferId && f.offset !== undefined) {
+      if (f.kind === "fetch_async_key" && o.asyncKeyResponder) {
+        answerAsyncKey(o.channel, o.asyncKeyResponder, bytes);
+      } else if (f.kind === "ack" && f.transferId === o.transferId && f.offset !== undefined) {
         lt.transportAck(o.handle, f.offset);
         pump();
       } else if (f.kind === "receipt" && f.transferId === o.transferId && f.tag !== undefined) {
@@ -96,6 +113,7 @@ export interface LanReceiverOptions {
   readonly core: Core;
   readonly engines: ScopeEngines;
   readonly channel: LanChannel;
+  readonly asyncKeyResponder?: LanAsyncKeyResponder;
   readonly handle: string;
   /** Durable prefix already stored for this transfer (a resumed transfer), else 0. */
   readonly storedOffset: number;
@@ -124,7 +142,9 @@ export function createLanReceiver(o: LanReceiverOptions): LanReceiver {
   return {
     onFrame(bytes) {
       const f = decode(o.core, bytes);
-      if (f.kind === "begin" && f.transferId !== undefined && f.totalBytes !== undefined) {
+      if (f.kind === "fetch_async_key" && o.asyncKeyResponder) {
+        answerAsyncKey(o.channel, o.asyncKeyResponder, bytes);
+      } else if (f.kind === "begin" && f.transferId !== undefined && f.totalBytes !== undefined) {
         transferId = f.transferId;
         digest = (f as { sha256?: string }).sha256 ?? "";
         const opened = lt.openReceiver(o.handle, f.totalBytes, o.storedOffset > 0 ? o.storedOffset : undefined);

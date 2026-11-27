@@ -56,6 +56,16 @@ pub enum Reply {
     Error(Frame),
 }
 
+impl Reply {
+    /// The same wire error for every denied fetch, including when there is no local device.
+    pub fn unavailable(request_id: [u8; 16]) -> Self {
+        Self::Error(Frame::Error {
+            id: request_id,
+            code: ErrorCode::Unavailable as u64,
+        })
+    }
+}
+
 struct Issued {
     digest: [u8; 32],
     relationship: ContactRef,
@@ -138,6 +148,11 @@ impl Responder {
             .retain(|entry| &entry.relationship != relationship);
     }
 
+    /// Drops entries whose relationship no longer exists or is no longer active.
+    pub(crate) fn retain_relationships(&mut self, mut active: impl FnMut(&ContactRef) -> bool) {
+        self.issued.retain(|entry| active(&entry.relationship));
+    }
+
     fn observe_time(&mut self, now: u64) -> bool {
         if now < self.last_now {
             return false;
@@ -211,10 +226,7 @@ impl Responder {
                 request_id: *request_id,
                 sealed_bundle,
             },
-            None => Reply::Error(Frame::Error {
-                id: *request_id,
-                code: ErrorCode::Unavailable as u64,
-            }),
+            None => Reply::unavailable(*request_id),
         })
     }
 }

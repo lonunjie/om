@@ -17,6 +17,8 @@ use crate::groups::flow::{
 };
 use crate::groups::mls::GroupCrypto;
 use crate::host::*;
+#[cfg(feature = "scope-engines")]
+use crate::lan_async_key::{RelationshipState, Reply, Responder};
 use crate::route::{DepositRevocation, MAX_OFFERS, QueueRetirement, RoomRouteOffer, RouteOffer};
 use crate::state::*;
 use std::collections::BTreeMap;
@@ -77,6 +79,32 @@ struct Slot {
     state: ProfileState,
     /// Exactly what the host has durably stored for this profile.
     committed: BTreeMap<String, Vec<u8>>,
+    /// Volatile capabilities for this profile's current device.
+    #[cfg(feature = "scope-engines")]
+    lan_async_key: Option<Responder>,
+}
+
+#[cfg(feature = "scope-engines")]
+fn lan_async_key_contact(rel: &Relationship) -> Option<crate::lan::ContactRef> {
+    let canonical: [u8; 32] = crate::crypto::unhex(rel.canon_id.as_deref()?)
+        .ok()?
+        .try_into()
+        .ok()?;
+    let peer: [u8; 16] = crate::crypto::unhex(&rel.peer_device_id)
+        .ok()?
+        .try_into()
+        .ok()?;
+    // A relink can keep the local conversation id while replacing its canonical relationship.
+    let digest = crate::crypto::sha256(&[rel.id.as_bytes(), &canonical, &peer]);
+    digest[..16].try_into().ok()
+}
+
+#[cfg(feature = "scope-engines")]
+fn lan_async_key_active(rel: &Relationship) -> bool {
+    rel.state == RelState::Active
+        && !rel.blocked
+        && !rel.peer_account_id.is_empty()
+        && !rel.peer_acs_body.is_empty()
 }
 
 struct Staged {
@@ -2009,6 +2037,118 @@ impl<R: RngCore + CryptoRng> Core<R> {
         Ok(device.lan_signal_open(guard, &peer, now, bytes))
     }
 
+    /// Issues a local capability for an already-bound relationship. Fetch authority is checked independently.
+    #[cfg(feature = "scope-engines")]
+    pub fn lan_async_key_issue(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        expires_at: u64,
+    ) -> Result<Option<[u8; 32]>, CoreError> {
+        let slot = self.slot(ctx)?;
+        if self.staged.is_some() {
+            return Err(CoreError::Busy);
+        }
+        let Some(relationship) = slot
+            .state
+            .app
+            .relationships
+            .get(conversation_id)
+            .filter(|rel| lan_async_key_active(rel))
+            .and_then(lan_async_key_contact)
+        else {
+            return Ok(None);
+        };
+        let Some(device) = &slot.state.device else {
+            return Ok(None);
+        };
+        let device_id = device.device_id;
+        let now = self.clock.now_ms() / 1000;
+        let mut capability = zeroize::Zeroizing::new([0u8; 32]);
+        self.rng.fill_bytes(&mut *capability);
+        let responder = self
+            .profiles
+            .get_mut(&ctx.profile_id)
+            .expect("validated profile")
+            .lan_async_key
+            .get_or_insert_with(|| Responder::new(device_id));
+        Ok(responder
+            .issue(relationship, &*capability, now, expires_at)
+            .ok()
+            .map(|()| *capability))
+    }
+
+    /// A valid fetch gets a uniform denial until Core can select a LAN sealer for the authenticated requester.
+    #[cfg(feature = "scope-engines")]
+    pub fn lan_async_key_handle(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        frame: &crate::lan_frame::Frame,
+    ) -> Option<Reply> {
+        let crate::lan_frame::Frame::FetchAsyncKey { request_id, .. } = frame else {
+            return None;
+        };
+        let Ok(slot) = self.slot(ctx) else {
+            return Some(Reply::unavailable(*request_id));
+        };
+        let Some(device) = &slot.state.device else {
+            return Some(Reply::unavailable(*request_id));
+        };
+        let device_id = device.device_id;
+        let state = slot
+            .state
+            .app
+            .relationships
+            .get(conversation_id)
+            .and_then(|rel| {
+                let relationship = lan_async_key_contact(rel)?;
+                Some(if rel.blocked {
+                    RelationshipState::Blocked(relationship)
+                } else if lan_async_key_active(rel) {
+                    RelationshipState::Active {
+                        relationship,
+                        fetch_grant: None,
+                    }
+                } else {
+                    RelationshipState::Ended(relationship)
+                })
+            })
+            .unwrap_or(RelationshipState::Inactive);
+        let now = self.clock.now_ms() / 1000;
+        self.profiles
+            .get_mut(&ctx.profile_id)
+            .expect("validated profile")
+            .lan_async_key
+            .get_or_insert_with(|| Responder::new(device_id))
+            .handle(frame, now, state)
+    }
+
+    /// Drops any issued capabilities for a retired LAN relationship. Committed lifecycle changes also prune the table.
+    #[cfg(feature = "scope-engines")]
+    pub fn lan_async_key_retire(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+    ) -> Result<(), CoreError> {
+        let relationship = self
+            .slot(ctx)?
+            .state
+            .app
+            .relationships
+            .get(conversation_id)
+            .and_then(lan_async_key_contact);
+        if let (Some(relationship), Some(responder)) = (
+            relationship,
+            self.profiles
+                .get_mut(&ctx.profile_id)
+                .and_then(|slot| slot.lan_async_key.as_mut()),
+        ) {
+            responder.retire(&relationship);
+        }
+        Ok(())
+    }
+
     /// Drop senders whose offer is no longer live and record the ones that finished. The only durable effect of serving.
     fn direct_reconcile(&mut self, profile: &str) -> Result<Option<Commit>, CoreError> {
         use crate::direct::OfferState;
@@ -2379,6 +2519,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 room_offers: vec![],
                 pack_upload: Default::default(),
                 pack_review: None,
+                #[cfg(feature = "scope-engines")]
+                lan_async_key: None,
             },
         );
         Ok(ProfileExecutionContext {
@@ -2533,6 +2675,30 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     .profiles
                     .get_mut(&s.profile)
                     .ok_or(CoreError::ProfileAccess("profile closed during commit"))?;
+                #[cfg(feature = "scope-engines")]
+                if let Some(responder) = slot.lan_async_key.as_mut() {
+                    let device_id =
+                        |state: &ProfileState| state.device.as_ref().map(|d| d.device_id);
+                    if device_id(&slot.state) != device_id(&s.next) {
+                        slot.lan_async_key = None;
+                    } else {
+                        // Build the live set only if there are issued capabilities to reconcile.
+                        let mut active = None;
+                        responder.retain_relationships(|contact| {
+                            active
+                                .get_or_insert_with(|| {
+                                    s.next
+                                        .app
+                                        .relationships
+                                        .values()
+                                        .filter(|rel| lan_async_key_active(rel))
+                                        .filter_map(lan_async_key_contact)
+                                        .collect::<std::collections::BTreeSet<_>>()
+                                })
+                                .contains(contact)
+                        });
+                    }
+                }
                 slot.state = s.next;
                 slot.committed = s.records;
                 Ok(Released {

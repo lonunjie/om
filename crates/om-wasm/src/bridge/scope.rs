@@ -2260,6 +2260,62 @@ pub fn lan_bytes(hex: &str) -> Option<Vec<u8>> {
     hex_vec(hex)
 }
 
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum LanAsyncKeyOp {
+    Issue { expires_at: u64 },
+    Handle { bytes: String },
+    Retire,
+}
+
+pub fn lan_async_key<R: super::RngCore + super::CryptoRng>(
+    core: &mut om_core::Core<R>,
+    ctx: &super::ProfileExecutionContext,
+    conversation_id: &str,
+    op: LanAsyncKeyOp,
+) -> Result<Value, super::CoreError> {
+    use om_core::lan_async_key::Reply;
+
+    Ok(match op {
+        LanAsyncKeyOp::Issue { expires_at } => {
+            match core.lan_async_key_issue(ctx, conversation_id, expires_at)? {
+                Some(capability) => json!({ "capability": hex_out(&capability) }),
+                None => refused("unavailable"),
+            }
+        }
+        LanAsyncKeyOp::Handle { bytes } => {
+            let Some(bytes) = lan_bytes(&bytes) else {
+                return Ok(refused("malformed"));
+            };
+            let frame = match om_core::lan_frame::decode(&bytes) {
+                Ok(frame) => frame,
+                Err(error) => return Ok(refused(error)),
+            };
+            match core.lan_async_key_handle(ctx, conversation_id, &frame) {
+                Some(Reply::Bundle {
+                    request_id,
+                    sealed_bundle,
+                }) => {
+                    json!({ "kind": "bundle", "requestId": hex_out(&request_id), "sealedBundle": hex_out(&sealed_bundle) })
+                }
+                Some(Reply::Error(frame)) => match encode_frame(&frame) {
+                    Some(bytes) => json!({ "kind": "error", "frame": hex_out(&bytes) }),
+                    None => refused("value_range"),
+                },
+                None => json!({ "kind": "ignored" }),
+            }
+        }
+        LanAsyncKeyOp::Retire => {
+            core.lan_async_key_retire(ctx, conversation_id)?;
+            json!({ "done": true })
+        }
+    })
+}
+
 fn signal_refusal(e: om_core::crypto::lan_signal::SignalError) -> &'static str {
     use om_core::crypto::lan_signal::SignalError::*;
     match e {
