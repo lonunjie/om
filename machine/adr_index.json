@@ -3227,6 +3227,15 @@
       "path": "decisions/ADR-0279-lan-async-key-fetch-responder.md",
       "amends": [],
       "amended_by": []
+    },
+    {
+      "id": "ADR-0280",
+      "title": "The LAN async-key reply stays unserved until a LAN sealing profile exists (delegated; additive)",
+      "status": "Delegated design decision (additive). Independent review remains required. Completes ADR-0279 item 3 by taking the safest path.",
+      "date": "2026-11-28",
+      "path": "decisions/ADR-0280-lan-async-key-requester-sealer.md",
+      "amends": [],
+      "amended_by": []
     }
   ]
 }

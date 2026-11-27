@@ -286,3 +286,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0277 — Durable Room operation recovery (delegated; additive)](ADR-0277-durable-room-operation-recovery.md)
 - [ADR-0278 — Community join in v1 is by invitation through the existing group flow (delegated; additive)](ADR-0278-community-join-by-invitation.md)
 - [ADR-0279 — LAN async-key fetch responder (delegated; additive)](ADR-0279-lan-async-key-fetch-responder.md)
+- [ADR-0280 — The LAN async-key reply stays unserved until a LAN sealing profile exists (delegated; additive)](ADR-0280-lan-async-key-requester-sealer.md)
