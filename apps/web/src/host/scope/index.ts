@@ -22,7 +22,8 @@ export {
 export type { FileHost, HistorySource } from "./portability";
 export {
   createConnectedServicesService, serviceRoomHandle, type ConnectedServicesOptions,
-  type PendingServiceOperation, type PendingServiceStore,
+  type InvocationSelection, type PendingServiceOperation, type PendingServiceStore, type SelectionSource,
+  type ServiceInvocationOptions,
 } from "./services";
 
 export interface ScopeServices {

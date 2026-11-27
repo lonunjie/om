@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { instantiateCore } from "@om/core-wasm";
 import { asConversationId, asProfileGeneration, asProfileId, captureProfileContext, type ConversationId, type ProfileId } from "@om/platform-api";
 import { describe, expect, it, vi } from "vitest";
 import { createScopeEngines, type RoomControlEntry, type ScopeEngines, type ServiceListing } from "../../../../../packages/om-core-wasm/src/scope-engines";
 import {
-  createConnectedServicesService, serviceRoomHandle, type PendingServiceOperation, type PendingServiceStore,
+  createConnectedServicesService, serviceRoomHandle, type InvocationSelection, type PendingServiceOperation, type PendingServiceStore,
 } from "./services";
 import { createScopeServices } from "./index";
 
@@ -17,26 +19,44 @@ const endpoint = "05".repeat(16);
 const install = { kind: "install", target } as const;
 const remove = { kind: "remove", target } as const;
 const caps = ["room.install_service"];
+const command = "fetch_url_via_scoped_network_provider";
+const selection = {
+  service, command, destination: "Assistant endpoint", expiresAtMs: 800,
+  items: [
+    { id: "z-trigger", kind: "trigger", value: "Summarize this" },
+    { id: "a-attachment", kind: "attachment", value: "Agenda" },
+    { id: "m-participant", kind: "participant", value: "Alex" },
+    { id: "b-scope", kind: "scope", value: "Planning" },
+  ],
+} as const satisfies InvocationSelection;
+
+function reviewId(value: InvocationSelection) {
+  const items = value.items.map(({ id, kind, value: content }) => [id, kind, content]);
+  return createHash("sha256").update(JSON.stringify([value.service, value.command, value.destination, items])).digest("hex");
+}
+
+const invoke = { kind: "invoke", target: reviewId(selection) } as const;
 
 class MemoryPendingStore implements PendingServiceStore {
   readonly records = new Map<string, PendingServiceOperation>();
   readonly reservations: PendingServiceOperation[] = [];
 
-  async load(profile: ProfileId, conversationId: ConversationId) {
-    return this.records.get(serviceRoomHandle(profile, conversationId)) ?? null;
+  load(profile: ProfileId, conversationId: ConversationId) {
+    return Promise.resolve(this.records.get(serviceRoomHandle(profile, conversationId)) ?? null);
   }
 
-  async reserve(profile: ProfileId, operation: PendingServiceOperation) {
+  reserve(profile: ProfileId, operation: PendingServiceOperation) {
     const key = serviceRoomHandle(profile, operation.conversationId);
-    if (this.records.has(key)) return false;
+    if (this.records.has(key)) return Promise.resolve(false);
     this.records.set(key, operation);
     this.reservations.push(operation);
-    return true;
+    return Promise.resolve(true);
   }
 
-  async clear(profile: ProfileId, conversationId: ConversationId, id: string) {
+  clear(profile: ProfileId, conversationId: ConversationId, id: string) {
     const key = serviceRoomHandle(profile, conversationId);
     if (this.records.get(key)?.id === id) this.records.delete(key);
+    return Promise.resolve();
   }
 }
 
@@ -160,7 +180,7 @@ describe("connected services host", () => {
     expect(f.pending.records.size).toBe(0);
   });
 
-  it("blocks by default and never offers invocation", async () => {
+  it("blocks Room changes by default and offers no invocation without a selection source", async () => {
     const f = fixture();
     const connected = createConnectedServicesService({ ctx, engines: f.opts.engines, pending: f.pending, now: f.opts.now });
     expect(await connected.state(room)).toMatchObject({
@@ -208,5 +228,156 @@ describe("connected services host", () => {
     const composed = createScopeServices({ ctx, enabled: true, loaded }).connectedServices;
     expect(await composed?.state(room)).toEqual({ entries: [], invocation: null, outcome: null });
     expect(core.call).toHaveBeenCalledWith({ cmd: "room_control_view", ctx, room });
+  });
+});
+
+function invocationFixture() {
+  const f = fixture();
+  f.update({ membership: "installed", installed: true, capabilities: null });
+  let selected: InvocationSelection | null = selection;
+  let time = 17;
+  const selectionSource = vi.fn(() => selected);
+  const installedGrants = vi.fn(() => [command]);
+  const call = vi.fn(({ granted, policy }: Readonly<Record<string, unknown>>) => {
+    if (!Array.isArray(granted) || !granted.includes(command)) return { allowed: false, refusal: "not_granted" };
+    if (!(policy as { allowed: boolean }).allowed) return { allowed: false, refusal: "tainted_egress" };
+    return { allowed: true };
+  });
+  const egressPolicy = vi.fn((): { kind: "room"; allowed: boolean } => ({ kind: "room", allowed: true }));
+  const opts = {
+    ...f.opts, authority: { capabilities: () => [...caps, command] }, selectionSource,
+    invocation: { core: { call }, installedGrants, egressPolicy, wallNow: () => time },
+  };
+  return {
+    ...f, opts, call, installedGrants, selectionSource, egressPolicy,
+    select: (value: InvocationSelection | null) => { selected = value; },
+    advance: (value: number) => { time = value; },
+  };
+}
+
+describe("connected services invocation review", () => {
+  it("uses the captured profile and shows the selected disclosure exactly in order", async () => {
+    const f = invocationFixture();
+    const inputCtx = { ...ctx };
+    const connected = createConnectedServicesService({ ...f.opts, ctx: inputCtx });
+    Object.assign(inputCtx, { profileId: asProfileId("two"), generation: asProfileGeneration("generation-2") });
+    const state = await connected.state(room);
+    expect(state.invocation).toEqual({
+      id: invoke.target, principal: { id: service, name: "Assistant" }, command,
+      disclosure: {
+        kind: "selected_context", destination: selection.destination, expiresAtMs: selection.expiresAtMs, items: selection.items,
+      },
+      flow: { tainted: true, egress: "allowed" },
+      action: { availability: "ready", intent: invoke },
+    });
+    expect(f.selectionSource).toHaveBeenCalledWith(ctx, room);
+    expect(f.installedGrants).toHaveBeenCalledWith(ctx, room, { service, target });
+    expect(f.call).toHaveBeenCalledExactlyOnceWith({
+      cmd: "service_broker_request", granted: [command], name: command, tainted: true, policy: { kind: "room", allowed: true },
+    });
+    f.select(null);
+    expect((await connected.state(room)).invocation).toBeNull();
+  });
+
+  it("blocks invoke under deny-all authority", async () => {
+    const f = invocationFixture();
+    const connected = createConnectedServicesService({
+      ctx, engines: f.opts.engines, pending: f.pending, now: f.opts.now,
+      selectionSource: f.selectionSource, invocation: f.opts.invocation,
+    });
+    expect(await connected.state(room)).toMatchObject({
+      invocation: {
+        flow: { tainted: true, egress: "blocked_by_capability" },
+        action: { availability: "blocked", kind: "invoke", reason: "unauthorized" },
+      },
+    });
+    expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "Rejected", reason: "unauthorized" } });
+    expect(f.installedGrants).not.toHaveBeenCalled();
+    expect(f.pending.reservations).toHaveLength(0);
+  });
+
+  it("requires both the installed grant and a broker allow", async () => {
+    const f = invocationFixture();
+    const connected = createConnectedServicesService(f.opts);
+    f.egressPolicy.mockReturnValueOnce({ kind: "room", allowed: false });
+    expect(await connected.state(room)).toMatchObject({
+      invocation: {
+        flow: { tainted: true, egress: "blocked_by_conversation" },
+        action: { availability: "blocked", reason: "policy_denied" },
+      },
+    });
+    expect(await connected.state(room)).toMatchObject({ invocation: { action: { availability: "ready" } } });
+    f.installedGrants.mockReturnValueOnce([]);
+    expect(await connected.state(room)).toMatchObject({
+      invocation: { action: { availability: "blocked", reason: "unauthorized" } },
+    });
+    f.update({ membership: "proposed", installed: false, capabilities: [command] });
+    expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "Rejected", reason: "unauthorized" } });
+    expect(f.pending.reservations).toHaveLength(0);
+  });
+
+  it("voids the earlier target when the selection is reordered or removed", async () => {
+    const f = invocationFixture();
+    const connected = createConnectedServicesService(f.opts);
+    expect(await connected.state(room)).toMatchObject({ invocation: { id: invoke.target } });
+    const [trigger, attachment, participant, scope] = selection.items;
+    const reordered = { ...selection, items: [trigger, participant, attachment, scope] } as const;
+    f.select(reordered);
+    expect(await connected.change(room, invoke)).toMatchObject({
+      invocation: { id: reviewId(reordered), disclosure: { items: reordered.items } },
+      outcome: { kind: "Rejected", reason: "stale_state" },
+    });
+    f.select(null);
+    expect(await connected.change(room, invoke)).toMatchObject({
+      invocation: null, outcome: { kind: "Rejected", reason: "stale_state" },
+    });
+    expect(f.pending.reservations).toHaveLength(0);
+  });
+
+  it("refuses a review at its expiry", async () => {
+    const f = invocationFixture();
+    const connected = createConnectedServicesService(f.opts);
+    expect(await connected.state(room)).toMatchObject({ invocation: { action: { availability: "ready" } } });
+    f.advance(selection.expiresAtMs);
+    expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "Rejected", reason: "expired" } });
+    expect(f.pending.reservations).toHaveLength(0);
+  });
+
+  it("reserves one pending operation across simultaneous confirmation and restart", async () => {
+    const f = invocationFixture();
+    const connected = createConnectedServicesService(f.opts);
+    expect(await connected.state(room)).toMatchObject({ invocation: { action: { availability: "ready", intent: invoke } } });
+    const answers = await Promise.all([connected.change(room, invoke), connected.change(room, invoke)]);
+    expect(answers.map((answer) => answer.outcome)).toEqual([{ kind: "PendingNetwork" }, { kind: "PendingNetwork" }]);
+
+    const restarted = createConnectedServicesService(f.opts);
+    expect(await restarted.state(room)).toMatchObject({ outcome: { kind: "PendingNetwork" } });
+    expect(await restarted.change(room, invoke)).toMatchObject({ outcome: { kind: "PendingNetwork" } });
+    f.select(null);
+    expect(await restarted.state(room)).toMatchObject({ invocation: null, outcome: { kind: "PendingNetwork" } });
+    const id = createHash("sha256").update(JSON.stringify([ctx.profileId, room, "invoke", invoke.target])).digest("hex");
+    expect(f.pending.reservations).toEqual([{ id, conversationId: room, service, intent: invoke }]);
+    expect([...f.pending.records.values()]).toEqual(f.pending.reservations);
+    expect(f.installOffer).not.toHaveBeenCalled();
+    expect(f.removeMember).not.toHaveBeenCalled();
+  });
+});
+
+const wasm = new URL("../../../../../packages/om-core-wasm/dist/om_wasm_scope.wasm", import.meta.url);
+
+describe.skipIf(!existsSync(wasm))("connected services with the engineering Wasm scope", () => {
+  it("uses the actual broker with injected installation and policy facts", async () => {
+    const f = invocationFixture();
+    const core = await instantiateCore(readFileSync(wasm));
+    const connected = createConnectedServicesService({ ...f.opts, invocation: { ...f.opts.invocation, core } });
+    f.egressPolicy.mockReturnValueOnce({ kind: "room", allowed: false });
+    expect(await connected.state(room)).toMatchObject({
+      invocation: { flow: { tainted: true, egress: "blocked_by_conversation" }, action: { availability: "blocked", reason: "policy_denied" } },
+    });
+    expect(await connected.state(room)).toMatchObject({
+      invocation: { flow: { tainted: true, egress: "allowed" }, action: { availability: "ready", intent: invoke } },
+    });
+    expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "PendingNetwork" } });
+    expect(f.pending.reservations).toHaveLength(1);
   });
 });
