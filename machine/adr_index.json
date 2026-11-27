@@ -3178,6 +3178,16 @@
       "amends": [],
       "index_title": "v1 rulings: invocation review in the engineering host from an injected selection, no send (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0275",
+      "title": "Where the engineering host's export history comes from (v1)",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0275-engineering-host-history-source.md",
+      "amends": [],
+      "index_title": "v1 rulings: the engineering host's export history is a projection read through Core queries (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
