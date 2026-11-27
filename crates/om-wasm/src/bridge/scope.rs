@@ -912,8 +912,73 @@ pub enum BridgeRoomOp {
     View {
         bridge: String,
     },
-    /// Every admitted bridge with its mapping and roster entry.
+    /// Every bridge the Room can show, with its membership (ADR-0270): proposed, member or removed.
     List,
+    /// Places a proposed bridge in the Room. Grants nothing.
+    Propose {
+        head: HeadIn,
+        mapping: MappingIn,
+        approvers: Vec<ApproverIn>,
+        name: String,
+        external_claim: Option<String>,
+    },
+    WithdrawOffer {
+        bridge: String,
+    },
+    /// Admits the offer the reviewer saw; the target must be the current one.
+    AdmitOffer {
+        bridge: String,
+        target: String,
+        now: u64,
+    },
+    RemoveMember {
+        bridge: String,
+        target: String,
+    },
+}
+
+fn offer_err(e: &om_core::bridge_room::OfferError) -> &'static str {
+    use om_core::bridge_room::OfferError as E;
+    match e {
+        E::Malformed => "malformed",
+        E::TooMany => "too_many_offers",
+        E::StaleTarget => "stale_target",
+        E::Room(r) => bridge_room_err(r),
+    }
+}
+
+fn bridge_entry(r: &BridgeRoom, b: &[u8; 32], m: om_core::bridge_room::Membership) -> Value {
+    use om_core::bridge_room::Membership as M;
+    let mut v = match m {
+        M::Member => bridge_view(r, b),
+        _ => json!({ "installed": false }),
+    };
+    if let Value::Object(o) = &mut v {
+        o.insert("bridge".into(), json!(lan_hex(b)));
+        o.insert(
+            "membership".into(),
+            json!(match m {
+                M::Proposed => "proposed",
+                M::Member => "member",
+                M::Removed => "removed",
+            }),
+        );
+        o.insert(
+            "target".into(),
+            r.current_target(b)
+                .map_or(Value::Null, |t| json!(lan_hex(&t))),
+        );
+        if let Some(of) = r.offer(b) {
+            o.insert("mapping".into(), mapping_view(Some(&of.mapping)));
+            o.insert("name".into(), json!(of.name));
+            o.insert("externalClaim".into(), json!(of.external_claim));
+            o.insert(
+                "approversReportedAtProposal".into(),
+                json!(of.approvers.len()),
+            );
+        }
+    }
+    v
 }
 
 fn mapping_view(m: Option<&Mapping>) -> Value {
@@ -1047,17 +1112,69 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
         }
         BridgeRoomOp::List => {
             let list: Vec<Value> = r
-                .bridge_ids()
+                .listing()
                 .iter()
-                .map(|b| {
-                    let mut v = bridge_view(r, b);
-                    if let Value::Object(o) = &mut v {
-                        o.insert("bridge".into(), json!(lan_hex(b)));
-                    }
-                    v
-                })
+                .map(|(b, m)| bridge_entry(r, b, *m))
                 .collect();
             json!({ "bridges": list })
+        }
+        BridgeRoomOp::Propose {
+            head: hd,
+            mapping,
+            approvers: ap,
+            name,
+            external_claim,
+        } => {
+            let (Some(hd), Some(inc), Some(ap)) =
+                (head(&hd), hex_n::<16>(&mapping.incarnation), approvers(&ap))
+            else {
+                return bad();
+            };
+            let m = Mapping {
+                incarnation: inc,
+                namespace: mapping.namespace,
+                direction: mapping.direction,
+                allowed_classes: mapping.allowed_classes.into_iter().collect(),
+                active: true,
+            };
+            match r.propose(om_core::bridge_room::Offer {
+                head: hd,
+                mapping: m,
+                approvers: ap,
+                name,
+                external_claim,
+            }) {
+                Ok(t) => json!({ "target": lan_hex(&t) }),
+                Err(e) => refused(offer_err(&e)),
+            }
+        }
+        BridgeRoomOp::WithdrawOffer { bridge } => {
+            let Some(b) = hex_n::<32>(&bridge) else {
+                return bad();
+            };
+            json!({ "done": r.withdraw_offer(&b) })
+        }
+        BridgeRoomOp::AdmitOffer {
+            bridge,
+            target,
+            now,
+        } => {
+            let (Some(b), Some(t)) = (hex_n::<32>(&bridge), hex_n::<32>(&target)) else {
+                return bad();
+            };
+            match r.admit_offer(&caps, &b, &t, now) {
+                Ok(()) => done(),
+                Err(e) => refused(offer_err(&e)),
+            }
+        }
+        BridgeRoomOp::RemoveMember { bridge, target } => {
+            let (Some(b), Some(t)) = (hex_n::<32>(&bridge), hex_n::<32>(&target)) else {
+                return bad();
+            };
+            match r.remove_member(&caps, &b, &t) {
+                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
+                Err(e) => refused(offer_err(&e)),
+            }
         }
     }
 }

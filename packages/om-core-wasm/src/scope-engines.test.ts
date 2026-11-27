@@ -30,4 +30,19 @@ describe.skipIf(!existsSync(wasm))("scope-engines typed client", () => {
     expect(e.lanTransfer.openReceiver("t", 10)).toEqual({ done: true });
     expect(e.lanTransfer.accept("t", 5, 5)).toEqual({ refused: "bad_chunk" });
   });
+  it("holds a proposed bridge as an offer bound to its review target", async () => {
+    const e = createScopeEngines(await instantiateCore(readFileSync(wasm)));
+    const head = { serviceId: hex("62", 32), version: 1, hash: hex("01", 32), endpoints: [{ id: hex("10", 16), state: 1 }] };
+    const humans = [{ kind: 1, id: hex("01", 32) }, { kind: 1, id: hex("02", 32) }];
+    const mapping = { incarnation: hex("05", 16), namespace: "test.net", direction: 3 as const, allowedClasses: [1, 2] };
+    e.bridgeRoom.open("o", { quorum: 2, sequencingTimeout: 300, freshnessBound: 600 });
+    const p = e.bridgeRoom.propose("o", { head, mapping, approvers: humans, name: "Relay\u202E", externalClaim: null }) as { target: string };
+    expect(p.target).toMatch(/^[0-9a-f]{64}$/);
+    expect(e.bridgeRoom.list("o")).toMatchObject({ bridges: [{ bridge: head.serviceId, membership: "proposed", target: p.target, name: "Relay", installed: false }] });
+    expect(e.bridgeRoom.admitOffer("o", ["room.add_bridge"], { bridge: head.serviceId, target: hex("00", 32), now: 0 })).toEqual({ refused: "stale_target" });
+    expect(e.bridgeRoom.admitOffer("o", ["room.add_bridge"], { bridge: head.serviceId, target: p.target, now: 0 })).toEqual({ done: true });
+    expect(e.bridgeRoom.list("o")).toMatchObject({ bridges: [{ membership: "member", target: p.target, installed: true }] });
+    expect(e.bridgeRoom.removeMember("o", ["room.add_bridge"], { bridge: head.serviceId, target: p.target })).toMatchObject({ removedEndpoints: 1 });
+    expect(e.bridgeRoom.list("o")).toMatchObject({ bridges: [{ membership: "removed" }] });
+  });
 });

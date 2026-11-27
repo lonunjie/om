@@ -276,3 +276,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0267 — Default bridge hop limit and the fingerprint-secret boundary (delegated; additive)](ADR-0267-bridge-hop-limit-and-fingerprint-secret-boundary.md)
 - [ADR-0268 — v1 rulings: scoped engines stay engineering-only, pair-seed revocation, probe policy, plugin host budgets (delegated; additive)](ADR-0268-v1-local-delivery-and-plugin-host-rulings.md)
 - [ADR-0269 — v1 rulings: Room control heads enter Core only by verified host-supplied observation, approvers are a labelled install-time record (delegated; additive)](ADR-0269-room-service-control-head-observation.md)
+- [ADR-0270 — v1 rulings: a Room holds a proposed bridge as an offer bound to a review target (delegated; additive)](ADR-0270-bridge-offers-and-review-targets.md)

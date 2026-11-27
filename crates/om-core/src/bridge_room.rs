@@ -16,6 +16,7 @@ use crate::bridge_control::{BridgeState, human_quorum};
 use crate::service_room_member::{
     INSTALL, Principal, RoomError, RoomServices, RosterEntry, TriggerFilter,
 };
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const ADD_BRIDGE: &str = "room.add_bridge";
@@ -61,7 +62,67 @@ pub struct Mapping {
     pub active: bool,
 }
 
+/// A proposed bridge (ADR-0270): host-supplied observation, never authority.
+#[derive(Clone, Debug)]
+pub struct Offer {
+    pub head: BridgeState,
+    pub mapping: Mapping,
+    /// Reported at proposal time (ADR-0269 item 3); never proof of a quorum.
+    pub approvers: Vec<Principal>,
+    pub name: String,
+    pub external_claim: Option<String>,
+}
+
+/// The membership a Room shows for one bridge.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Membership {
+    Proposed,
+    Member,
+    Removed,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum OfferError {
+    Malformed,
+    TooMany,
+    /// The target is not the current offer or member.
+    StaleTarget,
+    Room(BridgeRoomError),
+}
+
+pub const MAX_OFFERS: usize = 32;
+const NAME_MAX: usize = 64;
+const CLAIM_MAX: usize = 160;
+
+/// Bounded display text: no control characters or bidirectional overrides, at most `max` characters.
+pub fn clean_text(s: &str, max: usize) -> String {
+    s.chars()
+        .filter(|c| {
+            !c.is_control()
+                && !matches!(*c, '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+        })
+        .take(max)
+        .collect()
+}
+
+/// The opaque review target of one exact bridge, mapping incarnation and mapping content.
+pub fn review_target(bridge: &[u8; 32], m: &Mapping) -> [u8; 32] {
+    let mut h = Sha256::new();
+    h.update(b"om.bridge.review-target.v1");
+    h.update(bridge);
+    h.update(m.incarnation);
+    h.update((m.namespace.len() as u64).to_be_bytes());
+    h.update(m.namespace.as_bytes());
+    h.update(m.direction.to_be_bytes());
+    for c in &m.allowed_classes {
+        h.update([*c]);
+    }
+    h.finalize().into()
+}
+
 pub struct BridgeRoom {
+    offers: BTreeMap<[u8; 32], Offer>,
+    removed: BTreeMap<[u8; 32], [u8; 32]>,
     members: RoomServices,
     mappings: BTreeMap<[u8; 32], Mapping>,
     endpoints: BTreeMap<[u8; 32], BTreeSet<Vec<u8>>>,
@@ -81,6 +142,8 @@ fn as_install(caps: &BTreeSet<String>) -> BTreeSet<String> {
 impl BridgeRoom {
     pub fn new(quorum: Option<usize>, sequencing_timeout: u64, freshness_bound: u64) -> Self {
         Self {
+            offers: BTreeMap::new(),
+            removed: BTreeMap::new(),
             members: RoomServices::new(quorum, sequencing_timeout),
             mappings: BTreeMap::new(),
             endpoints: BTreeMap::new(),
@@ -135,6 +198,102 @@ impl BridgeRoom {
             .map_err(BridgeRoomError::Room)?;
         self.observed_at.insert(head.service_id, now);
         Ok(())
+    }
+
+    /// Places a proposed bridge in the Room (ADR-0270). A new offer replaces an earlier one for the same bridge.
+    pub fn propose(&mut self, mut offer: Offer) -> Result<[u8; 32], OfferError> {
+        let id = offer.head.service_id;
+        if self.mappings.contains_key(&id) {
+            return Err(OfferError::Malformed);
+        }
+        if !matches!(offer.mapping.direction, TO_FOREIGN | TO_OM | BOTH)
+            || offer.mapping.allowed_classes.is_empty()
+        {
+            return Err(OfferError::Malformed);
+        }
+        if !self.offers.contains_key(&id) && self.offers.len() >= MAX_OFFERS {
+            return Err(OfferError::TooMany);
+        }
+        offer.name = clean_text(&offer.name, NAME_MAX);
+        offer.external_claim = offer
+            .external_claim
+            .map(|c| clean_text(&c, CLAIM_MAX))
+            .filter(|c| !c.is_empty());
+        offer.mapping.active = true;
+        let t = review_target(&id, &offer.mapping);
+        self.offers.insert(id, offer);
+        Ok(t)
+    }
+
+    pub fn withdraw_offer(&mut self, bridge: &[u8; 32]) -> bool {
+        self.offers.remove(bridge).is_some()
+    }
+
+    pub fn offer(&self, bridge: &[u8; 32]) -> Option<&Offer> {
+        self.offers.get(bridge)
+    }
+
+    /// Every bridge the Room can show, in id order, with its membership.
+    pub fn listing(&self) -> Vec<([u8; 32], Membership)> {
+        let mut ids: BTreeMap<[u8; 32], Membership> = BTreeMap::new();
+        for b in self.removed.keys() {
+            ids.insert(*b, Membership::Removed);
+        }
+        for b in self.offers.keys() {
+            ids.insert(*b, Membership::Proposed);
+        }
+        for b in self.mappings.keys() {
+            ids.insert(*b, Membership::Member);
+        }
+        ids.into_iter().collect()
+    }
+
+    /// The target a reviewer would approve now for this bridge, whatever its membership.
+    pub fn current_target(&self, bridge: &[u8; 32]) -> Option<[u8; 32]> {
+        if let Some(m) = self.mappings.get(bridge) {
+            return Some(review_target(bridge, m));
+        }
+        if let Some(o) = self.offers.get(bridge) {
+            return Some(review_target(bridge, &o.mapping));
+        }
+        self.removed.get(bridge).copied()
+    }
+
+    /// Admits the offer named by `target`; refuses a target that is not the current offer.
+    pub fn admit_offer(
+        &mut self,
+        caps: &BTreeSet<String>,
+        bridge: &[u8; 32],
+        target: &[u8; 32],
+        now: u64,
+    ) -> Result<(), OfferError> {
+        let o = self.offers.get(bridge).ok_or(OfferError::StaleTarget)?;
+        if review_target(bridge, &o.mapping) != *target {
+            return Err(OfferError::StaleTarget);
+        }
+        let o = o.clone();
+        self.admit(caps, &o.head, o.mapping, &o.approvers, now)
+            .map_err(OfferError::Room)?;
+        self.offers.remove(bridge);
+        self.removed.remove(bridge);
+        Ok(())
+    }
+
+    /// Removes the member named by `target`; the Room keeps a tombstone with its last target.
+    pub fn remove_member(
+        &mut self,
+        caps: &BTreeSet<String>,
+        bridge: &[u8; 32],
+        target: &[u8; 32],
+    ) -> Result<Vec<Vec<u8>>, OfferError> {
+        let m = self.mappings.get(bridge).ok_or(OfferError::StaleTarget)?;
+        let t = review_target(bridge, m);
+        if t != *target {
+            return Err(OfferError::StaleTarget);
+        }
+        let gone = self.remove(caps, bridge).map_err(OfferError::Room)?;
+        self.removed.insert(*bridge, t);
+        Ok(gone)
     }
 
     /// Removal through Room control and MLS: the mapping ends with the membership.

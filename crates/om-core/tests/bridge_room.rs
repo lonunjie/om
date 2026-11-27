@@ -157,3 +157,99 @@ fn a_bridge_cannot_hide_behind_an_account_or_service_author() {
     assert!(import_author_ok(KIND_BRIDGE));
     assert!(!import_author_ok(KIND_ACCOUNT) && !import_author_ok(KIND_SERVICE));
 }
+
+// ---- ADR-0270: offers and review targets ----
+
+fn offer(m: Mapping) -> Offer {
+    Offer {
+        head: head(1, 1, ACTIVE),
+        mapping: m,
+        approvers: vec![human(1), human(2)],
+        name: "Test\u{202E}Bridge\n".into(),
+        external_claim: Some("claims transport encryption".into()),
+    }
+}
+
+#[test]
+fn offer_is_not_a_member_until_admitted_with_its_exact_target() {
+    let mut r = BridgeRoom::new(Some(2), 300, 600);
+    let t = r.propose(offer(mapping(BOTH, &[1, 2]))).unwrap();
+    assert_eq!(r.listing(), vec![(B, Membership::Proposed)]);
+    assert!(r.mapping(&B).is_none());
+    assert_eq!(r.may_export(&B, &EP, 1, 0), Err(Blocked::NoMapping));
+    assert_eq!(r.offer(&B).unwrap().name, "TestBridge");
+    // A target for a different reading is refused and changes nothing.
+    let other = review_target(&B, &mapping(TO_FOREIGN, &[1, 2]));
+    assert_eq!(
+        r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &other, 0),
+        Err(OfferError::StaleTarget)
+    );
+    assert_eq!(r.listing(), vec![(B, Membership::Proposed)]);
+    // The right target without the protected capability is refused by the existing path.
+    assert!(matches!(
+        r.admit_offer(&caps(&[]), &B, &t, 0),
+        Err(OfferError::Room(_))
+    ));
+    assert_eq!(r.listing(), vec![(B, Membership::Proposed)]);
+    r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &t, 0).unwrap();
+    assert_eq!(r.listing(), vec![(B, Membership::Member)]);
+    assert_eq!(r.current_target(&B), Some(t));
+}
+
+#[test]
+fn replacing_an_offer_invalidates_the_earlier_review() {
+    let mut r = BridgeRoom::new(Some(2), 300, 600);
+    let old = r.propose(offer(mapping(TO_FOREIGN, &[1]))).unwrap();
+    let new = r.propose(offer(mapping(BOTH, &[1, 2]))).unwrap();
+    assert_ne!(old, new);
+    assert_eq!(
+        r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &old, 0),
+        Err(OfferError::StaleTarget)
+    );
+    assert!(r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &new, 0).is_ok());
+}
+
+#[test]
+fn removal_keeps_a_tombstone_and_a_new_offer_can_follow() {
+    let mut r = room();
+    let t = r.current_target(&B).unwrap();
+    assert_eq!(
+        r.remove_member(&caps(&[ADD_BRIDGE]), &B, &[0; 32]),
+        Err(OfferError::StaleTarget)
+    );
+    assert!(r.remove_member(&caps(&[]), &B, &t).is_err());
+    assert_eq!(r.listing(), vec![(B, Membership::Member)]);
+    r.remove_member(&caps(&[ADD_BRIDGE]), &B, &t).unwrap();
+    assert_eq!(r.listing(), vec![(B, Membership::Removed)]);
+    assert_eq!(r.may_export(&B, &EP, 1, 0), Err(Blocked::NoMapping));
+    let t2 = r.propose(offer(mapping(BOTH, &[1, 2]))).unwrap();
+    assert_eq!(r.listing(), vec![(B, Membership::Proposed)]);
+    r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &t2, 0).unwrap();
+}
+
+#[test]
+fn offers_are_bounded_and_validated() {
+    let mut r = BridgeRoom::new(None, 300, 600);
+    assert_eq!(
+        r.propose(offer(mapping(9, &[1]))).err(),
+        Some(OfferError::Malformed)
+    );
+    assert_eq!(
+        r.propose(offer(mapping(BOTH, &[]))).err(),
+        Some(OfferError::Malformed)
+    );
+    let mut room = room();
+    assert_eq!(
+        room.propose(offer(mapping(BOTH, &[1]))).err(),
+        Some(OfferError::Malformed)
+    );
+    let mut long = offer(mapping(BOTH, &[1]));
+    long.external_claim = Some("x".repeat(1000));
+    r.propose(long).unwrap();
+    assert_eq!(
+        r.offer(&B).unwrap().external_claim.as_ref().unwrap().len(),
+        160
+    );
+    assert!(r.withdraw_offer(&B));
+    assert!(r.listing().is_empty());
+}

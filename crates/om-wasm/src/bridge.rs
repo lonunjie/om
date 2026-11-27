@@ -255,6 +255,10 @@ enum Command {
         request: serde_json::Value,
     },
     #[cfg(feature = "scope-engines")]
+    Portability {
+        request: serde_json::Value,
+    },
+    #[cfg(feature = "scope-engines")]
     BridgeRoomDo {
         room: String,
         caps: Vec<String>,
@@ -1442,6 +1446,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 &mut self.plugin_handles,
                 request,
             )),
+            #[cfg(feature = "scope-engines")]
+            Command::Portability { request } => Ok(crate::portability::portability(request)),
             #[cfg(feature = "scope-engines")]
             Command::BridgeRoomDo { room, caps, op } => {
                 Ok(scope::bridge_room_do(&mut self.handles, &room, &caps, op))

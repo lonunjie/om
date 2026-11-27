@@ -18,3 +18,5 @@ mod abi;
 mod groups_selftest;
 #[cfg(feature = "scope-engines")]
 mod plugins;
+#[cfg(feature = "scope-engines")]
+mod portability;

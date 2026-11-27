@@ -3128,6 +3128,16 @@
       "amends": [],
       "index_title": "v1 rulings: Room control heads enter Core only by verified host-supplied observation, approvers are a labelled install-time record (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0270",
+      "title": "Bridge offers: how a Room holds a proposed bridge and names it for review (v1)",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0270-bridge-offers-and-review-targets.md",
+      "amends": [],
+      "index_title": "v1 rulings: a Room holds a proposed bridge as an offer bound to a review target (delegated; additive)",
+      "amended_by": []
     }
   ]
 }

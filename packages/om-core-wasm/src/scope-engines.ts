@@ -16,6 +16,16 @@ export interface BridgeMember {
   readonly heldVersion?: number | null;
   readonly mapping: { readonly namespace: string; readonly direction: number; readonly allowedClasses: readonly number[]; readonly active: boolean } | null;
 }
+export interface BridgeListing extends Omit<BridgeMember, "mapping"> {
+  readonly bridge: string;
+  readonly membership: "proposed" | "member" | "removed";
+  /** Opaque review target for the current offer or member; null when none. */
+  readonly target: string | null;
+  readonly mapping?: BridgeMember["mapping"];
+  readonly name?: string;
+  readonly externalClaim?: string | null;
+  readonly approversReportedAtProposal?: number;
+}
 export interface RoomControlEntry {
   readonly kind: "service" | "bridge";
   readonly id: string;
@@ -74,8 +84,14 @@ export interface ScopeEngines {
     importAuthorOk(room: string, authorKind: number): boolean;
     /** One bridge as the Room holds it: roster entry plus its recorded mapping. */
     view(room: string, bridge: string): BridgeMember | Refusal;
-    /** Every admitted bridge, in id order. */
-    list(room: string): { readonly bridges: readonly (BridgeMember & { readonly bridge: string })[] } | Refusal;
+    /** Every bridge the Room can show, in id order, with membership and review target (ADR-0270). */
+    list(room: string): { readonly bridges: readonly BridgeListing[] } | Refusal;
+    /** Places a proposed bridge. Grants nothing; returns the review target for this exact offer. */
+    propose(room: string, a: { head: HeadFacts; mapping: BridgeMapping; approvers: readonly Approver[]; name: string; externalClaim: string | null }): { readonly target: string } | Refusal;
+    withdrawOffer(room: string, bridge: string): { readonly done: boolean } | Refusal;
+    /** Admits the offer the reviewer saw; refuses `stale_target` when the offer changed. */
+    admitOffer(room: string, caps: readonly string[], a: { bridge: string; target: string; now: number }): Done | Refusal;
+    removeMember(room: string, caps: readonly string[], a: { bridge: string; target: string }): { readonly removedEndpoints: number } | Refusal;
   };
   readonly lanTransfer: {
     openSender(handle: string, a: { blobId: string; digest: string; total: number }): Done | Refusal;
@@ -139,6 +155,10 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
       mayExport: (room, a) => br(room, [], { kind: "may_export", ...a }),
       view: (room, bridge) => br(room, [], { kind: "view", bridge }),
       list: (room) => br(room, [], { kind: "list" }),
+      propose: (room, a) => br(room, [], { kind: "propose", ...a }),
+      withdrawOffer: (room, bridge) => br(room, [], { kind: "withdraw_offer", bridge }),
+      admitOffer: (room, caps, a) => br(room, caps, { kind: "admit_offer", ...a }),
+      removeMember: (room, caps, a) => br(room, caps, { kind: "remove_member", ...a }),
       importAuthorOk: (room, authorKind) => (br(room, [], { kind: "import_author_ok", authorKind }) as { allowed: boolean }).allowed === true,
     },
     lanTransfer: {
@@ -178,3 +198,14 @@ export type {
   PluginCapability, PluginEgressFacts, PluginEngines, PluginErrorCodes, PluginHostConfig, PluginRefusal, PluginRegistry,
   PluginUiNode, PluginUint,
 } from "./plugins";
+
+export { createPortabilityEngine } from "./portability";
+export type {
+  PortabilityRefusalClass, PortabilityErrorCodes, PortabilityRefusal, PortabilityAnswer, PortabilityUint,
+  PortabilityInspection, PortabilityControlVersion, PortabilityVerdict, PortabilityObjectStatus,
+  PortabilityProvenance, PortabilityImportView, PortabilityItem, PortabilityCandidate,
+  PortabilitySelection, PortabilityManifestMeta, PortabilityExportInput, PortabilityExclusion,
+  PortabilityReport, PortabilityExportPlan, PortabilityExport, PortabilityReadableConversation,
+  PortabilityReadableExport, PortabilityRehydrateItem, PortabilityRehydrateContext,
+  PortabilityRehydratePlan, PortabilityEngine,
+} from "./portability";
