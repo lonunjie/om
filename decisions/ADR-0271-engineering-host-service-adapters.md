@@ -14,7 +14,8 @@
 5. **Durable operation identity.** Before calling Core the adapter records a pending operation in a profile-namespaced store, keyed by a digest of profile, conversation, intent kind and target. A restart or lost acknowledgement re-reads Core's view: if the effect is visible the operation is `Committed` and the record is cleared; otherwise it is retried under the same identity, never a new one. The outcome shown follows the contract's classes (`Committed`, `PendingReconciliation`, `Rejected(reason)`); a failure never becomes a second operation.
 6. **Portability file handling is the host's.** File picking and saving go through an injected `FileHost`. The history candidates come from an injected `HistorySource`; the engineering default is empty, so `state()` reports export as `device_unavailable` rather than inventing a local-history source. Core's archive commands stay stateless. Import never changes live state (ADR-0263); the adapter passes only verified verdicts and live facts the host actually holds, and nothing read from the archive.
 7. **Nearby wraps the typed `lanNearby` engine** for the captured profile. The capability row comes from the platform's `localDelivery.probe()`, never from UI probing; the choice is offered only when Core allows it.
-8. **Not in v1:** a real Room-capability source, a real local-history source, and adapters in release builds. Each needs its own design and review.
+8. **The same rules cover the services and communities adapters.** Connected-services and community screens get adapters in `apps/web/src/host/scope/` under decisions 1 to 5: engineering-only, one per captured profile, authority and heads from Core, intents bound to a Core-issued target, durable operation identity reconciled by re-reading Core, deny-all authority by default.
+9. **Not in v1:** a real Room-capability source, a real local-history source, and adapters in release builds. Each needs its own design and review.
 
 ## Why
 

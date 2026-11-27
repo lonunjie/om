@@ -3148,6 +3148,16 @@
       "amends": [],
       "index_title": "v1 rulings: engineering-host adapters for the bridge, portability and nearby services (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0272",
+      "title": "Service offers in a Room, and what the engineering host offers for invocation (v1)",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0272-service-offers-and-invocation-scope.md",
+      "amends": [],
+      "index_title": "v1 rulings: service offers mirror bridge offers; the engineering host offers no invocation review (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
