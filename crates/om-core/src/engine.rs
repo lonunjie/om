@@ -1545,6 +1545,38 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.build_direct_sender(ctx, blob_id, ct)
     }
 
+    /// Calendar time for signed or reviewed calendar expiry, never for control head freshness.
+    pub fn wall_now_ms(&self) -> u64 {
+        self.clock.now_ms()
+    }
+
+    /// The current authenticated Room head must list the profile's account as a member.
+    pub fn room_control_reader(
+        &self,
+        ctx: &ProfileExecutionContext,
+        room: &str,
+    ) -> Result<bool, CoreError> {
+        let slot = self.slot(ctx)?;
+        let (Some(device), Ok(room_id)) = (slot.state.device.as_ref(), crate::crypto::unhex(room))
+        else {
+            return Ok(false);
+        };
+        if crate::crypto::hex(&room_id) != room {
+            return Ok(false);
+        }
+        let group = slot
+            .state
+            .app
+            .group(&room_id)
+            .map_err(|_| CoreError::CorruptState("room head"))?;
+        Ok(group.is_some_and(|group| {
+            group.membership.iter().any(|member| {
+                member.principal.kind == crate::groups::PRINCIPAL_ACCOUNT
+                    && member.principal.id.as_slice() == device.account_id.as_slice()
+            })
+        }))
+    }
+
     /// A Room observes a signed service or bridge control state (ADR-0269). Core verifies every signature against the
     /// control head of our own account or a contact's, then lets the chain decide rollback, forks and thresholds.
     /// `reported_approvers` is recorded only when this is the first state seen for the service or bridge.
@@ -1555,13 +1587,25 @@ impl<R: RngCore + CryptoRng> Core<R> {
         kind: crate::room_control::ObjectKind,
         signed: &[u8],
         reported_approvers: Vec<crate::service_control::Principal>,
-    ) -> Result<Result<crate::service_control::ControlOutcome, ObserveError>, CoreError> {
+        runtime_ms: u64,
+    ) -> Result<
+        Result<
+            (
+                crate::service_control::ControlOutcome,
+                Option<crate::service_control::ServiceState>,
+            ),
+            ObserveError,
+        >,
+        CoreError,
+    > {
         let accounts = self.room_control_accounts(ctx)?;
         let opened = match crate::room_control::open_signed_state(kind, signed, &accounts) {
             Ok(o) => o,
             Err(e) => return Ok(Err(ObserveError::Open(e))),
         };
-        let now = self.clock.now_ms();
+        if !self.room_control_reader(ctx, room)? {
+            return Err(CoreError::ProfileAccess("room membership required"));
+        }
         let id = opened.state.service_id;
         let key = (ctx.profile_id.clone(), room.to_string(), kind, id);
         let entry = self
@@ -1570,13 +1614,17 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .or_insert_with(|| RoomControl {
                 chain: crate::service_control::ServiceChain::new(id),
                 reported_approvers,
-                observed_ms: now,
+                observed_ms: runtime_ms,
             });
-        let outcome = entry.chain.accept(opened.state, &opened.approvers);
+        let outcome = entry.chain.accept(opened.state.clone(), &opened.approvers);
         match outcome {
             Ok(o) => {
-                entry.observed_ms = now;
-                Ok(Ok(o))
+                use crate::service_control::ControlOutcome;
+                if o == ControlOutcome::Duplicate {
+                    return Ok(Ok((o, None)));
+                }
+                entry.observed_ms = runtime_ms;
+                Ok(Ok((o, Some(opened.state))))
             }
             Err(e) => {
                 let empty = entry.chain.head().is_none() && !entry.chain.is_frozen();
@@ -1598,9 +1646,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
         &self,
         ctx: &ProfileExecutionContext,
         room: &str,
+        runtime_ms: u64,
     ) -> Result<Vec<RoomControlEntry>, CoreError> {
-        self.slot(ctx)?;
-        let now = self.clock.now_ms();
+        if !self.room_control_reader(ctx, room)? {
+            return Ok(Vec::new());
+        }
         Ok(self
             .room_controls
             .iter()
@@ -1619,7 +1669,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     head_hash: c.chain.head().map(|h| h.hash),
                     frozen: c.chain.is_frozen(),
                     endpoints,
-                    observed_age_ms: now.saturating_sub(c.observed_ms),
+                    observed_age_ms: runtime_ms.checked_sub(c.observed_ms).unwrap_or(u64::MAX),
                     reported_approvers: c.reported_approvers.clone(),
                 }
             })
@@ -2266,6 +2316,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         let mut state = ProfileState::decode(generation.clone(), records)?;
         crate::state::prune_link_offers(&mut state.app, self.clock.now_ms());
         self.next_generation += 1;
+        self.clear_profile_observations(profile_id);
         let committed = records
             .iter()
             .map(|r| (r.key.clone(), r.value.clone()))
@@ -2297,6 +2348,14 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }
         self.profiles.remove(profile_id);
         self.group_engines.remove(profile_id);
+        self.clear_profile_observations(profile_id);
+    }
+
+    fn clear_profile_observations(&mut self, profile_id: &str) {
+        self.room_controls
+            .retain(|(profile, ..), _| profile != profile_id);
+        self.lan_signal_guards.remove(profile_id);
+        self.lan_rendezvous.remove(profile_id);
     }
 
     pub fn context_for(&self, profile_id: &str) -> Result<ProfileExecutionContext, CoreError> {
@@ -3924,6 +3983,7 @@ fn timeline_item(
             operation_id: op.clone(),
             text: m.text.clone(),
             sent_at: m.sent_at,
+            retention: m.social.retention,
             delivery: m.delivery.clone(),
             attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
@@ -3939,6 +3999,7 @@ fn timeline_item(
             operation_id: format!("synced:{}", m.id),
             text: m.text.clone(),
             sent_at: m.sent_at,
+            retention: m.social.retention,
             delivery: m.delivery.clone(),
             attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
@@ -3952,6 +4013,7 @@ fn timeline_item(
             message_id: m.id.clone(),
             text: m.text.clone(),
             sent_at: m.sent_at,
+            retention: m.social.retention,
             attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
             reply,
@@ -3993,6 +4055,7 @@ fn restored_item(m: &RestoredMsg, in_live_thread: bool) -> TimelineItem {
             operation_id: format!("restored:{}", m.id),
             text: m.text.clone(),
             sent_at: m.sent_at,
+            retention: None,
             delivery: match m.delivery {
                 1 => DeliveryState::Sent,
                 2 => DeliveryState::Delivered,
@@ -4013,6 +4076,7 @@ fn restored_item(m: &RestoredMsg, in_live_thread: bool) -> TimelineItem {
             message_id,
             text: m.text.clone(),
             sent_at: m.sent_at,
+            retention: None,
             attachments: vec![],
             presentation: None,
             reply: None,

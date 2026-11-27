@@ -9,7 +9,7 @@ import type { NearbyService } from "../../../../../packages/om-ui/src/conversati
 import type { PortabilityService } from "../../../../../packages/om-ui/src/portability/portability";
 import type { ConnectedServicesService } from "../../../../../packages/om-ui/src/services/services";
 import { createConnectedServicesService, type ConnectedServicesOptions } from "./services";
-import { createBridgeService, type BridgeServiceOptions } from "./bridge";
+import { createBridgeService, denyAll, type BridgeServiceOptions } from "./bridge";
 import { createCommunitiesService, type CommunitiesServiceOptions } from "./communities";
 import { createNearbyService, type NearbyServiceOptions } from "./nearby";
 import { createCoreHistorySource, createPortabilityService, emptyHistory, type PortabilityServiceOptions } from "./portability";
@@ -36,10 +36,10 @@ export interface ScopeServices {
 
 export interface LoadedScopeServices {
   readonly core: Pick<WasmCore, "call">;
-  readonly bridge?: Omit<BridgeServiceOptions, "ctx" | "engines">;
+  readonly bridge?: Omit<BridgeServiceOptions, "ctx" | "engines" | "authority">;
   readonly portability?: Omit<PortabilityServiceOptions, "ctx" | "engine">;
   readonly nearby?: Omit<NearbyServiceOptions, "ctx" | "engines">;
-  readonly connectedServices?: Omit<ConnectedServicesOptions, "ctx" | "engines">;
+  readonly connectedServices?: Omit<ConnectedServicesOptions, "ctx" | "engines" | "authority" | "invocation">;
   readonly communities?: Omit<CommunitiesServiceOptions, "ctx" | "engines">;
 }
 
@@ -52,9 +52,9 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded, client }: 
 }): ScopeServices {
   if (!enabled || loaded === undefined) return {};
   const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
-  const engines = createScopeEngines(loaded.core);
+  const engines = createScopeEngines(loaded.core, ctx);
   return {
-    ...(loaded.bridge === undefined ? {} : { bridge: createBridgeService({ ...loaded.bridge, ctx, engines }) }),
+    ...(loaded.bridge === undefined ? {} : { bridge: createBridgeService({ ...loaded.bridge, ctx, engines, authority: denyAll }) }),
     ...(loaded.portability === undefined ? {} : {
       portability: createPortabilityService({
         ...loaded.portability, ctx, engine: createPortabilityEngine(loaded.core),
@@ -63,7 +63,7 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded, client }: 
     }),
     ...(loaded.nearby === undefined ? {} : { nearby: createNearbyService({ ...loaded.nearby, ctx, engines }) }),
     ...(loaded.connectedServices === undefined ? {} : {
-      connectedServices: createConnectedServicesService({ ...loaded.connectedServices, ctx, engines }),
+      connectedServices: createConnectedServicesService({ ...loaded.connectedServices, ctx, engines, authority: denyAll, invocation: { core: loaded.core } }),
     }),
     ...(loaded.communities === undefined ? {} : {
       communities: createCommunitiesService({ ...loaded.communities, ctx, engines }),

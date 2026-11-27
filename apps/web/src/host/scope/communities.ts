@@ -104,7 +104,6 @@ export function createCommunitiesService({
   function roomDetails(place: Extract<CommunitiesPlace, { kind: "room" | "topic" }>): CommunitiesRoomDetails | null {
     const room = place.kind === "topic" ? place.roomId : place.id;
     const topicId = place.kind === "topic" ? place.id : undefined;
-    engines.roomControl.view(ctx, room);
     const moderation = roomViews.moderation.view(ctx, room);
     if (moderation?.member !== true) {
       if (place.kind === "topic") return null;
@@ -122,7 +121,7 @@ export function createCommunitiesService({
     }
     const topics = roomViews.topics.view(ctx, room);
     if (topics === null) return null;
-    const link = engines.spaceBinding.view(communitiesRoomLinkHandle(ctx.profileId, room));
+    const link = engines.spaceBinding.view(communitiesRoomLinkHandle(ctx.profileId, room), ctx);
     const selectedTopic = topicId === undefined ? undefined : topics.topics.find(({ id }) => id === topicId);
     return {
       kind: "room", id: room, ...topics,
@@ -142,16 +141,9 @@ export function createCommunitiesService({
     const spaceLinks = new Set(head?.links.map(({ kind, id }) => JSON.stringify([kind, id])));
     const children = entries.flatMap((child) => {
       if (head === null || (child.kind === "community" && child.id === entry.id)) return [];
-      const listed = spaceLinks.has(JSON.stringify([child.kind, child.id]));
-      const held = engines.spaceBinding.view(communityChildLinkHandle(ctx.profileId, entry.id, child.kind, child.id));
-      if ("refused" in held) {
-        return listed ? [{ ...child, link: { official: false, spaceSide: true, childSide: false, bound: false } }] : [];
-      }
-      if (!listed && !held.childSide) return [];
-      const spaceSide = listed && held.spaceSide;
-      const official = spaceSide && held.official;
-      const link = { official, spaceSide, childSide: held.childSide, bound: child.kind === "room" && official && held.bound };
-      return [{ ...child, link }];
+      if (member !== true || !spaceLinks.has(JSON.stringify([child.kind, child.id]))) return [];
+      // The verified Space head establishes only the Space side of this link.
+      return [{ ...child, link: { official: false, spaceSide: true, childSide: false, bound: false } }];
     });
     const references = (kind: DirectoryKind) =>
       children.filter((child) => child.kind === kind).map(({ id, name, source, link }) => ({ id, name, nameSource: source, link }));

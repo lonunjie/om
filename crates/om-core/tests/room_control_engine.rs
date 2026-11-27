@@ -5,6 +5,7 @@ mod common;
 
 use om_core::crypto::cbor::{self, V};
 use om_core::engine::ObserveError;
+use om_core::groups::flow::{GroupEvent, GroupIntent};
 use om_core::room_control::{ObjectKind, OpenError};
 use om_core::runtime::{LoopbackNetwork, Runtime};
 use om_core::service_control::ControlOutcome;
@@ -37,11 +38,31 @@ fn body_controlled_by(account: [u8; 32]) -> Vec<u8> {
     cbor::encode(&V::M(fields))
 }
 
+fn create_room(runtime: &mut Runtime, ctx: &om_core::api::ProfileExecutionContext) -> String {
+    let (reply, step) = runtime
+        .core
+        .group_do(
+            ctx,
+            GroupIntent::Create {
+                name: "Room".into(),
+                relationship_ids: vec![],
+            },
+        )
+        .unwrap();
+    assert!(runtime.settle(&step));
+    let reply = reply.unwrap();
+    let GroupEvent::Created { conversation_id } = &reply.events[0] else {
+        panic!("Room not created")
+    };
+    om_core::crypto::hex(conversation_id)
+}
+
 #[test]
 fn a_room_observes_a_state_its_own_account_signed_and_reports_it() {
     let net = LoopbackNetwork::default();
     let mut alice = Runtime::new("alice", &net);
     let a = common::create_profile(&mut alice, "p-a", "Alice");
+    let room = create_room(&mut alice, &a);
     let account = alice.core.debug_account_id(&a).unwrap();
     let body = body_controlled_by(account);
     let kind = ObjectKind::Service;
@@ -50,16 +71,18 @@ fn a_room_observes_a_state_its_own_account_signed_and_reports_it() {
     let approvers = vec![(1, account.to_vec())];
     let out = alice
         .core
-        .room_control_observe(&a, "room-1", kind, &env, approvers.clone())
+        .room_control_observe(&a, &room, kind, &env, approvers.clone(), 10)
         .unwrap();
-    assert_eq!(out, Ok(ControlOutcome::Accepted));
+    assert_eq!(out.unwrap().0, ControlOutcome::Accepted);
     let again = alice
         .core
-        .room_control_observe(&a, "room-1", kind, &env, vec![])
+        .room_control_observe(&a, &room, kind, &env, vec![], 40)
         .unwrap();
-    assert_eq!(again, Ok(ControlOutcome::Duplicate));
+    assert_eq!(again, Ok((ControlOutcome::Duplicate, None)));
+    alice.tick(100_000); // A wall-clock step never changes the observed age.
 
-    let view = alice.core.room_control_view(&a, "room-1").unwrap();
+    let view = alice.core.room_control_view(&a, &room, 50).unwrap();
+    assert_eq!(view[0].observed_age_ms, 40);
     assert_eq!(view.len(), 1);
     assert_eq!(view[0].head_version, Some(1));
     assert!(!view[0].frozen);
@@ -69,10 +92,29 @@ fn a_room_observes_a_state_its_own_account_signed_and_reports_it() {
         view[0].reported_approvers, approvers,
         "the first report is kept, labelled as reported"
     );
+    let other = common::create_profile(&mut alice, "p-other", "Other");
     assert!(
         alice
             .core
-            .room_control_view(&a, "room-2")
+            .room_control_view(&other, &room, 50)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        alice
+            .core
+            .room_control_view(&a, "room-2", 50)
+            .unwrap()
+            .is_empty()
+    );
+    alice.core.close_profile(&a.profile_id);
+    assert!(alice.core.room_control_view(&a, &room, 50).is_err());
+    let reopened = alice.open(&a.profile_id);
+    assert!(alice.core.room_control_reader(&reopened, &room).unwrap());
+    assert!(
+        alice
+            .core
+            .room_control_view(&reopened, &room, 50)
             .unwrap()
             .is_empty()
     );
@@ -85,19 +127,20 @@ fn a_state_nobody_known_signed_is_refused_and_leaves_nothing() {
     let mut bob = Runtime::new("bob", &net);
     let a = common::create_profile(&mut alice, "p-a", "Alice");
     let b = common::create_profile(&mut bob, "p-b", "Bob");
+    let room = create_room(&mut alice, &a);
     // Bob is not Alice's contact: his signature resolves to no known account.
     let body = body_controlled_by(bob.core.debug_account_id(&b).unwrap());
     let kind = ObjectKind::Service;
     let env = bob.core.debug_sign_room_control(&b, kind, &body).unwrap();
     let out = alice
         .core
-        .room_control_observe(&a, "room-1", kind, &env, vec![])
+        .room_control_observe(&a, &room, kind, &env, vec![], 10)
         .unwrap();
     assert_eq!(out, Err(ObserveError::Open(OpenError::UnknownSigner)));
     assert!(
         alice
             .core
-            .room_control_view(&a, "room-1")
+            .room_control_view(&a, &room, 10)
             .unwrap()
             .is_empty()
     );
@@ -111,13 +154,13 @@ fn a_state_nobody_known_signed_is_refused_and_leaves_nothing() {
         .unwrap();
     let out = alice
         .core
-        .room_control_observe(&a, "room-1", kind, &env, vec![])
+        .room_control_observe(&a, &room, kind, &env, vec![], 10)
         .unwrap();
     assert!(matches!(out, Err(ObserveError::Control(_))), "{out:?}");
     assert!(
         alice
             .core
-            .room_control_view(&a, "room-1")
+            .room_control_view(&a, &room, 10)
             .unwrap()
             .is_empty()
     );

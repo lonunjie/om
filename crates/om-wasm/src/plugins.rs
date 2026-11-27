@@ -329,6 +329,10 @@ pub(crate) struct Handles {
     grants: BTreeMap<String, GrantTable>,
 }
 
+pub(crate) fn profile_refused() -> Value {
+    Refusal::from(HostPolicyDenied).response()
+}
+
 pub(crate) fn plugins_do(handles: &mut Handles, request: Value) -> Value {
     let Ok(op) = serde_json::from_value(request) else {
         return Refusal::from(MalformedRequest).response();

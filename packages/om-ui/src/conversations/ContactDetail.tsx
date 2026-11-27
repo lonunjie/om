@@ -6,7 +6,7 @@ import { Sheet } from "../shell/layout/Sheet";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import type { ConversationCopy } from "./copy";
-import { NearbyRow } from "./Nearby";
+import { NearbyRow } from "./NearbyRow";
 import type { ConversationServices } from "./services";
 import { shownName } from "./shownName";
 

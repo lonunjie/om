@@ -6,7 +6,7 @@ import type {
   ConnectedServicesService, ConnectedServicesView, ServiceAction, ServiceEntryView, ServiceFlowView,
   ServiceDisclosureItem, ServiceIntent, ServiceInvocationView, ServiceReadAccess,
 } from "../../../../../packages/om-ui/src/services/services";
-import { denyAll, type RoomAuthority } from "./bridge";
+import { denyAll, roomEventClasses, type RoomAuthority } from "./bridge";
 
 const installCapability = "room.install_service";
 type RoomServiceChange = "install" | "remove";
@@ -20,22 +20,12 @@ export interface InvocationSelection extends Omit<SelectedContext, "kind"> {
 }
 
 /** Reads the pending user selection, including the trigger and only the metadata selected for disclosure.
- * Keep the expiry fixed for the same service, command, destination and item list.
+ * The review includes this selection’s expiry.
  */
 export type SelectionSource = (ctx: ProfileExecutionContext, conversationId: ConversationId) => InvocationSelection | null;
 
-type BrokerEgressPolicy =
-  | { readonly kind: "room"; readonly allowed: boolean }
-  | { readonly kind: "one_to_one"; readonly me: boolean; readonly peer: boolean };
-
 export interface ServiceInvocationOptions {
   readonly core: Pick<WasmCore, "call">;
-  /** Effective grants for this installed incarnation, from verified state. Offer capabilities are declarations. */
-  readonly installedGrants?: (
-    ctx: ProfileExecutionContext, conversationId: ConversationId, installation: { readonly service: string; readonly target: string },
-  ) => readonly string[];
-  /** Verified plaintext egress policy. Omission denies plaintext egress. */
-  readonly egressPolicy?: (ctx: ProfileExecutionContext, conversationId: ConversationId) => BrokerEgressPolicy;
   /** Wall clock in Unix milliseconds, used only to check the selection's expiry. */
   readonly wallNow?: () => number;
 }
@@ -61,8 +51,6 @@ export interface ConnectedServicesOptions {
   readonly selectionSource?: SelectionSource;
   readonly invocation?: ServiceInvocationOptions;
   readonly pending: PendingServiceStore;
-  /** Monotonic runtime clock. Head observations are already timed by Core. */
-  readonly now: () => number;
 }
 
 export function serviceRoomHandle(profileId: ProfileId, conversationId: ConversationId): string {
@@ -93,6 +81,9 @@ const brokerRefusalReasons: Readonly<Partial<Record<string, RejectReason>>> = {
   unknown_tool: "unsupported",
   not_granted: "unauthorized",
   tainted_egress: "policy_denied",
+  malformed: "invalid",
+  expired: "expired",
+  not_authorized: "unauthorized",
 };
 
 const roomWork = new WeakMap<PendingServiceStore, Map<string, Promise<unknown>>>();
@@ -115,38 +106,37 @@ async function digestHex(input: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function operationId(profileId: ProfileId, conversationId: ConversationId, intent: ServiceIntent<ServiceChange>): Promise<string> {
+function operationId(profileId: ProfileId, conversationId: ConversationId, intent: ServiceIntent): Promise<string> {
   return digestHex(JSON.stringify([profileId, conversationId, intent.kind, intent.target]));
 }
 
-function reviewInput({ service, command, destination, items }: InvocationSelection): string {
-  return JSON.stringify([service, command, destination, items.map(({ id, kind, value }) => [id, kind, value])]);
+function reviewInput({ service, command, destination, expiresAtMs, items }: InvocationSelection): string {
+  return JSON.stringify([service, command, destination, expiresAtMs, items.map(({ id, kind, value }) => [id, kind, value])]);
 }
 
 function brokerVerdict(
-  options: ServiceInvocationOptions | undefined, granted: readonly string[], policy: BrokerEgressPolicy, name: string,
+  options: ServiceInvocationOptions | undefined, ctx: ProfileExecutionContext, conversationId: ConversationId,
+  disclosure: InvocationSelection, target: string, eligible: boolean,
 ): { readonly flow: ServiceFlowView; readonly reason: RejectReason | null } {
-  // A remote selected-context review is conservatively tainted. The broker takes taint as input and returns a verdict.
-  const tainted = true;
-  let allowed = false;
-  let refusal: string | undefined;
+  const egress = disclosure.command === "fetch_url_via_scoped_network_provider" ? "blocked_by_capability" : "not_requested";
+  const denied = { flow: { tainted: true, egress } } as const;
   try {
-    const answer = options?.core.call({ cmd: "service_broker_request", granted, tainted, policy, name });
-    if (typeof answer === "object" && answer !== null && "allowed" in answer) {
-      allowed = answer.allowed === true && granted.includes(name);
-      if (answer.allowed === false && "refusal" in answer && typeof answer.refusal === "string") refusal = answer.refusal;
+    const answer = options?.core.call({ cmd: "service_invocation_review", ctx, conversationId, disclosure }) as {
+      target?: string; allowed?: boolean; refusal?: string; refused?: string; flow?: ServiceFlowView;
+    } | undefined;
+    if (answer?.target === target && answer.flow !== undefined && answer.flow.tainted === true &&
+        ["not_requested", "blocked_by_conversation", "blocked_by_capability", "allowed"].includes(answer.flow.egress)) {
+      if (answer.allowed === true && eligible) return { flow: answer.flow, reason: null };
+      const refusal = answer.refusal;
+      const reason = refusal !== undefined && Object.hasOwn(brokerRefusalReasons, refusal)
+        ? brokerRefusalReasons[refusal] : undefined;
+      return { flow: answer.allowed === false ? answer.flow : denied.flow, reason: reason ?? "unauthorized" };
     }
+    if (answer?.refused === "not_authorized") return { ...denied, reason: "unauthorized" };
   } catch {
-    // A missing or unavailable broker cannot authorize a review.
+    // An unavailable Core cannot authorize a review.
   }
-  // The current broker exposes one egress tool and reports conversation denial as a distinct refusal.
-  let egress: ServiceFlowView["egress"] = "not_requested";
-  if (refusal === "tainted_egress") egress = "blocked_by_conversation";
-  else if (name === "fetch_url_via_scoped_network_provider") egress = allowed ? "allowed" : "blocked_by_capability";
-  const knownRefusal = refusal !== undefined && Object.hasOwn(brokerRefusalReasons, refusal)
-    ? brokerRefusalReasons[refusal] : undefined;
-  const reason = allowed ? null : knownRefusal ?? "unavailable";
-  return { flow: { tainted, egress }, reason };
+  return { ...denied, reason: "unavailable" };
 }
 
 function matchesEffect(services: readonly ServiceListing[], operation: PendingServiceOperation): boolean {
@@ -177,6 +167,10 @@ function installedStatus(service: ServiceListing, head: RoomControlEntry | undef
     ? "revoked" : "installed";
 }
 
+function knownTriggerClasses(service: ServiceListing): boolean {
+  return service.filterClasses?.every((code) => roomEventClasses[code - 1] !== undefined) ?? true;
+}
+
 function readAccess(service: ServiceListing): ServiceReadAccess {
   const { endpoints, filterClasses, admittedVersion, heldVersion } = service;
   if (!service.installed || service.canReadAllContent !== true || endpoints === undefined || admittedVersion === undefined) {
@@ -199,7 +193,7 @@ export function createConnectedServicesService({
   function read(conversationId: ConversationId) {
     // Validate the captured context before querying the handle-based engine.
     const { entries } = engines.roomControl.view(ctx, conversationId);
-    const listed = engines.roomServices.list(serviceRoomHandle(ctx.profileId, conversationId));
+    const listed = engines.roomServices.list(serviceRoomHandle(ctx.profileId, conversationId), ctx);
     if ("refused" in listed) throw new Error("Service Room view unavailable");
     return { services: listed.services, heads: new Map(entries.filter((entry) => entry.kind === "service").map((entry) => [entry.id, entry])) };
   }
@@ -223,13 +217,8 @@ export function createConnectedServicesService({
     const head = room.heads.get(service);
     const installed = entry?.membership === "installed" && entry.installed &&
       head?.frozen !== true && installedStatus(entry, head) === "installed";
-    const caps = authority.capabilities(ctx, conversationId);
-    const granted = installed && caps.includes(command)
-      ? entry.capabilities ?? (entry.target === null ? [] :
-        invocation?.installedGrants?.(ctx, conversationId, { service, target: entry.target }) ?? [])
-      : [];
-    const policy = invocation?.egressPolicy?.(ctx, conversationId) ?? { kind: "room", allowed: false };
-    const { flow, reason: brokerReason } = brokerVerdict(invocation, granted, policy, command);
+    const eligible = installed && entry?.target != null;
+    const { flow, reason: brokerReason } = brokerVerdict(invocation, ctx, conversationId, selection, id, eligible);
     const expired = !Number.isSafeInteger(expiresAtMs) || expiresAtMs <= (invocation?.wallNow ?? Date.now)();
     const reason = expired ? "expired" : brokerReason ?? (busy ? "conflict" : null);
     return {
@@ -248,7 +237,8 @@ export function createConnectedServicesService({
     const [first, ...rest] = selectedItems;
     if (first === undefined) return null;
     const copy = ({ id, kind, value }: ServiceDisclosureItem): ServiceDisclosureItem => ({ id, kind, value });
-    return { ...selection, items: [copy(first), ...rest.map(copy)] };
+    const { service, command, destination, expiresAtMs } = selection;
+    return { service, command, destination, expiresAtMs, items: [copy(first), ...rest.map(copy)] };
   }
 
   async function view(
@@ -278,6 +268,8 @@ export function createConnectedServicesService({
         if (!allowed) actions.push({ availability: "blocked", kind, reason: "unauthorized" });
         else if (kind === "install" && !matchesHead(service, head)) {
           actions.push({ availability: "blocked", kind, reason: "stale_state" });
+        } else if (kind === "install" && !knownTriggerClasses(service)) {
+          actions.push({ availability: "blocked", kind, reason: "unsupported" });
         } else actions.push({ availability: "ready", intent: { kind, target } });
       }
       if (status === "installed" && !busy) {
@@ -292,6 +284,12 @@ export function createConnectedServicesService({
         mode: "full_room_member",
         capabilities: (service.capabilities ?? []).map((id) => ({ id, label: id })),
         readAccess: readAccess(service),
+        ...(service.filterClasses === undefined ? {} : {
+          triggerClasses: service.filterClasses?.flatMap((code) => {
+            const event = roomEventClasses[code - 1];
+            return event === undefined ? [] : [event];
+          }) ?? null,
+        }),
         actions,
       };
     });
@@ -318,7 +316,7 @@ export function createConnectedServicesService({
         try {
           const result = kind === "install"
             ? engines.roomServices.installOffer(handle, caps, input, ctx)
-            : engines.roomServices.removeMember(handle, caps, input);
+            : engines.roomServices.removeMember(handle, caps, input, ctx);
           if ("refused" in result) outcome = rejected(refusalReasons[result.refused] ?? "unavailable");
         } catch {
           // The command may have applied before its result arrived.
@@ -338,38 +336,45 @@ export function createConnectedServicesService({
         outcome = reconciling;
       }
     }
-    return view(conversationId, room, outcome);
+    try {
+      return await view(conversationId, room, outcome);
+    } catch {
+      return { entries: [], invocation: null, outcome };
+    }
   }
 
-  async function invoke(conversationId: ConversationId, target: string): Promise<ConnectedServicesView> {
-    const existing = await loadPending(conversationId);
+  async function invoke(conversationId: ConversationId, intent: ServiceIntent<"invoke">, id: string,
+    settleFailureAs: (outcome: OutcomeClass) => void): Promise<ConnectedServicesView> {
+    const { target } = intent;
     const selection = readSelection(conversationId);
     if (selection === null) {
       const reason = invocation === undefined ? "unsupported" : "stale_state";
-      return render(conversationId, read(conversationId), rejected(reason), existing !== null, null);
+      return render(conversationId, read(conversationId), rejected(reason), false, null);
     }
     const input = reviewInput(selection);
-    const intent: ServiceIntent<"invoke"> = { kind: "invoke", target };
-    const [reviewId, id] = await Promise.all([digestHex(input), operationId(ctx.profileId, conversationId, intent)]);
+    const reviewId = await digestHex(input);
     // Read again after hashing so changed selections or Room facts cannot authorize the earlier target.
     const room = read(conversationId);
     const current = readSelection(conversationId);
-    if (target !== reviewId || current === null || reviewInput(current) !== input || current.expiresAtMs !== selection.expiresAtMs) {
-      return view(conversationId, room, rejected("stale_state"), existing !== null);
+    if (target !== reviewId || current === null || reviewInput(current) !== input) {
+      return view(conversationId, room, rejected("stale_state"));
     }
-    if (existing?.id === id) return view(conversationId, room, pendingNetwork);
-    const review = invocationView(conversationId, room, current, reviewId, existing !== null);
+    const review = invocationView(conversationId, room, current, reviewId, false);
     if (review.action.availability === "blocked") {
-      return render(conversationId, room, rejected(review.action.reason), existing !== null, review);
+      return render(conversationId, room, rejected(review.action.reason), false, review);
     }
     // Only the operation identity is durable. There is no session through which to send the reviewed plaintext.
+    settleFailureAs(reconciling);
     if (await pending.reserve(ctx.profileId, { id, conversationId, service: current.service, intent })) {
+      settleFailureAs(pendingNetwork);
       return view(conversationId, room, pendingNetwork);
     }
+    settleFailureAs(rejected("unavailable"));
     const winner = await loadPending(conversationId);
-    if (winner?.id === id) return view(conversationId, room, pendingNetwork);
-    return winner === null ? view(conversationId, room, reconciling)
-      : view(conversationId, room, rejected("conflict"), true);
+    const outcome = winner?.id === id ? pendingNetwork
+      : rejected(winner === null ? "unavailable" : "conflict");
+    settleFailureAs(outcome);
+    return view(conversationId, room, outcome, winner !== null);
   }
 
   return {
@@ -384,38 +389,53 @@ export function createConnectedServicesService({
     async change(conversationId, { kind, target }) {
       if (conversationId === undefined) return { entries: [], invocation: null, outcome: rejected("unsupported") };
       return inRoom(pending, serviceRoomHandle(ctx.profileId, conversationId), async () => {
-        if (kind === "invoke") return invoke(conversationId, target);
-        if (kind === "revoke") {
+        let fallback = rejected("unavailable");
+        try {
+          const intent = { kind, target };
+          const id = await operationId(ctx.profileId, conversationId, intent);
+          const existing = await loadPending(conversationId);
+          if (existing !== null) {
+            fallback = existing.id !== id ? rejected("conflict")
+              : existing.intent.kind === "invoke" ? pendingNetwork : reconciling;
+            const room = read(conversationId);
+            return existing.id === id ? await reconcile(conversationId, room, existing)
+              : await view(conversationId, room, fallback, true);
+          }
+          if (kind === "invoke") {
+            return await invoke(conversationId, { kind, target }, id, (outcome) => { fallback = outcome; });
+          }
           const room = read(conversationId);
           const allowed = authority.capabilities(ctx, conversationId).includes(installCapability);
-          return view(conversationId, room, rejected(allowed ? "unsupported" : "unauthorized"));
-        }
-        if (!["install", "remove"].includes(kind)) return view(conversationId, read(conversationId), rejected("invalid"));
-        const existing = await loadPending(conversationId);
-        let room = read(conversationId);
-        if (existing?.intent.kind === "invoke") return view(conversationId, room, rejected("conflict"), true);
-        if (existing !== null) return reconcile(conversationId, room, existing);
+          if (kind === "revoke") return await view(conversationId, room, rejected(allowed ? "unsupported" : "unauthorized"));
+          if (kind !== "install" && kind !== "remove") return await view(conversationId, room, rejected("invalid"));
 
-        const membership = kind === "install" ? "proposed" : "installed";
-        const service = room.services.find((entry) => entry.target === target && entry.membership === membership);
-        if (service === undefined) return view(conversationId, room, rejected("stale_state"));
-        if (!authority.capabilities(ctx, conversationId).includes(installCapability)) {
-          return view(conversationId, room, rejected("unauthorized"));
-        }
-        if (kind === "install" && !matchesHead(service, room.heads.get(service.service))) {
-          return view(conversationId, room, rejected("stale_state"));
-        }
+          const membership = kind === "install" ? "proposed" : "installed";
+          const service = room.services.find((entry) => entry.target === target && entry.membership === membership);
+          if (service === undefined) return await view(conversationId, room, rejected("stale_state"));
+          if (!allowed) return await view(conversationId, room, rejected("unauthorized"));
+          if (kind === "install" && !matchesHead(service, room.heads.get(service.service))) {
+            return await view(conversationId, room, rejected("stale_state"));
+          }
 
-        const intent: ServiceIntent<RoomServiceChange> = { kind, target };
-        const id = await operationId(ctx.profileId, conversationId, intent);
-        const operation = { id, conversationId, service: service.service, intent };
-        const owned = await pending.reserve(ctx.profileId, operation);
-        try {
-          room = read(conversationId);
+          if (kind === "install" && !knownTriggerClasses(service)) {
+            return await view(conversationId, room, rejected("unsupported"));
+          }
+          const operation = { id, conversationId, service: service.service, intent: { kind, target } };
+          fallback = reconciling;
+          if (await pending.reserve(ctx.profileId, operation)) {
+            return await reconcile(conversationId, read(conversationId), operation);
+          }
+          fallback = rejected("unavailable");
+          const winner = await loadPending(conversationId);
+          if (winner?.id === id) {
+            fallback = reconciling;
+            return await reconcile(conversationId, read(conversationId), winner);
+          }
+          if (winner !== null) fallback = rejected("conflict");
+          return await view(conversationId, room, fallback, winner !== null);
         } catch {
-          return view(conversationId, room, reconciling);
+          return { entries: [], invocation: null, outcome: fallback };
         }
-        return owned ? reconcile(conversationId, room, operation) : view(conversationId, room, reconciling);
       });
     },
   };

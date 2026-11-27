@@ -89,6 +89,8 @@ describe("connected services", () => {
     expect(document.activeElement).toBe(review);
     await user.keyboard("{Enter}");
     const sheet = screen.getByRole("dialog", { name: "Review service" });
+    expect(within(sheet).getByText(copy.triggerClasses)).toBeTruthy();
+    expect(within(sheet).getByText(copy.eventClass["message.create"])).toBeTruthy();
     expect(document.activeElement).toBe(
       within(sheet).getByRole("heading", { name: "Agenda assistant" }),
     );
@@ -101,7 +103,7 @@ describe("connected services", () => {
       within(sheet)
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual(["Post messages"]);
+    ).toEqual(["Post messages", copy.eventClass["message.create"]]);
     expect(service.change).not.toHaveBeenCalled();
     expect(await axeViolations(sheet)).toEqual([]);
 

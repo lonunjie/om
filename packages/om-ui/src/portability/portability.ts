@@ -76,6 +76,8 @@ export type PortabilityDetailCode =
   | "provenance"
   | "local_preferences"
   | "canonical_evidence"
+  | "canonical_evidence_absent"
+  | "retention_unclassified"
   | "outside_scope"
   | "private_material"
   | "view_once"

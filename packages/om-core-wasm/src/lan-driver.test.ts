@@ -3,12 +3,13 @@
 // Skipped when the module is not built (`pnpm --filter @om/core-wasm build:wasm:scope`). Not a WebRTC or real-LAN test.
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import type { ProfileExecutionContext } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
 import { createLanReceiver, createLanSender } from "./lan-driver";
 import type { LanChannel } from "./lan-driver";
 import { createScopeEngines } from "./scope-engines";
 import { toHex } from "./types";
-import { instantiateCore } from "./wasm";
+import { instantiateCore, type WasmCore } from "./wasm";
 
 const wasm = new URL("../dist/om_wasm_scope.wasm", import.meta.url);
 const TOTAL = 70_000;
@@ -17,6 +18,12 @@ const digest = createHash("sha256").update(payload).digest("hex");
 const blobId = "aa".repeat(32);
 const transferId = "07".repeat(16);
 const tag = "5c".repeat(32);
+
+function scoped(core: WasmCore) {
+  core.call({ cmd: "init", home: { tier: "none", observers: ["no_third_party"], migrationAvailable: false, clientOriginChoice: ["default_origin"] } });
+  const ctx = core.call({ cmd: "open_profile", profileId: "transfer-test", records: [] }) as ProfileExecutionContext;
+  return createScopeEngines(core, ctx);
+}
 
 async function rig(opts: { sentTag?: string; storedOffset?: number } = {}) {
   const a = await instantiateCore(readFileSync(wasm));
@@ -28,11 +35,11 @@ async function rig(opts: { sentTag?: string; storedOffset?: number } = {}) {
   const storedOffset = opts.storedOffset ?? 0;
   stored.set(payload.subarray(0, storedOffset));
   const sender = createLanSender({
-    core: a, engines: createScopeEngines(a), channel: chan(toReceiver), handle: "t", transferId, blobId, digest, objectKind: 8, total: TOTAL,
+    core: a, engines: scoped(a), channel: chan(toReceiver), handle: "t", transferId, blobId, digest, objectKind: 8, total: TOTAL,
     read: (o, l) => payload.subarray(o, o + l), verifyReceipt: (t) => t === tag,
   });
   const receiver = createLanReceiver({
-    core: b, engines: createScopeEngines(b), channel: chan(toSender), handle: "t", storedOffset,
+    core: b, engines: scoped(b), channel: chan(toSender), handle: "t", storedOffset,
     write: (o, bytes) => { stored.set(bytes, o); },
     digestMatches: (d) => createHash("sha256").update(stored).digest("hex") === d,
     receiptTag: () => opts.sentTag ?? tag,

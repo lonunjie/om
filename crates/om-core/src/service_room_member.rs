@@ -185,6 +185,27 @@ impl RoomServices {
         Ok(())
     }
 
+    /// Verified endpoint revocation is permanent, including on a fork.
+    pub fn observe_revocations(&mut self, head: &ServiceState, now: u64) {
+        let Some(entry) = self.roster.get(&head.service_id) else {
+            return;
+        };
+        for id in &entry.endpoints {
+            if head
+                .endpoints
+                .get(id)
+                .is_some_and(|ep| ep.state == crate::service_control::REVOKED)
+            {
+                self.pending
+                    .entry((head.service_id, id.clone()))
+                    .or_insert(Pending {
+                        head_version: head.version,
+                        observed_at: now,
+                    });
+            }
+        }
+    }
+
     /// True while the endpoint must send no application messages (a removal is pending).
     pub fn must_stop_sending(&self, service: &[u8; 32], endpoint: &[u8]) -> bool {
         self.pending.contains_key(&(*service, endpoint.to_vec()))

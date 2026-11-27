@@ -457,6 +457,8 @@ fn space_view(space: &Space, reader: Option<[u8; 32]>, live: Option<Vec<String>>
         None => None,
     };
     let head = space.chain.head().filter(|_| !space.chain.is_frozen());
+    let member = head
+        .and_then(|head| reader.map(|id| head.members.contains_key(&(KIND_ACCOUNT, id.to_vec()))));
     let governance = if space.chain.is_frozen() {
         Some("conflict")
     } else {
@@ -473,9 +475,9 @@ fn space_view(space: &Space, reader: Option<[u8; 32]>, live: Option<Vec<String>>
         "head": head.map(|head| json!({
             "hash": hex(&head.hash),
             "version": head.version.to_string(),
-            "member": reader.map(|id| head.members.contains_key(&(KIND_ACCOUNT, id.to_vec()))),
+            "member": member,
             "governanceThreshold": head.threshold,
-            "links": head.links.iter().filter_map(|(kind, id)| {
+            "links": head.links.iter().filter(|_| member == Some(true)).filter_map(|(kind, id)| {
                 let kind = match kind { 1 => "room", 2 => "publication", 3 => "community", _ => return None };
                 Some(json!({ "kind": kind, "id": hex(id) }))
             }).collect::<Vec<_>>(),
@@ -832,6 +834,23 @@ mod tests {
         let next = with_fields(&populated, [(3, V::U(2)), (4, sig::digest(&hash))]);
         let other = with_fields(&next, [(5, V::M(vec![(0, V::T("Other".into()))]))]);
         assert_eq!(accept(&mut handles, &next, &accounts), outcome("accepted"));
+        assert!(
+            !view(&mut handles, None)["head"]["links"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        let outsider = handles.space_do(
+            &ctx,
+            &id,
+            SpaceOp::View {
+                live_accounts: None,
+            },
+            &[],
+            Some([77; 32]),
+        );
+        assert_eq!(outsider["head"]["member"], false);
+        assert_eq!(outsider["head"]["links"], json!([]));
         assert_eq!(
             accept(&mut handles, &genesis, &accounts),
             refused("rollback")

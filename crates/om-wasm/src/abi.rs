@@ -6,7 +6,7 @@ use std::cell::RefCell;
 
 #[cfg(target_arch = "wasm32")]
 mod host {
-    // SAFETY: the host module `om_host` provides these two functions with exactly these signatures (the TypeScript
+    // SAFETY: the host module `om_host` provides these functions with exactly these signatures (the TypeScript
     // loader refuses to instantiate otherwise); neither retains the pointer past the call.
     #[link(wasm_import_module = "om_host")]
     unsafe extern "C" {
@@ -14,6 +14,9 @@ mod host {
         fn random_fill_raw(ptr: *mut u8, len: usize);
         #[link_name = "now_ms"]
         safe fn now_ms_raw() -> f64;
+        #[cfg(feature = "scope-engines")]
+        #[link_name = "monotonic_ms"]
+        safe fn monotonic_ms_raw() -> f64;
     }
     pub fn now_ms() -> u64 {
         let t = now_ms_raw();
@@ -22,6 +25,11 @@ mod host {
         } else {
             0
         }
+    }
+    #[cfg(feature = "scope-engines")]
+    pub fn monotonic_ms() -> Option<u64> {
+        let time = monotonic_ms_raw();
+        (time.is_finite() && (0.0..=9_007_199_254_740_991.0).contains(&time)).then_some(time as u64)
     }
     /// getrandom 0.3 "custom" backend (selected for this target in .cargo/config.toml).
     ///
@@ -50,6 +58,17 @@ mod host {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod host {
+    #[cfg(feature = "scope-engines")]
+    pub fn monotonic_ms() -> Option<u64> {
+        static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+        START
+            .get_or_init(std::time::Instant::now)
+            .elapsed()
+            .as_millis()
+            .try_into()
+            .ok()
+    }
+
     pub fn now_ms() -> u64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -93,7 +112,12 @@ pub extern "C" fn om_call(len: u32) -> u32 {
     });
     let response = BRIDGE.with(|slot| {
         let mut slot = slot.borrow_mut();
-        let bridge = slot.get_or_insert_with(|| system_bridge(host::now_ms));
+        let bridge = slot.get_or_insert_with(|| {
+            let bridge = system_bridge(host::now_ms);
+            #[cfg(feature = "scope-engines")]
+            let bridge = bridge.with_runtime_clock(host::monotonic_ms);
+            bridge
+        });
         bridge.handle(&request)
     });
     OUTPUT.with(|o| {

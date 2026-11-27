@@ -2,12 +2,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { instantiateCore, toHex } from "@om/core-wasm";
 import {
-  asConversationId, asDeviceId, asMessageId, asPersonId, asProfileGeneration, asProfileId, captureProfileContext,
+  asConversationId, asDeviceId, asMessageId, asOperationId, asPersonId, asProfileGeneration, asProfileId, captureProfileContext,
   type AttachmentView, type ConversationSummary, type ConversationTimelineItem, type ConversationView,
   type CoreClient, type CoreQuery, type DevicesView, type QueryResult,
 } from "@om/platform-api";
 import { describe, expect, it, vi } from "vitest";
 import { createPortabilityEngine } from "../../../../../packages/om-core-wasm/src/portability";
+import { connectPair, settle } from "../../../../../packages/om-core-wasm/src/test-support-lan-signal";
 import type { ExportIntent } from "../../../../../packages/om-ui/src/portability/portability";
 import { createCoreHistorySource, createScopeServices } from "./index";
 import { emptyHistory, type FileHost } from "./portability";
@@ -24,8 +25,8 @@ const archive: Extract<ExportIntent, { format: "archive" }> = {
 };
 const unavailable = { archive: "device_unavailable", readable: "device_unavailable" };
 
-function message(id: string, text: string, flags = { viewOnce: false, disappearing: false }) {
-  return { direction: "incoming", messageId: asMessageId(id), sentAt: 123, text, ...flags } as const;
+function message(id: string, text: string, retention: NonNullable<ConversationTimelineItem["retention"]> = "ordinary") {
+  return { direction: "incoming", messageId: asMessageId(id), sentAt: 123, text, retention } as const;
 }
 
 function fakeClient(views: readonly ConversationView[], { identity = true, refused }: {
@@ -102,15 +103,19 @@ describe("Core history source", () => {
     expect(host.save).not.toHaveBeenCalled();
   });
 
-  it("rejects history whose projection does not classify message retention", async () => {
+  it("omits an unclassified item while keeping an ordinary item from the same query", async () => {
     const unclassified: ConversationTimelineItem = {
       direction: "incoming", messageId: asMessageId("unclassified"), sentAt: 123, text: "Unclassified",
     };
-    const { client } = fakeClient([{ summary: selected, timeline: [unclassified] }]);
-    const host = files();
-    const service = requiredService({ ctx, enabled: true, client, loaded: { core: unexpectedCore, portability: { files: host } } });
-    expect(await service.exportHistory(archive)).toEqual({ status: "rejected", reason: "device_unavailable" });
-    expect(host.save).not.toHaveBeenCalled();
+    const { client } = fakeClient([{ summary: selected, timeline: [unclassified, message("ordinary", "Ordinary")] }]);
+    const source = createCoreHistorySource({ ctx, client });
+    const selection = { targets: [target], contents: [] };
+    expect(await source.archive?.(ctx, selection)).toMatchObject({
+      unknownRetention: 1, candidates: [expect.objectContaining({ disappearing: false, viewOnce: false })],
+    });
+    expect(await source.readable?.(ctx, selection)).toMatchObject([{
+      omittedRetention: [123], messages: [{ message: { text: "Ordinary" } }],
+    }]);
   });
 
   it("never queries from another profile or generation", async () => {
@@ -161,6 +166,23 @@ describe("Core history source", () => {
 const wasm = new URL("../../../../../packages/om-core-wasm/dist/om_wasm_scope.wasm", import.meta.url);
 
 describe.skipIf(!existsSync(wasm))("Core history exports with the scope engine", () => {
+  it("exports an ordinary message using the real public conversation query", async () => {
+    const { alice, bob, carol, aConv } = await connectPair();
+    try {
+      const conversationId = asConversationId(aConv);
+      await alice.rt.dispatch({
+        kind: "SendMessage", ctx: alice.ctx, operationId: asOperationId("projection-message"),
+        conversationId, draft: { text: "Projection message" },
+      });
+      await settle(alice, bob);
+      const source = createCoreHistorySource({ ctx: alice.ctx, client: alice.rt });
+      const candidates = await source.readable?.(alice.ctx, { targets: [{ kind: "chat", id: conversationId }], contents: [] });
+      expect(candidates).toMatchObject([{ messages: [{ message: { text: "Projection message" } }] }]);
+    } finally {
+      for (const party of [alice, bob, carol]) party.rt.dispose();
+    }
+  });
+
   it("reopens an archive as projection records and renders a readable copy, with Core counting exclusions", async () => {
     const core = await instantiateCore(readFileSync(wasm));
     const engine = createPortabilityEngine(core);
@@ -180,8 +202,8 @@ describe.skipIf(!existsSync(wasm))("Core history exports with the scope engine",
       {
         summary: selected, timeline: [
           ordinary,
-          message("once", "View-once text", { viewOnce: true, disappearing: false }),
-          message("expires", "Disappearing text", { viewOnce: false, disappearing: true }),
+          message("once", "View-once text", "view_once"),
+          message("expires", "Disappearing text", "disappearing"),
         ],
       },
       { summary: chat("unselected", "Unselected chat"), timeline: [message("elsewhere", "Unselected text")] },
@@ -197,11 +219,10 @@ describe.skipIf(!existsSync(wasm))("Core history exports with the scope engine",
       },
       import: "device_unavailable",
     });
-    const lossy = [{ code: "view_once", count: 1 }, { code: "disappearing", count: 1 }];
-    const evidence = { code: "canonical_evidence", count: 0 };
+    const lossy = [{ code: "canonical_evidence_absent" }, { code: "view_once", count: 1 }, { code: "disappearing", count: 1 }];
     expect(await service.exportHistory({ ...archive, scope: { ...archive.scope, contents: ["media"] } })).toMatchObject({
       status: "saved", report: { details: {
-        preserved: [evidence, { code: "media", count: 1 }, { code: "history", count: 1 }],
+        preserved: [{ code: "media", count: 1 }, { code: "history", count: 1 }],
         lossy, missingMedia: [{ code: "missing_media", count: 1 }],
       } },
     });
@@ -224,7 +245,7 @@ describe.skipIf(!existsSync(wasm))("Core history exports with the scope engine",
     expect(archivedText).not.toMatch(/View-once text|Disappearing text|Unselected text|must-not-export/);
 
     expect(await service.exportHistory({ format: "readable", scope: archive.scope, includeDisappearing: false })).toMatchObject({
-      status: "saved", report: { details: { preserved: [evidence], lossy } },
+      status: "saved", report: { details: { lossy } },
     });
     const readableFile = host.save.mock.calls[1]?.[2][0];
     if (readableFile === undefined) throw new Error("Expected readable bytes");

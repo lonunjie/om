@@ -3,6 +3,7 @@ import { bindFrame, mountSiteFrame } from "../embedder/broker";
 import type { FrameOptions, Observation } from "../embedder/broker";
 import { mountPluginFrame } from "../embedder/index";
 import { instantiateCore } from "../../om-core-wasm/src/wasm";
+import type { ProfileExecutionContext } from "../../om-platform-api/src";
 import { createPluginEngines } from "../../om-core-wasm/src/scope-engines";
 import { packet, wire } from "../protocol";
 
@@ -29,7 +30,10 @@ declare const SINK_ORIGIN: string;
 
 const wasm = fetch("/scope.wasm").then(async (response) => {
   if (!response.ok) throw new Error("Unable to load scope-engines WASM");
-  return instantiateCore(await response.arrayBuffer());
+  const core = await instantiateCore(await response.arrayBuffer());
+  core.call({ cmd: "init", home: { tier: "none", observers: ["no_third_party"], migrationAvailable: false, clientOriginChoice: ["default_origin"] } });
+  const ctx = core.call({ cmd: "open_profile", profileId: "plugin-fixture", records: [] }) as ProfileExecutionContext;
+  return { core, ctx };
 });
 const imports = ["content.read_selected", "net.fetch_origin_scoped", "conversation.send_message", "ui.panel"];
 
@@ -89,7 +93,7 @@ function wrongBinding() {
 }
 
 async function run(fixture: Fixture) {
-  const core = await wasm;
+  const { core, ctx } = await wasm;
   const registry = createPluginEngines(core).registry();
   if (fixture === "forged_port") return { registry, forged: await wrongBinding() };
 
@@ -103,7 +107,7 @@ async function run(fixture: Fixture) {
     finish = resolve;
   });
   const options: FrameOptions = {
-    core,
+    core, ctx,
     // Synthetic grants exercise the real host policy. Loopback topology is not process-isolation evidence.
     host: { siteIsolation: fixture !== "opaque", budgets: { maxMemoryBytes: 65_536, maxFuel: 1_000_000 } },
     imports,

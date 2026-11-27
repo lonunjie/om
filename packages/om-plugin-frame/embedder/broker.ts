@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+import type { ProfileExecutionContext } from "../../om-platform-api/src";
 import { createPluginEngines } from "../../om-core-wasm/src/scope-engines";
 import type { PluginCapability, PluginEgressFacts, PluginHostConfig } from "../../om-core-wasm/src/scope-engines";
 import { reserveInstance } from "./budget";
@@ -16,6 +17,7 @@ export type Observation =
 
 export interface FrameOptions {
   readonly core: Core;
+  readonly ctx: ProfileExecutionContext;
   readonly host: PluginHostConfig;
   readonly imports: readonly string[];
   readonly grants: readonly PluginCapability[];
@@ -61,7 +63,7 @@ export function bindFrame(container: HTMLElement, frame: HTMLIFrameElement, orig
   ) {
     throw new Error("Invalid plugin frame execution limits or entrypoint");
   }
-  const engines = createPluginEngines(options.core);
+  const engines = createPluginEngines(options.core, options.ctx);
   const host = engines.host;
   const { errorCodes } = engines.registry();
   const binding = crypto.randomUUID();

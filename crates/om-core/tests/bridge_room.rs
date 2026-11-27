@@ -36,6 +36,7 @@ fn mapping(direction: u64, classes: &[u8]) -> Mapping {
     Mapping {
         incarnation: [5; 16],
         namespace: "test.net".into(),
+        foreign_scope: "external group".into(),
         direction,
         allowed_classes: classes.iter().copied().collect(),
         active: true,
@@ -172,7 +173,7 @@ fn offer(m: Mapping) -> Offer {
 
 #[test]
 fn offer_is_not_a_member_until_admitted_with_its_exact_target() {
-    let mut r = BridgeRoom::new(Some(2), 300, 600);
+    let mut r = BridgeRoom::new(None, 300, 600);
     let t = r.propose(offer(mapping(BOTH, &[1, 2]))).unwrap();
     assert_eq!(r.listing(), vec![(B, Membership::Proposed)]);
     assert!(r.mapping(&B).is_none());
@@ -198,7 +199,7 @@ fn offer_is_not_a_member_until_admitted_with_its_exact_target() {
 
 #[test]
 fn replacing_an_offer_invalidates_the_earlier_review() {
-    let mut r = BridgeRoom::new(Some(2), 300, 600);
+    let mut r = BridgeRoom::new(None, 300, 600);
     let old = r.propose(offer(mapping(TO_FOREIGN, &[1]))).unwrap();
     let new = r.propose(offer(mapping(BOTH, &[1, 2]))).unwrap();
     assert_ne!(old, new);
@@ -222,9 +223,18 @@ fn removal_keeps_a_tombstone_and_a_new_offer_can_follow() {
     r.remove_member(&caps(&[ADD_BRIDGE]), &B, &t).unwrap();
     assert_eq!(r.listing(), vec![(B, Membership::Removed)]);
     assert_eq!(r.may_export(&B, &EP, 1, 0), Err(Blocked::NoMapping));
-    let t2 = r.propose(offer(mapping(BOTH, &[1, 2]))).unwrap();
+    let mut fresh = mapping(BOTH, &[1, 2]);
+    assert_eq!(r.propose(offer(fresh.clone())), Err(OfferError::Malformed));
+    fresh.incarnation = [6; 16];
+    let t2 = r.propose(offer(fresh)).unwrap();
+    assert_ne!(t, t2);
     assert_eq!(r.listing(), vec![(B, Membership::Proposed)]);
-    r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &t2, 0).unwrap();
+    assert_eq!(
+        r.admit_offer(&caps(&[ADD_BRIDGE]), &B, &t2, 0),
+        Err(OfferError::Room(BridgeRoomError::Room(
+            RoomError::QuorumNotMet
+        )))
+    );
 }
 
 #[test]
@@ -252,4 +262,36 @@ fn offers_are_bounded_and_validated() {
     );
     assert!(r.withdraw_offer(&B));
     assert!(r.listing().is_empty());
+}
+
+#[test]
+fn bridge_replacements_cannot_restore_a_prior_target() {
+    let mut room = BridgeRoom::new(None, 300, 600);
+    let old_offer = offer(mapping(BOTH, &[1]));
+    let original = room.propose(old_offer.clone()).unwrap();
+    assert_eq!(room.propose(old_offer.clone()), Ok(original));
+    let mut changed = old_offer.clone();
+    changed.external_claim = Some("A different claim".into());
+    assert_eq!(room.propose(changed.clone()), Err(OfferError::StaleTarget));
+    changed.mapping.foreign_scope = "another group".into();
+    assert_ne!(room.propose(changed).unwrap(), original);
+    assert_eq!(room.propose(old_offer), Err(OfferError::StaleTarget));
+}
+
+#[test]
+fn reported_approvers_are_display_only_and_the_namespace_is_exact() {
+    let mut room = BridgeRoom::new(Some(2), 300, 600);
+    let mut proposed = offer(mapping(BOTH, &[1]));
+    proposed.mapping.namespace = "external\u{202E} network".into();
+    assert_eq!(room.propose(proposed), Err(OfferError::Malformed));
+
+    let proposed = offer(mapping(BOTH, &[1]));
+    let target = room.propose(proposed).unwrap();
+    assert_eq!(
+        room.admit_offer(&caps(&[ADD_BRIDGE]), &B, &target, 0),
+        Err(OfferError::Room(BridgeRoomError::Room(
+            RoomError::QuorumNotMet
+        )))
+    );
+    assert_eq!(room.offer(&B).unwrap().approvers.len(), 2);
 }

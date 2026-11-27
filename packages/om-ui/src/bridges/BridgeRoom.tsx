@@ -106,6 +106,12 @@ function BridgeFacts({
         <dd>
           <bdi>{bridge.principal.id}</bdi>
         </dd>
+        {bridge.approversReported === undefined ? null : (
+          <>
+            <dt>{bridge.membership === "member" ? copy.approversAtInstall : copy.approversAtProposal}</dt>
+            <dd>{bridge.approversReported}</dd>
+          </>
+        )}
       </dl>
       {bridge.membership === "member" ? (
         <>

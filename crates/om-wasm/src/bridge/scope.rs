@@ -113,6 +113,84 @@ pub fn broker_request(
     }
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ServiceDisclosure {
+    service: String,
+    command: String,
+    destination: String,
+    expires_at_ms: u64,
+    items: Vec<DisclosureItem>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DisclosureItem {
+    id: String,
+    kind: String,
+    value: String,
+}
+
+pub fn service_invocation_review(disclosure: ServiceDisclosure, now_ms: u64) -> Value {
+    let mut ids = BTreeSet::new();
+    let valid = hex_n::<32>(&disclosure.service).is_some()
+        && !disclosure.command.is_empty()
+        && !disclosure.destination.trim().is_empty()
+        && disclosure
+            .items
+            .iter()
+            .filter(|item| item.kind == "trigger")
+            .count()
+            == 1
+        && disclosure.items.iter().all(|item| {
+            !item.id.is_empty()
+                && ids.insert(&item.id)
+                && matches!(
+                    item.kind.as_str(),
+                    "trigger"
+                        | "message"
+                        | "attachment"
+                        | "draft"
+                        | "thread_or_topic"
+                        | "text"
+                        | "participant"
+                        | "scope"
+                )
+        });
+    let review = json!([
+        disclosure.service,
+        disclosure.command,
+        disclosure.destination,
+        disclosure.expires_at_ms,
+        disclosure
+            .items
+            .iter()
+            .map(|i| [&i.id, &i.kind, &i.value])
+            .collect::<Vec<_>>()
+    ]);
+    let target = lan_hex(&om_core::crypto::sha256(&[review.to_string().as_bytes()]));
+    let egress = if disclosure.command == "fetch_url_via_scoped_network_provider" {
+        "blocked_by_capability"
+    } else {
+        "not_requested"
+    };
+    // There is no authenticated grant source for engineering Room invocations.
+    let result = broker_request(
+        &[],
+        true,
+        EgressPolicyIn::Room { allowed: false },
+        &disclosure.command,
+    );
+    json!({
+        "target": target,
+        "allowed": false,
+        "refusal": if !valid { json!("malformed") } else if disclosure.expires_at_ms <= now_ms {
+            json!("expired")
+        } else { result["refusal"].clone() },
+        "flow": { "tainted": true, "egress": egress },
+    })
+}
+
 // ---- Room topics -------------------------------------------------------------------------------------------------
 
 use om_core::room_topics::{Mode, RoomTopics, Stamp, TopicError, TopicId};
@@ -762,30 +840,43 @@ pub enum RoomOp {
 }
 
 impl RoomOp {
-    pub fn uses_control_head(&self) -> bool {
-        matches!(self, Self::Propose { .. } | Self::InstallOffer { .. })
+    pub fn needs_verified_authority(&self) -> bool {
+        matches!(
+            self,
+            Self::Install { .. }
+                | Self::SetFilter { .. }
+                | Self::ObserveHead { .. }
+                | Self::MayCommitRemoval { .. }
+                | Self::RemovalCommitted { .. }
+                | Self::Remove { .. }
+                | Self::InstallOffer { .. }
+                | Self::RemoveMember { .. }
+        )
     }
 }
 
-fn verified_service_head(
-    controls: Option<&[om_core::engine::RoomControlEntry]>,
+fn verified_head<'a>(
+    controls: &'a [om_core::engine::RoomControlEntry],
+    kind: om_core::room_control::ObjectKind,
     head: &ServiceState,
-) -> bool {
-    controls.is_none_or(|entries| {
-        entries.iter().any(|entry| {
-            entry.kind == om_core::room_control::ObjectKind::Service
-                && entry.id == head.service_id
-                && !entry.frozen
-                && entry.head_version == Some(head.version)
-                && entry.head_hash == Some(head.hash)
-                && entry.endpoints.len() == head.endpoints.len()
-                && entry.endpoints.iter().all(|(id, state, usable)| {
-                    head.endpoints
-                        .get(id)
-                        .is_some_and(|endpoint| endpoint.state == *state)
-                        && (*state != om_core::service_control::ACTIVE || *usable)
-                })
-        })
+) -> Option<&'a om_core::engine::RoomControlEntry> {
+    controls.iter().find(|entry| {
+        entry.kind == kind
+            && entry.id == head.service_id
+            && !entry.frozen
+            && entry.head_version == Some(head.version)
+            && entry.head_hash == Some(head.hash)
+            && entry
+                .endpoints
+                .iter()
+                .any(|(_, state, usable)| *state == om_core::service_control::ACTIVE && *usable)
+            && entry.endpoints.len() == head.endpoints.len()
+            && entry.endpoints.iter().all(|(id, state, usable)| {
+                head.endpoints
+                    .get(id)
+                    .is_some_and(|endpoint| endpoint.state == *state)
+                    && (*state != om_core::service_control::ACTIVE || *usable)
+            })
     })
 }
 
@@ -873,7 +964,7 @@ pub fn room_services_do(
     room: &str,
     caps: &[String],
     op: RoomOp,
-    controls: Option<&[om_core::engine::RoomControlEntry]>,
+    controls: &[om_core::engine::RoomControlEntry],
 ) -> Value {
     let bad = || refused("malformed");
     if let RoomOp::Open {
@@ -1001,7 +1092,7 @@ pub fn room_services_do(
             else {
                 return bad();
             };
-            if !verified_service_head(controls, &hd) {
+            if verified_head(controls, om_core::room_control::ObjectKind::Service, &hd).is_none() {
                 return refused("unverified_head");
             }
             match r.propose(Offer {
@@ -1028,8 +1119,14 @@ pub fn room_services_do(
             };
             if r.current_target(&s) == Some(t)
                 && r.members().entry(&s).is_none()
-                && r.offer(&s)
-                    .is_some_and(|offer| !verified_service_head(controls, &offer.head))
+                && r.offer(&s).is_some_and(|offer| {
+                    verified_head(
+                        controls,
+                        om_core::room_control::ObjectKind::Service,
+                        &offer.head,
+                    )
+                    .is_none()
+                })
             {
                 return refused("unverified_head");
             }
@@ -1055,6 +1152,7 @@ pub fn room_services_do(
 pub struct MappingIn {
     incarnation: String,
     namespace: String,
+    foreign_scope: String,
     direction: u64,
     allowed_classes: Vec<u8>,
 }
@@ -1092,7 +1190,7 @@ pub enum BridgeRoomOp {
         bridge: String,
         endpoint: String,
         class: u8,
-        now: u64,
+        now: Option<u64>,
     },
     ImportAuthorOk {
         author_kind: u64,
@@ -1117,12 +1215,24 @@ pub enum BridgeRoomOp {
     AdmitOffer {
         bridge: String,
         target: String,
-        now: u64,
     },
     RemoveMember {
         bridge: String,
         target: String,
     },
+}
+
+impl BridgeRoomOp {
+    pub fn needs_verified_authority(&self) -> bool {
+        matches!(
+            self,
+            Self::Admit { .. }
+                | Self::ObserveHead { .. }
+                | Self::Remove { .. }
+                | Self::RevokeMapping { .. }
+                | Self::RemoveMember { .. }
+        )
+    }
 }
 
 fn offer_err(e: &om_core::bridge_room::OfferError) -> &'static str {
@@ -1135,7 +1245,12 @@ fn offer_err(e: &om_core::bridge_room::OfferError) -> &'static str {
     }
 }
 
-fn bridge_entry(r: &BridgeRoom, b: &[u8; 32], m: om_core::bridge_room::Membership) -> Value {
+fn bridge_entry(
+    r: &BridgeRoom,
+    b: &[u8; 32],
+    m: om_core::bridge_room::Membership,
+    controls: &[om_core::engine::RoomControlEntry],
+) -> Value {
     use om_core::bridge_room::Membership as M;
     let mut v = match m {
         M::Member => bridge_view(r, b),
@@ -1156,8 +1271,22 @@ fn bridge_entry(r: &BridgeRoom, b: &[u8; 32], m: om_core::bridge_room::Membershi
             r.current_target(b)
                 .map_or(Value::Null, |t| json!(lan_hex(&t))),
         );
+        let head = controls.iter().find(|entry| {
+            entry.kind == om_core::room_control::ObjectKind::Bridge && entry.id == *b
+        });
+        o.insert(
+            "headFresh".into(),
+            json!(head.is_some_and(|head| {
+                !head.frozen
+                    && head.head_version == r.members().held_head(b).map(|h| h.0)
+                    && head.head_hash == r.members().held_head(b).map(|h| h.1)
+                    && r.is_fresh(head.observed_age_ms)
+            })),
+        );
         if let Some(of) = r.offer(b) {
-            o.insert("mapping".into(), mapping_view(Some(&of.mapping)));
+            if m == M::Proposed {
+                o.insert("mapping".into(), mapping_view(Some(&of.mapping)));
+            }
             o.insert("name".into(), json!(of.name));
             o.insert("externalClaim".into(), json!(of.external_claim));
             o.insert(
@@ -1174,6 +1303,7 @@ fn mapping_view(m: Option<&Mapping>) -> Value {
         None => Value::Null,
         Some(m) => json!({
             "namespace": m.namespace,
+            "foreignScope": m.foreign_scope,
             "direction": m.direction,
             "allowedClasses": m.allowed_classes.iter().copied().collect::<Vec<u8>>(),
             "active": m.active,
@@ -1189,8 +1319,30 @@ fn bridge_view(r: &BridgeRoom, b: &[u8; 32]) -> Value {
     v
 }
 
-pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRoomOp) -> Value {
+fn bridge_export_result(result: Result<(), om_core::bridge_room::Blocked>) -> Value {
     use om_core::bridge_room::Blocked;
+    match result {
+        Ok(()) => json!({ "allowed": true }),
+        Err(x) => json!({ "allowed": false, "blocked": match x {
+            Blocked::NoMapping => "no_mapping",
+            Blocked::Revoked => "revoked",
+            Blocked::Direction => "direction",
+            Blocked::ClassNotAllowed => "class_not_allowed",
+            Blocked::StaleMapping => "stale_mapping",
+            Blocked::EndpointStopped => "endpoint_stopped",
+        }}),
+    }
+}
+
+pub fn bridge_room_do(
+    h: &mut Handles,
+    room: &str,
+    caps: &[String],
+    op: BridgeRoomOp,
+    controls: &[om_core::engine::RoomControlEntry],
+    runtime_ms: Option<u64>,
+) -> Value {
+    use om_core::room_control::ObjectKind;
     let bad = || refused("malformed");
     if let BridgeRoomOp::Open {
         quorum,
@@ -1235,6 +1387,7 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             let m = Mapping {
                 incarnation: inc,
                 namespace: mapping.namespace,
+                foreign_scope: mapping.foreign_scope,
                 direction: mapping.direction,
                 allowed_classes: mapping.allowed_classes.into_iter().collect(),
                 active: true,
@@ -1280,17 +1433,36 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             let (Some(b), Some(e)) = (hex_n::<32>(&bridge), hex_vec(&endpoint)) else {
                 return bad();
             };
-            match r.may_export(&b, &e, class, now) {
-                Ok(()) => json!({ "allowed": true }),
-                Err(x) => json!({ "allowed": false, "blocked": match x {
-                    Blocked::NoMapping => "no_mapping",
-                    Blocked::Revoked => "revoked",
-                    Blocked::Direction => "direction",
-                    Blocked::ClassNotAllowed => "class_not_allowed",
-                    Blocked::StaleMapping => "stale_mapping",
-                    Blocked::EndpointStopped => "endpoint_stopped",
-                }}),
+            if let Some(tick) = runtime_ms {
+                let held = r.members().held_head(&b);
+                let verified = controls
+                    .iter()
+                    .find(|entry| entry.kind == ObjectKind::Bridge && entry.id == b);
+                if let Some(entry) = verified {
+                    if entry.frozen
+                        || !entry
+                            .endpoints
+                            .iter()
+                            .any(|(id, _, usable)| *id == e && *usable)
+                    {
+                        return json!({ "allowed": false, "blocked": "endpoint_stopped" });
+                    }
+                    if held != entry.head_version.zip(entry.head_hash)
+                        || !r.is_fresh(entry.observed_age_ms)
+                    {
+                        return json!({ "allowed": false, "blocked": "stale_mapping" });
+                    }
+                } else {
+                    return json!({ "allowed": false, "blocked": "stale_mapping" });
+                }
+                return bridge_export_result(r.may_export(&b, &e, class, tick));
             }
+            #[cfg(test)]
+            if let Some(now) = now {
+                return bridge_export_result(r.may_export(&b, &e, class, now));
+            }
+            let _ = now;
+            refused("unavailable")
         }
         BridgeRoomOp::View { bridge } => {
             let Some(b) = hex_n::<32>(&bridge) else {
@@ -1302,7 +1474,7 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             let list: Vec<Value> = r
                 .listing()
                 .iter()
-                .map(|(b, m)| bridge_entry(r, b, *m))
+                .map(|(b, m)| bridge_entry(r, b, *m, controls))
                 .collect();
             json!({ "bridges": list })
         }
@@ -1318,9 +1490,13 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             else {
                 return bad();
             };
+            if verified_head(controls, ObjectKind::Bridge, &hd).is_none() {
+                return refused("unverified_head");
+            }
             let m = Mapping {
                 incarnation: inc,
                 namespace: mapping.namespace,
+                foreign_scope: mapping.foreign_scope,
                 direction: mapping.direction,
                 allowed_classes: mapping.allowed_classes.into_iter().collect(),
                 active: true,
@@ -1342,13 +1518,21 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             };
             json!({ "done": r.withdraw_offer(&b) })
         }
-        BridgeRoomOp::AdmitOffer {
-            bridge,
-            target,
-            now,
-        } => {
+        BridgeRoomOp::AdmitOffer { bridge, target } => {
             let (Some(b), Some(t)) = (hex_n::<32>(&bridge), hex_n::<32>(&target)) else {
                 return bad();
+            };
+            let Some(offer) = r
+                .offer(&b)
+                .filter(|_| r.roster(&b).is_none() && r.current_target(&b) == Some(t))
+            else {
+                return refused("stale_target");
+            };
+            let Some(now) = verified_head(controls, ObjectKind::Bridge, &offer.head)
+                .filter(|entry| r.is_fresh(entry.observed_age_ms))
+                .and_then(|entry| runtime_ms?.checked_sub(entry.observed_age_ms))
+            else {
+                return refused("unverified_head");
             };
             match r.admit_offer(&caps, &b, &t, now) {
                 Ok(()) => done(),
@@ -1362,6 +1546,38 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             match r.remove_member(&caps, &b, &t) {
                 Ok(gone) => json!({ "removedEndpoints": gone.len() }),
                 Err(e) => refused(offer_err(&e)),
+            }
+        }
+    }
+}
+
+impl Handles {
+    pub fn observe_room_control(
+        &mut self,
+        room: &str,
+        kind: om_core::room_control::ObjectKind,
+        accepted: &ServiceState,
+        canonical: bool,
+        now: u64,
+    ) {
+        use om_core::room_control::ObjectKind;
+        match kind {
+            ObjectKind::Service => {
+                if let Some(r) = self.rooms.get_mut(room) {
+                    let members = r.members_mut();
+                    members.observe_revocations(accepted, now);
+                    if canonical {
+                        let _ = members.observe_head(accepted, now);
+                    }
+                }
+            }
+            ObjectKind::Bridge => {
+                if let Some(r) = self.bridge_rooms.get_mut(room) {
+                    r.members_mut().observe_revocations(accepted, now);
+                    if canonical {
+                        let _ = r.observe_head(accepted, now);
+                    }
+                }
             }
         }
     }
@@ -1942,4 +2158,613 @@ pub fn control_view(v: &[om_core::engine::RoomControlEntry]) -> Value {
         })
         .collect();
     json!({ "entries": list })
+}
+
+#[cfg(test)]
+mod reducer_fixture_tests {
+    use super::*;
+    use crate::bridge::Bridge;
+    use om_core::crypto::rng::insecure_test_rng::InsecureTestRng;
+
+    fn session() -> impl FnMut(Value) -> Value {
+        let mut bridge = Bridge::new(
+            || InsecureTestRng::from_label(b"scope"),
+            || 1_790_000_000_000,
+        )
+        .with_test_only_scope_reducers();
+        move |v| serde_json::from_slice(&bridge.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+    }
+    #[test]
+    fn topics_run_through_one_bridge_instance() {
+        let mut b = Bridge::new(
+            || InsecureTestRng::from_label(b"scope"),
+            || 1_790_000_000_000,
+        )
+        .with_test_only_scope_reducers();
+        let mut go = |v: Value| -> Value {
+            serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+        };
+        let id = "01".repeat(16);
+        let ev = "aa".repeat(32);
+        let st = json!({"clock": 1, "event": "bb".repeat(32)});
+        let r = go(
+            json!({"cmd":"topics_do","caps":[],"actor":"ann","op":{"kind":"create","id":id,"title":"general","at":st}}),
+        );
+        assert_eq!(r["ok"]["refused"], "not_authorized");
+        let r = go(
+            json!({"cmd":"topics_do","caps":["room.create_topic"],"actor":"ann","op":{"kind":"create","id":id,"title":"general","at":st}}),
+        );
+        assert_eq!(r["ok"]["applied"], true);
+        let r = go(
+            json!({"cmd":"topics_do","caps":[],"actor":"ann","op":{"kind":"post","mode":"forum","topLevel":true,"event":ev,"author":"ann","topic":null}}),
+        );
+        assert_eq!(r["ok"]["refused"], "topic_required");
+        let r = go(
+            json!({"cmd":"topics_do","caps":[],"actor":"ann","op":{"kind":"post","mode":"forum","topLevel":true,"event":ev,"author":"ann","topic":id}}),
+        );
+        assert_eq!(r["ok"]["applied"], true);
+        let r = go(
+            json!({"cmd":"topics_do","caps":["room.manage_topics"],"actor":"bob","op":{"kind":"move","event":ev,"topic":null,"at":{"clock":5,"event":"cc".repeat(32)}}}),
+        );
+        assert_eq!(r["ok"]["applied"], true);
+        let v = go(json!({"cmd":"topics_view","topic":id,"message":ev}));
+        assert_eq!(v["ok"]["topic"]["title"], "general");
+        assert_eq!(v["ok"]["placement"], json!({"topic": null}));
+        let r = go(
+            json!({"cmd":"topics_do","caps":[],"actor":"x","op":{"kind":"create","id":"zz","title":"t","at":st}}),
+        );
+        assert_eq!(r["ok"]["refused"], "malformed");
+    }
+
+    #[test]
+    fn moderation_runs_through_the_bridge_and_stale_lifts_are_noops() {
+        let mut b = Bridge::new(
+            || InsecureTestRng::from_label(b"scope"),
+            || 1_790_000_000_000,
+        )
+        .with_test_only_scope_reducers();
+        let mut go = |v: Value| -> Value {
+            serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+        };
+        let inc = |n: u8| format!("{n:02x}").repeat(16);
+        assert_eq!(
+            go(
+                json!({"cmd":"moderation_do","caps":[],"actor":"x","op":{"kind":"admit","who":"bob","incarnation":inc(3),"governance":false}})
+            )["ok"]["applied"],
+            true
+        );
+        let ban = |c: &str, t: &str, n: u8| json!({"cmd":"moderation_do","caps":[c],"actor":"mod","op":{"kind":"ban","target":t,"incarnation":inc(n),"governanceAuthority":false}});
+        assert_eq!(
+            go(ban("room.remove_member", "bob", 9))["ok"]["refused"],
+            "not_authorized"
+        );
+        assert_eq!(go(ban("room.ban_member", "bob", 9))["ok"]["applied"], true);
+        assert_eq!(
+            go(json!({"cmd":"moderation_view","who":"bob"}))["ok"],
+            json!({"member": false, "banned": true, "timedOut": false})
+        );
+        let unban = |n: u8| json!({"cmd":"moderation_do","caps":["room.ban_member"],"actor":"mod","op":{"kind":"unban","target":"bob","incarnation":inc(n)}});
+        assert_eq!(
+            go(unban(1))["ok"],
+            json!({"applied": false, "noop": true}),
+            "a stale incarnation changes nothing"
+        );
+        assert_eq!(
+            go(json!({"cmd":"moderation_view","who":"bob"}))["ok"]["banned"],
+            true
+        );
+        assert_eq!(go(unban(9))["ok"]["applied"], true);
+    }
+
+    #[test]
+    fn first_contact_never_activates_without_both_bindings() {
+        let mut b = Bridge::new(
+            || InsecureTestRng::from_label(b"scope"),
+            || 1_790_000_000_000,
+        )
+        .with_test_only_scope_reducers();
+        let mut go = |v: Value| -> Value {
+            serde_json::from_slice(&b.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+        };
+        let step = |k: Value| json!({"cmd":"lan_first_contact","step":k});
+        assert_eq!(
+            go(step(json!({"kind":"ticket","verified":true})))["ok"]["refused"],
+            "out_of_order"
+        );
+        assert_eq!(
+            go(step(json!({"kind":"reach"})))["ok"]["state"],
+            "reachable"
+        );
+        assert_eq!(
+            go(step(json!({"kind":"ticket","verified":false})))["ok"]["refused"],
+            "not_verified"
+        );
+        for k in [
+            json!({"kind":"ticket","verified":true}),
+            json!({"kind":"request","valid":true}),
+            json!({"kind":"own_binding","verified":true}),
+        ] {
+            go(step(k));
+        }
+        let half = go(step(json!({"kind":"state"})));
+        assert_eq!(
+            (
+                half["ok"]["state"].clone(),
+                half["ok"]["asyncKeyFetchAllowed"].clone()
+            ),
+            (json!("half_bound"), json!(false))
+        );
+        let done = go(step(json!({"kind":"peer_binding","verified":true})));
+        assert_eq!(
+            (
+                done["ok"]["state"].clone(),
+                done["ok"]["deviceEligible"].clone()
+            ),
+            (json!("active"), json!(true))
+        );
+    }
+
+    #[test]
+    fn engineering_room_rejects_caller_capabilities_even_for_a_verified_room_member() {
+        use om_core::api::IntentBody;
+        use om_core::groups::flow::{GroupEvent, GroupIntent};
+        use om_core::runtime::{LoopbackNetwork, Runtime};
+
+        let mut runtime = Runtime::new("member", &LoopbackNetwork::default());
+        let profile = runtime.open("member");
+        runtime.dispatch(
+            &profile,
+            "identity",
+            IntentBody::CreateIdentityProfile {
+                label: "Member".into(),
+            },
+        );
+        runtime.flush_net(&profile);
+        let (reply, step) = runtime
+            .core
+            .group_do(
+                &profile,
+                GroupIntent::Create {
+                    name: "Room".into(),
+                    relationship_ids: vec![],
+                },
+            )
+            .unwrap();
+        assert!(runtime.settle(&step));
+        let reply = reply.unwrap();
+        let GroupEvent::Created { conversation_id } = &reply.events[0] else {
+            panic!("Room not created")
+        };
+        let conversation = om_core::crypto::hex(conversation_id);
+        let room = serde_json::to_string(&(&profile.profile_id, &conversation)).unwrap();
+        let mut bridge = Bridge::new(
+            || InsecureTestRng::from_label(b"scope"),
+            || 1_790_000_000_000,
+        )
+        .with_runtime_clock(|| Some(30));
+        let mut call = |v: Value| -> Value {
+            serde_json::from_slice(&bridge.handle(&serde_json::to_vec(&v).unwrap())).unwrap()
+        };
+        assert!(
+            call(json!({
+                "cmd":"init","home":{"tier":"none","observers":["no_third_party"],
+                "migrationAvailable":false,"clientOriginChoice":["default_origin"]}
+            }))["err"]
+                .is_null()
+        );
+        let ctx = call(json!({"cmd":"open_profile","profileId":profile.profile_id,"records":runtime.store.records(&profile.profile_id)}))["ok"].clone();
+        assert!(ctx.is_object());
+        let cmd =
+            |engine, caps, op| json!({"cmd":engine,"room":room,"ctx":ctx,"caps":caps,"op":op});
+        let open = json!({"kind":"open","quorum":null,"sequencingTimeout":10,"freshnessBound":30});
+        assert_eq!(
+            call(cmd("room_services_do", json!([]), open.clone()))["ok"],
+            done()
+        );
+        assert_eq!(call(cmd("bridge_room_do", json!([]), open))["ok"], done());
+        let service = "61".repeat(32);
+        assert_eq!(
+            call(cmd(
+                "room_services_do",
+                json!(["room.install_service"]),
+                json!({"kind":"remove","service":service})
+            ))["ok"],
+            refused("not_authorized")
+        );
+        assert_eq!(
+            call(cmd(
+                "bridge_room_do",
+                json!(["room.add_bridge"]),
+                json!({"kind":"revoke_mapping","bridge":service})
+            ))["ok"],
+            refused("not_authorized")
+        );
+    }
+
+    #[test]
+    fn bridge_offer_requires_a_matching_verified_head_and_fresh_runtime_observation() {
+        use om_core::engine::RoomControlEntry;
+        use om_core::room_control::ObjectKind;
+        let mut handles = Handles::default();
+        let run = |handles: &mut Handles, op: Value, controls: &[RoomControlEntry], tick| {
+            bridge_room_do(
+                handles,
+                "room",
+                &[],
+                serde_json::from_value(op).unwrap(),
+                controls,
+                Some(tick),
+            )
+        };
+        assert_eq!(
+            run(
+                &mut handles,
+                json!({"kind":"open","quorum":null,"sequencingTimeout":20,"freshnessBound":30}),
+                &[],
+                10
+            ),
+            done()
+        );
+        let offer = json!({
+            "kind":"propose", "head": head(1,"01",1), "approvers": [], "name": "Bridge",
+            "mapping": {"incarnation":"05".repeat(16),"namespace":"network","foreignScope":"group","direction":3,"allowedClasses":[1]},
+        });
+        assert_eq!(
+            run(&mut handles, offer.clone(), &[], 10),
+            refused("unverified_head")
+        );
+        let verified = RoomControlEntry {
+            kind: ObjectKind::Bridge,
+            id: [0x61; 32],
+            head_version: Some(1),
+            head_hash: Some([1; 32]),
+            frozen: false,
+            endpoints: vec![(vec![0x10; 16], 1, true)],
+            observed_age_ms: 0,
+            reported_approvers: vec![],
+        };
+        let proposed = run(&mut handles, offer, std::slice::from_ref(&verified), 10);
+        assert!(proposed["target"].is_string());
+        let admit =
+            json!({"kind":"admit_offer","bridge":"61".repeat(32),"target":proposed["target"]});
+        let newer = RoomControlEntry {
+            head_version: Some(2),
+            ..verified.clone()
+        };
+        assert_eq!(
+            run(&mut handles, admit.clone(), &[newer], 15),
+            refused("unverified_head")
+        );
+        let stale = RoomControlEntry {
+            observed_age_ms: 31,
+            ..verified.clone()
+        };
+        assert_eq!(
+            run(&mut handles, admit.clone(), &[stale], 41),
+            refused("unverified_head")
+        );
+        assert_eq!(
+            run(&mut handles, admit, &[verified], 10),
+            refused("not_authorized")
+        );
+    }
+
+    #[test]
+    fn accepted_revocations_reach_both_membership_reducers() {
+        use om_core::bridge_room::ADD_BRIDGE;
+        use om_core::room_control::ObjectKind;
+        let mut handles = Handles::default();
+        let initial = super::head(&serde_json::from_value(head(1, "01", 1)).unwrap()).unwrap();
+        let revoked = super::head(&serde_json::from_value(head(2, "02", 3)).unwrap()).unwrap();
+        let mut services = ServiceRoom::new(None, 10);
+        services
+            .install(
+                &[om_core::service_room_member::INSTALL.into()].into(),
+                &initial,
+                vec![1; 16],
+                None,
+                &[],
+            )
+            .unwrap();
+        handles.rooms.insert("room".into(), services);
+        let mut bridges = BridgeRoom::new(None, 10, 30);
+        bridges
+            .admit(
+                &[ADD_BRIDGE.into()].into(),
+                &initial,
+                Mapping {
+                    incarnation: [1; 16],
+                    namespace: "network".into(),
+                    foreign_scope: "group".into(),
+                    direction: 3,
+                    allowed_classes: [1].into(),
+                    active: true,
+                },
+                &[],
+                0,
+            )
+            .unwrap();
+        handles.bridge_rooms.insert("room".into(), bridges);
+
+        handles.observe_room_control("room", ObjectKind::Service, &revoked, true, 20);
+        handles.observe_room_control("room", ObjectKind::Bridge, &revoked, false, 20);
+        for members in [
+            handles.rooms["room"].members(),
+            handles.bridge_rooms["room"].members(),
+        ] {
+            assert!(members.must_stop_sending(&initial.service_id, &[0x10; 16]));
+            assert_eq!(
+                members.may_commit_removal(&initial.service_id, &[0x10; 16], false, 29),
+                Err(RoomError::TooEarly)
+            );
+            assert!(
+                members
+                    .may_commit_removal(&initial.service_id, &[0x10; 16], false, 30)
+                    .is_ok()
+            );
+        }
+    }
+
+    #[test]
+    fn broker_review_binds_order_service_expiry_and_trigger() {
+        let review = |value| service_invocation_review(serde_json::from_value(value).unwrap(), 100);
+        let sel = json!({
+            "service":"61".repeat(32), "command":"fetch_url_via_scoped_network_provider",
+            "destination":"endpoint", "expiresAtMs":200,
+            "items":[{"id":"trigger","kind":"trigger","value":"Context"},{"id":"p","kind":"participant","value":"Member"}],
+        });
+        let original = review(sel.clone());
+        assert_eq!(original["refusal"], "not_granted");
+        let mut changed = sel.clone();
+        changed["service"] = json!("62".repeat(32));
+        assert_ne!(review(changed)["target"], original["target"]);
+        let mut changed = sel.clone();
+        changed["expiresAtMs"] = json!(199);
+        assert_ne!(review(changed)["target"], original["target"]);
+        let mut changed = sel.clone();
+        changed["items"].as_array_mut().unwrap().swap(0, 1);
+        assert_ne!(review(changed)["target"], original["target"]);
+        let mut changed = sel;
+        changed["items"].as_array_mut().unwrap().remove(0);
+        assert_eq!(review(changed)["refusal"], "malformed");
+    }
+
+    fn head(version: u64, hash: &str, state: u64) -> Value {
+        json!({"serviceId": "61".repeat(32), "version": version, "hash": hash.repeat(32),
+           "endpoints": [{"id": "10".repeat(16), "state": state}]})
+    }
+
+    #[test]
+    fn a_room_service_keeps_its_state_under_a_handle() {
+        let mut c = session();
+        let svc = "61".repeat(32);
+        let ep = "10".repeat(16);
+        let ok = |v: &Value| v["ok"].clone();
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"open","quorum":2,"sequencingTimeout":300}})
+            )),
+            json!({"done": true})
+        );
+        let humans = json!([{"kind":1,"id":"01".repeat(32)},{"kind":1,"id":"02".repeat(32)}]);
+        let install = |caps: Value, ap: &Value| json!({"cmd":"room_services_do","room":"r1","caps":caps,"op":{"kind":"install","head":head(1,"01",1),"incarnation":"05","filterClasses":[1],"approvers":ap}});
+        assert_eq!(
+            ok(&c(install(json!([]), &humans))),
+            json!({"refused": "not_authorized"})
+        );
+        let one = json!([{"kind":1,"id":"01".repeat(32)},{"kind":2,"id":"09".repeat(32)}]);
+        assert_eq!(
+            ok(&c(install(json!(["room.install_service"]), &one))),
+            json!({"refused": "quorum_not_met"})
+        );
+        assert_eq!(
+            ok(&c(install(json!(["room.install_service"]), &humans))),
+            json!({"done": true})
+        );
+        let v = ok(&c(
+            json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"view","service":svc}}),
+        ));
+        assert_eq!(
+            (
+                v["installed"].clone(),
+                v["canReadAllContent"].clone(),
+                v["filterClasses"].clone()
+            ),
+            (json!(true), json!(true), json!([1]))
+        );
+        // A head that revokes the endpoint stops it; a second Room handle is untouched; rollback is refused.
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"observe_head","head":head(2,"02",3),"now":10}})
+            )),
+            json!({"done": true})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"must_stop","service":svc,"endpoint":ep}})
+            )),
+            json!({"mustStopSending": true})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"observe_head","head":head(1,"01",1),"now":11}})
+            )),
+            json!({"refused": "rollback"})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"may_commit_removal","service":svc,"endpoint":ep,"isCoordinator":false,"now":20}})
+            )),
+            json!({"refused": "too_early"})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"may_commit_removal","service":svc,"endpoint":ep,"isCoordinator":false,"now":310}})
+            )),
+            json!({"done": true})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"r1","caps":[],"op":{"kind":"removal_committed","service":svc,"endpoint":ep}})
+            )),
+            json!({"applied": true})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"room_services_do","room":"zz","caps":[],"op":{"kind":"view","service":svc}})
+            )),
+            json!({"refused": "unknown_handle"})
+        );
+    }
+
+    #[test]
+    fn a_bridge_room_decides_every_export() {
+        let mut c = session();
+        let b = "61".repeat(32);
+        let ep = "10".repeat(16);
+        let ok = |v: &Value| v["ok"].clone();
+        c(
+            json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"open","quorum":2,"sequencingTimeout":300,"freshnessBound":600}}),
+        );
+        let mapping = json!({"incarnation":"05".repeat(16),"namespace":"test.net","foreignScope":"external group","direction":3,"allowedClasses":[1,2]});
+        let admit = |caps: Value, ap: Value| json!({"cmd":"bridge_room_do","room":"b1","caps":caps,"op":{"kind":"admit","head":head(1,"01",1),"mapping":mapping,"approvers":ap,"now":0}});
+        // Another bridge principal (kind 3) must not count toward the human quorum.
+        let mixed = json!([{"kind":1,"id":"01".repeat(32)},{"kind":3,"id":b}]);
+        assert_eq!(
+            ok(&c(admit(json!(["room.add_bridge"]), mixed))),
+            json!({"refused": "quorum_not_met"})
+        );
+        assert_eq!(
+            ok(&c(admit(
+                json!(["room.install_service"]),
+                json!([{"kind":1,"id":"01".repeat(32)},{"kind":1,"id":"02".repeat(32)}])
+            ))),
+            json!({"refused": "not_authorized"})
+        );
+        assert_eq!(
+            ok(&c(admit(
+                json!(["room.add_bridge"]),
+                json!([{"kind":1,"id":"01".repeat(32)},{"kind":1,"id":"02".repeat(32)}])
+            ))),
+            json!({"done": true})
+        );
+        let export = |class: u8, now: u64| json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"may_export","bridge":b,"endpoint":ep,"class":class,"now":now}});
+        assert_eq!(ok(&c(export(1, 100))), json!({"allowed": true}));
+        assert_eq!(ok(&c(export(9, 100)))["blocked"], "class_not_allowed");
+        assert_eq!(ok(&c(export(1, 601)))["blocked"], "stale_mapping");
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"bridge_room_do","room":"b1","caps":["room.add_bridge"],"op":{"kind":"revoke_mapping","bridge":b}})
+            )),
+            json!({"done": true})
+        );
+        assert_eq!(ok(&c(export(1, 100)))["blocked"], "revoked");
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"import_author_ok","authorKind":1}})
+            )),
+            json!({"allowed": false})
+        );
+        assert_eq!(
+            ok(&c(
+                json!({"cmd":"bridge_room_do","room":"b1","caps":[],"op":{"kind":"import_author_ok","authorKind":3}})
+            )),
+            json!({"allowed": true})
+        );
+    }
+
+    #[test]
+    fn a_lan_transfer_confirms_only_on_an_authenticated_receipt() {
+        let mut c = session();
+        let ok = |v: &Value| v["ok"].clone();
+        let (blob, dig) = ("aa".repeat(32), "bb".repeat(32));
+        c(
+            json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"sender_open","blobId":blob,"digest":dig,"total":40000}}),
+        );
+        c(
+            json!({"cmd":"lan_transfer_do","side":"receiver","handle":"t","op":{"kind":"receiver_open","total":40000,"restoredOffset":null}}),
+        );
+        let mut off = 0u64;
+        loop {
+            let r = ok(&c(
+                json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"next_chunk"}}),
+            ));
+            if r["chunk"].is_null() {
+                break;
+            }
+            let len = r["chunk"]["len"].as_u64().unwrap();
+            assert_eq!(r["chunk"]["offset"], off);
+            let a = ok(&c(
+                json!({"cmd":"lan_transfer_do","side":"receiver","handle":"t","op":{"kind":"accept","offset":off,"len":len}}),
+            ));
+            off += len;
+            assert_eq!(a["acknowledged"], off);
+        }
+        assert_eq!(off, 40000);
+        c(
+            json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"transport_ack","upTo":40000}}),
+        );
+        let v = ok(&c(
+            json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"view"}}),
+        ));
+        assert_eq!(v["confirmed"], false);
+        let rc = |auth: bool, d: &str| json!({"cmd":"lan_transfer_do","side":"sender","handle":"t","op":{"kind":"receipt","authenticated":auth,"blobId":blob,"digest":d,"length":40000}});
+        assert_eq!(
+            ok(&c(rc(false, &dig))),
+            json!({"refused": "receipt_not_authenticated"})
+        );
+        assert_eq!(
+            ok(&c(rc(true, &"cc".repeat(32)))),
+            json!({"refused": "receipt_mismatch"})
+        );
+        assert_eq!(ok(&c(rc(true, &dig))), json!({"done": true}));
+        let bad = ok(&c(
+            json!({"cmd":"lan_transfer_do","side":"receiver","handle":"t","op":{"kind":"accept","offset":1,"len":5}}),
+        ));
+        assert!(bad["refused"] == "bad_chunk" || bad["refused"] == "overrun");
+    }
+
+    #[test]
+    fn a_space_binding_needs_an_official_link_and_dies_with_the_unlink() {
+        let mut c = session();
+        let ok = |v: &Value| v["ok"].clone();
+        let create = |caps: Value| json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"create_binding","spaceId":"aa".repeat(32),"governance":[{"kind":1,"id":"01".repeat(32)}],"capabilities":caps,"freshnessBound":60,"acceptsSubdelegation":false}});
+        assert_eq!(
+            ok(&c(create(json!(["room.remove_member"])))),
+            json!({"refused": "unknown_handle"})
+        );
+        c(json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"propose"}}));
+        assert_eq!(
+            ok(&c(create(json!(["room.remove_member"])))),
+            json!({"refused": "link_not_official"})
+        );
+        let v = ok(&c(
+            json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"child_accepts"}}),
+        ));
+        assert_eq!(v["official"], true);
+        assert_eq!(
+            ok(&c(create(json!(["room.manage_governance"])))),
+            json!({"refused": "binding_protected"})
+        );
+        assert_eq!(
+            ok(&c(create(json!([])))),
+            json!({"refused": "empty_capabilities"})
+        );
+        assert_eq!(
+            ok(&c(create(json!(["room.remove_member"])))),
+            json!({"done": true})
+        );
+        let v = ok(&c(
+            json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"unlink"}}),
+        ));
+        assert_eq!(
+            (v["official"].clone(), v["bound"].clone()),
+            (json!(false), json!(false))
+        );
+        // Re-accepting does not restore the binding.
+        let v = ok(&c(
+            json!({"cmd":"space_binding_do","handle":"s","op":{"kind":"child_accepts"}}),
+        ));
+        assert_eq!(v["bound"], false);
+    }
 }

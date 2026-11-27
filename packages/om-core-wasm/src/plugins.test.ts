@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Replay the ADR-0266 control corpus and the policy cases in crates/om-core/tests/plugin_adversarial.rs.
 // Build the engineering module with pnpm --filter @om/core-wasm build:wasm:scope before running this suite.
+import type { ProfileExecutionContext } from "@om/platform-api";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -193,7 +194,10 @@ describe.skipIf(!existsSync(wasm))("plugin host and control through scope-engine
   let pluginRegistry: PluginRegistry;
 
   beforeAll(async () => {
-    plugins = createPluginEngines(await instantiateCore(readFileSync(wasm)));
+    const core = await instantiateCore(readFileSync(wasm));
+    core.call({ cmd: "init", home: { tier: "none", observers: ["no_third_party"], migrationAvailable: false, clientOriginChoice: ["default_origin"] } });
+    const ctx = core.call({ cmd: "open_profile", profileId: "plugin-test", records: [] }) as ProfileExecutionContext;
+    plugins = createPluginEngines(core, ctx);
     pluginRegistry = plugins.registry();
   });
 

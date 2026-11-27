@@ -154,7 +154,7 @@ export interface ReplyView {
 export interface ReactionView { readonly key: string; readonly count: number; readonly mine: boolean }
 /** A mention in a message text: a code-point range, the person (hex AccountID) and whether it names us (ADR-0222). */
 export interface MentionView { readonly start: number; readonly end: number; readonly accountId: string; readonly me?: boolean }
-interface TimelineExtras { readonly mentions?: readonly MentionView[]; readonly readOnly?: boolean; readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
+interface TimelineExtras { /** Local export classification, when Core holds the original retention basis. */ readonly retention?: "ordinary" | "disappearing" | "view_once"; readonly mentions?: readonly MentionView[]; readonly readOnly?: boolean; readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
 
 export type ConversationTimelineItem =
   | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)

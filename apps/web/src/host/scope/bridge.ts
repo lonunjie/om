@@ -32,20 +32,17 @@ export interface BridgeServiceOptions {
   readonly engines: Pick<ScopeEngines, "bridgeRoom" | "roomControl">;
   readonly authority?: RoomAuthority;
   readonly pending: PendingStore;
-  /** Monotonic runtime time, in the same units as the scope engine's Room observations. */
-  readonly now: () => number;
-  /** The Room's configured bridge head freshness bound. Unknown bounds leave head freshness unverified. */
-  readonly freshnessBoundMs?: number;
+
 }
 
-/** The scope module's bridge handles are otherwise shared across profiles. Use the same handle when opening a Room. */
+/** Room address for the scoped command boundary. */
 export function bridgeRoomHandle(profileId: ProfileId, conversationId: ConversationId): string {
   return JSON.stringify([profileId, conversationId]);
 }
 
 const directions: Readonly<Partial<Record<number, BridgeDirection>>> = { 1: "outbound", 2: "inbound", 3: "both" };
 // The event_kind registry in spec/registries/om-numeric-fields.json.
-const eventClasses: readonly BridgeEventClass[] = [
+export const roomEventClasses: readonly BridgeEventClass[] = [
   "message.create", "message.edit", "message.delete", "reaction.set", "receipt.update", "pin.set",
   "moderation.redact", "poll.create", "poll.vote", "poll.close", "topic.create", "topic.update",
   "topic.status.set", "message.topic.set", "group.invite", "group.accept", "group.decline", "group.rejoin_request",
@@ -65,6 +62,7 @@ const refusalReasons: Readonly<Partial<Record<string, RejectReason>>> = {
   stale_target: "stale_state",
   too_early: "stale_state",
   too_many_offers: "quota",
+  unverified_head: "stale_state",
   unknown_handle: "unavailable",
   wrong_service: "invalid",
 };
@@ -96,12 +94,11 @@ async function operationId(profileId: ProfileId, conversationId: ConversationId,
 }
 
 function mappingState(
-  bridge: BridgeListing, head: RoomControlEntry | undefined, freshnessBoundMs: number | undefined,
+  bridge: BridgeListing, head: RoomControlEntry | undefined,
 ): BridgeMappingState {
   if (bridge.mapping?.active !== true) return "revoked";
   if (head?.frozen) return "endpoint_stopped";
-  if (!reviewSupported(bridge.mapping) || head?.headVersion == null || freshnessBoundMs === undefined ||
-      !Number.isFinite(freshnessBoundMs) || head.observedAgeMs > freshnessBoundMs ||
+  if (!reviewSupported(bridge.mapping) || bridge.headFresh !== true || head?.headVersion == null ||
       head.headVersion !== bridge.heldVersion) return "stale";
   const installedEndpoints = bridge.endpoints ?? [];
   return head.endpoints.some((endpoint) => endpoint.usable && installedEndpoints.includes(endpoint.id))
@@ -115,8 +112,8 @@ function matchesEffect(bridges: readonly BridgeListing[], operation: PendingBrid
 }
 
 function reviewSupported(mapping: BridgeListing["mapping"]): boolean {
-  return mapping != null && directions[mapping.direction] !== undefined &&
-    mapping.allowedClasses.every((code) => eventClasses[code - 1] !== undefined);
+  return mapping != null && mapping.foreignScope.length > 0 && directions[mapping.direction] !== undefined &&
+    mapping.allowedClasses.every((code) => roomEventClasses[code - 1] !== undefined);
 }
 
 function validIntentKind(kind: string): boolean {
@@ -124,14 +121,13 @@ function validIntentKind(kind: string): boolean {
 }
 
 export function createBridgeService({
-  ctx: inputCtx, engines, authority = denyAll, pending, now, freshnessBoundMs,
+  ctx: inputCtx, engines, authority = denyAll, pending,
 }: BridgeServiceOptions): BridgeService {
   const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
 
   function read(conversationId: ConversationId) {
-    // This contextual read validates the generation before touching the unscoped handle API.
     const { entries } = engines.roomControl.view(ctx, conversationId);
-    const listed = engines.bridgeRoom.list(bridgeRoomHandle(ctx.profileId, conversationId));
+    const listed = engines.bridgeRoom.list(bridgeRoomHandle(ctx.profileId, conversationId), ctx);
     if ("refused" in listed) throw new Error("Bridge Room view unavailable");
     return { bridges: listed.bridges, heads: new Map(entries.filter((entry) => entry.kind === "bridge").map((entry) => [entry.id, entry])) };
   }
@@ -147,7 +143,7 @@ export function createBridgeService({
     return operation;
   }
 
-  function view(conversationId: ConversationId, room: Room, outcome: OutcomeClass | null): BridgeRoomView {
+  function view(conversationId: ConversationId, room: Room, outcome: OutcomeClass | null, busy = outcome?.kind === "PendingReconciliation"): BridgeRoomView {
     const allowed = authority.capabilities(ctx, conversationId).includes(bridgeCapability);
     const bridges = room.bridges.map((bridge): BridgeEntryView => {
       const { membership, target, mapping } = bridge;
@@ -155,24 +151,25 @@ export function createBridgeService({
       const kind = membership === "proposed" ? "admit" : "remove";
       const action = membership === "removed" || target === null ? null
         : !allowed ? { availability: "blocked", kind, reason: "unauthorized" } as const
-        : outcome?.kind === "PendingReconciliation" ? null
+        : busy ? null
         : kind === "admit" && !reviewSupported(mapping) ? { availability: "blocked", kind, reason: "unsupported" } as const
         : { availability: "ready", intent: { kind, target } } as const;
       const direction = mapping == null ? undefined : directions[mapping.direction];
-      const state = mappingState(bridge, room.heads.get(bridge.bridge), freshnessBoundMs);
+      const state = mappingState(bridge, room.heads.get(bridge.bridge));
       const mappings = mapping == null || direction === undefined || target === null ? [] : [{
-        // The scoped listing currently carries only the network namespace.
-        id: target, network: mapping.namespace, scope: "—", direction,
-        exportedClasses: direction === "inbound" || (membership === "member" && state !== "active") ? []
+        id: target, network: mapping.namespace, scope: mapping.foreignScope, direction,
+        exportedClasses: direction === "inbound" ? []
           : mapping.allowedClasses.flatMap((code) => {
-            const name = eventClasses[code - 1];
+            const name = roomEventClasses[code - 1];
             return name === undefined ? [] : [name];
           }),
         externalClaim: bridge.externalClaim ?? null,
       }];
+      const reported = bridge.approversReportedAtProposal;
+      const facts = { principal, action, ...(reported === undefined ? {} : { approversReported: reported }) };
       return membership === "member"
-        ? { principal, membership, action, mappings: mappings.map((item) => ({ ...item, state })) }
-        : { principal, membership, action, mappings };
+        ? { ...facts, membership, mappings: mappings.map((item) => ({ ...item, state })) }
+        : { ...facts, membership, mappings };
     });
     return { bridges, outcome };
   }
@@ -187,8 +184,8 @@ export function createBridgeService({
       const input = { bridge: operation.bridge, target: operation.intent.target };
       try {
         const result = operation.intent.kind === "admit"
-          ? engines.bridgeRoom.admitOffer(handle, caps, { ...input, now: now() })
-          : engines.bridgeRoom.removeMember(handle, caps, input);
+          ? engines.bridgeRoom.admitOffer(handle, caps, input, ctx)
+          : engines.bridgeRoom.removeMember(handle, caps, input, ctx);
         if ("refused" in result) outcome = rejected(refusalReasons[result.refused] ?? "unavailable");
       } catch {
         // The command may have applied before the response was lost.
@@ -207,7 +204,11 @@ export function createBridgeService({
         outcome = reconciling;
       }
     }
-    return view(conversationId, room, outcome);
+    try {
+      return view(conversationId, room, outcome);
+    } catch {
+      return { bridges: [], outcome };
+    }
   }
 
   return {
@@ -219,32 +220,45 @@ export function createBridgeService({
     change(conversationId, { kind, target }) {
       const intent: BridgeIntent = { kind, target };
       return inRoom(pending, bridgeRoomHandle(ctx.profileId, conversationId), async () => {
-        const existing = await loadPending(conversationId);
-        let room = read(conversationId);
-        if (existing !== null) return reconcile(conversationId, room, existing);
-
-        if (!validIntentKind(kind)) return view(conversationId, room, rejected("invalid"));
-        const membership = kind === "admit" ? "proposed" : "member";
-        const bridge = room.bridges.find((entry) => entry.target === target && entry.membership === membership);
-        if (bridge === undefined) return view(conversationId, room, rejected("stale_state"));
-        if (!authority.capabilities(ctx, conversationId).includes(bridgeCapability)) {
-          return view(conversationId, room, rejected("unauthorized"));
-        }
-        if (kind === "admit" && !reviewSupported(bridge.mapping)) {
-          return view(conversationId, room, rejected("unsupported"));
-        }
-
-        const id = await operationId(ctx.profileId, conversationId, intent);
-        const operation = { id, conversationId, bridge: bridge.bridge, intent };
-        const owned = await pending.reserve(ctx.profileId, operation);
+        let fallback = rejected("unavailable");
         try {
-          room = read(conversationId);
+          if (!validIntentKind(kind)) return { bridges: [], outcome: rejected("invalid") };
+          const id = await operationId(ctx.profileId, conversationId, intent);
+          const existing = await loadPending(conversationId);
+          if (existing?.id === id) fallback = reconciling;
+          else if (existing !== null) fallback = rejected("conflict");
+          const room = read(conversationId);
+          if (existing !== null) {
+            return existing.id === id ? await reconcile(conversationId, room, existing)
+              : view(conversationId, room, fallback, true);
+          }
+
+          const membership = kind === "admit" ? "proposed" : "member";
+          const bridge = room.bridges.find((entry) => entry.target === target && entry.membership === membership);
+          if (bridge === undefined) return view(conversationId, room, rejected("stale_state"));
+          if (!authority.capabilities(ctx, conversationId).includes(bridgeCapability)) {
+            return view(conversationId, room, rejected("unauthorized"));
+          }
+          if (kind === "admit" && !reviewSupported(bridge.mapping)) {
+            return view(conversationId, room, rejected("unsupported"));
+          }
+
+          const operation = { id, conversationId, bridge: bridge.bridge, intent };
+          fallback = reconciling;
+          if (await pending.reserve(ctx.profileId, operation)) {
+            return await reconcile(conversationId, read(conversationId), operation);
+          }
+          fallback = rejected("unavailable");
+          const winner = await loadPending(conversationId);
+          if (winner?.id === id) {
+            fallback = reconciling;
+            return await reconcile(conversationId, read(conversationId), winner);
+          }
+          if (winner !== null) fallback = rejected("conflict");
+          return view(conversationId, room, fallback, winner !== null);
         } catch {
-          return view(conversationId, room, reconciling);
+          return { bridges: [], outcome: fallback };
         }
-        // A different host may have reserved the Room while the digest or store write was pending.
-        if (!owned) return view(conversationId, room, reconciling);
-        return reconcile(conversationId, room, operation);
       });
     },
   };

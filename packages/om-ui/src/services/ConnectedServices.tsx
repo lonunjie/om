@@ -144,6 +144,19 @@ function EntryFacts({
           </ul>
         )}
       </dd>
+      {entry.status === "offered" && entry.triggerClasses !== undefined ? (
+        <>
+          <dt>{copy.triggerClasses}</dt>
+          <dd>
+            {entry.triggerClasses === null ? copy.noTriggerFilter : (
+              <ul>
+                {entry.triggerClasses.map((event) => <li key={event}>{copy.eventClass[event]}</li>)}
+              </ul>
+            )}
+            <p>{copy.triggerFilter}</p>
+          </dd>
+        </>
+      ) : null}
       {entry.status === "offered" ? null : (
         <>
           <dt>{copy.access}</dt>

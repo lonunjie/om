@@ -53,17 +53,18 @@ pub enum Blocked {
     EndpointStopped,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Mapping {
     pub incarnation: [u8; 16],
     pub namespace: String,
+    pub foreign_scope: String,
     pub direction: u64,
     pub allowed_classes: BTreeSet<u8>,
     pub active: bool,
 }
 
 /// A proposed bridge (ADR-0270): host-supplied observation, never authority.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Offer {
     pub head: BridgeState,
     pub mapping: Mapping,
@@ -99,7 +100,7 @@ pub fn clean_text(s: &str, max: usize) -> String {
     s.chars()
         .filter(|c| {
             !c.is_control()
-                && !matches!(*c, '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+                && !matches!(*c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
         })
         .take(max)
         .collect()
@@ -113,6 +114,8 @@ pub fn review_target(bridge: &[u8; 32], m: &Mapping) -> [u8; 32] {
     h.update(m.incarnation);
     h.update((m.namespace.len() as u64).to_be_bytes());
     h.update(m.namespace.as_bytes());
+    h.update((m.foreign_scope.len() as u64).to_be_bytes());
+    h.update(m.foreign_scope.as_bytes());
     h.update(m.direction.to_be_bytes());
     for c in &m.allowed_classes {
         h.update([*c]);
@@ -123,6 +126,9 @@ pub fn review_target(bridge: &[u8; 32], m: &Mapping) -> [u8; 32] {
 pub struct BridgeRoom {
     offers: BTreeMap<[u8; 32], Offer>,
     removed: BTreeMap<[u8; 32], [u8; 32]>,
+    retired_incarnations: BTreeSet<([u8; 32], [u8; 16])>,
+    superseded_targets: BTreeSet<[u8; 32]>,
+    admitted_offers: BTreeMap<[u8; 32], Offer>,
     members: RoomServices,
     mappings: BTreeMap<[u8; 32], Mapping>,
     endpoints: BTreeMap<[u8; 32], BTreeSet<Vec<u8>>>,
@@ -144,6 +150,9 @@ impl BridgeRoom {
         Self {
             offers: BTreeMap::new(),
             removed: BTreeMap::new(),
+            retired_incarnations: BTreeSet::new(),
+            superseded_targets: BTreeSet::new(),
+            admitted_offers: BTreeMap::new(),
             members: RoomServices::new(quorum, sequencing_timeout),
             mappings: BTreeMap::new(),
             endpoints: BTreeMap::new(),
@@ -163,6 +172,12 @@ impl BridgeRoom {
     ) -> Result<(), BridgeRoomError> {
         if !matches!(mapping.direction, TO_FOREIGN | TO_OM | BOTH) {
             return Err(BridgeRoomError::BadDirection);
+        }
+        if self
+            .retired_incarnations
+            .contains(&(head.service_id, mapping.incarnation))
+        {
+            return Err(BridgeRoomError::Room(RoomError::Rollback));
         }
         if mapping.allowed_classes.is_empty() {
             return Err(BridgeRoomError::EmptyClasses);
@@ -193,17 +208,24 @@ impl BridgeRoom {
 
     /// The Room validated a newer bridge control head.
     pub fn observe_head(&mut self, head: &BridgeState, now: u64) -> Result<(), BridgeRoomError> {
+        let previous = self.members.held_head(&head.service_id);
         self.members
             .observe_head(head, now)
             .map_err(BridgeRoomError::Room)?;
-        self.observed_at.insert(head.service_id, now);
+        if self.members.held_head(&head.service_id) != previous {
+            self.observed_at.insert(head.service_id, now);
+        }
         Ok(())
     }
 
     /// Places a proposed bridge in the Room (ADR-0270). A new offer replaces an earlier one for the same bridge.
     pub fn propose(&mut self, mut offer: Offer) -> Result<[u8; 32], OfferError> {
         let id = offer.head.service_id;
-        if self.mappings.contains_key(&id) {
+        if self.mappings.contains_key(&id)
+            || self
+                .retired_incarnations
+                .contains(&(id, offer.mapping.incarnation))
+        {
             return Err(OfferError::Malformed);
         }
         if !matches!(offer.mapping.direction, TO_FOREIGN | TO_OM | BOTH)
@@ -214,6 +236,14 @@ impl BridgeRoom {
         if !self.offers.contains_key(&id) && self.offers.len() >= MAX_OFFERS {
             return Err(OfferError::TooMany);
         }
+        if [&offer.mapping.namespace, &offer.mapping.foreign_scope]
+            .iter()
+            .any(|text| {
+                text.trim().is_empty() || clean_text(text, CLAIM_MAX).as_str() != text.as_str()
+            })
+        {
+            return Err(OfferError::Malformed);
+        }
         offer.name = clean_text(&offer.name, NAME_MAX);
         offer.external_claim = offer
             .external_claim
@@ -221,16 +251,37 @@ impl BridgeRoom {
             .filter(|c| !c.is_empty());
         offer.mapping.active = true;
         let t = review_target(&id, &offer.mapping);
+        if self.superseded_targets.contains(&t) {
+            return Err(OfferError::StaleTarget);
+        }
+        if let Some(old) = self.offers.get(&id) {
+            let old_target = review_target(&id, &old.mapping);
+            if old_target == t {
+                return if *old == offer {
+                    Ok(t)
+                } else {
+                    Err(OfferError::StaleTarget)
+                };
+            }
+            self.superseded_targets.insert(old_target);
+        }
         self.offers.insert(id, offer);
         Ok(t)
     }
 
     pub fn withdraw_offer(&mut self, bridge: &[u8; 32]) -> bool {
-        self.offers.remove(bridge).is_some()
+        let Some(offer) = self.offers.remove(bridge) else {
+            return false;
+        };
+        self.superseded_targets
+            .insert(review_target(bridge, &offer.mapping));
+        true
     }
 
     pub fn offer(&self, bridge: &[u8; 32]) -> Option<&Offer> {
-        self.offers.get(bridge)
+        self.offers
+            .get(bridge)
+            .or_else(|| self.admitted_offers.get(bridge))
     }
 
     /// Every bridge the Room can show, in id order, with its membership.
@@ -272,9 +323,11 @@ impl BridgeRoom {
             return Err(OfferError::StaleTarget);
         }
         let o = o.clone();
-        self.admit(caps, &o.head, o.mapping, &o.approvers, now)
+        // Reported approvers are display evidence only.
+        self.admit(caps, &o.head, o.mapping.clone(), &[], now)
             .map_err(OfferError::Room)?;
         self.offers.remove(bridge);
+        self.admitted_offers.insert(*bridge, o);
         self.removed.remove(bridge);
         Ok(())
     }
@@ -306,7 +359,11 @@ impl BridgeRoom {
             .members
             .remove_installation(&as_install(caps), bridge)
             .map_err(BridgeRoomError::Room)?;
-        self.mappings.remove(bridge);
+        if let Some(mapping) = self.mappings.remove(bridge) {
+            self.retired_incarnations
+                .insert((*bridge, mapping.incarnation));
+        }
+        self.admitted_offers.remove(bridge);
         self.endpoints.remove(bridge);
         self.observed_at.remove(bridge);
         Ok(gone)
@@ -346,14 +403,22 @@ impl BridgeRoom {
         if self.members.must_stop_sending(bridge, endpoint) {
             return Err(Blocked::EndpointStopped);
         }
-        let seen = self.observed_at.get(bridge).copied().unwrap_or(0);
-        if now > seen.saturating_add(self.freshness_bound) {
+        if !self
+            .observed_at
+            .get(bridge)
+            .and_then(|seen| now.checked_sub(*seen))
+            .is_some_and(|age| self.is_fresh(age))
+        {
             return Err(Blocked::StaleMapping);
         }
         if !m.allowed_classes.contains(&class) {
             return Err(Blocked::ClassNotAllowed);
         }
         Ok(())
+    }
+
+    pub fn is_fresh(&self, age: u64) -> bool {
+        age <= self.freshness_bound
     }
 
     pub fn members(&self) -> &RoomServices {

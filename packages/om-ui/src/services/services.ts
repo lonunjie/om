@@ -1,3 +1,4 @@
+import type { BridgeEventClass } from "../bridges/bridges";
 // SPDX-License-Identifier: MPL-2.0
 import type {
   ConversationId,
@@ -71,6 +72,7 @@ export interface ServiceEntryView {
   /** Requested capabilities on an offer and effective capabilities on an installation. */
   readonly capabilities: readonly ServiceCapabilityView[];
   readonly readAccess: ServiceReadAccess;
+  readonly triggerClasses?: readonly BridgeEventClass[] | null;
   readonly installedBy?: {
     readonly name: string;
     readonly device: string;

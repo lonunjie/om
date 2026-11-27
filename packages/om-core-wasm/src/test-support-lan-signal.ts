@@ -22,7 +22,7 @@ async function boot(provider: MemoryProvider, id: ProfileId): Promise<Party> {
   const kv = createMemoryKv();
   const rt = await createCoreRuntime({ core, provider, storage: () => kv, home: HOME, autoDrain: false, retryMs: 0 });
   const ctx = await rt.openProfile(id);
-  return { core, engines: createScopeEngines(core), flush: () => rt.flush(id), rt, ctx, id };
+  return { core, engines: createScopeEngines(core, ctx), flush: () => rt.flush(id), rt, ctx, id };
 }
 
 export async function settle(...ps: Party[]): Promise<void> {

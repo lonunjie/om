@@ -5779,6 +5779,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0276-engineering-conformance-resolution.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -12968,7 +12975,7 @@
       "authority": "product_implementation"
     },
     {
-      "path": "packages/om-ui/src/conversations/Nearby.tsx",
+      "path": "packages/om-ui/src/conversations/NearbyRow.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

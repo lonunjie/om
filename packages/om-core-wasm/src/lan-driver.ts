@@ -67,7 +67,8 @@ export function createLanSender(o: LanSenderOptions): LanSender {
       const opened = lt.openSender(o.handle, { blobId: o.blobId, digest: o.digest, total: o.total });
       if ("refused" in opened) throw new Error(opened.refused);
       if (resumeFrom > 0) {
-        o.core.call({ cmd: "lan_transfer_do", side: "sender", handle: o.handle, op: { kind: "resume_from", receiverOffset: resumeFrom } });
+        const resumed = lt.resumeSender(o.handle, resumeFrom);
+        if ("refused" in resumed) throw new Error(resumed.refused);
         sentTotal = resumeFrom;
       }
       o.channel.send(frame(o.core, { kind: "begin", transferId: o.transferId, objectKind: o.objectKind, totalBytes: o.total, sha256: o.digest }));
@@ -80,7 +81,8 @@ export function createLanSender(o: LanSenderOptions): LanSender {
         pump();
       } else if (f.kind === "receipt" && f.transferId === o.transferId && f.tag !== undefined) {
         lt.receipt(o.handle, { authenticated: o.verifyReceipt(f.tag), blobId: o.blobId, digest: o.digest, length: o.total });
-        confirmed = (o.core.call({ cmd: "lan_transfer_do", side: "sender", handle: o.handle, op: { kind: "view" } }) as { confirmed: boolean }).confirmed;
+        const view = lt.senderView(o.handle);
+        confirmed = "confirmed" in view && view.confirmed;
       }
       // Anything else (a refused or unexpected frame) is ignored: a peer cannot move the sender with a frame it cannot form.
     },
@@ -125,7 +127,8 @@ export function createLanReceiver(o: LanReceiverOptions): LanReceiver {
       if (f.kind === "begin" && f.transferId !== undefined && f.totalBytes !== undefined) {
         transferId = f.transferId;
         digest = (f as { sha256?: string }).sha256 ?? "";
-        lt.openReceiver(o.handle, f.totalBytes, o.storedOffset > 0 ? o.storedOffset : undefined);
+        const opened = lt.openReceiver(o.handle, f.totalBytes, o.storedOffset > 0 ? o.storedOffset : undefined);
+        if ("refused" in opened) return;
         ack();
       } else if (f.kind === "chunk" && f.transferId === transferId && f.offset !== undefined && f.bytes !== undefined) {
         const data = fromHex(f.bytes);
@@ -135,8 +138,8 @@ export function createLanReceiver(o: LanReceiverOptions): LanReceiver {
         acknowledged = r.acknowledged;
         ack();
       } else if (f.kind === "end" && f.transferId === transferId) {
-        const view = o.core.call({ cmd: "lan_transfer_do", side: "receiver", handle: o.handle, op: { kind: "view" } }) as { complete: boolean };
-        if (view.complete && o.digestMatches(digest)) {
+        const view = lt.receiverView(o.handle);
+        if ("complete" in view && view.complete && o.digestMatches(digest)) {
           complete = true;
           o.channel.send(frame(o.core, { kind: "receipt", transferId, tag: o.receiptTag(transferId) }));
         }

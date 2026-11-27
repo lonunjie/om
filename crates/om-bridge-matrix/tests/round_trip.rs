@@ -218,6 +218,7 @@ impl Peer {
             Mapping {
                 incarnation: policy.incarnation,
                 namespace: NAMESPACE.into(),
+                foreign_scope: "scope".into(),
                 allowed_classes: [1, 2, 3, 4, 8].into(),
                 direction: BOTH,
                 active: true,

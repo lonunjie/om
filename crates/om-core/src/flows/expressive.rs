@@ -407,6 +407,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             kind,
             body,
             digest: [0; 32],
+            has_expiry: false,
             extensions: None,
         };
         social::apply_direct_mutation(rel, &ev, true);

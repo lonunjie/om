@@ -129,6 +129,8 @@ export const testCopy: PortabilityCopy = {
       provenance: "Source information kept",
       local_preferences: "Bookmarks, pins and preferences kept",
       canonical_evidence: "Original message evidence kept",
+      canonical_evidence_absent: "This export contains no original message evidence.",
+      retention_unclassified: "Messages omitted because their keep or delete settings are unknown",
       outside_scope: "Items outside your selection",
       private_material: "Private account material left out",
       view_once: "View-once items left out",

@@ -32,6 +32,8 @@ export interface BridgeCopy {
   readonly membership: Readonly<Record<BridgeEntryView["membership"], string>>;
   readonly mapping: Readonly<Record<BridgeMappingState, string>>;
   readonly principal: string;
+  readonly approversAtInstall: string;
+  readonly approversAtProposal: string;
   readonly network: string;
   readonly scope: string;
   readonly directionLabel: string;

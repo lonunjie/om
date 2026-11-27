@@ -56,7 +56,7 @@ export interface BridgeMappingView {
   readonly network: string;
   readonly scope: string;
   readonly direction: BridgeDirection;
-  /** Effective export classes reported by Core. Empty when there is no export in this mapping. */
+  /** Classes configured for export. Mapping state describes whether export is active. */
   readonly exportedClasses: readonly BridgeEventClass[];
   /** An advertised claim about the external leg, or null when no claim is known. */
   readonly externalClaim: string | null;
@@ -79,6 +79,7 @@ type BridgeAction =
 export type BridgeEntryView = {
   readonly principal: BridgePrincipalView;
   readonly action: BridgeAction | null;
+  readonly approversReported?: number;
 } & (
   | {
       readonly membership: "proposed" | "removed";

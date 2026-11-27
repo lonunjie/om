@@ -1832,6 +1832,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             ext: ext23.as_ref().map(|x| hex(&cbor::encode(x))),
             lane: false,
             social: Social {
+                retention: Some(HistoryRetention::Ordinary),
                 reply_to: reply_id.map(|r| hex(&r)),
                 mentions: mentions
                     .iter()
@@ -4556,6 +4557,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     ext: parts.ext,
                     lane: false,
                     social: Social {
+                        retention: Some(ev.history_retention()),
                         reply_to: parts.reply_to,
                         mentions: parts.mentions,
                         inline_assets: parts.inline_assets,

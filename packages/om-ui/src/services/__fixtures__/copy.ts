@@ -1,3 +1,4 @@
+import { bridgeTestCopy } from "../../bridges/__fixtures__/copy";
 // SPDX-License-Identifier: MPL-2.0
 import { createElement, Fragment } from "react";
 import type { ServicesCopy } from "../copy";
@@ -56,6 +57,9 @@ export const servicesCopy: ServicesCopy = {
   noRead: "This service has no read access here.",
   localRead: "This service can read the following on this device.",
   noLocalRead: "This service has no permission to read content on this device.",
+  triggerClasses: "Events that trigger the service",
+  noTriggerFilter: "No trigger filter",
+  eventClass: bridgeTestCopy.eventClass,
   triggerFilter:
     "The trigger filter only limits when the service acts. It can still read all Room content.",
   previouslyShared: "The service may keep anything it already received.",

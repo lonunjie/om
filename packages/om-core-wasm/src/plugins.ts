@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Typed commands for the engineering-only scope-engines module. The trusted host supplies verified facts and keeps
 // one host and grant table per installation. The control inputs are canonical CBOR bodies, in hex.
+import { captureProfileContext, type ProfileExecutionContext } from "@om/platform-api";
 import type { Done } from "./scope-engines";
 import type { WasmCore } from "./wasm";
 
@@ -104,8 +105,9 @@ function uint(n: PluginUint): number | string {
   return Number.isSafeInteger(n) ? n : "";
 }
 
-export function createPluginEngines(core: Pick<WasmCore, "call">): PluginEngines {
-  const q = <T>(request: Record<string, unknown>): T => core.call({ cmd: "plugins_do", request }) as T;
+export function createPluginEngines(core: Pick<WasmCore, "call">, inputCtx?: ProfileExecutionContext): PluginEngines {
+  const ctx = inputCtx && captureProfileContext(inputCtx.profileId, inputCtx.generation);
+  const q = <T>(request: Record<string, unknown>): T => core.call({ cmd: "plugins_do", request, ctx }) as T;
   const host = (handle: string, op: Record<string, unknown>) => q<never>({ engine: "host", handle, op });
   const chain = (handle: string, op: Record<string, unknown>) => q<never>({ engine: "chain", handle, op });
   const grants = (handle: string, op: Record<string, unknown>) => q<never>({ engine: "grants", handle, op });

@@ -3188,6 +3188,16 @@
       "amends": [],
       "index_title": "v1 rulings: the engineering host's export history is a projection read through Core queries (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0276",
+      "title": "Resolution for the engineering host conformance review",
+      "status": "Delegated resolution (additive). Independent review remains required.",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0276-engineering-conformance-resolution.md",
+      "amends": [],
+      "index_title": "Resolution: engineering host conformance (delegated; additive)",
+      "amended_by": []
     }
   ]
 }

@@ -1,3 +1,4 @@
+import type { BridgeCopy } from "../bridges/copy";
 // SPDX-License-Identifier: MPL-2.0
 import type {
   OutcomeClass,
@@ -45,6 +46,9 @@ export interface ServicesCopy {
   readonly localRead: string;
   readonly noLocalRead: string;
   readonly triggerFilter: string;
+  readonly triggerClasses: string;
+  readonly noTriggerFilter: string;
+  readonly eventClass: BridgeCopy["eventClass"];
   readonly previouslyShared: string;
   readonly addedBy: string;
   readonly addedFrom: string;

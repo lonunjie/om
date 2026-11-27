@@ -1576,6 +1576,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             ext: parts.ext,
             lane: false,
             social: Social {
+                retention: Some(ev.history_retention()),
                 reply_to: parts.reply_to,
                 inline_assets: parts.inline_assets,
                 ..Social::default()

@@ -7,7 +7,8 @@
 //! FFI, no raw key material or mutable internals exposed (ENGINEERING_REPOSITORY_LAYOUT.md "Core-to-UI API").
 //!
 //! Host imports (module `om_host`): `random_fill(ptr, len)` backed by `crypto.getRandomValues`, and
-//! `now_ms() -> f64` backed by `Date.now()` (display and expiry hints only, never authority).
+//! `now_ms() -> f64` backed by `Date.now()` (display and calendar expiry). The scoped artifact also imports
+//! `monotonic_ms() -> f64` for runtime observations and elapsed freshness.
 //! A panic aborts the instance; the host must treat a trapped instance as dead and re-open from storage.
 
 pub mod bridge;

@@ -38,6 +38,7 @@ const proposed: BridgeEntryView = {
   },
 };
 const member: BridgeEntryView = {
+  approversReported: 2,
   principal,
   membership: "member",
   mappings: [{ ...mapping, state: "active" }],
@@ -166,7 +167,8 @@ describe("Room bridge boundary", () => {
     );
     expect(within(sheet).getByText(copy.consequence.admit)).toBeTruthy();
     expect(within(sheet).getByText(copy.admissionBoundary)).toBeTruthy();
-    expect(within(sheet).getByText(mapping.scope)).toBeTruthy();
+    expect(within(sheet).getByText(mapping.scope).tagName).toBe("BDI");
+    expect(within(sheet).getByText(mapping.network).tagName).toBe("BDI");
     expect(await axeViolations(sheet)).toEqual([]);
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -211,6 +213,7 @@ describe("Room bridge boundary", () => {
       .mockResolvedValueOnce(view(removed, { kind: "Committed" }));
     render(<BridgeRoom conversationId={room} service={service} copy={copy} />);
     const sheet = within(await openReview(user));
+    expect(sheet.getByText(copy.approversAtInstall)).toBeTruthy();
     expect(sheet.getByText(copy.consequence.remove)).toBeTruthy();
     await user.click(sheet.getByRole("button", { name: copy.action.remove }));
     expect(service.change.mock.calls).toEqual([

@@ -220,15 +220,24 @@ enum Command {
         policy: scope::EgressPolicyIn,
         name: String,
     },
+    /// Review a single exact disclosure against the engineering broker boundary.
+    #[cfg(feature = "scope-engines")]
+    ServiceInvocationReview {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+        disclosure: scope::ServiceDisclosure,
+    },
     /// Room topics engine for this bridge instance (one Room per profile bridge in the engineering artifact).
     #[cfg(feature = "scope-engines")]
     TopicsDo {
+        ctx: Option<ProfileExecutionContext>,
         caps: Vec<String>,
         actor: String,
         op: scope::TopicOp,
     },
     #[cfg(feature = "scope-engines")]
     ModerationDo {
+        ctx: Option<ProfileExecutionContext>,
         caps: Vec<String>,
         actor: String,
         op: scope::ModOp,
@@ -244,6 +253,7 @@ enum Command {
     },
     #[cfg(feature = "scope-engines")]
     LanFirstContact {
+        ctx: Option<ProfileExecutionContext>,
         step: scope::FirstContactStep,
     },
     #[cfg(feature = "scope-engines")]
@@ -255,6 +265,7 @@ enum Command {
     },
     #[cfg(feature = "scope-engines")]
     PluginsDo {
+        ctx: Option<ProfileExecutionContext>,
         request: serde_json::Value,
     },
     #[cfg(feature = "scope-engines")]
@@ -263,12 +274,14 @@ enum Command {
     },
     #[cfg(feature = "scope-engines")]
     BridgeRoomDo {
+        ctx: Option<ProfileExecutionContext>,
         room: String,
         caps: Vec<String>,
         op: scope::BridgeRoomOp,
     },
     #[cfg(feature = "scope-engines")]
     LanTransferDo {
+        ctx: Option<ProfileExecutionContext>,
         side: String,
         handle: String,
         op: scope::TransferOp,
@@ -358,15 +371,18 @@ enum Command {
     },
     #[cfg(feature = "scope-engines")]
     SpaceBindingDo {
+        ctx: Option<ProfileExecutionContext>,
         handle: String,
         op: scope::LinkOp,
     },
     #[cfg(feature = "scope-engines")]
     ModerationView {
+        ctx: Option<ProfileExecutionContext>,
         who: String,
     },
     #[cfg(feature = "scope-engines")]
     TopicsView {
+        ctx: Option<ProfileExecutionContext>,
         topic: Option<String>,
         message: Option<String>,
     },
@@ -1229,17 +1245,23 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     clock: Option<Box<dyn Fn() -> u64>>,
     core: Option<Core<R>>,
     #[cfg(feature = "scope-engines")]
-    topics: om_core::room_topics::RoomTopics,
+    topics: std::collections::BTreeMap<String, om_core::room_topics::RoomTopics>,
     #[cfg(feature = "scope-engines")]
-    moderation: om_core::room_moderation::RoomModeration,
+    moderation: std::collections::BTreeMap<String, om_core::room_moderation::RoomModeration>,
     #[cfg(feature = "scope-engines")]
-    first_contact: om_core::lan_first_contact::FirstContact,
+    first_contact: std::collections::BTreeMap<String, om_core::lan_first_contact::FirstContact>,
     #[cfg(feature = "scope-engines")]
-    handles: scope::Handles,
+    handles: std::collections::BTreeMap<String, scope::Handles>,
+    #[cfg(all(test, feature = "scope-engines"))]
+    test_only_handles: Option<scope::Handles>,
+    #[cfg(feature = "scope-engines")]
+    runtime_clock: Option<Box<dyn Fn() -> Option<u64>>>,
+    #[cfg(feature = "scope-engines")]
+    last_runtime_ms: Option<u64>,
     #[cfg(feature = "scope-engines")]
     community_handles: communities::Handles,
     #[cfg(feature = "scope-engines")]
-    plugin_handles: crate::plugins::Handles,
+    plugin_handles: std::collections::BTreeMap<String, crate::plugins::Handles>,
 }
 
 impl<R: RngCore + CryptoRng> Bridge<R> {
@@ -1256,11 +1278,77 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             first_contact: Default::default(),
             #[cfg(feature = "scope-engines")]
             handles: Default::default(),
+            #[cfg(all(test, feature = "scope-engines"))]
+            test_only_handles: None,
+            #[cfg(feature = "scope-engines")]
+            runtime_clock: None,
+            #[cfg(feature = "scope-engines")]
+            last_runtime_ms: None,
             #[cfg(feature = "scope-engines")]
             community_handles: Default::default(),
             #[cfg(feature = "scope-engines")]
             plugin_handles: Default::default(),
         }
+    }
+
+    #[cfg(feature = "scope-engines")]
+    pub(crate) fn with_runtime_clock(mut self, clock: impl Fn() -> Option<u64> + 'static) -> Self {
+        self.runtime_clock = Some(Box::new(clock));
+        self
+    }
+
+    #[cfg(all(test, feature = "scope-engines"))]
+    fn with_test_only_scope_reducers(mut self) -> Self {
+        self.test_only_handles = Some(scope::Handles::default());
+        self
+    }
+
+    #[cfg(feature = "scope-engines")]
+    fn runtime_now(&mut self) -> Result<u64, CoreError> {
+        let now = self
+            .runtime_clock
+            .as_ref()
+            .and_then(|clock| clock())
+            .filter(|&now| self.last_runtime_ms.is_none_or(|last| now >= last))
+            .ok_or(CoreError::Invalid("monotonic clock unavailable"))?;
+        self.last_runtime_ms = Some(now);
+        Ok(now)
+    }
+
+    #[cfg(feature = "scope-engines")]
+    fn clear_scope_profile(&mut self, profile: &str) {
+        self.community_handles.close_profile(profile);
+        self.handles.remove(profile);
+        self.plugin_handles.remove(profile);
+        self.topics.remove(profile);
+        self.moderation.remove(profile);
+        self.first_contact.remove(profile);
+    }
+
+    #[cfg(feature = "scope-engines")]
+    fn scope_profile(&mut self, ctx: Option<ProfileExecutionContext>) -> Result<String, CoreError> {
+        #[cfg(test)]
+        if ctx.is_none() && self.test_only_handles.is_some() {
+            return Ok(String::new());
+        }
+        let ctx = ctx.ok_or(CoreError::ProfileAccess("missing profile context"))?;
+        self.core()?.community_reader(&ctx)?;
+        Ok(ctx.profile_id)
+    }
+
+    #[cfg(feature = "scope-engines")]
+    fn scope_room(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        room: &str,
+    ) -> Result<Option<String>, CoreError> {
+        let Ok((profile, conversation)) = serde_json::from_str::<(String, String)>(room) else {
+            return Ok(None);
+        };
+        Ok(
+            (profile == ctx.profile_id && self.core()?.room_control_reader(ctx, &conversation)?)
+                .then_some(conversation),
+        )
     }
 
     /// Handle one request; always returns a JSON response, never panics on malformed input.
@@ -1353,11 +1441,16 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::OpenProfile {
                 profile_id,
                 records,
-            } => Ok(enc(&self.core()?.open_profile(&profile_id, &records)?)),
+            } => {
+                let ctx = self.core()?.open_profile(&profile_id, &records)?;
+                #[cfg(feature = "scope-engines")]
+                self.clear_scope_profile(&profile_id);
+                Ok(enc(&ctx))
+            }
             Command::CloseProfile { profile_id } => {
                 self.core()?.close_profile(&profile_id);
                 #[cfg(feature = "scope-engines")]
-                self.community_handles.close_profile(&profile_id);
+                self.clear_scope_profile(&profile_id);
                 Ok(Value::Null)
             }
             Command::ContextFor { profile_id } => {
@@ -1433,16 +1526,50 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 name,
             } => Ok(scope::broker_request(&granted, tainted, policy, &name)),
             #[cfg(feature = "scope-engines")]
-            Command::TopicsDo { caps, actor, op } => {
-                Ok(scope::topics_do(&mut self.topics, &caps, &actor, op))
+            Command::ServiceInvocationReview {
+                ctx,
+                conversation_id,
+                disclosure,
+            } => {
+                let core = self.core()?;
+                if !core.room_control_reader(&ctx, &conversation_id)? {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                }
+                Ok(scope::service_invocation_review(
+                    disclosure,
+                    core.wall_now_ms(),
+                ))
             }
             #[cfg(feature = "scope-engines")]
-            Command::ModerationDo { caps, actor, op } => Ok(scope::moderation_do(
-                &mut self.moderation,
-                &caps,
-                &actor,
+            Command::TopicsDo {
+                ctx,
+                caps,
+                actor,
                 op,
-            )),
+            } => {
+                let profile = self.scope_profile(ctx)?;
+                Ok(scope::topics_do(
+                    self.topics.entry(profile).or_default(),
+                    &caps,
+                    &actor,
+                    op,
+                ))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::ModerationDo {
+                ctx,
+                caps,
+                actor,
+                op,
+            } => {
+                let profile = self.scope_profile(ctx)?;
+                Ok(scope::moderation_do(
+                    self.moderation.entry(profile).or_default(),
+                    &caps,
+                    &actor,
+                    op,
+                ))
+            }
             #[cfg(feature = "scope-engines")]
             Command::SpaceDelegatedIntentCheck {
                 body,
@@ -1460,8 +1587,12 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 via_subdelegation,
             )),
             #[cfg(feature = "scope-engines")]
-            Command::LanFirstContact { step } => {
-                Ok(scope::first_contact(&mut self.first_contact, step))
+            Command::LanFirstContact { ctx, step } => {
+                let profile = self.scope_profile(ctx)?;
+                Ok(scope::first_contact(
+                    self.first_contact.entry(profile).or_default(),
+                    step,
+                ))
             }
             #[cfg(feature = "scope-engines")]
             Command::RoomServicesDo {
@@ -1470,50 +1601,106 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 ctx,
                 op,
             } => {
-                let controls = match (self.core.as_ref(), ctx.as_ref()) {
-                    (Some(core), Some(ctx)) if op.uses_control_head() => {
-                        let Ok((profile_id, conversation_id)) =
-                            serde_json::from_str::<(String, String)>(&room)
-                        else {
-                            return Ok(json!({ "refused": "malformed" }));
-                        };
-                        if profile_id != ctx.profile_id {
-                            return Ok(json!({ "refused": "not_authorized" }));
-                        }
-                        Some(core.room_control_view(ctx, &conversation_id)?)
-                    }
-                    (Some(_), None) | (None, Some(_)) if op.uses_control_head() => {
-                        return Ok(json!({ "refused": "unverified_head" }));
-                    }
-                    // A standalone engineering handle can exercise reducers over caller-validated facts.
-                    _ => None,
+                #[cfg(test)]
+                if ctx.is_none()
+                    && let Some(handles) = self.test_only_handles.as_mut()
+                {
+                    return Ok(scope::room_services_do(handles, &room, &caps, op, &[]));
+                }
+                let _ = caps; // Engineering handles have no authenticated capability source.
+                let Some(ctx) = ctx else {
+                    return Ok(json!({ "refused": "not_authorized" }));
                 };
+                let Some(conversation) = self.scope_room(&ctx, &room)? else {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                };
+                if op.needs_verified_authority() {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                }
+                let now = self.runtime_now()?;
+                let controls = self.core()?.room_control_view(&ctx, &conversation, now)?;
                 Ok(scope::room_services_do(
-                    &mut self.handles,
-                    &room,
-                    &caps,
+                    self.handles.entry(ctx.profile_id).or_default(),
+                    &conversation,
+                    &[],
                     op,
-                    controls.as_deref(),
+                    &controls,
                 ))
             }
             #[cfg(feature = "scope-engines")]
-            Command::PluginsDo { request } => Ok(crate::plugins::plugins_do(
-                &mut self.plugin_handles,
-                request,
-            )),
+            Command::PluginsDo { ctx, request } => {
+                if request.get("engine").and_then(Value::as_str) == Some("registry") {
+                    return Ok(crate::plugins::plugins_do(&mut Default::default(), request));
+                }
+                let Some(ctx) = ctx else {
+                    return Ok(crate::plugins::profile_refused());
+                };
+                self.core()?.community_reader(&ctx)?;
+                Ok(crate::plugins::plugins_do(
+                    self.plugin_handles.entry(ctx.profile_id).or_default(),
+                    request,
+                ))
+            }
             #[cfg(feature = "scope-engines")]
             Command::Portability { request } => Ok(crate::portability::portability(request)),
             #[cfg(feature = "scope-engines")]
-            Command::BridgeRoomDo { room, caps, op } => {
-                Ok(scope::bridge_room_do(&mut self.handles, &room, &caps, op))
+            Command::BridgeRoomDo {
+                room,
+                caps,
+                ctx,
+                op,
+            } => {
+                #[cfg(test)]
+                if ctx.is_none()
+                    && let Some(handles) = self.test_only_handles.as_mut()
+                {
+                    return Ok(scope::bridge_room_do(handles, &room, &caps, op, &[], None));
+                }
+                let _ = caps;
+                let Some(ctx) = ctx else {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                };
+                let Some(conversation) = self.scope_room(&ctx, &room)? else {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                };
+                let now = self.runtime_now()?;
+                let controls = self.core()?.room_control_view(&ctx, &conversation, now)?;
+                if op.needs_verified_authority() {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                }
+                Ok(scope::bridge_room_do(
+                    self.handles.entry(ctx.profile_id).or_default(),
+                    &conversation,
+                    &[],
+                    op,
+                    &controls,
+                    Some(now),
+                ))
             }
             #[cfg(feature = "scope-engines")]
-            Command::LanTransferDo { side, handle, op } => Ok(scope::lan_transfer_do(
-                &mut self.handles,
-                &side,
-                &handle,
+            Command::LanTransferDo {
+                ctx,
+                side,
+                handle,
                 op,
-            )),
+            } => {
+                #[cfg(test)]
+                if ctx.is_none()
+                    && let Some(handles) = self.test_only_handles.as_mut()
+                {
+                    return Ok(scope::lan_transfer_do(handles, &side, &handle, op));
+                }
+                let Some(ctx) = ctx else {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                };
+                self.core()?.community_reader(&ctx)?;
+                Ok(scope::lan_transfer_do(
+                    self.handles.entry(ctx.profile_id).or_default(),
+                    &side,
+                    &handle,
+                    op,
+                ))
+            }
             #[cfg(feature = "scope-engines")]
             Command::LanSignalSeal {
                 ctx,
@@ -1574,14 +1761,28 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 ) else {
                     return Ok(json!({ "refused": "malformed" }));
                 };
+                let now = self.runtime_now()?;
                 let r = self
                     .core()?
-                    .room_control_observe(&ctx, &room, kind, &bytes, approvers)?;
-                Ok(scope::control_observed(r))
+                    .room_control_observe(&ctx, &room, kind, &bytes, approvers, now)?;
+                if let Ok((_, Some(ref accepted))) = r {
+                    let view = self.core()?.room_control_view(&ctx, &room, now)?;
+                    let canonical = view.iter().any(|entry| {
+                        entry.kind == kind
+                            && entry.id == accepted.service_id
+                            && !entry.frozen
+                            && entry.head_hash == Some(accepted.hash)
+                    });
+                    if let Some(handles) = self.handles.get_mut(&ctx.profile_id) {
+                        handles.observe_room_control(&room, kind, accepted, canonical, now);
+                    }
+                }
+                Ok(scope::control_observed(r.map(|(outcome, _)| outcome)))
             }
             #[cfg(feature = "scope-engines")]
             Command::RoomControlView { ctx, room } => {
-                let v = self.core()?.room_control_view(&ctx, &room)?;
+                let now = self.runtime_now()?;
+                let v = self.core()?.room_control_view(&ctx, &room, now)?;
                 Ok(scope::control_view(&v))
             }
             #[cfg(feature = "scope-engines")]
@@ -1635,17 +1836,50 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 Ok(self.community_handles.directory_do(&ctx, op))
             }
             #[cfg(feature = "scope-engines")]
-            Command::SpaceBindingDo { handle, op } => {
-                Ok(scope::space_binding_do(&mut self.handles, &handle, op))
+            Command::SpaceBindingDo { ctx, handle, op } => {
+                #[cfg(test)]
+                if ctx.is_none()
+                    && let Some(handles) = self.test_only_handles.as_mut()
+                {
+                    return Ok(scope::space_binding_do(handles, &handle, op));
+                }
+                let Some(ctx) = ctx else {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                };
+                self.core()?.community_reader(&ctx)?;
+                if matches!(
+                    op,
+                    scope::LinkOp::ChildAccepts | scope::LinkOp::CreateBinding { .. }
+                ) {
+                    return Ok(json!({ "refused": "unverified_child_state" }));
+                }
+                Ok(scope::space_binding_do(
+                    self.handles.entry(ctx.profile_id).or_default(),
+                    &handle,
+                    op,
+                ))
             }
             #[cfg(feature = "scope-engines")]
-            Command::ModerationView { who } => Ok(scope::moderation_view(&self.moderation, &who)),
+            Command::ModerationView { ctx, who } => {
+                let profile = self.scope_profile(ctx)?;
+                Ok(scope::moderation_view(
+                    self.moderation.entry(profile).or_default(),
+                    &who,
+                ))
+            }
             #[cfg(feature = "scope-engines")]
-            Command::TopicsView { topic, message } => Ok(scope::topics_view(
-                &self.topics,
-                topic.as_deref(),
-                message.as_deref(),
-            )),
+            Command::TopicsView {
+                ctx,
+                topic,
+                message,
+            } => {
+                let profile = self.scope_profile(ctx)?;
+                Ok(scope::topics_view(
+                    self.topics.entry(profile).or_default(),
+                    topic.as_deref(),
+                    message.as_deref(),
+                ))
+            }
             Command::ExpressiveAvailable => Ok(json!(self.core()?.expressive_media_available())),
             #[cfg(feature = "expressive-media")]
             Command::ExpressiveBlobExposure { policy } => {

@@ -15,6 +15,8 @@ export interface WasmHost {
   /** Fill `buf` with cryptographically secure random bytes. Default: `crypto.getRandomValues`. */
   readonly randomFill?: (buf: Uint8Array) => void;
   readonly nowMs?: () => number;
+  /** Runtime-segment milliseconds for scoped freshness. Default: performance.now(). */
+  readonly monotonicMs?: () => number;
 }
 
 export interface WasmCore {
@@ -36,6 +38,7 @@ function isExports(x: WebAssembly.Exports): x is WebAssembly.Exports & Exports {
 export async function instantiateCore(source: BufferSource, host: WasmHost = {}): Promise<WasmCore> {
   const random = host.randomFill ?? ((b: Uint8Array) => { globalThis.crypto.getRandomValues(b as Uint8Array<ArrayBuffer>); });
   const now = host.nowMs ?? (() => Date.now());
+  const monotonic = host.monotonicMs ?? (() => globalThis.performance?.now() ?? Number.NaN);
   const loaded: { exports?: Exports } = {};
   const importObject: WebAssembly.Imports = {
     om_host: {
@@ -48,6 +51,7 @@ export async function instantiateCore(source: BufferSource, host: WasmHost = {})
         }
       },
       now_ms: (): number => now(),
+      monotonic_ms: (): number => monotonic(),
     },
   };
   const { instance } = await WebAssembly.instantiate(source, importObject);

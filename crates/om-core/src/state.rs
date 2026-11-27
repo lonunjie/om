@@ -277,6 +277,8 @@ pub struct Msg {
 #[serde(rename_all = "camelCase")]
 pub struct Social {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) retention: Option<crate::api::HistoryRetention>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) expressive_send: Option<crate::expressive::Pending>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) inline_assets: Vec<SecretHex>,

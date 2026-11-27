@@ -35,6 +35,7 @@ interface HistorySelection {
 interface ReadableCandidate {
   readonly target: HistoryTarget;
   readonly title: string;
+  readonly omittedRetention?: readonly number[];
   readonly messages: readonly {
     readonly timestamp: number;
     readonly message: PortabilityReadableConversation["messages"][number];
@@ -70,6 +71,7 @@ export interface HistorySource {
 interface HistoryArchive extends Pick<PortabilityExportInput, "candidates" | "meta"> {
   /** Attachments for which the projection has no plaintext or plaintext digest to declare. */
   readonly missingMedia?: number;
+  readonly unknownRetention?: number;
 }
 
 const unavailableFormats = Object.freeze({
@@ -91,11 +93,13 @@ class HistorySourceError extends Error {
 }
 
 type HistoryQuery = GetDevices | GetConversationList | GetConversationView;
-type ClassifiedMessage = ConversationTimelineItem & { readonly disappearing: boolean; readonly viewOnce: boolean };
-
-function hasRetentionFlags(message: ConversationTimelineItem): message is ClassifiedMessage {
-  return "disappearing" in message && typeof message.disappearing === "boolean" &&
-    "viewOnce" in message && typeof message.viewOnce === "boolean";
+function retention(message: ConversationTimelineItem) {
+  switch (message.retention) {
+    case "ordinary": return { disappearing: false, viewOnce: false };
+    case "disappearing": return { disappearing: true, viewOnce: false };
+    case "view_once": return { disappearing: false, viewOnce: true };
+    default: return null;
+  }
 }
 
 function inDateRange(timestamp: number, { from, to }: HistorySelection): boolean {
@@ -138,13 +142,12 @@ export function createCoreHistorySource({ ctx: inputCtx, client }: {
       if (summary.id !== id) throw new HistorySourceError("device_unavailable");
       messageCount += timeline.length;
       if (messageCount > MAX_HISTORY_MESSAGES) throw new HistorySourceError("too_large");
-      if (!timeline.every(hasRetentionFlags)) throw new HistorySourceError("device_unavailable");
       history.push({ id, title: summary.nickname ?? summary.displayName, timeline });
     }
     return history;
   }
 
-  const author = (direction: ClassifiedMessage["direction"], title: string) => direction === "outgoing" ? "You" : title;
+  const author = (direction: ConversationTimelineItem["direction"], title: string) => direction === "outgoing" ? "You" : title;
 
   return {
     projectionOnly: true,
@@ -174,9 +177,16 @@ export function createCoreHistorySource({ ctx: inputCtx, client }: {
       const candidates: PortabilityCandidate[] = [];
       const blobs = new Map<string, PortabilityCandidate>();
       const missingBlobs = new Set<string>();
+      let unknownRetention = 0;
       for (const { id, title, timeline } of history) {
         for (const message of timeline) {
-          const { messageId, sentAt, disappearing, viewOnce } = message;
+          const { messageId, sentAt } = message;
+          const flags = retention(message);
+          if (flags === null) {
+            if (inDateRange(sentAt, selection)) unknownRetention += 1;
+            continue;
+          }
+          const { disappearing, viewOnce } = flags;
           const scope = { conversation: id, time: sentAt, disappearing, viewOnce };
           const attachments: CborValue[] = [];
           if (!viewOnce && !disappearing && includeMedia && inDateRange(sentAt, selection)) {
@@ -222,20 +232,29 @@ export function createCoreHistorySource({ ctx: inputCtx, client }: {
           provenanceProfiles: ["foreign_export_label"],
         },
         missingMedia: missingBlobs.size,
+        unknownRetention,
       };
     },
     async readable(caller, selection) {
-      return (await readHistory(caller, selection)).map(({ id, title, timeline }) => ({
-        target: { kind: "chat", id },
-        title,
-        messages: timeline.map(({ sentAt, direction, text, viewOnce, disappearing }) => ({
-          timestamp: sentAt,
-          message: {
-            time: new Date(sentAt).toISOString(), author: author(direction, title),
-            text: viewOnce ? "" : text, disappearing, viewOnce,
-          },
-        })),
-      }));
+      return (await readHistory(caller, selection)).map(({ id, title, timeline }) => {
+        const omittedRetention: number[] = [];
+        const messages = timeline.flatMap((item) => {
+          const { sentAt, direction, text } = item;
+          const flags = retention(item);
+          if (flags === null) {
+            omittedRetention.push(sentAt);
+            return [];
+          }
+          return [{
+            timestamp: sentAt,
+            message: {
+              time: new Date(sentAt).toISOString(), author: author(direction, title), ...flags,
+              text: flags.viewOnce || flags.disappearing ? "" : text,
+            },
+          }];
+        });
+        return { target: { kind: "chat", id }, title, messages, omittedRetention };
+      });
     },
   };
 }
@@ -333,13 +352,13 @@ export function createPortabilityService({
       if (typeof choices === "string") return rejected(choices);
       const selection = selectionFor(intent, choices);
       if (typeof selection === "string") return rejected(selection);
-      const projectionEvidence: PortabilityDetail[] = history.projectionOnly ? [{ code: "canonical_evidence", count: 0 }] : [];
+      const projectionEvidence: PortabilityDetail[] = history.projectionOnly ? [{ code: "canonical_evidence_absent" }] : [];
       let output: readonly FileEntry[];
       let report: PortabilityReport["details"];
       try {
         if (intent.format === "archive") {
           if (history.archive === undefined) return rejected("device_unavailable");
-          const { missingMedia = 0, ...input } = await history.archive(ctx, selection);
+          const { missingMedia = 0, unknownRetention = 0, ...input } = await history.archive(ctx, selection);
           const result = engine.export({
             ...input,
             selection: {
@@ -353,10 +372,11 @@ export function createPortabilityService({
           output = [{ name: "om-history.zip", bytes: fromHex(result.archiveHex) }];
           const { objects, blobs, records, omittedBlobs, excluded } = result.report;
           report = {
-            preserved: [...(history.projectionOnly ? projectionEvidence
-              : details("canonical_evidence", objects)), ...details("media", blobs - omittedBlobs.length),
+            preserved: [...details("canonical_evidence", history.projectionOnly ? 0 : objects),
+              ...details("media", blobs - omittedBlobs.length),
               ...details("history", records)],
             lossy: [
+              ...projectionEvidence, ...details("retention_unclassified", unknownRetention),
               ...details("private_material", excluded.secret_type ?? 0), ...details("view_once", excluded.view_once ?? 0),
               ...details("disappearing", excluded.disappearing ?? 0), ...details("outside_scope", excluded.not_selected ?? 0),
             ],
@@ -365,18 +385,19 @@ export function createPortabilityService({
         } else {
           if (history.readable === undefined) return rejected("device_unavailable");
           const candidates = await history.readable(ctx, selection);
-          const conversations = candidates
-            .filter(({ target }) => selection.targets.some((chosen) => sameTarget(chosen, target)))
-            .map(({ title, messages }) => ({
+          const selected = candidates.filter(({ target }) => selection.targets.some((chosen) => sameTarget(chosen, target)));
+          const unknownRetention = selected.flatMap(({ omittedRetention }) => omittedRetention ?? [])
+            .filter((timestamp) => inDateRange(timestamp, selection)).length;
+          const conversations = selected.map(({ title, messages }) => ({
               title,
               messages: messages.filter(({ timestamp }) => inDateRange(timestamp, selection)).map(({ message }) => message),
             }));
-          const result = engine.readableExport(conversations, intent.includeDisappearing);
+          const result = engine.readableExport(conversations, !history.projectionOnly && intent.includeDisappearing);
           if ("refused" in result) return failure(result);
           output = result.files.map(({ path, bytesHex }) => ({ name: path, bytes: fromHex(bytesHex) }));
           report = {
-            ...(history.projectionOnly ? { preserved: projectionEvidence } : {}),
-            lossy: [...details("view_once", result.excludedViewOnce), ...details("disappearing", result.excludedDisappearing)],
+            lossy: [...projectionEvidence, ...details("retention_unclassified", unknownRetention),
+              ...details("view_once", result.excludedViewOnce), ...details("disappearing", result.excludedDisappearing)],
           };
         }
       } catch (error) {

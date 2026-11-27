@@ -26,6 +26,7 @@ const serviceWorker = (bundleVersion: string): Plugin => ({
     const out = await viteBuild({
       configFile: false,
       logLevel: "silent",
+      plugins: dev ? [] : [scopeReleaseGuard()],
       define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_BUNDLE_VERSION__: JSON.stringify(bundleVersion) },
       build: {
         write: false,

@@ -32,6 +32,8 @@ export const bridgeTestCopy: BridgeCopy = {
       "Sharing is paused. OM can’t confirm that the bridge connection is current.",
     endpoint_stopped: "Sharing through this bridge connection has stopped.",
   },
+  approversAtInstall: "Approvers reported at install",
+  approversAtProposal: "Approvers reported in the proposal",
   principal: "Bridge ID",
   network: "Connected network",
   scope: "Connected conversation",

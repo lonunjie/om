@@ -70,7 +70,7 @@ describe("communities host", () => {
     await expect(f.service.state({ ...topicPlace, id: "missing" })).resolves.toEqual({ details, outcome: null });
     expect(f.moderation).toHaveBeenCalledWith(ctx, room);
     expect(f.topics).toHaveBeenCalledWith(ctx, room);
-    expect(f.call).toHaveBeenCalledWith({ cmd: "space_binding_do", handle: communitiesRoomLinkHandle(ctx.profileId, room), op: { kind: "view" } });
+    expect(f.call).toHaveBeenCalledWith({ cmd: "space_binding_do", ctx, handle: communitiesRoomLinkHandle(ctx.profileId, room), op: { kind: "view" } });
   });
 
   it("uses only the moderation view for viewer permissions, even for an announcement Room with a binding", async () => {
@@ -86,7 +86,7 @@ describe("communities host", () => {
 
   it("leaves an unknown link unset and withholds details without confirmed Room facts", async () => {
     const f = fixture();
-    f.call.mockReturnValueOnce({ entries: [] }).mockReturnValueOnce({ refused: "unknown_handle" });
+    f.call.mockReturnValueOnce({ refused: "unknown_handle" });
     await expect(f.service.state(roomPlace)).resolves.toMatchObject({ details: { link: null } });
     f.topics.mockReturnValueOnce(null);
     await expect(f.service.state(roomPlace)).resolves.toEqual(empty);
@@ -96,8 +96,7 @@ describe("communities host", () => {
     f.moderation.mockReturnValue({ ...moderationView, member: false });
     await expect(f.service.state(roomPlace)).resolves.toEqual(empty);
     expect(f.topics).not.toHaveBeenCalled();
-    expect(f.call).toHaveBeenNthCalledWith(1, { cmd: "room_control_view", ctx, room });
-    expect(f.call).toHaveBeenNthCalledWith(2, { cmd: "directory_do", ctx, op: { kind: "list" } });
+    expect(f.call).toHaveBeenCalledExactlyOnceWith({ cmd: "directory_do", ctx, op: { kind: "list" } });
   });
 
   it("rejects every join intent without Core or storage access", async () => {
@@ -143,10 +142,9 @@ describe("communities host", () => {
     f.moderation.mockClear();
     f.topics.mockClear();
     f.call.mockClear();
-    f.call.mockImplementationOnce(() => { throw new Error("stale profile context"); });
+    f.moderation.mockImplementationOnce(() => { throw new Error("stale profile context"); });
     await expect(communities.state(topicPlace)).rejects.toThrow("stale profile context");
-    expect(f.call).toHaveBeenCalledExactlyOnceWith({ cmd: "room_control_view", ctx, room });
-    expect(f.moderation).not.toHaveBeenCalled();
+    expect(f.moderation).toHaveBeenCalledExactlyOnceWith(ctx, room);
     expect(f.topics).not.toHaveBeenCalled();
   });
 });
@@ -210,14 +208,21 @@ describe("community and publication places", () => {
     const service = createCommunitiesService({ ...f.options, liveGovernance });
     await expect(service.state(community)).resolves.toMatchObject({ details: {
       name: "Garden", description: "Garden description", nameSource: "host_observed", governance: { state: "orphaned" },
-      rooms: [{ id: room, name: "Talk", link }],
-      publications: [{ id: publication.id, link: { official: false, spaceSide: true, childSide: false, bound: false } }],
-      communities: [{ id: "nested", link: { official: false, spaceSide: false, childSide: true, bound: false } }],
+      rooms: [], publications: [], communities: [],
       admission: {
         membership: "not_joined", offer: { id: offer.target, approvalRequired: true, uses: "limited", expiresAtMs: 9000 },
         action: { availability: "blocked", kind: "request_community_join", reason: "unsupported" },
       },
     } });
+    f.space.mockReturnValue({ governance: "active", head: {
+      hash: "head", version: "3", member: true, governanceThreshold: 1, links: [{ kind: "room", id: room }, publication],
+    } });
+    await expect(service.state(community)).resolves.toMatchObject({ details: {
+      rooms: [{ id: room, link: { official: false, spaceSide: true, childSide: false, bound: false } }],
+      publications: [{ id: publication.id, link: { official: false, spaceSide: true, childSide: false, bound: false } }],
+      communities: [],
+    } });
+    expect(f.childLink).not.toHaveBeenCalled();
     expect(liveGovernance).toHaveBeenCalledWith(ctx, community.id);
     f.space.mockReturnValue({ head: null, governance: "conflict" });
     await expect(service.state(community)).resolves.toMatchObject({ details: {
@@ -328,36 +333,36 @@ describe.skipIf(!existsSync(wasm))("engineering Wasm communities host", () => {
     try {
       const profile = await runtime.openProfile(ctx.profileId);
       const reader = "reader";
-      expect(core.call({ cmd: "topics_do", caps: ["room.create_topic"], actor: reader, op: {
+      expect(core.call({ cmd: "topics_do", ctx: profile, caps: ["room.create_topic"], actor: reader, op: {
         kind: "create", id: topicId, title: "Core topic", at: { clock: 1, event: "ab".repeat(32) },
       } })).toEqual({ applied: true });
-      const engines = createScopeEngines(core);
+      const engines = createScopeEngines(core, profile);
       const handle = communitiesRoomLinkHandle(profile.profileId, room);
       expect(engines.spaceBinding.propose(handle)).toEqual({ done: true });
-      expect(engines.spaceBinding.childAccepts(handle)).toEqual({ ...link, bound: false });
+      expect(engines.spaceBinding.childAccepts(handle)).toEqual({ refused: "unverified_child_state" });
 
       // The module has single-topic and single-reader queries. The rest of the Room projection is fixture data.
       const roomViews: CommunitiesRoomViews = {
         topics: { view(context, id) {
           if (context.profileId !== profile.profileId || id !== room) return null;
-          const answer = core.call({ cmd: "topics_view", topic: topicId }) as { topic: { title: string; status: number } | null };
+          const answer = core.call({ cmd: "topics_view", ctx: context, topic: topicId }) as { topic: { title: string; status: number } | null };
           if (answer.topic?.status !== 1) throw new Error("Expected the open topic from Core");
           return { ...topicView, topics: [{ id: topicId, title: answer.topic.title, status: "open" }] };
         } },
         moderation: { view(context, id) {
           if (context.profileId !== profile.profileId || id !== room) return null;
-          const answer = core.call({ cmd: "moderation_view", who: reader }) as { member: boolean };
+          const answer = core.call({ cmd: "moderation_view", ctx: context, who: reader }) as { member: boolean };
           return { ...moderationView, member: answer.member };
         } },
       };
       const { communities } = createScopeServices({ ctx: profile, enabled: true, loaded: { core, communities: { roomViews } } });
       if (communities === undefined) throw new Error("Expected a communities service");
       await expect(communities.state(roomPlace)).resolves.toEqual(empty);
-      expect(core.call({ cmd: "moderation_do", caps: [], actor: reader, op: {
+      expect(core.call({ cmd: "moderation_do", ctx: profile, caps: [], actor: reader, op: {
         kind: "admit", who: reader, incarnation: "03".repeat(16), governance: false,
       } })).toEqual({ applied: true });
       await expect(communities.state(topicPlace)).resolves.toMatchObject({ details: {
-        id: room, selectedTopic: { id: topicId, title: "Core topic", status: "open" }, link: { ...link, bound: false },
+        id: room, selectedTopic: { id: topicId, title: "Core topic", status: "open" }, link: { official: false, spaceSide: true, childSide: false, bound: false },
       } });
 
       expect(engines.directory.observe(profile, "publication", publication.id, { name: "Updates\u202e" })).toEqual({ done: true });

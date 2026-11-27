@@ -32,7 +32,7 @@ const selection = {
 
 function reviewId(value: InvocationSelection) {
   const items = value.items.map(({ id, kind, value: content }) => [id, kind, content]);
-  return createHash("sha256").update(JSON.stringify([value.service, value.command, value.destination, items])).digest("hex");
+  return createHash("sha256").update(JSON.stringify([value.service, value.command, value.destination, value.expiresAtMs, items])).digest("hex");
 }
 
 const invoke = { kind: "invoke", target: reviewId(selection) } as const;
@@ -90,7 +90,7 @@ function fixture() {
   const base = createScopeEngines({ call: () => { throw new Error("Unexpected Core command"); } });
   const control = vi.fn<ScopeEngines["roomControl"]["view"]>(() => ({ entries: [head] }));
   const opts = {
-    ctx, authority: { capabilities: () => caps }, pending, now: () => 17,
+    ctx, authority: { capabilities: () => caps }, pending,
     engines: {
       roomServices: { ...base.roomServices, list, installOffer, removeMember },
       roomControl: { ...base.roomControl, view: control },
@@ -133,7 +133,7 @@ describe("connected services host", () => {
       entries: [{ status: "removed", readAccess: { kind: "none" }, actions: [] }],
       outcome: { kind: "Committed" },
     });
-    expect(f.removeMember).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target });
+    expect(f.removeMember).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target }, ctx);
     expect(f.pending.records.size).toBe(0);
   });
 
@@ -182,7 +182,7 @@ describe("connected services host", () => {
 
   it("blocks Room changes by default and offers no invocation without a selection source", async () => {
     const f = fixture();
-    const connected = createConnectedServicesService({ ctx, engines: f.opts.engines, pending: f.pending, now: f.opts.now });
+    const connected = createConnectedServicesService({ ctx, engines: f.opts.engines, pending: f.pending });
     expect(await connected.state(room)).toMatchObject({
       entries: [{ actions: [{ availability: "blocked", kind: "install", reason: "unauthorized" }] }],
       invocation: null,
@@ -207,6 +207,20 @@ describe("connected services host", () => {
     expect(f.removeMember).not.toHaveBeenCalled();
   });
 
+  it("settles storage and view failures without dispatching a different pending intent", async () => {
+    const f = fixture();
+    const connected = createConnectedServicesService(f.opts);
+    vi.spyOn(f.pending, "load").mockRejectedValueOnce(new Error("storage unavailable"));
+    expect((await connected.change(room, install)).outcome).toEqual({ kind: "Rejected", reason: "unavailable" });
+    f.installOffer.mockImplementationOnce(() => { throw new Error("lost acknowledgement"); });
+    expect((await connected.change(room, install)).outcome).toEqual({ kind: "PendingReconciliation" });
+    f.list.mockImplementationOnce(() => { throw new Error("view unavailable"); });
+    expect((await connected.change(room, install)).outcome).toEqual({ kind: "PendingReconciliation" });
+    expect((await connected.change(room, remove)).outcome).toEqual({ kind: "Rejected", reason: "conflict" });
+    expect(f.installOffer).toHaveBeenCalledTimes(1);
+    expect(f.removeMember).not.toHaveBeenCalled();
+  });
+
   it("requires the exact verified head and uses the captured profile when composing the adapter", async () => {
     const f = fixture();
     const inputCtx = { ...ctx };
@@ -218,12 +232,12 @@ describe("connected services host", () => {
     });
     expect(await connected.change(room, install)).toMatchObject({ outcome: { kind: "Rejected", reason: "stale_state" } });
     expect(f.control).toHaveBeenCalledWith(ctx, room);
-    expect(f.list).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room));
+    expect(f.list).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), ctx);
     expect(f.pending.reservations).toHaveLength(0);
 
     const core = { call: vi.fn((request: Readonly<Record<string, unknown>>) =>
       request["cmd"] === "room_control_view" ? { entries: [] } : { services: [] }) };
-    const loaded = { core, connectedServices: { pending: f.pending, now: f.opts.now } };
+    const loaded = { core, connectedServices: { pending: f.pending } };
     expect(createScopeServices({ ctx, enabled: false, loaded })).toEqual({});
     const composed = createScopeServices({ ctx, enabled: true, loaded }).connectedServices;
     expect(await composed?.state(room)).toEqual({ entries: [], invocation: null, outcome: null });
@@ -237,19 +251,23 @@ function invocationFixture() {
   let selected: InvocationSelection | null = selection;
   let time = 17;
   const selectionSource = vi.fn(() => selected);
-  const installedGrants = vi.fn(() => [command]);
-  const call = vi.fn(({ granted, policy }: Readonly<Record<string, unknown>>) => {
-    if (!Array.isArray(granted) || !granted.includes(command)) return { allowed: false, refusal: "not_granted" };
-    if (!(policy as { allowed: boolean }).allowed) return { allowed: false, refusal: "tainted_egress" };
-    return { allowed: true };
+  const brokerGrants = vi.fn(() => [command]);
+  const egressPolicy = vi.fn(() => true);
+  const call = vi.fn(({ disclosure }: Readonly<Record<string, unknown>>) => {
+    const target = reviewId(disclosure as InvocationSelection);
+    if (!brokerGrants().includes(command)) return {
+      target, allowed: false, refusal: "not_granted", flow: { tainted: true, egress: "blocked_by_capability" },
+    };
+    if (!egressPolicy()) return {
+      target, allowed: false, refusal: "tainted_egress", flow: { tainted: true, egress: "blocked_by_conversation" },
+    };
+    return { target, allowed: true, flow: { tainted: true, egress: "allowed" } };
   });
-  const egressPolicy = vi.fn((): { kind: "room"; allowed: boolean } => ({ kind: "room", allowed: true }));
   const opts = {
-    ...f.opts, authority: { capabilities: () => [...caps, command] }, selectionSource,
-    invocation: { core: { call }, installedGrants, egressPolicy, wallNow: () => time },
+    ...f.opts, selectionSource, invocation: { core: { call }, wallNow: () => time },
   };
   return {
-    ...f, opts, call, installedGrants, selectionSource, egressPolicy,
+    ...f, opts, call, brokerGrants, selectionSource, egressPolicy,
     select: (value: InvocationSelection | null) => { selected = value; },
     advance: (value: number) => { time = value; },
   };
@@ -271,20 +289,17 @@ describe("connected services invocation review", () => {
       action: { availability: "ready", intent: invoke },
     });
     expect(f.selectionSource).toHaveBeenCalledWith(ctx, room);
-    expect(f.installedGrants).toHaveBeenCalledWith(ctx, room, { service, target });
     expect(f.call).toHaveBeenCalledExactlyOnceWith({
-      cmd: "service_broker_request", granted: [command], name: command, tainted: true, policy: { kind: "room", allowed: true },
+      cmd: "service_invocation_review", ctx, conversationId: room, disclosure: selection,
     });
     f.select(null);
     expect((await connected.state(room)).invocation).toBeNull();
   });
 
-  it("blocks invoke under deny-all authority", async () => {
+  it("blocks invoke when Core returns no grant", async () => {
     const f = invocationFixture();
-    const connected = createConnectedServicesService({
-      ctx, engines: f.opts.engines, pending: f.pending, now: f.opts.now,
-      selectionSource: f.selectionSource, invocation: f.opts.invocation,
-    });
+    f.brokerGrants.mockReturnValue([]);
+    const connected = createConnectedServicesService(f.opts);
     expect(await connected.state(room)).toMatchObject({
       invocation: {
         flow: { tainted: true, egress: "blocked_by_capability" },
@@ -292,14 +307,13 @@ describe("connected services invocation review", () => {
       },
     });
     expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "Rejected", reason: "unauthorized" } });
-    expect(f.installedGrants).not.toHaveBeenCalled();
     expect(f.pending.reservations).toHaveLength(0);
   });
 
   it("requires both the installed grant and a broker allow", async () => {
     const f = invocationFixture();
     const connected = createConnectedServicesService(f.opts);
-    f.egressPolicy.mockReturnValueOnce({ kind: "room", allowed: false });
+    f.egressPolicy.mockReturnValueOnce(false);
     expect(await connected.state(room)).toMatchObject({
       invocation: {
         flow: { tainted: true, egress: "blocked_by_conversation" },
@@ -307,7 +321,7 @@ describe("connected services invocation review", () => {
       },
     });
     expect(await connected.state(room)).toMatchObject({ invocation: { action: { availability: "ready" } } });
-    f.installedGrants.mockReturnValueOnce([]);
+    f.brokerGrants.mockReturnValueOnce([]);
     expect(await connected.state(room)).toMatchObject({
       invocation: { action: { availability: "blocked", reason: "unauthorized" } },
     });
@@ -331,6 +345,17 @@ describe("connected services invocation review", () => {
     expect(await connected.change(room, invoke)).toMatchObject({
       invocation: null, outcome: { kind: "Rejected", reason: "stale_state" },
     });
+    expect(f.pending.reservations).toHaveLength(0);
+  });
+
+  it("rejects a broker verdict for another disclosure and requires review when expiry changes", async () => {
+    const f = invocationFixture();
+    const connected = createConnectedServicesService(f.opts);
+    const response = { target: "other", allowed: true, flow: { tainted: true, egress: "allowed" } };
+    f.call.mockReturnValueOnce(response);
+    expect((await connected.state(room)).invocation?.action).toMatchObject({ availability: "blocked" });
+    f.select({ ...selection, expiresAtMs: selection.expiresAtMs + 1 });
+    expect((await connected.change(room, invoke)).outcome).toEqual({ kind: "Rejected", reason: "stale_state" });
     expect(f.pending.reservations).toHaveLength(0);
   });
 
@@ -366,18 +391,12 @@ describe("connected services invocation review", () => {
 const wasm = new URL("../../../../../packages/om-core-wasm/dist/om_wasm_scope.wasm", import.meta.url);
 
 describe.skipIf(!existsSync(wasm))("connected services with the engineering Wasm scope", () => {
-  it("uses the actual broker with injected installation and policy facts", async () => {
+  it("does not accept an installation or policy supplied by the host", async () => {
     const f = invocationFixture();
     const core = await instantiateCore(readFileSync(wasm));
     const connected = createConnectedServicesService({ ...f.opts, invocation: { ...f.opts.invocation, core } });
-    f.egressPolicy.mockReturnValueOnce({ kind: "room", allowed: false });
-    expect(await connected.state(room)).toMatchObject({
-      invocation: { flow: { tainted: true, egress: "blocked_by_conversation" }, action: { availability: "blocked", reason: "policy_denied" } },
-    });
-    expect(await connected.state(room)).toMatchObject({
-      invocation: { flow: { tainted: true, egress: "allowed" }, action: { availability: "ready", intent: invoke } },
-    });
-    expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "PendingNetwork" } });
-    expect(f.pending.reservations).toHaveLength(1);
+    expect(await connected.state(room)).toMatchObject({ invocation: { action: { availability: "blocked" } } });
+    expect(await connected.change(room, invoke)).toMatchObject({ outcome: { kind: "Rejected" } });
+    expect(f.pending.reservations).toHaveLength(0);
   });
 });

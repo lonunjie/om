@@ -518,6 +518,17 @@ pub struct Event {
     pub digest: [u8; 32],
     /// Key 23 as received (registered presentation extensions are read from it by [`crate::present`]).
     pub extensions: Option<V>,
+    pub(crate) has_expiry: bool,
+}
+
+impl Event {
+    pub(crate) fn history_retention(&self) -> crate::api::HistoryRetention {
+        if self.has_expiry || self.body.opt(4).is_some() {
+            crate::api::HistoryRetention::Disappearing
+        } else {
+            crate::api::HistoryRetention::Ordinary
+        }
+    }
 }
 
 pub(crate) fn mutation_target(ev: &Event) -> Option<[u8; 16]> {
@@ -707,6 +718,7 @@ pub(crate) fn parse_value(v: &V, bytes: &[u8], capability: Option<&str>) -> Opti
         body: v.get(11).ok()?.clone(),
         digest: sha256(&[bytes]),
         extensions,
+        has_expiry: v.opt(12).is_some(),
     })
 }
 
@@ -769,6 +781,48 @@ mod tests {
         assert_eq!(
             message_create_body_mentions(Some(text), vec![], None, &[]),
             message_create_body(text)
+        );
+    }
+
+    #[test]
+    fn history_projection_identifies_both_expiry_carriers() {
+        use crate::api::HistoryRetention::{Disappearing, Ordinary};
+        let header = Header {
+            event_id: [1; 16],
+            conversation_id: [2; 32],
+            author_account: [3; 32],
+            author_device: [4; 16],
+            clock: Hlc {
+                physical_ms: 1_790_000_000_000,
+                logical: 0,
+            },
+            kind: K_CREATE,
+            body: message_create_body("message"),
+        };
+        let bytes = header.encode();
+        assert_eq!(parse(&bytes).unwrap().history_retention(), Ordinary);
+        let V::M(mut event) = cbor::decode(&bytes).unwrap() else {
+            unreachable!()
+        };
+        let (_, V::M(body)) = event.iter_mut().find(|(key, _)| *key == 11).unwrap() else {
+            unreachable!()
+        };
+        body.push((4, V::U(60)));
+        assert_eq!(
+            parse(&cbor::encode(&V::M(event)))
+                .unwrap()
+                .history_retention(),
+            Disappearing
+        );
+        let V::M(mut event) = cbor::decode(&bytes).unwrap() else {
+            unreachable!()
+        };
+        event.push((12, V::U(1_790_000_060)));
+        assert_eq!(
+            parse(&cbor::encode(&V::M(event)))
+                .unwrap()
+                .history_retention(),
+            Disappearing
         );
     }
 

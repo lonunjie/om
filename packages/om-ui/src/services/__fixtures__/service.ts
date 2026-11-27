@@ -18,6 +18,7 @@ export const fullMemberOffer: ServiceEntryView = {
   status: "offered",
   mode: "full_room_member",
   scope: room,
+  triggerClasses: ["message.create"],
   capabilities: [{ id: "message.create", label: "Post messages" }],
   readAccess: { kind: "none" },
   actions: [
