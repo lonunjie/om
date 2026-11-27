@@ -13,9 +13,15 @@
 //! * an imported event's author kind must be the bridge principal (3), never an account (1) or a service (2).
 
 use crate::bridge_control::{BridgeState, human_quorum};
-use crate::service_room_member::{
-    INSTALL, Principal, RoomError, RoomServices, RosterEntry, TriggerFilter,
+use crate::room_snapshot::{
+    self, HeadReference, MAX_ROOM_ROWS, OperationId, OperationOutcome, OperationTarget,
+    RoomOperations, SnapshotError,
 };
+use crate::service_room_member::{
+    INSTALL, MemberSnapshot, Principal, RemovalKey, RoomError, RoomServices, RosterEntry,
+    TriggerFilter,
+};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -53,7 +59,7 @@ pub enum Blocked {
     EndpointStopped,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Mapping {
     pub incarnation: [u8; 16],
     pub namespace: String,
@@ -75,6 +81,39 @@ pub struct Offer {
 }
 
 /// The membership a Room shows for one bridge.
+#[derive(Serialize, Deserialize)]
+struct SavedOffer {
+    head: HeadReference,
+    mapping: Mapping,
+    approvers: Vec<Principal>,
+    name: String,
+    external_claim: Option<String>,
+}
+
+impl From<&Offer> for SavedOffer {
+    fn from(offer: &Offer) -> Self {
+        Self {
+            head: (&offer.head).into(),
+            mapping: offer.mapping.clone(),
+            approvers: offer.approvers.clone(),
+            name: offer.name.clone(),
+            external_claim: offer.external_claim.clone(),
+        }
+    }
+}
+
+impl SavedOffer {
+    fn into_offer(self) -> Offer {
+        Offer {
+            head: self.head.into_state(),
+            mapping: self.mapping,
+            approvers: self.approvers,
+            name: self.name,
+            external_claim: self.external_claim,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Membership {
     Proposed,
@@ -124,6 +163,7 @@ pub fn review_target(bridge: &[u8; 32], m: &Mapping) -> [u8; 32] {
 }
 
 pub struct BridgeRoom {
+    operations: RoomOperations,
     offers: BTreeMap<[u8; 32], Offer>,
     removed: BTreeMap<[u8; 32], [u8; 32]>,
     retired_incarnations: BTreeSet<([u8; 32], [u8; 16])>,
@@ -131,9 +171,45 @@ pub struct BridgeRoom {
     admitted_offers: BTreeMap<[u8; 32], Offer>,
     members: RoomServices,
     mappings: BTreeMap<[u8; 32], Mapping>,
-    endpoints: BTreeMap<[u8; 32], BTreeSet<Vec<u8>>>,
     observed_at: BTreeMap<[u8; 32], u64>,
     freshness_bound: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedBridgeRoom {
+    policy: (Option<usize>, u64),
+    freshness_bound: u64,
+    offers: Vec<SavedOffer>,
+    members: Vec<(MemberSnapshot, Mapping, Option<SavedOffer>)>,
+    removed: Vec<([u8; 32], [u8; 32])>,
+    retired_incarnations: BTreeSet<([u8; 32], [u8; 16])>,
+    superseded_targets: BTreeSet<[u8; 32]>,
+    committed_removals: BTreeSet<RemovalKey>,
+}
+
+impl SavedBridgeRoom {
+    fn within_limits(&self) -> bool {
+        self.offers.len() <= MAX_OFFERS
+            && [
+                self.members.len(),
+                self.removed.len(),
+                self.retired_incarnations.len(),
+                self.superseded_targets.len(),
+                self.committed_removals.len(),
+            ]
+            .into_iter()
+            .all(|len| len <= MAX_ROOM_ROWS)
+    }
+}
+
+fn valid_mapping(mapping: &Mapping) -> bool {
+    matches!(mapping.direction, TO_FOREIGN | TO_OM | BOTH)
+        && !mapping.allowed_classes.is_empty()
+        && [&mapping.namespace, &mapping.foreign_scope]
+            .iter()
+            .all(|text| {
+                !text.trim().is_empty() && clean_text(text, CLAIM_MAX).as_str() == text.as_str()
+            })
 }
 
 fn as_install(caps: &BTreeSet<String>) -> BTreeSet<String> {
@@ -146,8 +222,30 @@ fn as_install(caps: &BTreeSet<String>) -> BTreeSet<String> {
 }
 
 impl BridgeRoom {
+    pub fn operation(&self, id: OperationId, target: OperationTarget) -> Option<OperationOutcome> {
+        self.operations.lookup(id, target)
+    }
+
+    /// Record the exact terminal result alongside the reducer transition.
+    pub fn apply_operation(
+        &mut self,
+        id: Option<OperationId>,
+        target: OperationTarget,
+        apply: impl FnOnce(&mut Self) -> OperationOutcome,
+    ) -> OperationOutcome {
+        if let Some(outcome) = id.and_then(|id| self.operation(id, target)) {
+            return outcome;
+        }
+        let outcome = apply(self);
+        if let Some(id) = id {
+            self.operations.record(id, target, outcome.clone());
+        }
+        outcome
+    }
+
     pub fn new(quorum: Option<usize>, sequencing_timeout: u64, freshness_bound: u64) -> Self {
         Self {
+            operations: RoomOperations::default(),
             offers: BTreeMap::new(),
             removed: BTreeMap::new(),
             retired_incarnations: BTreeSet::new(),
@@ -155,10 +253,109 @@ impl BridgeRoom {
             admitted_offers: BTreeMap::new(),
             members: RoomServices::new(quorum, sequencing_timeout),
             mappings: BTreeMap::new(),
-            endpoints: BTreeMap::new(),
             observed_at: BTreeMap::new(),
             freshness_bound,
         }
+    }
+
+    pub fn export_snapshot(&self) -> Result<Vec<u8>, SnapshotError> {
+        let snapshot = SavedBridgeRoom {
+            policy: self.members.policy(),
+            freshness_bound: self.freshness_bound,
+            offers: self.offers.values().map(SavedOffer::from).collect(),
+            members: self
+                .members
+                .snapshot_members()
+                .into_iter()
+                .filter_map(|entry| {
+                    let id = entry.roster.service;
+                    Some((
+                        entry,
+                        self.mappings.get(&id)?.clone(),
+                        self.admitted_offers.get(&id).map(SavedOffer::from),
+                    ))
+                })
+                .collect(),
+            removed: self
+                .removed
+                .iter()
+                .map(|(id, target)| (*id, *target))
+                .collect(),
+            retired_incarnations: self.retired_incarnations.clone(),
+            superseded_targets: self.superseded_targets.clone(),
+            committed_removals: self.members.committed_removals().clone(),
+        };
+        if !snapshot.within_limits() {
+            return Err(SnapshotError::Limit);
+        }
+        room_snapshot::encode(snapshot, &self.operations)
+    }
+
+    /// The caller verifies the local record and supplies current independently verified Room head facts.
+    pub fn import_snapshot(
+        bytes: &[u8],
+        verify: impl Fn(&HeadReference) -> bool,
+        now: u64,
+    ) -> Result<Self, SnapshotError> {
+        let (snapshot, operations) = room_snapshot::decode::<SavedBridgeRoom>(bytes)?;
+        if !snapshot.within_limits() {
+            return Err(SnapshotError::Limit);
+        }
+        let mut room = Self::new(
+            snapshot.policy.0,
+            snapshot.policy.1,
+            snapshot.freshness_bound,
+        );
+        room.operations = operations;
+        room.removed.extend(snapshot.removed);
+        room.retired_incarnations = snapshot.retired_incarnations;
+        room.superseded_targets = snapshot.superseded_targets;
+        room.members
+            .restore_committed_removals(snapshot.committed_removals);
+        for (member, mapping, saved) in snapshot.members {
+            let id = member.roster.service;
+            if room.mappings.contains_key(&id)
+                || room.removed.contains_key(&id)
+                || !valid_mapping(&mapping)
+                || member.roster.incarnation.as_slice() != mapping.incarnation.as_slice()
+                || room
+                    .retired_incarnations
+                    .contains(&(id, mapping.incarnation))
+            {
+                continue;
+            }
+            let mut active = mapping.clone();
+            active.active = true;
+            let admitted = saved
+                .as_ref()
+                .map_or_else(|| member.head.clone(), |o| o.head.clone());
+            let offer = match saved {
+                Some(saved)
+                    if saved.head.id == id && saved.mapping == active && verify(&saved.head) =>
+                {
+                    let offer = saved.into_offer();
+                    if room.propose(offer).is_err() {
+                        continue;
+                    }
+                    room.offers.remove(&id)
+                }
+                Some(_) => continue,
+                None => None,
+            };
+            if room.members.restore_member(member, &admitted, &verify, now) {
+                room.mappings.insert(id, mapping);
+                if let Some(offer) = offer {
+                    room.admitted_offers.insert(id, offer);
+                }
+                // A saved runtime timestamp cannot make a mapping fresh after a restart.
+            }
+        }
+        for saved in snapshot.offers {
+            if verify(&saved.head) {
+                let _ = room.propose(saved.into_offer());
+            }
+        }
+        Ok(room)
     }
 
     /// Admits a bridge as a full member and records its mapping.
@@ -194,13 +391,6 @@ impl BridgeRoom {
                 &approvers,
             )
             .map_err(BridgeRoomError::Room)?;
-        self.endpoints.insert(
-            head.service_id,
-            self.members
-                .entry(&head.service_id)
-                .map(|e| e.endpoints.clone())
-                .unwrap_or_default(),
-        );
         self.observed_at.insert(head.service_id, now);
         self.mappings.insert(head.service_id, mapping);
         Ok(())
@@ -212,7 +402,10 @@ impl BridgeRoom {
         self.members
             .observe_head(head, now)
             .map_err(BridgeRoomError::Room)?;
-        if self.members.held_head(&head.service_id) != previous {
+        // A restored mapping has no live admission basis, even after a later control observation.
+        if self.observed_at.contains_key(&head.service_id)
+            && self.members.held_head(&head.service_id) != previous
+        {
             self.observed_at.insert(head.service_id, now);
         }
         Ok(())
@@ -228,21 +421,11 @@ impl BridgeRoom {
         {
             return Err(OfferError::Malformed);
         }
-        if !matches!(offer.mapping.direction, TO_FOREIGN | TO_OM | BOTH)
-            || offer.mapping.allowed_classes.is_empty()
-        {
+        if !valid_mapping(&offer.mapping) {
             return Err(OfferError::Malformed);
         }
         if !self.offers.contains_key(&id) && self.offers.len() >= MAX_OFFERS {
             return Err(OfferError::TooMany);
-        }
-        if [&offer.mapping.namespace, &offer.mapping.foreign_scope]
-            .iter()
-            .any(|text| {
-                text.trim().is_empty() || clean_text(text, CLAIM_MAX).as_str() != text.as_str()
-            })
-        {
-            return Err(OfferError::Malformed);
         }
         offer.name = clean_text(&offer.name, NAME_MAX);
         offer.external_claim = offer
@@ -364,7 +547,6 @@ impl BridgeRoom {
                 .insert((*bridge, mapping.incarnation));
         }
         self.admitted_offers.remove(bridge);
-        self.endpoints.remove(bridge);
         self.observed_at.remove(bridge);
         Ok(gone)
     }
@@ -415,6 +597,10 @@ impl BridgeRoom {
             return Err(Blocked::ClassNotAllowed);
         }
         Ok(())
+    }
+
+    pub fn has_runtime_observation(&self, bridge: &[u8; 32]) -> bool {
+        self.observed_at.contains_key(bridge)
     }
 
     pub fn is_fresh(&self, age: u64) -> bool {

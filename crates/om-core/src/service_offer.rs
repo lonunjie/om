@@ -2,8 +2,15 @@
 //! Room-local offers (ADR-0272). The caller supplies verified control heads; an offer grants no authority.
 
 use crate::bridge_room::clean_text;
+use crate::room_snapshot::{
+    self, HeadReference, MAX_ROOM_ROWS, OperationId, OperationOutcome, OperationTarget,
+    RoomOperations, SnapshotError,
+};
 use crate::service_control::{ACTIVE, ServiceState};
-use crate::service_room_member::{Principal, RoomError, RoomServices, TriggerFilter};
+use crate::service_room_member::{
+    MemberSnapshot, Principal, RemovalKey, RoomError, RoomServices, TriggerFilter,
+};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -19,6 +26,42 @@ pub struct Offer {
     /// Reported at proposal time (ADR-0269 item 3).
     pub approvers: Vec<Principal>,
     pub name: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedOffer {
+    head: HeadReference,
+    incarnation: Vec<u8>,
+    capabilities: BTreeSet<String>,
+    filter: Option<TriggerFilter>,
+    approvers: Vec<Principal>,
+    name: String,
+}
+
+impl From<&Offer> for SavedOffer {
+    fn from(offer: &Offer) -> Self {
+        Self {
+            head: (&offer.head).into(),
+            incarnation: offer.incarnation.clone(),
+            capabilities: offer.capabilities.clone(),
+            filter: offer.filter.clone(),
+            approvers: offer.approvers.clone(),
+            name: offer.name.clone(),
+        }
+    }
+}
+
+impl SavedOffer {
+    fn into_offer(self) -> Offer {
+        Offer {
+            head: self.head.into_state(),
+            incarnation: self.incarnation,
+            capabilities: self.capabilities,
+            filter: self.filter,
+            approvers: self.approvers,
+            name: self.name,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,18 +129,181 @@ enum Installation {
 }
 
 pub struct ServiceRoom {
+    operations: RoomOperations,
     members: RoomServices,
     offers: BTreeMap<[u8; 32], Offer>,
     installations: BTreeMap<[u8; 32], Installation>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct SavedRemoval {
+    id: [u8; 32],
+    incarnation: Vec<u8>,
+    name: String,
+    target: [u8; 32],
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedServiceRoom {
+    policy: (Option<usize>, u64),
+    offers: Vec<SavedOffer>,
+    members: Vec<(MemberSnapshot, Option<SavedOffer>)>,
+    removed: Vec<SavedRemoval>,
+    committed_removals: BTreeSet<RemovalKey>,
+}
+
+impl SavedServiceRoom {
+    fn within_limits(&self) -> bool {
+        self.offers.len() <= MAX_OFFERS
+            && [
+                self.members.len(),
+                self.removed.len(),
+                self.committed_removals.len(),
+            ]
+            .into_iter()
+            .all(|len| len <= MAX_ROOM_ROWS)
+    }
+}
+
 impl ServiceRoom {
+    pub fn operation(&self, id: OperationId, target: OperationTarget) -> Option<OperationOutcome> {
+        self.operations.lookup(id, target)
+    }
+
+    /// Record the exact terminal result alongside the reducer transition.
+    pub fn apply_operation(
+        &mut self,
+        id: Option<OperationId>,
+        target: OperationTarget,
+        apply: impl FnOnce(&mut Self) -> OperationOutcome,
+    ) -> OperationOutcome {
+        if let Some(outcome) = id.and_then(|id| self.operation(id, target)) {
+            return outcome;
+        }
+        let outcome = apply(self);
+        if let Some(id) = id {
+            self.operations.record(id, target, outcome.clone());
+        }
+        outcome
+    }
+
     pub fn new(quorum: Option<usize>, sequencing_timeout: u64) -> Self {
         Self {
+            operations: RoomOperations::default(),
             members: RoomServices::new(quorum, sequencing_timeout),
             offers: BTreeMap::new(),
             installations: BTreeMap::new(),
         }
+    }
+
+    pub fn export_snapshot(&self) -> Result<Vec<u8>, SnapshotError> {
+        let snapshot = SavedServiceRoom {
+            policy: self.members.policy(),
+            offers: self.offers.values().map(SavedOffer::from).collect(),
+            members: self
+                .members
+                .snapshot_members()
+                .into_iter()
+                .map(|entry| {
+                    let offer = match self.installations.get(&entry.roster.service) {
+                        Some(Installation::Installed(offer)) => {
+                            offer.as_deref().map(SavedOffer::from)
+                        }
+                        _ => None,
+                    };
+                    (entry, offer)
+                })
+                .collect(),
+            removed: self
+                .installations
+                .iter()
+                .filter_map(|(id, entry)| match entry {
+                    Installation::Removed {
+                        incarnation,
+                        name,
+                        target,
+                    } => Some(SavedRemoval {
+                        id: *id,
+                        incarnation: incarnation.clone(),
+                        name: name.clone(),
+                        target: *target,
+                    }),
+                    _ => None,
+                })
+                .collect(),
+            committed_removals: self.members.committed_removals().clone(),
+        };
+        if !snapshot.within_limits() {
+            return Err(SnapshotError::Limit);
+        }
+        room_snapshot::encode(snapshot, &self.operations)
+    }
+
+    /// The caller verifies the local record and supplies current independently verified Room head facts.
+    pub fn import_snapshot(
+        bytes: &[u8],
+        verify: impl Fn(&HeadReference) -> bool,
+        now: u64,
+    ) -> Result<Self, SnapshotError> {
+        let (snapshot, operations) = room_snapshot::decode::<SavedServiceRoom>(bytes)?;
+        if !snapshot.within_limits() {
+            return Err(SnapshotError::Limit);
+        }
+        let mut room = Self::new(snapshot.policy.0, snapshot.policy.1);
+        room.operations = operations;
+        room.members
+            .restore_committed_removals(snapshot.committed_removals);
+        for SavedRemoval {
+            id,
+            incarnation,
+            name,
+            target,
+        } in snapshot.removed
+        {
+            if (16..=32).contains(&incarnation.len()) && clean_text(&name, NAME_MAX) == name {
+                room.installations.insert(
+                    id,
+                    Installation::Removed {
+                        incarnation,
+                        name,
+                        target,
+                    },
+                );
+            }
+        }
+        for (member, saved) in snapshot.members {
+            let id = member.roster.service;
+            if room.installations.contains_key(&id) {
+                continue;
+            }
+            let admitted = saved
+                .as_ref()
+                .map_or_else(|| member.head.clone(), |o| o.head.clone());
+            let offer = match saved {
+                Some(saved)
+                    if saved.head.id == id
+                        && saved.incarnation == member.roster.incarnation
+                        && verify(&saved.head) =>
+                {
+                    if room.propose(saved.into_offer()).is_err() {
+                        continue;
+                    }
+                    room.offers.remove(&id).map(Box::new)
+                }
+                Some(_) => continue,
+                None => None,
+            };
+            if room.members.restore_member(member, &admitted, &verify, now) {
+                room.installations
+                    .insert(id, Installation::Installed(offer));
+            }
+        }
+        for saved in snapshot.offers {
+            if verify(&saved.head) {
+                let _ = room.propose(saved.into_offer());
+            }
+        }
+        Ok(room)
     }
 
     pub fn members(&self) -> &RoomServices {

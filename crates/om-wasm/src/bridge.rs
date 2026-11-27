@@ -280,6 +280,13 @@ enum Command {
         op: scope::BridgeRoomOp,
     },
     #[cfg(feature = "scope-engines")]
+    RoomSnapshot {
+        ctx: ProfileExecutionContext,
+        room: String,
+        kind: String,
+        snapshot: Option<String>,
+    },
+    #[cfg(feature = "scope-engines")]
     LanTransferDo {
         ctx: Option<ProfileExecutionContext>,
         side: String,
@@ -1676,6 +1683,65 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     &controls,
                     Some(now),
                 ))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::RoomSnapshot {
+                ctx,
+                room,
+                kind,
+                snapshot,
+            } => {
+                use om_core::room_snapshot::MAX_SNAPSHOT_BYTES;
+                let Some(kind) = scope::control_kind(&kind) else {
+                    return Ok(json!({ "refused": "malformed" }));
+                };
+                let Some(conversation) = self.scope_room(&ctx, &room)? else {
+                    return Ok(json!({ "refused": "not_authorized" }));
+                };
+                if let Some(snapshot) = snapshot {
+                    let max_hex = (MAX_SNAPSHOT_BYTES + 32) * 2;
+                    let Some(bytes) = (64..=max_hex)
+                        .contains(&snapshot.len())
+                        .then(|| scope::lan_bytes(&snapshot))
+                        .flatten()
+                    else {
+                        return Ok(json!({ "refused": "invalid_snapshot" }));
+                    };
+                    let (tag, body) = bytes.split_at(32);
+                    if self
+                        .core()?
+                        .room_snapshot_auth(&ctx, &conversation, kind, body, Some(tag))?
+                        .is_none()
+                    {
+                        return Ok(json!({ "refused": "invalid_snapshot" }));
+                    }
+                    let now = self.runtime_now()?;
+                    let controls = self.core()?.room_control_view(&ctx, &conversation, now)?;
+                    Ok(self
+                        .handles
+                        .entry(ctx.profile_id)
+                        .or_default()
+                        .import_room_snapshot(&conversation, kind, body, &controls, now))
+                } else {
+                    let Some(snapshot) = self
+                        .handles
+                        .get(&ctx.profile_id)
+                        .and_then(|handles| handles.export_room_snapshot(&conversation, kind))
+                    else {
+                        return Ok(json!({ "refused": "unknown_handle" }));
+                    };
+                    let body = match snapshot {
+                        Ok(body) => body,
+                        Err(error) => return Ok(scope::snapshot_refusal(error)),
+                    };
+                    let Some(tag) =
+                        self.core()?
+                            .room_snapshot_auth(&ctx, &conversation, kind, &body, None)?
+                    else {
+                        return Ok(json!({ "refused": "not_authorized" }));
+                    };
+                    Ok(json!({ "snapshot": scope::lan_hex(&[tag.as_slice(), &body].concat()) }))
+                }
             }
             #[cfg(feature = "scope-engines")]
             Command::LanTransferDo {

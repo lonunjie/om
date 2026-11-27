@@ -1577,6 +1577,56 @@ impl<R: RngCore + CryptoRng> Core<R> {
         }))
     }
 
+    /// Authenticate a device-local reducer cache under a Room- and kind-specific key.
+    /// This tag records local provenance. Current Room heads are checked independently at import.
+    pub fn room_snapshot_auth(
+        &self,
+        ctx: &ProfileExecutionContext,
+        room: &str,
+        kind: crate::room_control::ObjectKind,
+        bytes: &[u8],
+        tag: Option<&[u8]>,
+    ) -> Result<Option<[u8; 32]>, CoreError> {
+        use hmac::{Hmac, KeyInit, Mac};
+        use sha2::Sha256;
+        if bytes.len() > crate::room_snapshot::MAX_SNAPSHOT_BYTES
+            || !self.room_control_reader(ctx, room)?
+        {
+            return Ok(None);
+        }
+        let device = self
+            .slot(ctx)?
+            .state
+            .device
+            .as_ref()
+            .ok_or(CoreError::Invalid("no device"))?;
+        // An implementation-private label, local to the device record and absent from the wire.
+        let binding = serde_json::to_vec(&(
+            &ctx.profile_id,
+            room,
+            kind == crate::room_control::ObjectKind::Bridge,
+        ))
+        .map_err(|_| CoreError::Invalid("room snapshot context"))?;
+        let mut key = zeroize::Zeroizing::new([0; 32]);
+        crate::crypto::kdf::hkdf_sha256(
+            b"om:v1:engineering-room-snapshot",
+            &device.ik_secret,
+            &binding,
+            key.as_mut(),
+        );
+        let mut mac =
+            <Hmac<Sha256> as KeyInit>::new_from_slice(key.as_ref()).expect("fixed HMAC key length");
+        mac.update(bytes);
+        match tag {
+            Some(tag) => Ok(mac.verify_slice(tag).ok().map(|()| [0; 32])),
+            None => {
+                let mut tag = [0; 32];
+                tag.copy_from_slice(&mac.finalize().into_bytes());
+                Ok(Some(tag))
+            }
+        }
+    }
+
     /// A Room observes a signed service or bridge control state (ADR-0269). Core verifies every signature against the
     /// control head of our own account or a contact's, then lets the chain decide rollback, forks and thresholds.
     /// `reported_approvers` is recorded only when this is the first state seen for the service or bridge.

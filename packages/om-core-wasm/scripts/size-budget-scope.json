@@ -1,9 +1,9 @@
 {
   "source": "scope-engines engineering module (om_wasm_scope.wasm) minus the base om_wasm.wasm, production-optimised, gzip level 9; not shipped, not bundled",
   "baseline": {
-    "deltaRawBytes": 2268164,
-    "deltaGzipBytes": 570533
+    "deltaRawBytes": 2572015,
+    "deltaGzipBytes": 652971
   },
   "headroomPercent": 5,
-  "headroomNote": "Re-measured 2026-11-27 on emeth4 after the conformance fixes (digest prefix 24cc3c19eabf, reproducible). Previous baseline +2160177 raw / +538426 gzip. The module is engineering-only: not bundled, flag off; the release base module and its own size budget are unaffected."
+  "headroomNote": "Re-measured 2026-11-27 on emeth4 after the durable Room operation log and snapshot were added (digest prefix 38886ed299e6, reproducible). Previous baseline +2268164 raw / +570533 gzip. The module is engineering-only: not bundled, flag off; the release base module and its own size budget are unaffected."
 }

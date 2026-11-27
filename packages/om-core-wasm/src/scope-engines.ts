@@ -8,6 +8,15 @@ import { createCommunitiesEngines, type CommunitiesEngines } from "./communities
 
 export type Refusal = { readonly refused: string };
 export type Done = { readonly done: true };
+export type RoomMutationResult = Done | { readonly removedEndpoints: number } | Refusal;
+export interface RoomOperation {
+  readonly operationId: string;
+  readonly mutation: "admit_offer" | "install_offer" | "remove_member" | "remove";
+  readonly principal: string;
+  readonly target?: string;
+}
+export type RoomOperationView = { readonly result: RoomMutationResult | null } | Refusal;
+export type RoomSnapshotKind = "bridge" | "service";
 export interface BridgeMember {
   readonly installed: boolean;
   readonly canReadAllContent?: boolean;
@@ -87,6 +96,7 @@ export interface LinkState { readonly official: boolean; readonly spaceSide: boo
 export interface ScopeEngines extends CommunitiesEngines {
   /** Room-member service path (one Room per handle). */
   readonly roomServices: {
+    operation(room: string, operation: RoomOperation, ctx?: ProfileExecutionContext): RoomOperationView;
     open(room: string, opts: { quorum: number | null; sequencingTimeout: number }): Done | Refusal;
     close(room: string): { readonly done: boolean };
     install(room: string, caps: readonly string[], a: { head: HeadFacts; incarnation: string; filterClasses: readonly number[] | null; approvers: readonly Approver[] }): Done | Refusal;
@@ -94,19 +104,21 @@ export interface ScopeEngines extends CommunitiesEngines {
     mustStopSending(room: string, service: string, endpoint: string): boolean;
     mayCommitRemoval(room: string, a: { service: string; endpoint: string; isCoordinator: boolean; now: number }): Done | Refusal;
     removalCommitted(room: string, service: string, endpoint: string): boolean;
-    remove(room: string, caps: readonly string[], service: string): { readonly removedEndpoints: number } | Refusal;
+    remove(room: string, caps: readonly string[], service: string, operationId?: string): { readonly removedEndpoints: number } | Refusal;
     view(room: string, service: string): Roster | Refusal;
     list(room: string, ctx?: ProfileExecutionContext): { readonly services: readonly ServiceListing[] } | Refusal;
     /** Places an offer. An initialized Core verifies the head under the supplied profile context. */
     propose(room: string, offer: ServiceOfferInput, ctx?: ProfileExecutionContext): { readonly target: string } | Refusal;
     withdrawOffer(room: string, service: string): { readonly done: boolean } | Refusal;
-    installOffer(room: string, caps: readonly string[], a: { service: string; target: string }, ctx?: ProfileExecutionContext): Done | Refusal;
-    removeMember(room: string, caps: readonly string[], a: { service: string; target: string }, ctx?: ProfileExecutionContext): { readonly removedEndpoints: number } | Refusal;
+    installOffer(room: string, caps: readonly string[], a: { service: string; target: string; operationId?: string }, ctx?: ProfileExecutionContext): Done | Refusal;
+    removeMember(room: string, caps: readonly string[], a: { service: string; target: string; operationId?: string }, ctx?: ProfileExecutionContext): { readonly removedEndpoints: number } | Refusal;
   };
   readonly bridgeRoom: {
+    operation(room: string, operation: RoomOperation, ctx?: ProfileExecutionContext): RoomOperationView;
     open(room: string, opts: { quorum: number | null; sequencingTimeout: number; freshnessBound: number }): Done | Refusal;
     admit(room: string, caps: readonly string[], a: { head: HeadFacts; mapping: BridgeMapping; approvers: readonly Approver[]; now: number }): Done | Refusal;
     observeHead(room: string, head: HeadFacts, now: number): Done | Refusal;
+    remove(room: string, caps: readonly string[], bridge: string, operationId?: string): { readonly removedEndpoints: number } | Refusal;
     revokeMapping(room: string, caps: readonly string[], bridge: string): Done | Refusal;
     mayExport(room: string, a: { bridge: string; endpoint: string; class: number }): { readonly allowed: boolean; readonly blocked?: string } | Refusal;
     importAuthorOk(room: string, authorKind: number): boolean;
@@ -118,8 +130,8 @@ export interface ScopeEngines extends CommunitiesEngines {
     propose(room: string, a: { head: HeadFacts; mapping: BridgeMapping; approvers: readonly Approver[]; name: string; externalClaim: string | null }, ctx?: ProfileExecutionContext): { readonly target: string } | Refusal;
     withdrawOffer(room: string, bridge: string): { readonly done: boolean } | Refusal;
     /** Admits the offer the reviewer saw; refuses `stale_target` when the offer changed. */
-    admitOffer(room: string, caps: readonly string[], a: { bridge: string; target: string }, ctx?: ProfileExecutionContext): Done | Refusal;
-    removeMember(room: string, caps: readonly string[], a: { bridge: string; target: string }, ctx?: ProfileExecutionContext): { readonly removedEndpoints: number } | Refusal;
+    admitOffer(room: string, caps: readonly string[], a: { bridge: string; target: string; operationId?: string }, ctx?: ProfileExecutionContext): Done | Refusal;
+    removeMember(room: string, caps: readonly string[], a: { bridge: string; target: string; operationId?: string }, ctx?: ProfileExecutionContext): { readonly removedEndpoints: number } | Refusal;
   };
   readonly lanTransfer: {
     openSender(handle: string, a: { blobId: string; digest: string; total: number }): Done | Refusal;
@@ -146,6 +158,10 @@ export interface ScopeEngines extends CommunitiesEngines {
     advertise(ctx: ProfileExecutionContext): { readonly tags: readonly string[] };
     observe(ctx: ProfileExecutionContext, tag: string): { readonly conversationId: string | null } | Refusal;
   };
+  readonly roomSnapshot: {
+    export(room: string, kind: RoomSnapshotKind, ctx: ProfileExecutionContext): { readonly snapshot: string } | Refusal;
+    import(room: string, kind: RoomSnapshotKind, snapshot: string, ctx: ProfileExecutionContext): Done | Refusal;
+  };
   /** What a Room has observed of its services and bridges (ADR-0269). Core verifies every signature; the host only supplies bytes. */
   readonly roomControl: {
     observe(ctx: ProfileExecutionContext, room: string, kind: "service" | "bridge", signedHex: string, reportedApprovers?: readonly Approver[]): { readonly outcome: "accepted" | "duplicate" | "forked" } | Refusal;
@@ -171,6 +187,7 @@ export function createScopeEngines(core: Pick<WasmCore, "call">, inputCtx?: Prof
   return {
     ...createCommunitiesEngines(core),
     roomServices: {
+      operation: (room, operation, ctx) => rs(room, [], { kind: "operation", ...operation }, ctx),
       open: (room, o) => rs(room, [], { kind: "open", ...o }),
       close: (room) => rs(room, [], { kind: "close" }),
       install: (room, caps, a) => rs(room, caps, { kind: "install", ...a }),
@@ -178,7 +195,7 @@ export function createScopeEngines(core: Pick<WasmCore, "call">, inputCtx?: Prof
       mustStopSending: (room, service, endpoint) => (rs(room, [], { kind: "must_stop", service, endpoint }) as { mustStopSending: boolean }).mustStopSending === true,
       mayCommitRemoval: (room, a) => rs(room, [], { kind: "may_commit_removal", ...a }),
       removalCommitted: (room, service, endpoint) => (rs(room, [], { kind: "removal_committed", service, endpoint }) as { applied: boolean }).applied === true,
-      remove: (room, caps, service) => rs(room, caps, { kind: "remove", service }),
+      remove: (room, caps, service, operationId) => rs(room, caps, { kind: "remove", service, operationId }),
       view: (room, service) => rs(room, [], { kind: "view", service }),
       list: (room, ctx) => rs(room, [], { kind: "list" }, ctx),
       propose: (room, offer, ctx) => rs(room, [], { kind: "propose", ...offer }, ctx),
@@ -187,6 +204,8 @@ export function createScopeEngines(core: Pick<WasmCore, "call">, inputCtx?: Prof
       removeMember: (room, caps, a, ctx) => rs(room, caps, { kind: "remove_member", ...a }, ctx),
     },
     bridgeRoom: {
+      operation: (room, operation, ctx) => br(room, [], { kind: "operation", ...operation }, ctx),
+      remove: (room, caps, bridge, operationId) => br(room, caps, { kind: "remove", bridge, operationId }),
       open: (room, o) => br(room, [], { kind: "open", ...o }),
       admit: (room, caps, a) => br(room, caps, { kind: "admit", ...a }),
       observeHead: (room, head, now) => br(room, [], { kind: "observe_head", head, now }),
@@ -199,6 +218,10 @@ export function createScopeEngines(core: Pick<WasmCore, "call">, inputCtx?: Prof
       admitOffer: (room, caps, a, ctx) => br(room, caps, { kind: "admit_offer", ...a }, ctx),
       removeMember: (room, caps, a, ctx) => br(room, caps, { kind: "remove_member", ...a }, ctx),
       importAuthorOk: (room, authorKind) => (br(room, [], { kind: "import_author_ok", authorKind }) as { allowed: boolean }).allowed === true,
+    },
+    roomSnapshot: {
+      export: (room, kind, ctx) => q({ cmd: "room_snapshot", room, kind, ctx }),
+      import: (room, kind, snapshot, ctx) => q({ cmd: "room_snapshot", room, kind, ctx, snapshot }),
     },
     lanTransfer: {
       openSender: (h, a) => lt("sender", h, { kind: "sender_open", ...a }),

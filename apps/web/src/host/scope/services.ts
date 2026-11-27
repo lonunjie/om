@@ -7,6 +7,7 @@ import type {
   ServiceDisclosureItem, ServiceIntent, ServiceInvocationView, ServiceReadAccess,
 } from "../../../../../packages/om-ui/src/services/services";
 import { denyAll, roomEventClasses, type RoomAuthority } from "./bridge";
+import type { RoomPersistence } from "./room-storage";
 
 const installCapability = "room.install_service";
 type RoomServiceChange = "install" | "remove";
@@ -51,6 +52,7 @@ export interface ConnectedServicesOptions {
   readonly selectionSource?: SelectionSource;
   readonly invocation?: ServiceInvocationOptions;
   readonly pending: PendingServiceStore;
+  readonly persistence?: RoomPersistence;
 }
 
 export function serviceRoomHandle(profileId: ProfileId, conversationId: ConversationId): string {
@@ -59,6 +61,7 @@ export function serviceRoomHandle(profileId: ProfileId, conversationId: Conversa
 
 const refusalReasons: Readonly<Partial<Record<string, RejectReason>>> = {
   already_installed: "conflict",
+  operation_conflict: "conflict",
   malformed: "invalid",
   not_authorized: "unauthorized",
   not_installed: "not_found",
@@ -139,12 +142,6 @@ function brokerVerdict(
   return { ...denied, reason: "unavailable" };
 }
 
-function matchesEffect(services: readonly ServiceListing[], operation: PendingServiceOperation): boolean {
-  const membership = operation.intent.kind === "install" ? "installed" : "removed";
-  return services.some((service) => service.service === operation.service &&
-    service.target === operation.intent.target && service.membership === membership);
-}
-
 function matchesHead(service: ServiceListing, head: RoomControlEntry | undefined): boolean {
   const basis = service.admissionBasis;
   return basis !== undefined && head !== undefined && !head.frozen &&
@@ -186,7 +183,7 @@ function readAccess(service: ServiceListing): ServiceReadAccess {
 }
 
 export function createConnectedServicesService({
-  ctx: inputCtx, engines, authority = denyAll, selectionSource = () => null, invocation, pending,
+  ctx: inputCtx, engines, authority = denyAll, selectionSource = () => null, invocation, pending, persistence,
 }: ConnectedServicesOptions): ConnectedServicesService {
   const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
 
@@ -296,48 +293,38 @@ export function createConnectedServicesService({
     return { entries, invocation: review, outcome };
   }
 
-  async function reconcile(conversationId: ConversationId, room: Room, operation: PendingServiceOperation) {
-    if (operation.intent.kind === "invoke") return view(conversationId, room, pendingNetwork);
-    let outcome: OutcomeClass = reconciling;
-    if (matchesEffect(room.services, operation)) {
-      outcome = committed;
-    } else {
-      const handle = serviceRoomHandle(ctx.profileId, conversationId);
-      const caps = authority.capabilities(ctx, conversationId);
-      const { kind, target } = operation.intent;
-      const input = { service: operation.service, target };
-      const offer = room.services.find((service) => service.service === input.service &&
-        service.target === target && service.membership === "proposed");
-      if (!caps.includes(installCapability)) {
-        outcome = rejected("unauthorized");
-      } else if (kind === "install" && offer !== undefined && !matchesHead(offer, room.heads.get(input.service))) {
-        outcome = rejected("stale_state");
-      } else {
+  async function reconcile(conversationId: ConversationId, operation: PendingServiceOperation) {
+    if (operation.intent.kind === "invoke") return view(conversationId, read(conversationId), pendingNetwork);
+    const handle = serviceRoomHandle(ctx.profileId, conversationId);
+    const { id: operationId, service, intent: { kind, target } } = operation;
+    const input = { service, target, operationId };
+    let outcome: OutcomeClass;
+    try {
+      const prior = engines.roomServices.operation(handle, {
+        operationId, mutation: kind === "install" ? "install_offer" : "remove_member", principal: service, target,
+      }, ctx);
+      if ("refused" in prior) throw new Error("Service operation unavailable");
+      const dispatch = () => {
+        const caps = authority.capabilities(ctx, conversationId);
+        return kind === "install" ? engines.roomServices.installOffer(handle, caps, input, ctx)
+          : engines.roomServices.removeMember(handle, caps, input, ctx);
+      };
+      const result = prior.result ?? dispatch();
+      outcome = "refused" in result ? rejected(refusalReasons[result.refused] ?? "unavailable") : committed;
+      await persistence?.save(conversationId);
+      await pending.clear(ctx.profileId, conversationId, operationId);
+    } catch {
+      if (persistence === undefined) {
         try {
-          const result = kind === "install"
-            ? engines.roomServices.installOffer(handle, caps, input, ctx)
-            : engines.roomServices.removeMember(handle, caps, input, ctx);
-          if ("refused" in result) outcome = rejected(refusalReasons[result.refused] ?? "unavailable");
+          return await view(conversationId, read(conversationId), reconciling);
         } catch {
-          // The command may have applied before its result arrived.
+          // Reconciliation stays pending if the view is unavailable too.
         }
-        try {
-          room = read(conversationId);
-        } catch {
-          return view(conversationId, room, reconciling);
-        }
-        if (matchesEffect(room.services, operation)) outcome = committed;
       }
-    }
-    if (outcome.kind !== "PendingReconciliation") {
-      try {
-        await pending.clear(ctx.profileId, conversationId, operation.id);
-      } catch {
-        outcome = reconciling;
-      }
+      return { entries: [], invocation: null, outcome: reconciling };
     }
     try {
-      return await view(conversationId, room, outcome);
+      return await view(conversationId, read(conversationId), outcome);
     } catch {
       return { entries: [], invocation: null, outcome };
     }
@@ -364,6 +351,7 @@ export function createConnectedServicesService({
       return render(conversationId, room, rejected(review.action.reason), false, review);
     }
     // Only the operation identity is durable. There is no session through which to send the reviewed plaintext.
+    await persistence?.save(conversationId);
     settleFailureAs(reconciling);
     if (await pending.reserve(ctx.profileId, { id, conversationId, service: current.service, intent })) {
       settleFailureAs(pendingNetwork);
@@ -381,9 +369,16 @@ export function createConnectedServicesService({
     async state(conversationId) {
       if (conversationId === undefined) return { entries: [], invocation: null, outcome: null };
       return inRoom(pending, serviceRoomHandle(ctx.profileId, conversationId), async () => {
-        const operation = await loadPending(conversationId);
-        const room = read(conversationId);
-        return operation === null ? view(conversationId, room, null) : reconcile(conversationId, room, operation);
+        try {
+          const operation = await loadPending(conversationId);
+          await persistence?.restore(conversationId, operation !== null);
+          if (operation !== null) return await reconcile(conversationId, operation);
+          const room = read(conversationId);
+          await persistence?.save(conversationId);
+          return await view(conversationId, room, null);
+        } catch {
+          return { entries: [], invocation: null, outcome: reconciling };
+        }
       });
     },
     async change(conversationId, { kind, target }) {
@@ -397,10 +392,11 @@ export function createConnectedServicesService({
           if (existing !== null) {
             fallback = existing.id !== id ? rejected("conflict")
               : existing.intent.kind === "invoke" ? pendingNetwork : reconciling;
-            const room = read(conversationId);
-            return existing.id === id ? await reconcile(conversationId, room, existing)
-              : await view(conversationId, room, fallback, true);
+            await persistence?.restore(conversationId, true);
+            return existing.id === id ? await reconcile(conversationId, existing)
+              : await view(conversationId, read(conversationId), fallback, true);
           }
+          await persistence?.restore(conversationId, false);
           if (kind === "invoke") {
             return await invoke(conversationId, { kind, target }, id, (outcome) => { fallback = outcome; });
           }
@@ -421,15 +417,16 @@ export function createConnectedServicesService({
             return await view(conversationId, room, rejected("unsupported"));
           }
           const operation = { id, conversationId, service: service.service, intent: { kind, target } };
+          await persistence?.save(conversationId);
           fallback = reconciling;
           if (await pending.reserve(ctx.profileId, operation)) {
-            return await reconcile(conversationId, read(conversationId), operation);
+            return await reconcile(conversationId, operation);
           }
           fallback = rejected("unavailable");
           const winner = await loadPending(conversationId);
           if (winner?.id === id) {
             fallback = reconciling;
-            return await reconcile(conversationId, read(conversationId), winner);
+            return await reconcile(conversationId, winner);
           }
           if (winner !== null) fallback = rejected("conflict");
           return await view(conversationId, room, fallback, winner !== null);

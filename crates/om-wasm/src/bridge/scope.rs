@@ -3,6 +3,9 @@
 //! Stateless: each call carries what it needs and returns a decision; no keys, no host state, no authority.
 
 use om_core::bridge_fidelity::{Carry, Op, Plan, Support};
+use om_core::room_snapshot::{
+    HeadReference, Mutation, OperationId, OperationOutcome, OperationTarget, SnapshotError,
+};
 use om_core::service_broker::{EgressPolicy, Flow, Installation, Refusal, Tool};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -812,6 +815,7 @@ pub enum RoomOp {
     },
     Remove {
         service: String,
+        operation_id: Option<String>,
     },
     View {
         service: String,
@@ -832,10 +836,18 @@ pub enum RoomOp {
     InstallOffer {
         service: String,
         target: String,
+        operation_id: Option<String>,
     },
     RemoveMember {
         service: String,
         target: String,
+        operation_id: Option<String>,
+    },
+    Operation {
+        operation_id: String,
+        mutation: MutationIn,
+        principal: String,
+        target: Option<String>,
     },
 }
 
@@ -848,11 +860,62 @@ impl RoomOp {
                 | Self::ObserveHead { .. }
                 | Self::MayCommitRemoval { .. }
                 | Self::RemovalCommitted { .. }
-                | Self::Remove { .. }
-                | Self::InstallOffer { .. }
-                | Self::RemoveMember { .. }
         )
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MutationIn {
+    AdmitOffer,
+    InstallOffer,
+    RemoveMember,
+    Remove,
+}
+
+impl From<MutationIn> for Mutation {
+    fn from(value: MutationIn) -> Self {
+        match value {
+            MutationIn::AdmitOffer => Self::AdmitOffer,
+            MutationIn::InstallOffer => Self::InstallOffer,
+            MutationIn::RemoveMember => Self::RemoveMember,
+            MutationIn::Remove => Self::Remove,
+        }
+    }
+}
+
+fn operation_target(
+    id: Option<&str>,
+    mutation: Mutation,
+    principal: &str,
+    target: Option<&str>,
+) -> Option<(Option<OperationId>, OperationTarget)> {
+    Some((
+        match id {
+            Some(id) => Some(hex_n::<32>(id)?),
+            None => None,
+        },
+        OperationTarget {
+            mutation,
+            principal: hex_n::<32>(principal)?,
+            review: match target {
+                Some(target) => Some(hex_n::<32>(target)?),
+                None => None,
+            },
+        },
+    ))
+}
+
+fn operation_result(outcome: OperationOutcome) -> Value {
+    match outcome {
+        OperationOutcome::Applied => done(),
+        OperationOutcome::Removed(count) => json!({ "removedEndpoints": count }),
+        OperationOutcome::Refused(reason) => refused(&reason),
+    }
+}
+
+fn operation_view(outcome: Option<OperationOutcome>) -> Value {
+    json!({ "result": outcome.map(operation_result) })
 }
 
 fn verified_head<'a>(
@@ -860,9 +923,17 @@ fn verified_head<'a>(
     kind: om_core::room_control::ObjectKind,
     head: &ServiceState,
 ) -> Option<&'a om_core::engine::RoomControlEntry> {
+    verified_head_ref(controls, kind, &HeadReference::from(head))
+}
+
+fn verified_head_ref<'a>(
+    controls: &'a [om_core::engine::RoomControlEntry],
+    kind: om_core::room_control::ObjectKind,
+    head: &HeadReference,
+) -> Option<&'a om_core::engine::RoomControlEntry> {
     controls.iter().find(|entry| {
         entry.kind == kind
-            && entry.id == head.service_id
+            && entry.id == head.id
             && !entry.frozen
             && entry.head_version == Some(head.version)
             && entry.head_hash == Some(head.hash)
@@ -871,10 +942,11 @@ fn verified_head<'a>(
                 .iter()
                 .any(|(_, state, usable)| *state == om_core::service_control::ACTIVE && *usable)
             && entry.endpoints.len() == head.endpoints.len()
+            && head.endpoints.windows(2).all(|pair| pair[0].0 < pair[1].0)
             && entry.endpoints.iter().all(|(id, state, usable)| {
                 head.endpoints
-                    .get(id)
-                    .is_some_and(|endpoint| endpoint.state == *state)
+                    .iter()
+                    .any(|(ep, status)| ep == id && status == state)
                     && (*state != om_core::service_control::ACTIVE || *usable)
             })
     })
@@ -1056,14 +1128,21 @@ pub fn room_services_do(
             };
             json!({ "applied": r.members_mut().removal_committed(&s, &e) })
         }
-        RoomOp::Remove { service } => {
-            let Some(s) = hex_n::<32>(&service) else {
+        RoomOp::Remove {
+            service,
+            operation_id,
+        } => {
+            let Some((id, target)) =
+                operation_target(operation_id.as_deref(), Mutation::Remove, &service, None)
+            else {
                 return bad();
             };
-            match r.remove(&caps, &s) {
-                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
-                Err(e) => refused(room_err(&e)),
-            }
+            operation_result(r.apply_operation(id, target, |r| {
+                match r.remove(&caps, &target.principal) {
+                    Ok(gone) => OperationOutcome::Removed(gone.len()),
+                    Err(e) => OperationOutcome::refused(room_err(&e)),
+                }
+            }))
         }
         RoomOp::View { service } => {
             let Some(s) = hex_n::<32>(&service) else {
@@ -1113,36 +1192,86 @@ pub fn room_services_do(
             };
             json!({ "done": r.withdraw_offer(&s) })
         }
-        RoomOp::InstallOffer { service, target } => {
-            let (Some(s), Some(t)) = (hex_n::<32>(&service), hex_n::<32>(&target)) else {
+        RoomOp::InstallOffer {
+            service,
+            target,
+            operation_id,
+        } => {
+            let Some((id, key)) = operation_target(
+                operation_id.as_deref(),
+                Mutation::InstallOffer,
+                &service,
+                Some(&target),
+            ) else {
                 return bad();
             };
-            if r.current_target(&s) == Some(t)
-                && r.members().entry(&s).is_none()
-                && r.offer(&s).is_some_and(|offer| {
-                    verified_head(
-                        controls,
-                        om_core::room_control::ObjectKind::Service,
-                        &offer.head,
-                    )
-                    .is_none()
-                })
-            {
-                return refused("unverified_head");
-            }
-            match r.install_offer(&caps, &s, &t) {
-                Ok(()) => done(),
-                Err(e) => refused(service_offer_err(&e)),
-            }
+            let s = key.principal;
+            let t = key.review.expect("install has a review target");
+            operation_result(r.apply_operation(id, key, |r| {
+                if !caps.contains(om_core::service_room_member::INSTALL) {
+                    return OperationOutcome::refused("not_authorized");
+                }
+                if r.current_target(&s) == Some(t)
+                    && r.members().entry(&s).is_none()
+                    && r.offer(&s).is_some_and(|offer| {
+                        verified_head(
+                            controls,
+                            om_core::room_control::ObjectKind::Service,
+                            &offer.head,
+                        )
+                        .is_none()
+                    })
+                {
+                    return OperationOutcome::refused("unverified_head");
+                }
+                match r.install_offer(&caps, &s, &t) {
+                    Ok(()) => OperationOutcome::Applied,
+                    Err(e) => OperationOutcome::refused(service_offer_err(&e)),
+                }
+            }))
         }
-        RoomOp::RemoveMember { service, target } => {
-            let (Some(s), Some(t)) = (hex_n::<32>(&service), hex_n::<32>(&target)) else {
+        RoomOp::RemoveMember {
+            service,
+            target,
+            operation_id,
+        } => {
+            let Some((id, key)) = operation_target(
+                operation_id.as_deref(),
+                Mutation::RemoveMember,
+                &service,
+                Some(&target),
+            ) else {
                 return bad();
             };
-            match r.remove_installation(&caps, &s, &t) {
-                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
-                Err(e) => refused(service_offer_err(&e)),
-            }
+            operation_result(r.apply_operation(id, key, |r| {
+                if !caps.contains(om_core::service_room_member::INSTALL) {
+                    return OperationOutcome::refused("not_authorized");
+                }
+                match r.remove_installation(
+                    &caps,
+                    &key.principal,
+                    &key.review.expect("remove member has a review target"),
+                ) {
+                    Ok(gone) => OperationOutcome::Removed(gone.len()),
+                    Err(e) => OperationOutcome::refused(service_offer_err(&e)),
+                }
+            }))
+        }
+        RoomOp::Operation {
+            operation_id,
+            mutation,
+            principal,
+            target,
+        } => {
+            let Some((Some(id), key)) = operation_target(
+                Some(&operation_id),
+                mutation.into(),
+                &principal,
+                target.as_deref(),
+            ) else {
+                return bad();
+            };
+            operation_view(r.operation(id, key))
         }
     }
 }
@@ -1182,6 +1311,7 @@ pub enum BridgeRoomOp {
     },
     Remove {
         bridge: String,
+        operation_id: Option<String>,
     },
     RevokeMapping {
         bridge: String,
@@ -1215,10 +1345,18 @@ pub enum BridgeRoomOp {
     AdmitOffer {
         bridge: String,
         target: String,
+        operation_id: Option<String>,
     },
     RemoveMember {
         bridge: String,
         target: String,
+        operation_id: Option<String>,
+    },
+    Operation {
+        operation_id: String,
+        mutation: MutationIn,
+        principal: String,
+        target: Option<String>,
     },
 }
 
@@ -1226,11 +1364,7 @@ impl BridgeRoomOp {
     pub fn needs_verified_authority(&self) -> bool {
         matches!(
             self,
-            Self::Admit { .. }
-                | Self::ObserveHead { .. }
-                | Self::Remove { .. }
-                | Self::RevokeMapping { .. }
-                | Self::RemoveMember { .. }
+            Self::Admit { .. } | Self::ObserveHead { .. } | Self::RevokeMapping { .. }
         )
     }
 }
@@ -1280,6 +1414,7 @@ fn bridge_entry(
                 !head.frozen
                     && head.head_version == r.members().held_head(b).map(|h| h.0)
                     && head.head_hash == r.members().held_head(b).map(|h| h.1)
+                    && r.has_runtime_observation(b)
                     && r.is_fresh(head.observed_age_ms)
             })),
         );
@@ -1406,14 +1541,21 @@ pub fn bridge_room_do(
                 Err(e) => refused(bridge_room_err(&e)),
             }
         }
-        BridgeRoomOp::Remove { bridge } => {
-            let Some(b) = hex_n::<32>(&bridge) else {
+        BridgeRoomOp::Remove {
+            bridge,
+            operation_id,
+        } => {
+            let Some((id, target)) =
+                operation_target(operation_id.as_deref(), Mutation::Remove, &bridge, None)
+            else {
                 return bad();
             };
-            match r.remove(&caps, &b) {
-                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
-                Err(e) => refused(bridge_room_err(&e)),
-            }
+            operation_result(r.apply_operation(id, target, |r| {
+                match r.remove(&caps, &target.principal) {
+                    Ok(gone) => OperationOutcome::Removed(gone.len()),
+                    Err(e) => OperationOutcome::refused(bridge_room_err(&e)),
+                }
+            }))
         }
         BridgeRoomOp::RevokeMapping { bridge } => {
             let Some(b) = hex_n::<32>(&bridge) else {
@@ -1518,36 +1660,143 @@ pub fn bridge_room_do(
             };
             json!({ "done": r.withdraw_offer(&b) })
         }
-        BridgeRoomOp::AdmitOffer { bridge, target } => {
-            let (Some(b), Some(t)) = (hex_n::<32>(&bridge), hex_n::<32>(&target)) else {
+        BridgeRoomOp::AdmitOffer {
+            bridge,
+            target,
+            operation_id,
+        } => {
+            let Some((id, key)) = operation_target(
+                operation_id.as_deref(),
+                Mutation::AdmitOffer,
+                &bridge,
+                Some(&target),
+            ) else {
                 return bad();
             };
-            let Some(offer) = r
-                .offer(&b)
-                .filter(|_| r.roster(&b).is_none() && r.current_target(&b) == Some(t))
-            else {
-                return refused("stale_target");
-            };
-            let Some(now) = verified_head(controls, ObjectKind::Bridge, &offer.head)
-                .filter(|entry| r.is_fresh(entry.observed_age_ms))
-                .and_then(|entry| runtime_ms?.checked_sub(entry.observed_age_ms))
-            else {
-                return refused("unverified_head");
-            };
-            match r.admit_offer(&caps, &b, &t, now) {
-                Ok(()) => done(),
-                Err(e) => refused(offer_err(&e)),
-            }
+            let b = key.principal;
+            let t = key.review.expect("admit has a review target");
+            operation_result(r.apply_operation(id, key, |r| {
+                let Some(offer) = r
+                    .offer(&b)
+                    .filter(|_| r.roster(&b).is_none() && r.current_target(&b) == Some(t))
+                else {
+                    return OperationOutcome::refused("stale_target");
+                };
+                let Some(now) = verified_head(controls, ObjectKind::Bridge, &offer.head)
+                    .filter(|entry| r.is_fresh(entry.observed_age_ms))
+                    .and_then(|entry| {
+                        runtime_ms.and_then(|tick| tick.checked_sub(entry.observed_age_ms))
+                    })
+                else {
+                    return OperationOutcome::refused("unverified_head");
+                };
+                match r.admit_offer(&caps, &b, &t, now) {
+                    Ok(()) => OperationOutcome::Applied,
+                    Err(e) => OperationOutcome::refused(offer_err(&e)),
+                }
+            }))
         }
-        BridgeRoomOp::RemoveMember { bridge, target } => {
-            let (Some(b), Some(t)) = (hex_n::<32>(&bridge), hex_n::<32>(&target)) else {
+        BridgeRoomOp::RemoveMember {
+            bridge,
+            target,
+            operation_id,
+        } => {
+            let Some((id, key)) = operation_target(
+                operation_id.as_deref(),
+                Mutation::RemoveMember,
+                &bridge,
+                Some(&target),
+            ) else {
                 return bad();
             };
-            match r.remove_member(&caps, &b, &t) {
-                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
-                Err(e) => refused(offer_err(&e)),
+            operation_result(r.apply_operation(id, key, |r| {
+                if !caps.contains(om_core::bridge_room::ADD_BRIDGE) {
+                    return OperationOutcome::refused("not_authorized");
+                }
+                match r.remove_member(
+                    &caps,
+                    &key.principal,
+                    &key.review.expect("remove member has a review target"),
+                ) {
+                    Ok(gone) => OperationOutcome::Removed(gone.len()),
+                    Err(e) => OperationOutcome::refused(offer_err(&e)),
+                }
+            }))
+        }
+        BridgeRoomOp::Operation {
+            operation_id,
+            mutation,
+            principal,
+            target,
+        } => {
+            let Some((Some(id), key)) = operation_target(
+                Some(&operation_id),
+                mutation.into(),
+                &principal,
+                target.as_deref(),
+            ) else {
+                return bad();
+            };
+            operation_view(r.operation(id, key))
+        }
+    }
+}
+
+pub fn snapshot_refusal(error: SnapshotError) -> Value {
+    refused(match error {
+        SnapshotError::Invalid => "invalid_snapshot",
+        SnapshotError::Limit => "snapshot_limit",
+    })
+}
+
+impl Handles {
+    pub fn export_room_snapshot(
+        &self,
+        room: &str,
+        kind: om_core::room_control::ObjectKind,
+    ) -> Option<Result<Vec<u8>, SnapshotError>> {
+        use om_core::room_control::ObjectKind::*;
+        match kind {
+            Service => self.rooms.get(room).map(ServiceRoom::export_snapshot),
+            Bridge => self.bridge_rooms.get(room).map(BridgeRoom::export_snapshot),
+        }
+    }
+
+    pub fn import_room_snapshot(
+        &mut self,
+        room: &str,
+        kind: om_core::room_control::ObjectKind,
+        bytes: &[u8],
+        controls: &[om_core::engine::RoomControlEntry],
+        now: u64,
+    ) -> Value {
+        use om_core::room_control::ObjectKind::*;
+        let verify = |head: &HeadReference| verified_head_ref(controls, kind, head).is_some();
+        match kind {
+            Service => {
+                if self.rooms.contains_key(room) || self.rooms.len() >= MAX_HANDLES {
+                    return refused("room_already_open_or_limit");
+                }
+                match ServiceRoom::import_snapshot(bytes, verify, now) {
+                    Ok(restored) => {
+                        self.rooms.insert(room.into(), restored);
+                    }
+                    Err(error) => return snapshot_refusal(error),
+                }
+            }
+            Bridge => {
+                if self.bridge_rooms.contains_key(room) || self.bridge_rooms.len() >= MAX_HANDLES {
+                    return refused("room_already_open_or_limit");
+                }
+                match BridgeRoom::import_snapshot(bytes, verify, now) {
+                    Ok(restored) => {
+                        self.bridge_rooms.insert(room.into(), restored);
+                    }
+                    Err(error) => return snapshot_refusal(error),
+                }
             }
         }
+        done()
     }
 }
 
@@ -2447,6 +2696,199 @@ mod reducer_fixture_tests {
             run(&mut handles, admit, &[verified], 10),
             refused("not_authorized")
         );
+    }
+
+    #[test]
+    fn room_mutation_receipts_and_snapshots_round_trip() {
+        use om_core::engine::RoomControlEntry;
+        use om_core::room_control::ObjectKind;
+
+        for kind in [ObjectKind::Service, ObjectKind::Bridge] {
+            let bridge = kind == ObjectKind::Bridge;
+            let cap = if bridge {
+                "room.add_bridge"
+            } else {
+                "room.install_service"
+            };
+            let caps = [cap.into()];
+            let principal = if bridge { "bridge" } else { "service" };
+            let install = if bridge {
+                "admit_offer"
+            } else {
+                "install_offer"
+            };
+            let verified = RoomControlEntry {
+                kind,
+                id: [0x61; 32],
+                head_version: Some(1),
+                head_hash: Some([1; 32]),
+                frozen: false,
+                endpoints: vec![(vec![0x10; 16], 1, true)],
+                observed_age_ms: 0,
+                reported_approvers: vec![],
+            };
+            let other = RoomControlEntry {
+                id: [0x62; 32],
+                ..verified.clone()
+            };
+            let controls = [verified.clone(), other];
+            let run = |h: &mut Handles, op: Value| {
+                if bridge {
+                    bridge_room_do(
+                        h,
+                        "room",
+                        &caps,
+                        serde_json::from_value(op).unwrap(),
+                        &controls,
+                        Some(50),
+                    )
+                } else {
+                    room_services_do(
+                        h,
+                        "room",
+                        &caps,
+                        serde_json::from_value(op).unwrap(),
+                        &controls,
+                    )
+                }
+            };
+            let mut original = Handles::default();
+            assert_eq!(
+                run(
+                    &mut original,
+                    json!({
+                        "kind":"open","quorum":null,"sequencingTimeout":10,"freshnessBound":30,
+                    })
+                ),
+                done()
+            );
+
+            let propose = |id: &str| {
+                let mut facts = head(1, "01", 1);
+                facts["serviceId"] = json!(id);
+                json!({
+                    "kind":"propose", "head":facts, "name":"Example", "approvers": [],
+                    "incarnation":"05".repeat(16), "capabilities":["message.create"], "filterClasses":[1],
+                    "mapping":{"incarnation":"05".repeat(16),"namespace":"test","foreignScope":"room","direction":3,"allowedClasses":[1]},
+                })
+            };
+            let id = "61".repeat(32);
+            let target = run(&mut original, propose(&id))["target"].clone();
+            assert!(target.is_string());
+            assert!(run(&mut original, propose(&"62".repeat(32)))["target"].is_string());
+            let operation_id = "0a".repeat(32);
+            let intent = json!({ "kind":install, (principal):id, "target":target, "operationId":operation_id });
+            assert_eq!(run(&mut original, intent.clone()), done());
+            assert_eq!(run(&mut original, intent.clone()), done());
+            let mut changed = intent.clone();
+            changed["target"] = json!("bb".repeat(32));
+            assert_eq!(run(&mut original, changed), refused("operation_conflict"));
+
+            let export = |h: &Handles| h.export_room_snapshot("room", kind).unwrap().unwrap();
+            let snapshot = export(&original);
+            let mut reopened = Handles::default();
+            assert_eq!(
+                reopened.import_room_snapshot("room", kind, &snapshot, &controls, 3),
+                done()
+            );
+            assert_eq!(export(&reopened), snapshot);
+            let list = run(&mut reopened, json!({"kind":"list"}));
+            let rows = list[if bridge { "bridges" } else { "services" }]
+                .as_array()
+                .unwrap();
+            assert_eq!(rows.len(), 2);
+            assert_eq!(
+                rows[0]["membership"],
+                json!(if bridge { "member" } else { "installed" })
+            );
+            assert_eq!(rows[1]["membership"], "proposed");
+            assert_eq!(
+                run(
+                    &mut reopened,
+                    json!({
+                        "kind":"operation","operationId":operation_id,"mutation":install,"principal":id,"target":target,
+                    })
+                ),
+                json!({ "result": done() })
+            );
+
+            let remove = json!({"kind":"remove_member",(principal):id,"target":target,"operationId":"0b".repeat(32)});
+            assert_eq!(
+                run(&mut reopened, remove.clone()),
+                json!({"removedEndpoints":1})
+            );
+            assert_eq!(run(&mut reopened, remove), json!({"removedEndpoints":1}));
+            assert_eq!(run(&mut reopened, intent), done());
+            let list = run(&mut reopened, json!({"kind":"list"}));
+            assert_eq!(
+                list[if bridge { "bridges" } else { "services" }][0]["membership"],
+                "removed"
+            );
+
+            // The newer current head drops the cached proposal while the independently verified member survives.
+            let newer = RoomControlEntry {
+                head_version: Some(2),
+                ..controls[1].clone()
+            };
+            let mut filtered = Handles::default();
+            assert_eq!(
+                filtered.import_room_snapshot("room", kind, &snapshot, &[verified, newer], 3),
+                done()
+            );
+            let list = run(&mut filtered, json!({"kind":"list"}));
+            assert_eq!(
+                list[if bridge { "bridges" } else { "services" }]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn room_operation_log_evicts_only_the_oldest_at_sixty_four() {
+        let mut handles = Handles::default();
+        let run = |h: &mut Handles, op: Value| {
+            room_services_do(
+                h,
+                "room",
+                &["room.install_service".into()],
+                serde_json::from_value(op).unwrap(),
+                &[],
+            )
+        };
+        run(
+            &mut handles,
+            json!({"kind":"open","quorum":null,"sequencingTimeout":10}),
+        );
+        let service = "61".repeat(32);
+        for n in 0..65 {
+            assert_eq!(
+                run(
+                    &mut handles,
+                    json!({
+                        "kind":"remove","service":service,"operationId":format!("{n:064x}"),
+                    })
+                ),
+                refused("not_installed")
+            );
+        }
+        for (n, result) in [
+            (0, Value::Null),
+            (1, refused("not_installed")),
+            (64, refused("not_installed")),
+        ] {
+            assert_eq!(
+                run(
+                    &mut handles,
+                    json!({
+                        "kind":"operation","mutation":"remove","principal":service,"operationId":format!("{n:064x}"),
+                    })
+                ),
+                json!({"result":result})
+            );
+        }
     }
 
     #[test]

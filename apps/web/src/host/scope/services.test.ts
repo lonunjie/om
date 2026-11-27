@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { instantiateCore } from "@om/core-wasm";
 import { asConversationId, asProfileGeneration, asProfileId, captureProfileContext, type ConversationId, type ProfileId } from "@om/platform-api";
 import { describe, expect, it, vi } from "vitest";
-import { createScopeEngines, type RoomControlEntry, type ScopeEngines, type ServiceListing } from "../../../../../packages/om-core-wasm/src/scope-engines";
+import { createScopeEngines, type RoomControlEntry, type RoomMutationResult, type ScopeEngines, type ServiceListing } from "../../../../../packages/om-core-wasm/src/scope-engines";
 import {
   createConnectedServicesService, serviceRoomHandle, type InvocationSelection, type PendingServiceOperation, type PendingServiceStore,
 } from "./services";
@@ -76,28 +76,35 @@ function fixture() {
     if (!readable) throw new Error("view unavailable");
     return { services: [current] };
   });
+  const receipts = new Map<string, RoomMutationResult>();
+  const operation = vi.fn<ScopeEngines["roomServices"]["operation"]>((_room, { operationId }) =>
+    ({ result: receipts.get(operationId) ?? null }));
+  function recorded<T extends RoomMutationResult>(id: string | undefined, result: T): T {
+    if (id !== undefined) receipts.set(id, result);
+    return result;
+  }
   const installOffer = vi.fn<ScopeEngines["roomServices"]["installOffer"]>((_room, _caps, input) => {
-    if (current.target !== input.target) return { refused: "stale_target" };
+    if (current.target !== input.target) return recorded(input.operationId, { refused: "stale_target" });
     current = { ...current, membership: "installed", installed: true, canReadAllContent: true,
       endpoints: [endpoint], admittedVersion: 1, heldVersion: 1, capabilities: null };
-    return { done: true };
+    return recorded(input.operationId, { done: true });
   });
   const removeMember = vi.fn<ScopeEngines["roomServices"]["removeMember"]>((_room, _caps, input) => {
-    if (current.target !== input.target) return { refused: "stale_target" };
+    if (current.target !== input.target) return recorded(input.operationId, { refused: "stale_target" });
     current = { ...current, membership: "removed", installed: false };
-    return { removedEndpoints: 1 };
+    return recorded(input.operationId, { removedEndpoints: 1 });
   });
   const base = createScopeEngines({ call: () => { throw new Error("Unexpected Core command"); } });
   const control = vi.fn<ScopeEngines["roomControl"]["view"]>(() => ({ entries: [head] }));
   const opts = {
     ctx, authority: { capabilities: () => caps }, pending,
     engines: {
-      roomServices: { ...base.roomServices, list, installOffer, removeMember },
+      roomServices: { ...base.roomServices, list, operation, installOffer, removeMember },
       roomControl: { ...base.roomControl, view: control },
     },
   };
   return {
-    opts, pending, installOffer, removeMember, control, list,
+    opts, pending, installOffer, removeMember, control, list, operation,
     update: (patch: Partial<ServiceListing>) => { current = { ...current, ...patch }; },
     updateHead: (patch: Partial<RoomControlEntry>) => { head = { ...head, ...patch }; },
     viewAvailable: (value: boolean) => { readable = value; },
@@ -122,7 +129,7 @@ describe("connected services host", () => {
       } }],
       outcome: { kind: "Committed" },
     });
-    expect(f.installOffer).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target }, ctx);
+    expect(f.installOffer).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target, operationId: expect.any(String) }, ctx);
 
     f.updateHead({ headVersion: 2, endpoints: [{ id: endpoint, state: 3, usable: false }] });
     expect(await connected.state(room)).toMatchObject({
@@ -133,7 +140,7 @@ describe("connected services host", () => {
       entries: [{ status: "removed", readAccess: { kind: "none" }, actions: [] }],
       outcome: { kind: "Committed" },
     });
-    expect(f.removeMember).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target }, ctx);
+    expect(f.removeMember).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target, operationId: expect.any(String) }, ctx);
     expect(f.pending.records.size).toBe(0);
   });
 
@@ -173,7 +180,6 @@ describe("connected services host", () => {
       outcome: { kind: "PendingReconciliation" },
     });
     expect(f.pending.records.size).toBe(1);
-    f.viewAvailable(true);
     expect(await createConnectedServicesService(f.opts).state(room)).toMatchObject({ outcome: { kind: "Committed" } });
     expect(f.installOffer).toHaveBeenCalledTimes(1);
     expect(f.pending.reservations).toEqual([{ id, conversationId: room, service, intent: install }]);
@@ -214,7 +220,7 @@ describe("connected services host", () => {
     expect((await connected.change(room, install)).outcome).toEqual({ kind: "Rejected", reason: "unavailable" });
     f.installOffer.mockImplementationOnce(() => { throw new Error("lost acknowledgement"); });
     expect((await connected.change(room, install)).outcome).toEqual({ kind: "PendingReconciliation" });
-    f.list.mockImplementationOnce(() => { throw new Error("view unavailable"); });
+    f.operation.mockImplementationOnce(() => { throw new Error("receipt unavailable"); });
     expect((await connected.change(room, install)).outcome).toEqual({ kind: "PendingReconciliation" });
     expect((await connected.change(room, remove)).outcome).toEqual({ kind: "Rejected", reason: "conflict" });
     expect(f.installOffer).toHaveBeenCalledTimes(1);

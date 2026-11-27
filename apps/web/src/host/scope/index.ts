@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import type { WasmCore } from "@om/core-wasm";
-import { createScopeEngines } from "../../../../../packages/om-core-wasm/src/scope-engines";
+import { createScopeEngines, type ScopeEngines } from "../../../../../packages/om-core-wasm/src/scope-engines";
 import { captureProfileContext, type CoreClient, type ProfileExecutionContext } from "@om/platform-api";
 import { createPortabilityEngine } from "../../../../../packages/om-core-wasm/src/portability";
 import type { BridgeService } from "../../../../../packages/om-ui/src/bridges/bridges";
@@ -13,6 +13,9 @@ import { createBridgeService, denyAll, type BridgeServiceOptions } from "./bridg
 import { createCommunitiesService, type CommunitiesServiceOptions } from "./communities";
 import { createNearbyService, type NearbyServiceOptions } from "./nearby";
 import { createCoreHistorySource, createPortabilityService, emptyHistory, type PortabilityServiceOptions } from "./portability";
+import { DurablePendingStore, RoomSnapshotStore, roomPersistence, type RoomStorageOptions } from "./room-storage";
+
+export { DurablePendingStore, RoomSnapshotStore, type RoomStorageOptions } from "./room-storage";
 
 export { bridgeRoomHandle, denyAll, type PendingBridgeOperation, type PendingStore, type RoomAuthority } from "./bridge";
 export {
@@ -36,10 +39,18 @@ export interface ScopeServices {
 
 export interface LoadedScopeServices {
   readonly core: Pick<WasmCore, "call">;
-  readonly bridge?: Omit<BridgeServiceOptions, "ctx" | "engines" | "authority">;
+  readonly roomStorage?: RoomStorageOptions;
+  readonly bridge?: {
+    readonly pending?: BridgeServiceOptions["pending"];
+    readonly policy?: Parameters<ScopeEngines["bridgeRoom"]["open"]>[1];
+  };
   readonly portability?: Omit<PortabilityServiceOptions, "ctx" | "engine">;
   readonly nearby?: Omit<NearbyServiceOptions, "ctx" | "engines">;
-  readonly connectedServices?: Omit<ConnectedServicesOptions, "ctx" | "engines" | "authority" | "invocation">;
+  readonly connectedServices?: {
+    readonly pending?: ConnectedServicesOptions["pending"];
+    readonly policy?: Parameters<ScopeEngines["roomServices"]["open"]>[1];
+    readonly selectionSource?: ConnectedServicesOptions["selectionSource"];
+  };
   readonly communities?: Omit<CommunitiesServiceOptions, "ctx" | "engines">;
 }
 
@@ -53,8 +64,26 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded, client }: 
   if (!enabled || loaded === undefined) return {};
   const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
   const engines = createScopeEngines(loaded.core, ctx);
+  const { roomStorage } = loaded;
+  const snapshot = roomStorage === undefined ? undefined : new RoomSnapshotStore(roomStorage.kv);
+  const openBridge = loaded.bridge?.policy;
+  const openService = loaded.connectedServices?.policy;
+  const bridgePending: BridgeServiceOptions["pending"] | undefined = roomStorage === undefined
+    ? loaded.bridge?.pending : new DurablePendingStore(roomStorage.kv, "bridge");
+  const servicePending: ConnectedServicesOptions["pending"] | undefined = roomStorage === undefined
+    ? loaded.connectedServices?.pending : new DurablePendingStore(roomStorage.kv, "service");
+  const bridgePersistence = snapshot === undefined || roomStorage === undefined ? {} : {
+    persistence: roomPersistence(ctx, engines, snapshot, "bridge", roomStorage.observeCurrentHeads, (handle) =>
+      openBridge === undefined ? { refused: "unavailable" } : engines.bridgeRoom.open(handle, openBridge)),
+  };
+  const servicePersistence = snapshot === undefined || roomStorage === undefined ? {} : {
+    persistence: roomPersistence(ctx, engines, snapshot, "service", roomStorage.observeCurrentHeads, (handle) =>
+      openService === undefined ? { refused: "unavailable" } : engines.roomServices.open(handle, openService)),
+  };
   return {
-    ...(loaded.bridge === undefined ? {} : { bridge: createBridgeService({ ...loaded.bridge, ctx, engines, authority: denyAll }) }),
+    ...(loaded.bridge === undefined || bridgePending === undefined ? {} : {
+      bridge: createBridgeService({ ctx, engines, authority: denyAll, pending: bridgePending, ...bridgePersistence }),
+    }),
     ...(loaded.portability === undefined ? {} : {
       portability: createPortabilityService({
         ...loaded.portability, ctx, engine: createPortabilityEngine(loaded.core),
@@ -62,8 +91,12 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded, client }: 
       }),
     }),
     ...(loaded.nearby === undefined ? {} : { nearby: createNearbyService({ ...loaded.nearby, ctx, engines }) }),
-    ...(loaded.connectedServices === undefined ? {} : {
-      connectedServices: createConnectedServicesService({ ...loaded.connectedServices, ctx, engines, authority: denyAll, invocation: { core: loaded.core } }),
+    ...(loaded.connectedServices === undefined || servicePending === undefined ? {} : {
+      connectedServices: createConnectedServicesService({
+        ...(loaded.connectedServices.selectionSource === undefined ? {} : { selectionSource: loaded.connectedServices.selectionSource }),
+        ctx, engines, authority: denyAll, invocation: { core: loaded.core },
+        pending: servicePending, ...servicePersistence,
+      }),
     }),
     ...(loaded.communities === undefined ? {} : {
       communities: createCommunitiesService({ ...loaded.communities, ctx, engines }),

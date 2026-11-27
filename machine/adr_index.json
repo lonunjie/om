@@ -3198,6 +3198,16 @@
       "amends": [],
       "index_title": "Resolution: engineering host conformance (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0277",
+      "title": "Durable Room operation recovery in the engineering host",
+      "status": "Delegated design decision (additive). Independent review remains required.",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0277-durable-room-operation-recovery.md",
+      "amends": [],
+      "index_title": "Durable Room operation recovery (delegated; additive)",
+      "amended_by": []
     }
   ]
 }

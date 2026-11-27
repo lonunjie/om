@@ -6,16 +6,17 @@ import { createScopeEngines } from "../../../../../packages/om-core-wasm/src/sco
 import type { ScopeEngines } from "../../../../../packages/om-core-wasm/src/scope-engines";
 import { createMemoryKv, createMemoryProvider } from "@om/core-wasm/test-support";
 import {
-  asConversationId, asProfileGeneration, asProfileId, available, captureProfileContext, partial, unavailable,
+  asConversationId, asOperationId, asProfileGeneration, asProfileId, available, captureProfileContext, partial, unavailable,
   type ConversationId, type LocalDeliveryApi, type ProfileId,
 } from "@om/platform-api";
 import { describe, expect, it, vi } from "vitest";
 import { createPortabilityEngine, type PortabilityEngine } from "../../../../../packages/om-core-wasm/src/portability";
-import type { BridgeListing, RoomControlEntry } from "../../../../../packages/om-core-wasm/src/scope-engines";
+import type { BridgeListing, RoomControlEntry, RoomMutationResult } from "../../../../../packages/om-core-wasm/src/scope-engines";
 import { connectPair } from "../../../../../packages/om-core-wasm/src/test-support-lan-signal";
 import type { ExportChoices, ExportIntent } from "../../../../../packages/om-ui/src/portability/portability";
 import { bridgeRoomHandle, createBridgeService, type PendingBridgeOperation, type PendingStore } from "./bridge";
-import { createScopeServices } from "./index";
+import { createScopeServices, DurablePendingStore, RoomSnapshotStore } from "./index";
+import { roomPersistence } from "./room-storage";
 import { createNearbyService } from "./nearby";
 import { createPortabilityService, type FileHost } from "./portability";
 
@@ -61,15 +62,22 @@ function bridgeFixture() {
     if (!readable) throw new Error("view unavailable");
     return { bridges: [current] };
   });
+  const receipts = new Map<string, RoomMutationResult>();
+  const operation = vi.fn<ScopeEngines["bridgeRoom"]["operation"]>((_room, { operationId }) =>
+    ({ result: receipts.get(operationId) ?? null }));
+  function recorded<T extends RoomMutationResult>(id: string | undefined, result: T): T {
+    if (id !== undefined) receipts.set(id, result);
+    return result;
+  }
   const admitOffer = vi.fn<ScopeEngines["bridgeRoom"]["admitOffer"]>((_room, _caps, input) => {
-    if (current.target !== input.target) return { refused: "stale_target" };
+    if (current.target !== input.target) return recorded(input.operationId, { refused: "stale_target" });
     current = { ...current, membership: "member", installed: true, endpoints: ["running"], heldVersion: 1, headFresh: true };
-    return { done: true };
+    return recorded(input.operationId, { done: true });
   });
   const removeMember = vi.fn<ScopeEngines["bridgeRoom"]["removeMember"]>((_room, _caps, input) => {
-    if (current.target !== input.target) return { refused: "stale_target" };
+    if (current.target !== input.target) return recorded(input.operationId, { refused: "stale_target" });
     current = { ...current, membership: "removed", installed: false };
-    return { removedEndpoints: 1 };
+    return recorded(input.operationId, { removedEndpoints: 1 });
   });
   const mockEngine = { call: () => { throw new Error("Unexpected Core command"); } };
   const engines = createScopeEngines(mockEngine);
@@ -77,12 +85,12 @@ function bridgeFixture() {
   const opts = {
     ctx, authority, pending,
     engines: {
-      bridgeRoom: { ...engines.bridgeRoom, list, admitOffer, removeMember },
+      bridgeRoom: { ...engines.bridgeRoom, list, operation, admitOffer, removeMember },
       roomControl: { ...engines.roomControl, view: control },
     },
   };
   return {
-    opts, pending, list, admitOffer, removeMember, control,
+    opts, pending, list, admitOffer, removeMember, control, operation,
     update: (changes: Partial<BridgeListing>) => { current = { ...current, ...changes }; },
     heads: (heads: readonly RoomControlEntry[]) => { entries = heads; },
     viewAvailable: (value: boolean) => { readable = value; },
@@ -110,7 +118,7 @@ describe("bridge host", () => {
       bridges: [{ membership: "member", action: { intent: remove }, mappings: [{ ...mapping, state: "active" }] }],
       outcome: { kind: "Committed" },
     });
-    expect(f.admitOffer).toHaveBeenCalledWith(bridgeRoomHandle(ctx.profileId, room), cap, { bridge, target }, ctx);
+    expect(f.admitOffer).toHaveBeenCalledWith(bridgeRoomHandle(ctx.profileId, room), cap, { bridge, target, operationId: expect.any(String) }, ctx);
     for (const [change, state] of [
       [{ observedAgeMs: 101 }, "stale"],
       [{ frozen: true }, "endpoint_stopped"],
@@ -126,7 +134,7 @@ describe("bridge host", () => {
     expect(await service.change(room, remove)).toMatchObject({
       bridges: [{ membership: "removed", action: null }], outcome: { kind: "Committed" },
     });
-    expect(f.removeMember).toHaveBeenCalledWith(bridgeRoomHandle(ctx.profileId, room), cap, { bridge, target }, ctx);
+    expect(f.removeMember).toHaveBeenCalledWith(bridgeRoomHandle(ctx.profileId, room), cap, { bridge, target, operationId: expect.any(String) }, ctx);
     expect(f.pending.records.size).toBe(0);
   });
 
@@ -196,7 +204,6 @@ describe("bridge host", () => {
     });
     expect(await createBridgeService(f.opts).change(room, admit)).toMatchObject({ outcome: { kind: "PendingReconciliation" } });
     expect(f.pending.records.size).toBe(1);
-    f.viewAvailable(true);
     expect(await createBridgeService(f.opts).state(room)).toMatchObject({ outcome: { kind: "Committed" } });
     expect(f.admitOffer).toHaveBeenCalledTimes(1);
     expect(f.pending.records.size).toBe(0);
@@ -209,7 +216,7 @@ describe("bridge host", () => {
     expect((await service.change(room, admit)).outcome).toEqual({ kind: "Rejected", reason: "unavailable" });
     f.admitOffer.mockImplementationOnce(() => { throw new Error("lost acknowledgement"); });
     expect((await service.change(room, admit)).outcome).toEqual({ kind: "PendingReconciliation" });
-    f.viewAvailable(false);
+    f.operation.mockImplementationOnce(() => { throw new Error("receipt unavailable"); });
     expect((await service.change(room, admit)).outcome).toEqual({ kind: "PendingReconciliation" });
     f.viewAvailable(true);
     expect((await service.change(room, remove)).outcome).toEqual({ kind: "Rejected", reason: "conflict" });
@@ -243,8 +250,92 @@ describe("bridge host", () => {
     expect(f.list.mock.calls.flat()).toEqual(expect.arrayContaining([bridgeRoomHandle(ctx.profileId, room)]));
     f.list.mockClear();
     f.control.mockImplementationOnce(() => { throw new Error("stale context"); });
-    await expect(service.state(room)).rejects.toThrow("stale context");
+    await expect(service.state(room)).resolves.toMatchObject({ outcome: { kind: "PendingReconciliation" } });
     expect(f.list).not.toHaveBeenCalled();
+  });
+});
+
+describe("durable Room stores", () => {
+  it("separates profile, Room and reducer keys and clears only the reserved ID", async () => {
+    const kv = createMemoryKv();
+    const pending = new DurablePendingStore<PendingBridgeOperation>(kv, "bridge");
+    const snapshots = new RoomSnapshotStore(kv);
+    const operation = { id: "op", conversationId: room, bridge, intent: admit };
+    expect(await Promise.all([pending.reserve(ctx.profileId, operation), pending.reserve(ctx.profileId, operation)]))
+      .toEqual([true, false]);
+    expect(await pending.load(other.profileId, room)).toBeNull();
+    expect(await pending.load(ctx.profileId, asConversationId("other-room"))).toBeNull();
+    expect(await new DurablePendingStore(kv, "service").load(ctx.profileId, room)).toBeNull();
+    expect(await pending.reserve(other.profileId, operation)).toBe(true);
+    await snapshots.save(ctx.profileId, room, "bridge", "first");
+    await snapshots.save(other.profileId, room, "bridge", "second");
+    await snapshots.save(ctx.profileId, room, "service", "third");
+    await pending.clear(ctx.profileId, room, "other-op");
+    expect(await pending.load(ctx.profileId, room)).toEqual(operation);
+    await pending.clear(ctx.profileId, room, operation.id);
+    expect(await pending.load(ctx.profileId, room)).toBeNull();
+    expect(await pending.load(other.profileId, room)).toEqual(operation);
+    expect(await snapshots.load(ctx.profileId, room, "bridge")).toBe("first");
+    expect(await snapshots.load(other.profileId, room, "bridge")).toBe("second");
+    expect(await snapshots.load(ctx.profileId, room, "service")).toBe("third");
+    expect([...kv.snapshot().keys()]).toEqual(expect.arrayContaining([
+      "scope/v1/one/bridge/snapshot/room", "scope/v1/two/bridge/pending/room",
+    ]));
+  });
+
+  it.each(["before apply", "before clear"] as const)("settles once after a crash %s", async (crashAt) => {
+    const kv = createMemoryKv();
+    if (crashAt === "before clear") {
+      vi.spyOn(kv, "delete").mockResolvedValueOnce({ ok: false, reason: "storage_failed" });
+    }
+    const offered: BridgeListing = {
+      bridge, target, membership: "proposed", installed: false,
+      mapping: { active: true, direction: 3, namespace: "network", foreignScope: "scope", allowedClasses: [1] },
+    };
+    let mutations = 0;
+    const dispatch = vi.fn(() => {
+      if (dispatch.mock.calls.length === 1 && crashAt === "before apply") throw new Error("interrupted before apply");
+      mutations++;
+    });
+    function boot(context = ctx) {
+      let current = offered;
+      let receipt: string | undefined;
+      const f = bridgeFixture();
+      const engines: ScopeEngines = {
+        ...createScopeEngines({ call: () => { throw new Error("Unexpected Core command"); } }),
+        roomControl: f.opts.engines.roomControl,
+        bridgeRoom: {
+          ...f.opts.engines.bridgeRoom,
+          list: () => ({ bridges: [current] }),
+          operation: (_handle, { operationId }) => ({ result: receipt === operationId ? { done: true } : null }),
+          admitOffer: (_handle, _caps, { operationId }) => {
+            dispatch();
+            receipt = operationId;
+            current = { ...current, membership: "member", installed: true };
+            return { done: true };
+          },
+        },
+        roomSnapshot: {
+          export: () => ({ snapshot: JSON.stringify({ current, receipt }) }),
+          import: (_handle, _kind, snapshot) => {
+            ({ current, receipt } = JSON.parse(snapshot) as { current: BridgeListing; receipt: string | undefined });
+            return { done: true };
+          },
+        },
+      };
+      const pending = new DurablePendingStore<PendingBridgeOperation>(kv, "bridge");
+      const persistence = roomPersistence(context, engines, new RoomSnapshotStore(kv), "bridge",
+        async () => {}, () => ({ done: true }));
+      return createBridgeService({ ctx: context, engines, pending, persistence, authority });
+    }
+    expect((await boot().change(room, admit)).outcome).toEqual({ kind: "PendingReconciliation" });
+    expect(await new DurablePendingStore(kv, "bridge").load(ctx.profileId, room)).not.toBeNull();
+    const restarted = boot({ ...ctx, generation: other.generation });
+    expect(await restarted.state(room)).toMatchObject({ bridges: [{ membership: "member" }], outcome: { kind: "Committed" } });
+    expect(mutations).toBe(1);
+    expect(dispatch).toHaveBeenCalledTimes(crashAt === "before apply" ? 2 : 1);
+    expect(await new DurablePendingStore(kv, "bridge").load(ctx.profileId, room)).toBeNull();
+    expect((await restarted.state(room)).outcome).toBeNull();
   });
 });
 
@@ -427,6 +518,82 @@ describe("portability host", () => {
 });
 
 const wasm = new URL("../../../../../packages/om-core-wasm/dist/om_wasm_scope.wasm", import.meta.url);
+
+const groupWasm = new URL("../../../../../packages/om-core-wasm/dist/om_wasm_groups.wasm", import.meta.url);
+
+it.skipIf(!existsSync(wasm) || !existsSync(groupWasm))("restores exact Room receipts with the engineering Wasm module", async () => {
+  const kv = createMemoryKv();
+  const profileId = ctx.profileId;
+  const boot = async (module: URL) => {
+    const core = await instantiateCore(readFileSync(module));
+    const rt = await createCoreRuntime({
+      core, provider: createMemoryProvider(), storage: () => kv, autoDrain: false,
+      home: { tier: "T1", observers: ["host_sees_ciphertext"], migrationAvailable: true, clientOriginChoice: ["default_origin"] },
+      ...(module === groupWasm ? { groupDriver: { retryMs: 0 } } : {}),
+    });
+    const context = await rt.openProfile(profileId);
+    return { rt, core, context, engines: createScopeEngines(core, context) };
+  };
+  const groups = await boot(groupWasm);
+  let conversation: ConversationId;
+  try {
+    await groups.rt.dispatch({ kind: "CreateIdentityProfile", ctx: groups.context, operationId: asOperationId("identity"), label: "Member" });
+    await groups.rt.flush(profileId);
+    const created = await groups.rt.groups.do(groups.context, { kind: "create", name: "Room", relationshipIds: [] });
+    expect(created.ok).toBe(true);
+    await groups.rt.idle();
+    const row = groups.rt.groups.list(groups.context)[0];
+    if (row === undefined) throw new Error("Room missing");
+    conversation = asConversationId(row.conversationId);
+  } finally {
+    groups.rt.dispose();
+  }
+
+  const handle = bridgeRoomHandle(profileId, conversation);
+  const roomKv = createMemoryKv();
+  const store = new RoomSnapshotStore(roomKv);
+  const operationId = "22".repeat(32);
+  const operation = { operationId, mutation: "remove", principal: bridge } as const;
+  const initial = await boot(wasm);
+  try {
+    expect(initial.engines.roomServices.open(handle, { quorum: null, sequencingTimeout: 10 })).toEqual({ done: true });
+    const removal = () => initial.engines.roomServices.remove(handle, ["room.install_service"], bridge, operationId);
+    expect(removal()).toEqual({ refused: "not_authorized" });
+    expect(removal()).toEqual({ refused: "not_authorized" });
+    expect(initial.engines.roomServices.remove(handle, [], "63".repeat(32), operationId)).toEqual({ refused: "operation_conflict" });
+    for (let n = 0; n < 64; n++) {
+      const id = n.toString(16).padStart(64, "0");
+      expect(initial.engines.roomServices.remove(handle, [], bridge, id)).toEqual({ refused: "not_authorized" });
+    }
+    expect(initial.engines.roomServices.operation(handle, operation)).toEqual({ result: null });
+    expect(removal()).toEqual({ refused: "not_authorized" });
+    const snapshot = initial.engines.roomSnapshot.export(handle, "service", initial.context);
+    if ("refused" in snapshot) throw new Error(snapshot.refused);
+    await store.save(profileId, conversation, "service", snapshot.snapshot);
+  } finally {
+    initial.rt.dispose();
+  }
+
+  const restarted = await boot(wasm);
+  try {
+    const snapshot = await store.load(profileId, conversation, "service");
+    if (snapshot === null) throw new Error("Snapshot missing");
+    const tampered = snapshot.slice(0, -1) + (snapshot.endsWith("0") ? "1" : "0");
+    expect(restarted.engines.roomSnapshot.import(handle, "service", tampered, restarted.context)).toEqual({ refused: "invalid_snapshot" });
+    const host = createScopeServices({
+      enabled: true, ctx: restarted.context, loaded: {
+        core: restarted.core, connectedServices: {},
+        roomStorage: { kv: roomKv, observeCurrentHeads: async () => {} },
+      },
+    });
+    expect(await host.connectedServices?.state(conversation)).toEqual({ entries: [], invocation: null, outcome: null });
+    expect(restarted.engines.roomServices.operation(handle, operation)).toEqual({
+      result: { refused: "not_authorized" },
+    });
+  } finally {
+    restarted.rt.dispose();
+  }
+});
 
 describe.skipIf(!existsSync(wasm))("engineering Wasm scope host", () => {
   it("uses the real portability engine to inspect and stage archive-only history", async () => {

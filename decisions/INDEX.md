@@ -283,3 +283,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0274 — v1 rulings: invocation review in the engineering host from an injected selection, no send (delegated; additive)](ADR-0274-engineering-host-invocation-review.md)
 - [ADR-0275 — v1 rulings: the engineering host's export history is a projection read through Core queries (delegated; additive)](ADR-0275-engineering-host-history-source.md)
 - [ADR-0276 — Resolution: engineering host conformance (delegated; additive)](ADR-0276-engineering-conformance-resolution.md)
+- [ADR-0277 — Durable Room operation recovery (delegated; additive)](ADR-0277-durable-room-operation-recovery.md)

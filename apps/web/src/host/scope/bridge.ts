@@ -4,6 +4,7 @@ import type {
   BridgeDirection, BridgeEntryView, BridgeEventClass, BridgeIntent, BridgeMappingState, BridgeRoomView, BridgeService,
 } from "../../../../../packages/om-ui/src/bridges/bridges";
 import type { BridgeListing, RoomControlEntry, ScopeEngines } from "../../../../../packages/om-core-wasm/src/scope-engines";
+import type { RoomPersistence } from "./room-storage";
 
 const bridgeCapability = "room.add_bridge";
 
@@ -32,7 +33,7 @@ export interface BridgeServiceOptions {
   readonly engines: Pick<ScopeEngines, "bridgeRoom" | "roomControl">;
   readonly authority?: RoomAuthority;
   readonly pending: PendingStore;
-
+  readonly persistence?: RoomPersistence;
 }
 
 /** Room address for the scoped command boundary. */
@@ -50,6 +51,7 @@ export const roomEventClasses: readonly BridgeEventClass[] = [
 
 const refusalReasons: Readonly<Partial<Record<string, RejectReason>>> = {
   already_installed: "conflict",
+  operation_conflict: "conflict",
   bad_direction: "invalid",
   empty_classes: "invalid",
   malformed: "invalid",
@@ -105,12 +107,6 @@ function mappingState(
     ? "active" : "endpoint_stopped";
 }
 
-function matchesEffect(bridges: readonly BridgeListing[], operation: PendingBridgeOperation): boolean {
-  const membership = operation.intent.kind === "admit" ? "member" : "removed";
-  return bridges.some((bridge) => bridge.bridge === operation.bridge &&
-    bridge.target === operation.intent.target && bridge.membership === membership);
-}
-
 function reviewSupported(mapping: BridgeListing["mapping"]): boolean {
   return mapping != null && mapping.foreignScope.length > 0 && directions[mapping.direction] !== undefined &&
     mapping.allowedClasses.every((code) => roomEventClasses[code - 1] !== undefined);
@@ -121,7 +117,7 @@ function validIntentKind(kind: string): boolean {
 }
 
 export function createBridgeService({
-  ctx: inputCtx, engines, authority = denyAll, pending,
+  ctx: inputCtx, engines, authority = denyAll, pending, persistence,
 }: BridgeServiceOptions): BridgeService {
   const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
 
@@ -174,38 +170,37 @@ export function createBridgeService({
     return { bridges, outcome };
   }
 
-  async function reconcile(conversationId: ConversationId, room: Room, operation: PendingBridgeOperation) {
-    let outcome: OutcomeClass = reconciling;
-    if (matchesEffect(room.bridges, operation)) {
-      outcome = committed;
-    } else {
-      const handle = bridgeRoomHandle(ctx.profileId, conversationId);
-      const caps = authority.capabilities(ctx, conversationId);
-      const input = { bridge: operation.bridge, target: operation.intent.target };
-      try {
-        const result = operation.intent.kind === "admit"
-          ? engines.bridgeRoom.admitOffer(handle, caps, input, ctx)
+  async function reconcile(conversationId: ConversationId, operation: PendingBridgeOperation) {
+    const handle = bridgeRoomHandle(ctx.profileId, conversationId);
+    const { id: operationId, bridge, intent: { kind, target } } = operation;
+    const input = { bridge, target, operationId };
+    let outcome: OutcomeClass;
+    try {
+      const prior = engines.bridgeRoom.operation(handle, {
+        operationId, mutation: kind === "admit" ? "admit_offer" : "remove_member", principal: bridge, target,
+      }, ctx);
+      if ("refused" in prior) throw new Error("Bridge operation unavailable");
+      const dispatch = () => {
+        const caps = authority.capabilities(ctx, conversationId);
+        return kind === "admit" ? engines.bridgeRoom.admitOffer(handle, caps, input, ctx)
           : engines.bridgeRoom.removeMember(handle, caps, input, ctx);
-        if ("refused" in result) outcome = rejected(refusalReasons[result.refused] ?? "unavailable");
-      } catch {
-        // The command may have applied before the response was lost.
+      };
+      const result = prior.result ?? dispatch();
+      outcome = "refused" in result ? rejected(refusalReasons[result.refused] ?? "unavailable") : committed;
+      await persistence?.save(conversationId);
+      await pending.clear(ctx.profileId, conversationId, operationId);
+    } catch {
+      if (persistence === undefined) {
+        try {
+          return view(conversationId, read(conversationId), reconciling);
+        } catch {
+          // Reconciliation stays pending if the view is unavailable too.
+        }
       }
-      try {
-        room = read(conversationId);
-      } catch {
-        return view(conversationId, room, reconciling);
-      }
-      if (matchesEffect(room.bridges, operation)) outcome = committed;
-    }
-    if (outcome.kind !== "PendingReconciliation") {
-      try {
-        await pending.clear(ctx.profileId, conversationId, operation.id);
-      } catch {
-        outcome = reconciling;
-      }
+      return { bridges: [], outcome: reconciling };
     }
     try {
-      return view(conversationId, room, outcome);
+      return view(conversationId, read(conversationId), outcome);
     } catch {
       return { bridges: [], outcome };
     }
@@ -213,9 +208,16 @@ export function createBridgeService({
 
   return {
     state: (conversationId) => inRoom(pending, bridgeRoomHandle(ctx.profileId, conversationId), async () => {
-      const operation = await loadPending(conversationId);
-      const room = read(conversationId);
-      return operation === null ? view(conversationId, room, null) : reconcile(conversationId, room, operation);
+      try {
+        const operation = await loadPending(conversationId);
+        await persistence?.restore(conversationId, operation !== null);
+        if (operation !== null) return await reconcile(conversationId, operation);
+        const room = read(conversationId);
+        await persistence?.save(conversationId);
+        return view(conversationId, room, null);
+      } catch {
+        return { bridges: [], outcome: reconciling };
+      }
     }),
     change(conversationId, { kind, target }) {
       const intent: BridgeIntent = { kind, target };
@@ -227,11 +229,10 @@ export function createBridgeService({
           const existing = await loadPending(conversationId);
           if (existing?.id === id) fallback = reconciling;
           else if (existing !== null) fallback = rejected("conflict");
+          await persistence?.restore(conversationId, existing !== null);
+          if (existing?.id === id) return await reconcile(conversationId, existing);
           const room = read(conversationId);
-          if (existing !== null) {
-            return existing.id === id ? await reconcile(conversationId, room, existing)
-              : view(conversationId, room, fallback, true);
-          }
+          if (existing !== null) return view(conversationId, room, fallback, true);
 
           const membership = kind === "admit" ? "proposed" : "member";
           const bridge = room.bridges.find((entry) => entry.target === target && entry.membership === membership);
@@ -244,15 +245,16 @@ export function createBridgeService({
           }
 
           const operation = { id, conversationId, bridge: bridge.bridge, intent };
+          await persistence?.save(conversationId);
           fallback = reconciling;
           if (await pending.reserve(ctx.profileId, operation)) {
-            return await reconcile(conversationId, read(conversationId), operation);
+            return await reconcile(conversationId, operation);
           }
           fallback = rejected("unavailable");
           const winner = await loadPending(conversationId);
           if (winner?.id === id) {
             fallback = reconciling;
-            return await reconcile(conversationId, read(conversationId), winner);
+            return await reconcile(conversationId, winner);
           }
           if (winner !== null) fallback = rejected("conflict");
           return view(conversationId, room, fallback, winner !== null);
