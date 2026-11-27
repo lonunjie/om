@@ -6,6 +6,7 @@ import { moduleTable } from "./build/modules-table.ts";
 import { bundleManifestPlugin } from "./build/plugin.ts";
 import { SECURITY_HEADERS, cspHeader, headersFile } from "./csp.ts";
 import { isRootPinned } from "./src/update/release-key.ts";
+import { scopeReleaseGuard } from "./src/host/scope/release-guard.ts";
 
 const emitHeaders = (): Plugin => ({
   name: "om-emit-headers",
@@ -55,7 +56,11 @@ function localRelayCsp(): Record<string, string> {
 }
 
 const config = (expressive: boolean): UserConfig => ({
-  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev, modules: moduleTable(version, expressive) })],
+  plugins: [
+    react(), landingPlugin(), emitHeaders(), serviceWorker(version),
+    ...(dev ? [] : [scopeReleaseGuard()]),
+    bundleManifestPlugin({ version, dev, modules: moduleTable(version, expressive) }),
+  ],
   // __OM_WASM_MODULES__: the digests of the two Core modules, compiled into the bundle (covered by the manifest signature; see src/update/modules.ts).
   define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_VERSION__: JSON.stringify(version), __OM_WASM_MODULES__: JSON.stringify(moduleTable(version, expressive)) },
   build: {
