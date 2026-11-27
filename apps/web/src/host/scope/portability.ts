@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 import { CoreCallError, fromHex, toHex } from "@om/core-wasm";
-import { captureProfileContext, type ProfileExecutionContext } from "@om/platform-api";
+import { encode, map, type CborValue } from "@om/home-wire";
+import {
+  asConversationId, captureProfileContext, type ConversationTimelineItem, type CoreClient,
+  type GetConversationList, type GetConversationView, type GetDevices, type ProfileExecutionContext,
+} from "@om/platform-api";
 import type {
   ExportContent, ExportFormat, ExportIntent, ExportChoices, HistoryTarget, PortabilityDetail,
   PortabilityFailure, PortabilityReport, PortabilityService, PortabilityView,
 } from "../../../../../packages/om-ui/src/portability/portability";
 import type {
-  PortabilityControlVersion, PortabilityEngine, PortabilityExportInput, PortabilityImportView,
+  PortabilityCandidate, PortabilityControlVersion, PortabilityEngine, PortabilityExportInput, PortabilityImportView,
   PortabilityReadableConversation, PortabilityRefusal, PortabilityVerdict,
 } from "../../../../../packages/om-core-wasm/src/portability";
 import { MAX_WASM_COMMAND_BYTES } from "../../../../../packages/om-core-wasm/src/wasm";
@@ -55,18 +59,186 @@ interface ReadOnlyHistory {
 }
 
 export interface HistorySource {
+  readonly projectionOnly?: true;
   choices(ctx: ProfileExecutionContext): Promise<PortabilityView["formats"]>;
   /** Supply candidates only for the selected content categories. Core applies the archive's scope and retention rules. */
-  archive?(ctx: ProfileExecutionContext, selection: HistorySelection): Promise<Pick<PortabilityExportInput, "candidates" | "meta">>;
+  archive?(ctx: ProfileExecutionContext, selection: HistorySelection): Promise<HistoryArchive>;
   readable?(ctx: ProfileExecutionContext, selection: HistorySelection): Promise<readonly ReadableCandidate[]>;
   readonly readOnly?: ReadOnlyHistory;
 }
 
+interface HistoryArchive extends Pick<PortabilityExportInput, "candidates" | "meta"> {
+  /** Attachments for which the projection has no plaintext or plaintext digest to declare. */
+  readonly missingMedia?: number;
+}
+
+const unavailableFormats = Object.freeze({
+  archive: "device_unavailable", readable: "device_unavailable",
+} as const);
+
 export const emptyHistory: HistorySource = Object.freeze({
-  choices: (): Promise<PortabilityView["formats"]> => Promise.resolve({
-    archive: "device_unavailable", readable: "device_unavailable",
-  }),
+  choices: (): Promise<PortabilityView["formats"]> => Promise.resolve({ ...unavailableFormats }),
 });
+
+const MAX_HISTORY_CONVERSATIONS = 128;
+const MAX_HISTORY_MESSAGES = 4096;
+const LOCAL_PROJECTION = "om.local_projection";
+
+class HistorySourceError extends Error {
+  constructor(readonly reason: PortabilityFailure) {
+    super(reason);
+  }
+}
+
+type HistoryQuery = GetDevices | GetConversationList | GetConversationView;
+type ClassifiedMessage = ConversationTimelineItem & { readonly disappearing: boolean; readonly viewOnce: boolean };
+
+function hasRetentionFlags(message: ConversationTimelineItem): message is ClassifiedMessage {
+  return "disappearing" in message && typeof message.disappearing === "boolean" &&
+    "viewOnce" in message && typeof message.viewOnce === "boolean";
+}
+
+function inDateRange(timestamp: number, { from, to }: HistorySelection): boolean {
+  return (from === undefined || timestamp >= from) && (to === undefined || timestamp <= to);
+}
+
+export function createCoreHistorySource({ ctx: inputCtx, client }: {
+  readonly ctx: ProfileExecutionContext;
+  readonly client: Pick<CoreClient, "query">;
+}): HistorySource {
+  const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
+
+  function requireContext(caller: ProfileExecutionContext): void {
+    if (caller.profileId !== ctx.profileId || caller.generation !== ctx.generation) {
+      throw new HistorySourceError("device_unavailable");
+    }
+  }
+
+  async function query<Q extends HistoryQuery>(request: Q) {
+    try {
+      const result = await client.query(request);
+      if ("refused" in result) throw new HistorySourceError("device_unavailable");
+      return result;
+    } catch {
+      throw new HistorySourceError("device_unavailable");
+    }
+  }
+
+  async function readHistory(caller: ProfileExecutionContext, { targets }: HistorySelection) {
+    requireContext(caller);
+    if (targets.some(({ kind }) => kind !== "chat")) throw new HistorySourceError("invalid_scope");
+    const ids = new Set(targets.map(({ id }) => asConversationId(id)));
+    if (ids.size > MAX_HISTORY_CONVERSATIONS) throw new HistorySourceError("too_large");
+    let messageCount = 0;
+    const history = [];
+    for (const id of ids) {
+      // The public query returns a whole timeline. Refuse oversized exports before mapping
+      // the results instead of silently saving a truncated history.
+      const { summary, timeline } = await query({ kind: "GetConversationView", ctx, conversationId: id });
+      if (summary.id !== id) throw new HistorySourceError("device_unavailable");
+      messageCount += timeline.length;
+      if (messageCount > MAX_HISTORY_MESSAGES) throw new HistorySourceError("too_large");
+      if (!timeline.every(hasRetentionFlags)) throw new HistorySourceError("device_unavailable");
+      history.push({ id, title: summary.nickname ?? summary.displayName, timeline });
+    }
+    return history;
+  }
+
+  const author = (direction: ClassifiedMessage["direction"], title: string) => direction === "outgoing" ? "You" : title;
+
+  return {
+    projectionOnly: true,
+    async choices(caller) {
+      try {
+        requireContext(caller);
+        const { devices } = await query({ kind: "GetDevices", ctx });
+        if (!devices.some(({ isCurrent }) => isCurrent)) return unavailableFormats;
+        const conversations = await query({ kind: "GetConversationList", ctx });
+        if (conversations.length === 0) return unavailableFormats;
+        const archive: ExportChoices = {
+          history: conversations.map(({ id, displayName, nickname }) => ({ kind: "chat", id, name: nickname ?? displayName })),
+          contents: {
+            media: "available", contacts: "unsupported", aliases: "unsupported",
+            provenance: "unsupported", local_preferences: "unsupported",
+          },
+        };
+        return { archive, readable: { ...archive, contents: { ...archive.contents, media: "unsupported" } } };
+      } catch {
+        return unavailableFormats;
+      }
+    },
+    async archive(caller, selection) {
+      const history = await readHistory(caller, selection);
+      const archiveId = toHex(globalThis.crypto.getRandomValues(new Uint8Array(16)));
+      const includeMedia = selection.contents.includes("media");
+      const candidates: PortabilityCandidate[] = [];
+      const blobs = new Map<string, PortabilityCandidate>();
+      const missingBlobs = new Set<string>();
+      for (const { id, title, timeline } of history) {
+        for (const message of timeline) {
+          const { messageId, sentAt, disappearing, viewOnce } = message;
+          const scope = { conversation: id, time: sentAt, disappearing, viewOnce };
+          const attachments: CborValue[] = [];
+          if (!viewOnce && !disappearing && includeMedia && inDateRange(sentAt, selection)) {
+            for (const attachment of message.attachments ?? []) {
+              const { blobId, mediaType, size } = attachment;
+              if (!/^[0-9a-f]{64}$/.test(blobId)) throw new HistorySourceError("device_unavailable");
+              attachments.push(map([["blob_id", blobId]]));
+              if (blobs.has(blobId)) continue;
+              // Only plaintext already supplied by the projection is eligible. Opening an
+              // attachment through the client can fetch it and change its delivery state.
+              if ("bytes" in attachment && attachment.bytes instanceof Uint8Array && attachment.bytes.byteLength === size) {
+                blobs.set(blobId, { ...scope, item: { kind: "blob", blobId, mediaType, bytesHex: toHex(attachment.bytes) } });
+                missingBlobs.delete(blobId);
+              } else {
+                missingBlobs.add(blobId);
+              }
+            }
+          }
+          // Retain exclusion metadata for the writer's report without copying protected text.
+          const records = viewOnce || disappearing ? [] : [map([
+            ["imported_record_id", JSON.stringify([id, messageId])],
+            ["source_network_namespace", LOCAL_PROJECTION],
+            ["source_export_fingerprint", archiveId],
+            ["source_conversation_ref", id],
+            ["source_time_hint", sentAt],
+            ["display_metadata", map([["conversation", title], ["author", author(message.direction, title)]])],
+            ["content", map([["text", message.text]])],
+            ["attachments", attachments],
+            ["provenance_level", "foreign_export_label"],
+          ])];
+          candidates.push({ ...scope, item: {
+            kind: "record", recordType: "imported_history", stem: `message-${String(candidates.length)}`, bytesHex: toHex(encode(records)),
+          } });
+        }
+      }
+      return {
+        candidates: [...candidates, ...blobs.values()],
+        meta: {
+          archiveId,
+          exportScopeHex: toHex(encode(map([["from", selection.from], ["to", selection.to], ["include_media", includeMedia]]))),
+          includedConversations: history.map(({ id }) => id),
+          generatedAtHint: Date.now(),
+          provenanceProfiles: ["foreign_export_label"],
+        },
+        missingMedia: missingBlobs.size,
+      };
+    },
+    async readable(caller, selection) {
+      return (await readHistory(caller, selection)).map(({ id, title, timeline }) => ({
+        target: { kind: "chat", id },
+        title,
+        messages: timeline.map(({ sentAt, direction, text, viewOnce, disappearing }) => ({
+          timestamp: sentAt,
+          message: {
+            time: new Date(sentAt).toISOString(), author: author(direction, title),
+            text: viewOnce ? "" : text, disappearing, viewOnce,
+          },
+        })),
+      }));
+    },
+  };
+}
 
 export interface PortabilityServiceOptions {
   readonly ctx: ProfileExecutionContext;
@@ -78,8 +250,10 @@ export interface PortabilityServiceOptions {
 const cancelled = { status: "cancelled" } as const;
 const rejected = (reason: PortabilityFailure) => ({ status: "rejected", reason } as const);
 const failure = ({ refused }: PortabilityRefusal) => rejected(refused === "malformed_request" ? "invalid_scope" : refused);
-const commandFailure = (error: unknown, fallback: PortabilityFailure) =>
-  rejected(error instanceof CoreCallError && error.code === "size_limit" ? "too_large" : fallback);
+function commandFailure(error: unknown, fallback: PortabilityFailure) {
+  if (error instanceof HistorySourceError) return rejected(error.reason);
+  return rejected(error instanceof CoreCallError && error.code === "size_limit" ? "too_large" : fallback);
+}
 
 function sameTarget(left: HistoryTarget, right: HistoryTarget): boolean {
   return left.kind === right.kind && left.id === right.id;
@@ -159,12 +333,13 @@ export function createPortabilityService({
       if (typeof choices === "string") return rejected(choices);
       const selection = selectionFor(intent, choices);
       if (typeof selection === "string") return rejected(selection);
+      const projectionEvidence: PortabilityDetail[] = history.projectionOnly ? [{ code: "canonical_evidence", count: 0 }] : [];
       let output: readonly FileEntry[];
       let report: PortabilityReport["details"];
       try {
         if (intent.format === "archive") {
           if (history.archive === undefined) return rejected("device_unavailable");
-          const input = await history.archive(ctx, selection);
+          const { missingMedia = 0, ...input } = await history.archive(ctx, selection);
           const result = engine.export({
             ...input,
             selection: {
@@ -178,13 +353,14 @@ export function createPortabilityService({
           output = [{ name: "om-history.zip", bytes: fromHex(result.archiveHex) }];
           const { objects, blobs, records, omittedBlobs, excluded } = result.report;
           report = {
-            preserved: [...details("canonical_evidence", objects), ...details("media", blobs - omittedBlobs.length),
+            preserved: [...(history.projectionOnly ? projectionEvidence
+              : details("canonical_evidence", objects)), ...details("media", blobs - omittedBlobs.length),
               ...details("history", records)],
             lossy: [
               ...details("private_material", excluded.secret_type ?? 0), ...details("view_once", excluded.view_once ?? 0),
               ...details("disappearing", excluded.disappearing ?? 0), ...details("outside_scope", excluded.not_selected ?? 0),
             ],
-            missingMedia: details("missing_media", omittedBlobs.length),
+            missingMedia: details("missing_media", omittedBlobs.length + missingMedia),
           };
         } else {
           if (history.readable === undefined) return rejected("device_unavailable");
@@ -193,16 +369,15 @@ export function createPortabilityService({
             .filter(({ target }) => selection.targets.some((chosen) => sameTarget(chosen, target)))
             .map(({ title, messages }) => ({
               title,
-              messages: messages.filter(({ timestamp }) =>
-                (selection.from === undefined || timestamp >= selection.from) &&
-                (selection.to === undefined || timestamp <= selection.to)).map(({ message }) => message),
+              messages: messages.filter(({ timestamp }) => inDateRange(timestamp, selection)).map(({ message }) => message),
             }));
           const result = engine.readableExport(conversations, intent.includeDisappearing);
           if ("refused" in result) return failure(result);
           output = result.files.map(({ path, bytesHex }) => ({ name: path, bytes: fromHex(bytesHex) }));
-          report = { lossy: [
-            ...details("view_once", result.excludedViewOnce), ...details("disappearing", result.excludedDisappearing),
-          ] };
+          report = {
+            ...(history.projectionOnly ? { preserved: projectionEvidence } : {}),
+            lossy: [...details("view_once", result.excludedViewOnce), ...details("disappearing", result.excludedDisappearing)],
+          };
         }
       } catch (error) {
         return commandFailure(error, "read_failed");

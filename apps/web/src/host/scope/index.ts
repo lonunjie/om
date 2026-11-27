@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import type { WasmCore } from "@om/core-wasm";
 import { createScopeEngines } from "../../../../../packages/om-core-wasm/src/scope-engines";
-import { captureProfileContext, type ProfileExecutionContext } from "@om/platform-api";
+import { captureProfileContext, type CoreClient, type ProfileExecutionContext } from "@om/platform-api";
 import { createPortabilityEngine } from "../../../../../packages/om-core-wasm/src/portability";
 import type { BridgeService } from "../../../../../packages/om-ui/src/bridges/bridges";
 import type { CommunitiesService } from "../../../../../packages/om-ui/src/communities/communities";
@@ -12,14 +12,14 @@ import { createConnectedServicesService, type ConnectedServicesOptions } from ".
 import { createBridgeService, type BridgeServiceOptions } from "./bridge";
 import { createCommunitiesService, type CommunitiesServiceOptions } from "./communities";
 import { createNearbyService, type NearbyServiceOptions } from "./nearby";
-import { createPortabilityService, type PortabilityServiceOptions } from "./portability";
+import { createCoreHistorySource, createPortabilityService, emptyHistory, type PortabilityServiceOptions } from "./portability";
 
 export { bridgeRoomHandle, denyAll, type PendingBridgeOperation, type PendingStore, type RoomAuthority } from "./bridge";
 export {
   communityChildLinkHandle, communitiesRoomLinkHandle, createCommunitiesService, type CommunitiesRoomDetails, type CommunitiesRoomViews,
   type CommunitiesServiceOptions, type FollowOperation, type FollowRecord, type FollowStore,
 } from "./communities";
-export type { FileHost, HistorySource } from "./portability";
+export { createCoreHistorySource, type FileHost, type HistorySource } from "./portability";
 export {
   createConnectedServicesService, serviceRoomHandle, type ConnectedServicesOptions,
   type InvocationSelection, type PendingServiceOperation, type PendingServiceStore, type SelectionSource,
@@ -44,10 +44,11 @@ export interface LoadedScopeServices {
 }
 
 /** The engineering entry supplies bindings only after loading the scoped module. */
-export function createScopeServices({ ctx: inputCtx, enabled, loaded }: {
+export function createScopeServices({ ctx: inputCtx, enabled, loaded, client }: {
   readonly ctx: ProfileExecutionContext;
   readonly enabled: boolean;
   readonly loaded?: LoadedScopeServices;
+  readonly client?: Pick<CoreClient, "query">;
 }): ScopeServices {
   if (!enabled || loaded === undefined) return {};
   const ctx = captureProfileContext(inputCtx.profileId, inputCtx.generation);
@@ -55,7 +56,10 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded }: {
   return {
     ...(loaded.bridge === undefined ? {} : { bridge: createBridgeService({ ...loaded.bridge, ctx, engines }) }),
     ...(loaded.portability === undefined ? {} : {
-      portability: createPortabilityService({ ...loaded.portability, ctx, engine: createPortabilityEngine(loaded.core) }),
+      portability: createPortabilityService({
+        ...loaded.portability, ctx, engine: createPortabilityEngine(loaded.core),
+        history: loaded.portability.history ?? (client === undefined ? emptyHistory : createCoreHistorySource({ ctx, client })),
+      }),
     }),
     ...(loaded.nearby === undefined ? {} : { nearby: createNearbyService({ ...loaded.nearby, ctx, engines }) }),
     ...(loaded.connectedServices === undefined ? {} : {

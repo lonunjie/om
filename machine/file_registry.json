@@ -1474,6 +1474,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/host/scope/portability.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/host/scope/portability.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
