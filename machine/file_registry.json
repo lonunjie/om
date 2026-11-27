@@ -5737,6 +5737,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0273-communities-host-read-model.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -10733,6 +10740,13 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
+    },
+    {
+      "path": "heavy-r.sh",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
     },
     {
       "path": "infra/MEDIA_TURN_ADAPTER_CONTRACT.md",

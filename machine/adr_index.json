@@ -3158,6 +3158,16 @@
       "amends": [],
       "index_title": "v1 rulings: service offers mirror bridge offers; the engineering host offers no invocation review (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0273",
+      "title": "Communities and publications: the engineering host's read model and local follow (v1)",
+      "status": "Delegated design decision (additive; independent review remains required).",
+      "date": "2026-11-27",
+      "path": "decisions/ADR-0273-communities-host-read-model.md",
+      "amends": [],
+      "index_title": "v1 rulings: communities and publications read model for the engineering host, local follow, no join request in v1 (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
