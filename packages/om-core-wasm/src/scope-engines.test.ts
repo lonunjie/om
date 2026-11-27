@@ -21,6 +21,10 @@ describe.skipIf(!existsSync(wasm))("scope-engines typed client", () => {
     expect(e.bridgeRoom.admit("b", ["room.add_bridge"], { head, mapping, approvers: humans, now: 0 })).toEqual({ done: true });
     expect(e.bridgeRoom.mayExport("b", { bridge: head.serviceId, endpoint: hex("10", 16), class: 9, now: 1 })).toMatchObject({ allowed: false, blocked: "class_not_allowed" });
     expect(e.bridgeRoom.importAuthorOk("b", 1)).toBe(false);
+    const listed = e.bridgeRoom.list("b");
+    expect(listed).toMatchObject({ bridges: [{ bridge: head.serviceId, installed: true, mapping: { namespace: "test.net", direction: 3, allowedClasses: [1, 2], active: true } }] });
+    expect(e.bridgeRoom.view("b", head.serviceId)).toMatchObject({ installed: true, mapping: { namespace: "test.net", active: true } });
+    expect(e.bridgeRoom.view("b", hex("77", 32))).toMatchObject({ installed: false, mapping: null });
     expect(e.spaceBinding.propose("s")).toEqual({ done: true });
     expect(e.spaceBinding.createBinding("s", { spaceId: hex("aa", 32), governance: humans, capabilities: ["room.remove_member"], freshnessBound: 60, acceptsSubdelegation: false })).toEqual({ refused: "link_not_official" });
     expect(e.lanTransfer.openReceiver("t", 10)).toEqual({ done: true });

@@ -7,6 +7,15 @@ import type { WasmCore } from "./wasm";
 
 export type Refusal = { readonly refused: string };
 export type Done = { readonly done: true };
+export interface BridgeMember {
+  readonly installed: boolean;
+  readonly canReadAllContent?: boolean;
+  readonly endpoints?: readonly string[];
+  readonly filterClasses?: readonly number[] | null;
+  readonly admittedVersion?: number;
+  readonly heldVersion?: number | null;
+  readonly mapping: { readonly namespace: string; readonly direction: number; readonly allowedClasses: readonly number[]; readonly active: boolean } | null;
+}
 export interface RoomControlEntry {
   readonly kind: "service" | "bridge";
   readonly id: string;
@@ -63,6 +72,10 @@ export interface ScopeEngines {
     revokeMapping(room: string, caps: readonly string[], bridge: string): Done | Refusal;
     mayExport(room: string, a: { bridge: string; endpoint: string; class: number; now: number }): { readonly allowed: boolean; readonly blocked?: string } | Refusal;
     importAuthorOk(room: string, authorKind: number): boolean;
+    /** One bridge as the Room holds it: roster entry plus its recorded mapping. */
+    view(room: string, bridge: string): BridgeMember | Refusal;
+    /** Every admitted bridge, in id order. */
+    list(room: string): { readonly bridges: readonly (BridgeMember & { readonly bridge: string })[] } | Refusal;
   };
   readonly lanTransfer: {
     openSender(handle: string, a: { blobId: string; digest: string; total: number }): Done | Refusal;
@@ -124,6 +137,8 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
       observeHead: (room, head, now) => br(room, [], { kind: "observe_head", head, now }),
       revokeMapping: (room, caps, bridge) => br(room, caps, { kind: "revoke_mapping", bridge }),
       mayExport: (room, a) => br(room, [], { kind: "may_export", ...a }),
+      view: (room, bridge) => br(room, [], { kind: "view", bridge }),
+      list: (room) => br(room, [], { kind: "list" }),
       importAuthorOk: (room, authorKind) => (br(room, [], { kind: "import_author_ok", authorKind }) as { allowed: boolean }).allowed === true,
     },
     lanTransfer: {

@@ -203,6 +203,14 @@ impl BridgeRoom {
     pub fn members_mut(&mut self) -> &mut RoomServices {
         &mut self.members
     }
+    /// The mapping recorded when the bridge was admitted, with its current activity.
+    pub fn mapping(&self, bridge: &[u8; 32]) -> Option<&Mapping> {
+        self.mappings.get(bridge)
+    }
+    /// Every admitted bridge, in id order.
+    pub fn bridge_ids(&self) -> Vec<[u8; 32]> {
+        self.mappings.keys().copied().collect()
+    }
     pub fn roster(&self, bridge: &[u8; 32]) -> Option<&RosterEntry> {
         self.members.entry(bridge)
     }

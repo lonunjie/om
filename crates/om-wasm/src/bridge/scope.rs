@@ -912,6 +912,28 @@ pub enum BridgeRoomOp {
     View {
         bridge: String,
     },
+    /// Every admitted bridge with its mapping and roster entry.
+    List,
+}
+
+fn mapping_view(m: Option<&Mapping>) -> Value {
+    match m {
+        None => Value::Null,
+        Some(m) => json!({
+            "namespace": m.namespace,
+            "direction": m.direction,
+            "allowedClasses": m.allowed_classes.iter().copied().collect::<Vec<u8>>(),
+            "active": m.active,
+        }),
+    }
+}
+
+fn bridge_view(r: &BridgeRoom, b: &[u8; 32]) -> Value {
+    let mut v = roster_view(r.roster(b), r.members().held_head(b));
+    if let Value::Object(o) = &mut v {
+        o.insert("mapping".into(), mapping_view(r.mapping(b)));
+    }
+    v
 }
 
 pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRoomOp) -> Value {
@@ -1021,7 +1043,21 @@ pub fn bridge_room_do(h: &mut Handles, room: &str, caps: &[String], op: BridgeRo
             let Some(b) = hex_n::<32>(&bridge) else {
                 return bad();
             };
-            roster_view(r.roster(&b), r.members().held_head(&b))
+            bridge_view(r, &b)
+        }
+        BridgeRoomOp::List => {
+            let list: Vec<Value> = r
+                .bridge_ids()
+                .iter()
+                .map(|b| {
+                    let mut v = bridge_view(r, b);
+                    if let Value::Object(o) = &mut v {
+                        o.insert("bridge".into(), json!(lan_hex(b)));
+                    }
+                    v
+                })
+                .collect();
+            json!({ "bridges": list })
         }
     }
 }
