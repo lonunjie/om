@@ -20,6 +20,8 @@ test-loopback = ["insecure-test-rng"]
 fuzz-entry = []
 # Marker a production build sets; combining it with a test-only feature is a compile error (R-072).
 production = []
+# Engineering-only scoped engines; unavailable in production builds.
+scope-engines = []
 # The real MLS engine for ordinary groups: stock OpenMLS 0.9.0 behind `GroupCrypto` (groups/openmls.rs).
 # DEPENDS ON ADR-0187, which is a proposed delegated draft, not accepted. Off by default; not part of `production`.
 groups-openmls = ["dep:openmls", "dep:openmls_rust_crypto", "dep:openmls_basic_credential", "dep:openmls_traits"]

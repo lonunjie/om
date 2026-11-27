@@ -2895,6 +2895,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/lan_async_key.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/lan_first_contact.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -3393,6 +3400,13 @@
     },
     {
       "path": "crates/om-core/tests/groups_openmls.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/lan_async_key.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -5808,6 +5822,13 @@
     },
     {
       "path": "decisions/ADR-0278-community-join-by-invitation.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0279-lan-async-key-fetch-responder.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",

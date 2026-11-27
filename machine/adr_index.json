@@ -3218,6 +3218,15 @@
       "amends": [],
       "index_title": "Community join in v1 is by invitation through the existing group flow (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0279",
+      "title": "LAN async-key fetch responder (delegated; additive)",
+      "status": "Delegated design decision (additive). Independent review remains required. Narrows ADR-0268 item 5 for the responder only.",
+      "date": "2026-11-28",
+      "path": "decisions/ADR-0279-lan-async-key-fetch-responder.md",
+      "amends": [],
+      "amended_by": []
     }
   ]
 }

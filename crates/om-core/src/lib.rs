@@ -19,6 +19,9 @@ compile_error!(
     "R-072: a `production` build must not include the insecure test RNG, the loopback test provider or the fuzz entry points"
 );
 
+#[cfg(all(feature = "production", feature = "scope-engines"))]
+compile_error!("Engineering-only scoped engines are unavailable in a production build");
+
 pub mod api;
 pub mod attach;
 pub mod backup;
@@ -40,6 +43,8 @@ pub mod groups;
 pub mod host;
 pub mod intro;
 pub mod lan;
+#[cfg(feature = "scope-engines")]
+pub mod lan_async_key;
 pub mod lan_first_contact;
 pub mod lan_frame;
 pub mod lan_route;
