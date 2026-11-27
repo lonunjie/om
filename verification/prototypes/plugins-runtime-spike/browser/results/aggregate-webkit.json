@@ -1,0 +1,436 @@
+{
+  "date": "2026-11-27T17:26:26.797Z",
+  "engine": "webkit",
+  "playwright": "1.63.0",
+  "fixtures": {
+    "128": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "bfc505b84570ea27a41968b53593dea93d77f06f2995a77d1e9dca22a1885a97"
+      },
+      "component_sha256": "8e48599c38dad4e692907bcbdbfccef0bed0ca8faac0c6c71d4e30e49c82ab45"
+    },
+    "256": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "e36728c2519c420314f7ca5213b191c209b38a1d759fb2716cab106023ef2d19"
+      },
+      "component_sha256": "209caceb58c9d5150f97d5bf18afdc050a9f7bdef310cec9dc7967db84aa181b"
+    },
+    "257": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "b7cc8b48a031222438973eb4edb4c4e190666c218fe78b7adb644ef1f591da42"
+      },
+      "component_sha256": "83a4b630cdcd7767894e7d4732ccc96fa5ca639a0b5b5f4ad1e3fcb6ab7bf844"
+    }
+  },
+  "origins": {
+    "client": "http://127.0.0.1:41499",
+    "plugin": "http://localhost:41499"
+  },
+  "policies": {
+    "confined": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'self'; base-uri 'none'"
+  },
+  "console": [],
+  "errors": [],
+  "scenarios": {
+    "one": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 33.400000000000006,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "d2a4bd5a-7ed1-46d3-83fb-6a21e004edf4",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 1,
+        "memoryBytes": 8388608
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "two": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 30.339999999999975,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "c3c5015d-8398-4a5e-b050-32a25b4b5eac",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 28.54000000000002,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "6a9ba4a0-4bf9-4976-8a8d-35b952111639",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 2,
+        "memoryBytes": 16777216
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "four": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 39.620000000000005,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "fa2f2bd4-b5f3-4dd5-8e68-e2d274a543cc",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 37.24000000000001,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "3abf5568-1615-40b3-83d8-45fa225ec388",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 36.72,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "f1e36a10-a900-4611-b643-14a8f5ab7aba",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 36.420000000000016,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "b89b2ba5-bc16-498e-b205-80202205ecb8",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 4,
+        "memoryBytes": 33554432
+      },
+      "attempt": {
+        "requested_pages": 128,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "instance_limit",
+        "stage": "before-frame",
+        "refusal_ms": 0.10000000000002274
+      },
+      "reservations_after_attempt": {
+        "instances": 4,
+        "memoryBytes": 33554432
+      },
+      "watchdog": {
+        "stop": {
+          "type": "watchdog-terminated",
+          "started": true,
+          "limit_ms": 500,
+          "call_to_terminate_ms": 500.64000000000004,
+          "stopped_epoch_ms": 1795800395949.24,
+          "binding": "fa2f2bd4-b5f3-4dd5-8e68-e2d274a543cc",
+          "sequence": 2
+        },
+        "reservations_after_stop": {
+          "instances": 3,
+          "memoryBytes": 25165824
+        },
+        "neighbours": [
+          {
+            "before": {
+              "reply_ms": 1.0600000000000023,
+              "reply_epoch_ms": 1795800395448.52,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.5400000000000205,
+              "reply_epoch_ms": 1795800395449.42,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 1.0400000000000773,
+              "reply_epoch_ms": 1795800395951.46,
+              "reason": null
+            }
+          },
+          {
+            "before": {
+              "reply_ms": 1.0399999999999636,
+              "reply_epoch_ms": 1795800395448.52,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.5400000000000205,
+              "reply_epoch_ms": 1795800395449.44,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 1.0400000000000773,
+              "reply_epoch_ms": 1795800395951.48,
+              "reason": null
+            }
+          },
+          {
+            "before": {
+              "reply_ms": 1.0399999999999636,
+              "reply_epoch_ms": 1795800395448.54,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.5399999999999636,
+              "reply_epoch_ms": 1795800395449.46,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 1.0199999999999818,
+              "reply_epoch_ms": 1795800395951.48,
+              "reason": null
+            }
+          }
+        ]
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "aggregate": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 34.039999999999964,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "f4af91cc-f922-4aa0-882c-e18982f4b289",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 32.82000000000002,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "3ffba540-d270-49f6-ac64-bdd81d9d963a",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 32.400000000000006,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "be75dfe3-eec1-4972-8757-8968f0b0e562",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 3,
+        "memoryBytes": 50331648
+      },
+      "attempt": {
+        "requested_pages": 128,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "aggregate_memory",
+        "stage": "before-frame",
+        "refusal_ms": 0.10000000000002274
+      },
+      "reservations_after_attempt": {
+        "instances": 3,
+        "memoryBytes": 50331648
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "oversize": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 0,
+        "memoryBytes": 0
+      },
+      "attempt": {
+        "requested_pages": 257,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "instance_memory",
+        "stage": "before-frame",
+        "refusal_ms": 0.13999999999998636
+      },
+      "reservations_after_attempt": {
+        "instances": 0,
+        "memoryBytes": 0
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    }
+  },
+  "version": "26.6",
+  "checks": {
+    "one": true,
+    "two": true,
+    "four": true,
+    "aggregate": true,
+    "oversize": true
+  },
+  "status": "passed",
+  "budget_sha256": "27dc635dc565447b761ff003e49dd842bf0cdd0cc2e7b4062cd0bb7b20d45883",
+  "node": "v24.15.0",
+  "platform": "linux",
+  "arch": "x64"
+}

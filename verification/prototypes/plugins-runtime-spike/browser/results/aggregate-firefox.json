@@ -1,0 +1,647 @@
+{
+  "date": "2026-11-27T17:26:26.797Z",
+  "engine": "firefox",
+  "playwright": "1.63.0",
+  "fixtures": {
+    "128": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "bfc505b84570ea27a41968b53593dea93d77f06f2995a77d1e9dca22a1885a97"
+      },
+      "component_sha256": "8e48599c38dad4e692907bcbdbfccef0bed0ca8faac0c6c71d4e30e49c82ab45"
+    },
+    "256": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "e36728c2519c420314f7ca5213b191c209b38a1d759fb2716cab106023ef2d19"
+      },
+      "component_sha256": "209caceb58c9d5150f97d5bf18afdc050a9f7bdef310cec9dc7967db84aa181b"
+    },
+    "257": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "b7cc8b48a031222438973eb4edb4c4e190666c218fe78b7adb644ef1f591da42"
+      },
+      "component_sha256": "83a4b630cdcd7767894e7d4732ccc96fa5ca639a0b5b5f4ad1e3fcb6ab7bf844"
+    }
+  },
+  "origins": {
+    "client": "http://127.0.0.1:41499",
+    "plugin": "http://localhost:41499"
+  },
+  "policies": {
+    "confined": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'self'; base-uri 'none'"
+  },
+  "console": [
+    {
+      "scenario": "one",
+      "type": "error",
+      "text": "[JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (img-src) at http://127.0.0.1:41499/favicon.ico because it violates the following directive: “default-src 'none'”\" {file: \"resource:///modules/FaviconLoader.sys.mjs\" line: 229}]",
+      "url": "resource:///modules/FaviconLoader.sys.mjs"
+    },
+    {
+      "scenario": "one",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "one",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "one",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "two",
+      "type": "error",
+      "text": "[JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (img-src) at http://127.0.0.1:41499/favicon.ico because it violates the following directive: “default-src 'none'”\" {file: \"resource:///modules/FaviconLoader.sys.mjs\" line: 229}]",
+      "url": "resource:///modules/FaviconLoader.sys.mjs"
+    },
+    {
+      "scenario": "two",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "two",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "two",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "two",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "two",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "two",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "error",
+      "text": "[JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (img-src) at http://127.0.0.1:41499/favicon.ico because it violates the following directive: “default-src 'none'”\" {file: \"resource:///modules/FaviconLoader.sys.mjs\" line: 229}]",
+      "url": "resource:///modules/FaviconLoader.sys.mjs"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "four",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "error",
+      "text": "[JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (img-src) at http://127.0.0.1:41499/favicon.ico because it violates the following directive: “default-src 'none'”\" {file: \"resource:///modules/FaviconLoader.sys.mjs\" line: 229}]",
+      "url": "resource:///modules/FaviconLoader.sys.mjs"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 65}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 76}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "aggregate",
+      "type": "warning",
+      "text": "[JavaScript Warning: \"Feature Policy: Skipping unsupported feature name “cross-origin-isolated”.\" {file: \"debugger eval code line 311 > eval\" line: 77}]",
+      "url": "debugger eval code line 311 > eval"
+    },
+    {
+      "scenario": "oversize",
+      "type": "error",
+      "text": "[JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (img-src) at http://127.0.0.1:41499/favicon.ico because it violates the following directive: “default-src 'none'”\" {file: \"resource:///modules/FaviconLoader.sys.mjs\" line: 229}]",
+      "url": "resource:///modules/FaviconLoader.sys.mjs"
+    }
+  ],
+  "errors": [],
+  "scenarios": {
+    "one": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 139.4,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "ce9e2f62-c5d1-4956-96b8-bfcf0f6778d6",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 1,
+        "memoryBytes": 8388608
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "two": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 80.88000000000002,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "e583232c-24be-40d5-9f3d-aeae383e98f3",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 79.13999999999999,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "534f15d0-8608-4675-8aa3-7b96529e4021",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 2,
+        "memoryBytes": 16777216
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "four": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 104.06,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "09464a70-387d-4eb2-a699-c7b2e32405cd",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 100.53999999999999,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "ea8e043e-2859-4fb1-9bff-7dff725c7777",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 99.1,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "81041421-8ffd-4a80-b32a-2e1bf9aa7b96",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 94.39999999999999,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "2e1407ce-b897-45d2-9dd3-ae9a231eb9fa",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 4,
+        "memoryBytes": 33554432
+      },
+      "attempt": {
+        "requested_pages": 128,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "instance_limit",
+        "stage": "before-frame",
+        "refusal_ms": 0.03999999999999204
+      },
+      "reservations_after_attempt": {
+        "instances": 4,
+        "memoryBytes": 33554432
+      },
+      "watchdog": {
+        "stop": {
+          "type": "watchdog-terminated",
+          "started": true,
+          "limit_ms": 500,
+          "call_to_terminate_ms": 500.28,
+          "stopped_epoch_ms": 1795800392985.28,
+          "binding": "09464a70-387d-4eb2-a699-c7b2e32405cd",
+          "sequence": 2
+        },
+        "reservations_after_stop": {
+          "instances": 3,
+          "memoryBytes": 25165824
+        },
+        "neighbours": [
+          {
+            "before": {
+              "reply_ms": 1,
+              "reply_epoch_ms": 1795800392483.94,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.8200000000000216,
+              "reply_epoch_ms": 1795800392485.58,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 1.5199999999999818,
+              "reply_epoch_ms": 1795800392987.2,
+              "reason": null
+            }
+          },
+          {
+            "before": {
+              "reply_ms": 1,
+              "reply_epoch_ms": 1795800392483.98,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.7199999999999989,
+              "reply_epoch_ms": 1795800392485.52,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 1.4800000000000182,
+              "reply_epoch_ms": 1795800392987.24,
+              "reason": null
+            }
+          },
+          {
+            "before": {
+              "reply_ms": 1.039999999999992,
+              "reply_epoch_ms": 1795800392484.04,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.7400000000000091,
+              "reply_epoch_ms": 1795800392485.56,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 1.3600000000000136,
+              "reply_epoch_ms": 1795800392987.16,
+              "reason": null
+            }
+          }
+        ]
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "aggregate": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 89.28,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "2a835b6f-3424-4e3a-818b-9cd6065a1389",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 88.04,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "2c8cdc51-6dcb-4587-ba06-10e681ee4a2f",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 86.13999999999999,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": null,
+            "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "7586ded7-3085-4681-9a9e-aa3889a61898",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 3,
+        "memoryBytes": 50331648
+      },
+      "attempt": {
+        "requested_pages": 128,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "aggregate_memory",
+        "stage": "before-frame",
+        "refusal_ms": 0.020000000000010232
+      },
+      "reservations_after_attempt": {
+        "instances": 3,
+        "memoryBytes": 50331648
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "oversize": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "instances": [],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": null,
+        "reason": "performance.memory.usedJSHeapSize is unavailable in this realm"
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 0,
+        "memoryBytes": 0
+      },
+      "attempt": {
+        "requested_pages": 257,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "instance_memory",
+        "stage": "before-frame",
+        "refusal_ms": 0.04000000000000625
+      },
+      "reservations_after_attempt": {
+        "instances": 0,
+        "memoryBytes": 0
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    }
+  },
+  "version": "155.0",
+  "checks": {
+    "one": true,
+    "two": true,
+    "four": true,
+    "aggregate": true,
+    "oversize": true
+  },
+  "status": "passed",
+  "budget_sha256": "27dc635dc565447b761ff003e49dd842bf0cdd0cc2e7b4062cd0bb7b20d45883",
+  "node": "v24.15.0",
+  "platform": "linux",
+  "arch": "x64"
+}

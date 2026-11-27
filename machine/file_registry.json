@@ -16923,6 +16923,13 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/aggregate.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/plugins-runtime-spike/browser/client.js",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -16973,6 +16980,27 @@
     },
     {
       "path": "verification/prototypes/plugins-runtime-spike/browser/probe.js",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/aggregate-chromium.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/aggregate-firefox.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/plugins-runtime-spike/browser/results/aggregate-webkit.json",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

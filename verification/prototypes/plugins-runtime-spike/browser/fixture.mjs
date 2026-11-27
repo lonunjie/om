@@ -12,6 +12,7 @@ const witFile = new URL("../../../../spec/wit/om-plugin.wit", import.meta.url);
 const watFile = join(build, "fixture.wat");
 const componentFile = join(build, "fixture.wasm");
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const buildFor = (fixedPages) => fixedPages === undefined ? build : join(build, `aggregate-${fixedPages}`);
 
 const abiTypes = { string: "string", "list<u8>": "(list u8)" };
 export const memoryPages = 4;
@@ -40,9 +41,14 @@ function requireCommand(program, args) {
 
 // Derive a no-capability instance of the WIT world from its real export declarations.
 // Fail on an ABI change this deliberately small translator does not understand.
-export async function makeFixture() {
+export async function makeFixture({ fixedPages } = {}) {
   const wit = await readFile(witFile, "utf8");
-  const core = await readFile(join(root, "fixture.wat"), "utf8");
+  let core = await readFile(join(root, "fixture.wat"), "utf8");
+  if (fixedPages !== undefined) {
+    const memory = '(memory (export "memory") 1 4)';
+    if (!core.includes(memory)) throw new Error("Unexpected fixture memory declaration");
+    core = core.replace(memory, `(memory (export "memory") ${fixedPages} ${fixedPages})`);
+  }
   const world = wit.match(/\bworld plugin\s*\{([^}]+)\}/)?.[1];
   if (!world || !wit.includes("package om:plugin@0.1.0;")) throw new Error("Missing the frozen OM plugin world");
   const exports = world.split("\n").map((line) => line.trim()).filter((line) => line.startsWith("export "));
@@ -63,8 +69,9 @@ export async function makeFixture() {
     (alias core export $instance "memory" (core memory $memory))
     (alias core export $instance "cabi_realloc" (core func $realloc))
     ${lifts.map(({ wat }) => wat).join("\n")}\n)\n`;
-  await mkdir(build, { recursive: true });
-  await writeFile(watFile, wat);
+  const directory = buildFor(fixedPages);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "fixture.wat"), wat);
   return { wit_sha256: hash(wit), fixture_wat_sha256: hash(wat) };
 }
 
@@ -92,16 +99,18 @@ export function runNative(binary = false) {
     calls, spin, pass: Object.values(calls).every(({ pass }) => pass) && spin.fuel_trap };
 }
 
-export async function transpileFixture(expectedVersion) {
+export async function transpileFixture(expectedVersion, { fixedPages } = {}) {
   const jco = join(root, "node_modules", ".bin", "jco");
   const version = requireCommand(jco, ["--version"]).stdout;
   if (version.replace(/^v/, "") !== expectedVersion) throw new Error(`Expected jco ${expectedVersion}, got ${version}`);
-  const parsed = requireCommand(jco, ["parse", watFile, "-o", componentFile]);
-  const output = join(build, "transpiled");
+  const directory = buildFor(fixedPages);
+  const binary = join(directory, "fixture.wasm");
+  const parsed = requireCommand(jco, ["parse", join(directory, "fixture.wat"), "-o", binary]);
+  const output = join(directory, "transpiled");
   await rm(output, { recursive: true, force: true }); // Only regenerable jco output.
-  const probe = requireCommand(jco, ["transpile", componentFile, "--instantiation", "async",
+  const probe = requireCommand(jco, ["transpile", binary, "--instantiation", "async",
     "--base64-cutoff=0", "--no-wasi-shim", "-o", output]);
-  const component = await readFile(componentFile);
+  const component = await readFile(binary);
   const assets = {};
   const modules = {};
   const sizes = {};

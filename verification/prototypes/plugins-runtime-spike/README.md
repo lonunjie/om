@@ -141,6 +141,35 @@ required observation fails. The build and results use fixed paths. Non-browser r
   not establish separate-registrable-domain deployment or process isolation. The runner records `crossOriginIsolated`
   as an observation. [HTML cross-document and channel messaging](https://html.spec.whatwg.org/multipage/web-messaging.html)
 
+### Aggregate browser host budgets
+
+From this spike's `browser/` directory, use Node 24 and the pinned dependencies and Playwright browsers described above.
+
+```sh
+node aggregate.mjs
+```
+
+The runner applies the reference host's reservation code under [ADR-0268 item 4](../../../decisions/ADR-0268-v1-local-delivery-and-plugin-host-rulings.md).
+It starts cohorts of one, two and four transpiled fixture components, each in a separate CSP-confined frame with its own Worker.
+Four 8 MiB instances isolate the slot refusal on a fifth start. Three 16 MiB instances isolate the aggregate-memory
+refusal on a fourth start. A separate 257-page fixture tests the per-instance refusal in an empty host. The fixture declares
+the requested pages as both its initial size and its maximum. The reservation gate runs before frame or Worker creation.
+
+Records include actual Wasm pages read from the core instance and wall time from the start request to the component's
+`init` reply, including frame load, binding and Worker startup. The four-instance run measures each neighbour's fixture
+ping before, during and after a loop. The frame's 500 ms wall-clock guard terminates the spinning Worker. A during-loop
+reply counts when it arrives after the loop-start signal and before the frame records termination.
+
+Chromium can expose `performance.memory.usedJSHeapSize` in window contexts. The runner samples it in the embedder
+before and after cohort startup and in each initialized frame. The values cover browser-reported JS heaps with
+potentially overlapping scopes and cannot be summed. Firefox and WebKit expose no corresponding heap metric through
+this probe. Unavailable samples are `null` with a reason. The runner collects no browser process RSS.
+
+The run writes `browser/results/aggregate-<engine>.json` for Chromium, Firefox and WebKit and exits nonzero on failed
+checks. These are headless, loopback measurements of the fixture and shared budget code. Separate-domain deployment,
+realistic plugins and low-end devices require their own measurements. Register the generated JSON files when adding them
+to the repository.
+
 ### Open design questions
 
 1. How will a PWA host enforce each plugin's memory budget across every core module emitted by the transpiler, including

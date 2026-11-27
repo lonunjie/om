@@ -1,0 +1,436 @@
+{
+  "date": "2026-11-27T17:26:26.797Z",
+  "engine": "chromium",
+  "playwright": "1.63.0",
+  "fixtures": {
+    "128": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "bfc505b84570ea27a41968b53593dea93d77f06f2995a77d1e9dca22a1885a97"
+      },
+      "component_sha256": "8e48599c38dad4e692907bcbdbfccef0bed0ca8faac0c6c71d4e30e49c82ab45"
+    },
+    "256": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "e36728c2519c420314f7ca5213b191c209b38a1d759fb2716cab106023ef2d19"
+      },
+      "component_sha256": "209caceb58c9d5150f97d5bf18afdc050a9f7bdef310cec9dc7967db84aa181b"
+    },
+    "257": {
+      "input": {
+        "wit_sha256": "ed7b666d191318b82f68b873cbc8cc3ad9303075d8b47c05f2003ad8e6637697",
+        "fixture_wat_sha256": "b7cc8b48a031222438973eb4edb4c4e190666c218fe78b7adb644ef1f591da42"
+      },
+      "component_sha256": "83a4b630cdcd7767894e7d4732ccc96fa5ca639a0b5b5f4ad1e3fcb6ab7bf844"
+    }
+  },
+  "origins": {
+    "client": "http://127.0.0.1:41499",
+    "plugin": "http://localhost:41499"
+  },
+  "policies": {
+    "confined": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'self'; base-uri 'none'"
+  },
+  "console": [],
+  "errors": [],
+  "scenarios": {
+    "one": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 32.0349999666214,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "81e6d401-4e7c-4b5a-9841-484ae497622e",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 1,
+        "memoryBytes": 8388608
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "two": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 27.43999993801117,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "2b88d0c0-6503-4ca6-8cc2-b0fe000f4f3a",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 26.830000042915344,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "3011e96f-9ef3-496b-bcd0-36a081c27220",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 2,
+        "memoryBytes": 16777216
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "four": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "instances": [
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 33.300000071525574,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "53bcb69b-0236-4d8e-88f5-11c070155338",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 34.449999928474426,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "4ca03080-12d4-4eee-bb3e-6cd795850e35",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 31.350000023841858,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "906f9328-56d8-4f4d-a73a-56faa0b96032",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 128,
+          "wasm_pages": 128,
+          "first_response_ms": 33.89999997615814,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "7e1358e5-f0ec-4acd-ab8a-20d1c4fbd898",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 4,
+        "memoryBytes": 33554432
+      },
+      "attempt": {
+        "requested_pages": 128,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "instance_limit",
+        "stage": "before-frame",
+        "refusal_ms": 0.5550000667572021
+      },
+      "reservations_after_attempt": {
+        "instances": 4,
+        "memoryBytes": 33554432
+      },
+      "watchdog": {
+        "stop": {
+          "type": "watchdog-terminated",
+          "started": true,
+          "limit_ms": 500,
+          "call_to_terminate_ms": 500.31000006198883,
+          "stopped_epoch_ms": 1795800389767.125,
+          "binding": "53bcb69b-0236-4d8e-88f5-11c070155338",
+          "sequence": 2
+        },
+        "reservations_after_stop": {
+          "instances": 3,
+          "memoryBytes": 25165824
+        },
+        "neighbours": [
+          {
+            "before": {
+              "reply_ms": 0.6649999618530273,
+              "reply_epoch_ms": 1795800389263.41,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.40500009059906006,
+              "reply_epoch_ms": 1795800389267.4749,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 0.5449999570846558,
+              "reply_epoch_ms": 1795800389768.38,
+              "reason": null
+            }
+          },
+          {
+            "before": {
+              "reply_ms": 0.6649999618530273,
+              "reply_epoch_ms": 1795800389263.43,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.41499996185302734,
+              "reply_epoch_ms": 1795800389267.5,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 0.5449999570846558,
+              "reply_epoch_ms": 1795800389768.4048,
+              "reason": null
+            }
+          },
+          {
+            "before": {
+              "reply_ms": 3.9850000143051147,
+              "reply_epoch_ms": 1795800389266.76,
+              "reason": null
+            },
+            "during": {
+              "reply_ms": 0.39499998092651367,
+              "reply_epoch_ms": 1795800389267.505,
+              "reason": null
+            },
+            "replied_before_termination": true,
+            "after": {
+              "reply_ms": 0.5499999523162842,
+              "reply_epoch_ms": 1795800389768.4148,
+              "reason": null
+            }
+          }
+        ]
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "aggregate": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "instances": [
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 27.87000000476837,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "893a2a65-49dd-48a1-a2db-74405d00d50c",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 29.335000038146973,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "d252017c-c900-4d23-a9ef-35d741c121db",
+          "sequence": 1,
+          "status": "started"
+        },
+        {
+          "requested_pages": 256,
+          "wasm_pages": 256,
+          "first_response_ms": 28.990000009536743,
+          "type": "initialized",
+          "cross_origin_isolated": true,
+          "frame_heap": {
+            "source": "performance.memory.usedJSHeapSize",
+            "bytes": 10000000,
+            "reason": null
+          },
+          "frame_cross_origin_isolated": true,
+          "binding": "b81800bb-b3b6-4351-ab61-8985b146d920",
+          "sequence": 1,
+          "status": "started"
+        }
+      ],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 3,
+        "memoryBytes": 50331648
+      },
+      "attempt": {
+        "requested_pages": 128,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "aggregate_memory",
+        "stage": "before-frame",
+        "refusal_ms": 0.5249999761581421
+      },
+      "reservations_after_attempt": {
+        "instances": 3,
+        "memoryBytes": 50331648
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    },
+    "oversize": {
+      "heap_before": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "instances": [],
+      "heap_live": {
+        "source": "performance.memory.usedJSHeapSize",
+        "bytes": 10000000,
+        "reason": null
+      },
+      "error": null,
+      "reservations_before_attempt": {
+        "instances": 0,
+        "memoryBytes": 0
+      },
+      "attempt": {
+        "requested_pages": 257,
+        "wasm_pages": 0,
+        "first_response_ms": null,
+        "status": "refused",
+        "reason": "instance_memory",
+        "stage": "before-frame",
+        "refusal_ms": 0.5700000524520874
+      },
+      "reservations_after_attempt": {
+        "instances": 0,
+        "memoryBytes": 0
+      },
+      "reservations_after_cleanup": {
+        "instances": 0,
+        "memoryBytes": 0
+      }
+    }
+  },
+  "version": "153.0.8010.12",
+  "checks": {
+    "one": true,
+    "two": true,
+    "four": true,
+    "aggregate": true,
+    "oversize": true
+  },
+  "status": "passed",
+  "budget_sha256": "27dc635dc565447b761ff003e49dd842bf0cdd0cc2e7b4062cd0bb7b20d45883",
+  "node": "v24.15.0",
+  "platform": "linux",
+  "arch": "x64"
+}

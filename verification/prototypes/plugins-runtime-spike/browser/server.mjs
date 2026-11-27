@@ -20,9 +20,9 @@ async function listen(server) {
   return server.address().port;
 }
 
-export async function startServer(assets) {
+export async function startServer(assets, scriptOverrides = {}) {
   const sources = Object.fromEntries(await Promise.all(scripts.map(async (name) =>
-    [name, await readFile(new URL(`./${name}`, import.meta.url))])));
+    [name, scriptOverrides[name] ?? await readFile(new URL(`./${name}`, import.meta.url))])));
   const traffic = [];
   const sockets = new Set();
   const sink = createServer((request, response) => {
