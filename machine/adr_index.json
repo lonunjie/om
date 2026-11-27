@@ -3208,6 +3208,16 @@
       "amends": [],
       "index_title": "Durable Room operation recovery (delegated; additive)",
       "amended_by": []
+    },
+    {
+      "id": "ADR-0278",
+      "title": "Community join in v1 is by invitation through the existing group flow",
+      "status": "Delegated design decision (additive). Independent review remains required.",
+      "date": "2026-11-28",
+      "path": "decisions/ADR-0278-community-join-by-invitation.md",
+      "amends": [],
+      "index_title": "Community join in v1 is by invitation through the existing group flow (delegated; additive)",
+      "amended_by": []
     }
   ]
 }
