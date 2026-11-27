@@ -115,6 +115,26 @@ describe("Community and Room admission", () => {
     expect(screen.getByRole("status").textContent).toBe(copy.outcome.PendingAuthorization);
   });
 
+  it("labels directory observations and keeps the invitation review read-only", async () => {
+    const service = fake(reply({
+      kind: "room", id: exchangeFixture.id, name: "Observed Room", nameSource: "host_observed",
+      topics: [], participation: [], members: [],
+      admission: {
+        membership: null,
+        offer: { id: "observed-offer", approvalRequired: true, source: "host_observed" },
+        action: { availability: "blocked", kind: "request_room_join", reason: "unsupported" },
+      },
+    }));
+    show(service, exchangePlace);
+    expect(await screen.findByText(copy.directoryObservation)).toBeTruthy();
+    expect(screen.queryByText(copy.admission.membership.room.not_joined)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: copy.admission.review }));
+    const review = within(screen.getByRole("dialog"));
+    expect(review.getByText(copy.admission.observed)).toBeTruthy();
+    expect(review.getByRole<HTMLButtonElement>("button", { name: copy.action.request_room_join }).disabled).toBe(true);
+    expect(service.change).not.toHaveBeenCalled();
+  });
+
   it("states why a stale admission is disabled and accepts no replacement action", async () => {
     const user = userEvent.setup();
     const service = fake(reply({

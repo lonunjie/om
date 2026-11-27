@@ -16,7 +16,7 @@ export function Admission({
 
   return (
     <div className="om-community-stack">
-      <p>{copy.admission.membership[details.kind][admission.membership]}</p>
+      {admission.membership === null ? null : <p>{copy.admission.membership[details.kind][admission.membership]}</p>}
       <p>{boundary}</p>
       {evidence === undefined ? null : (
         <p>{copy.admission.evidence[evidence.kind](
@@ -40,6 +40,7 @@ export function Admission({
             <p id={consequenceId}>{boundary}</p>
             {offer === undefined ? null : (
               <>
+                {offer.source === "host_observed" ? <p>{copy.admission.observed}</p> : null}
                 <p>{offer.approvalRequired ? copy.admission.approval : copy.admission.noApproval}</p>
                 <dl className="om-community-facts">
                   {offer.uses === undefined ? null : (

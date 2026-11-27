@@ -28,6 +28,7 @@ pub mod bridge_identity;
 pub mod bridge_provenance;
 pub mod bridge_room;
 pub mod calls;
+pub mod community_directory;
 pub mod control;
 pub mod crypto;
 pub mod direct;

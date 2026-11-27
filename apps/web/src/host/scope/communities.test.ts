@@ -4,9 +4,9 @@ import { createCoreRuntime, instantiateCore } from "@om/core-wasm";
 import { createMemoryKv, createMemoryProvider } from "@om/core-wasm/test-support";
 import { asConversationId, asProfileGeneration, asProfileId, captureProfileContext } from "@om/platform-api";
 import { describe, expect, it, vi } from "vitest";
-import { createScopeEngines } from "../../../../../packages/om-core-wasm/src/scope-engines";
+import { createScopeEngines, type DirectoryEntry, type PublicationView, type SpaceView } from "../../../../../packages/om-core-wasm/src/scope-engines";
 import type { CommunitiesActionKind, CommunitiesPlace } from "../../../../../packages/om-ui/src/communities/communities";
-import { communitiesRoomLinkHandle, createCommunitiesService, type CommunitiesRoomViews } from "./communities";
+import { communityChildLinkHandle, communitiesRoomLinkHandle, createCommunitiesService, type CommunitiesRoomViews, type FollowRecord, type FollowStore } from "./communities";
 import { createScopeServices } from "./index";
 
 const ctx = captureProfileContext(asProfileId("one"), asProfileGeneration("generation-1"));
@@ -36,16 +36,23 @@ const empty = { details: null, outcome: null };
 function fixture() {
   const topics = vi.fn<CommunitiesRoomViews["topics"]["view"]>(() => topicView);
   const moderation = vi.fn<CommunitiesRoomViews["moderation"]["view"]>(() => moderationView);
+  const directory: DirectoryEntry[] = [];
+  const feed = vi.fn<() => PublicationView | { refused: string }>(() => ({ refused: "unknown_handle" }));
+  const space = vi.fn<() => SpaceView | { refused: string }>(() => ({ refused: "unknown_handle" }));
+  const childLink = vi.fn<(handle: unknown) => typeof link | { refused: string }>(() => link);
   const call = vi.fn((request: Readonly<Record<string, unknown>>): unknown => {
     switch (request["cmd"]) {
       case "room_control_view": return { entries: [] };
-      case "space_binding_do": return link;
+      case "space_binding_do": return childLink(request["handle"]);
+      case "directory_do": return { entries: directory };
+      case "space_do": return space();
+      case "publication_do": return feed();
       default: throw new Error("Unexpected Core command");
     }
   });
   const roomViews = { topics: { view: topics }, moderation: { view: moderation } };
   const options = { ctx, engines: createScopeEngines({ call }), roomViews };
-  return { topics, moderation, call, options, service: createCommunitiesService(options) };
+  return { topics, moderation, call, directory, feed, space, childLink, options, service: createCommunitiesService(options) };
 }
 
 describe("communities host", () => {
@@ -89,27 +96,33 @@ describe("communities host", () => {
     f.moderation.mockReturnValue({ ...moderationView, member: false });
     await expect(f.service.state(roomPlace)).resolves.toEqual(empty);
     expect(f.topics).not.toHaveBeenCalled();
-    expect(f.call).toHaveBeenCalledExactlyOnceWith({ cmd: "room_control_view", ctx, room });
+    expect(f.call).toHaveBeenNthCalledWith(1, { cmd: "room_control_view", ctx, room });
+    expect(f.call).toHaveBeenNthCalledWith(2, { cmd: "directory_do", ctx, op: { kind: "list" } });
   });
 
-  it("returns no community or publication details and rejects all changes without Core or storage access", async () => {
+  it("rejects every join intent without Core or storage access", async () => {
     const f = fixture();
     const community = { kind: "community", id: "community" } as const;
     const publication = { kind: "publication", id: "publication" } as const;
     await expect(f.service.state(community)).resolves.toEqual(empty);
     await expect(f.service.state(publication)).resolves.toEqual(empty);
+    f.call.mockClear();
+    const followStore = memoryFollowStore();
+    const service = createCommunitiesService({ ...f.options, followStore });
 
     const places = {
       join_community: community, request_community_join: community,
       join_room: roomPlace, request_room_join: roomPlace,
-      follow: publication, unfollow: publication,
-    } satisfies Record<CommunitiesActionKind, CommunitiesPlace>;
-    for (const kind of Object.keys(places) as CommunitiesActionKind[]) {
-      await expect(f.service.change(places[kind], { kind, target: "review target" })).resolves.toEqual({
+    } satisfies Partial<Record<CommunitiesActionKind, CommunitiesPlace>>;
+    for (const kind of Object.keys(places) as (keyof typeof places)[]) {
+      await expect(service.change(places[kind], { kind, target: "review target" })).resolves.toEqual({
         details: null, outcome: { kind: "Rejected", reason: "unsupported" },
       });
     }
     expect(f.call).not.toHaveBeenCalled();
+    expect(followStore.read).not.toHaveBeenCalled();
+    expect(followStore.reserve).not.toHaveBeenCalled();
+    expect(followStore.commit).not.toHaveBeenCalled();
     expect(f.topics).not.toHaveBeenCalled();
     expect(f.moderation).not.toHaveBeenCalled();
   });
@@ -135,6 +148,171 @@ describe("communities host", () => {
     expect(f.call).toHaveBeenCalledExactlyOnceWith({ cmd: "room_control_view", ctx, room });
     expect(f.moderation).not.toHaveBeenCalled();
     expect(f.topics).not.toHaveBeenCalled();
+  });
+});
+
+function memoryFollowStore() {
+  const records = new Map<string, FollowRecord>();
+  const key = (profile: string, publication: string) => JSON.stringify([profile, publication]);
+  const initial: FollowRecord = { revision: 0, following: false, pending: null, lastOperationId: null };
+  return {
+    read: vi.fn<FollowStore["read"]>(async (profile, publication) =>
+      records.get(key(profile, publication)) ?? null),
+    reserve: vi.fn<FollowStore["reserve"]>(async (profile, publication, operation) => {
+      const id = key(profile, publication);
+      const record = records.get(id) ?? initial;
+      if (record.revision !== operation.revision || record.pending !== null) return false;
+      records.set(id, { ...record, pending: operation });
+      return true;
+    }),
+    commit: vi.fn<FollowStore["commit"]>(async (profile, publication, operationId) => {
+      const id = key(profile, publication);
+      const record = records.get(id);
+      if (record?.pending?.id !== operationId) return;
+      records.set(id, {
+        revision: record.revision + 1, following: record.pending.following, pending: null, lastOperationId: operationId,
+      });
+    }),
+  };
+}
+
+function observed(kind: DirectoryEntry["kind"], id: string, name: string, offer: DirectoryEntry["offer"] = null): DirectoryEntry {
+  return { kind, id, name, description: name + " description", source: "host_observed", offer };
+}
+
+const community = { kind: "community", id: "11".repeat(32) } as const;
+const publication = { kind: "publication", id: "22".repeat(32) } as const;
+const offer = { target: "aa".repeat(32), approvalRequired: true, expiresAtMs: 9000, uses: "limited" } as const;
+
+describe("community and publication places", () => {
+  it("shows offers, Space governance, and pair-specific links without inferring child membership", async () => {
+    const f = fixture();
+    f.directory.push(
+      observed("community", community.id, "Garden", offer),
+      observed("room", room, "Talk"),
+      observed("publication", publication.id, "Updates"),
+      observed("community", "nested", "Nested"),
+      observed("room", "elsewhere", "Unrelated"),
+    );
+    f.space.mockReturnValue({ governance: "orphaned", head: {
+      hash: "head", version: "2", member: false, governanceThreshold: 1, links: [
+        { kind: "room", id: room }, publication,
+      ],
+    } });
+    f.childLink.mockImplementation((handle) => {
+      if (handle === communityChildLinkHandle(ctx.profileId, community.id, "room", room)) return link;
+      if (handle === communityChildLinkHandle(ctx.profileId, community.id, "community", "nested")) {
+        return { official: false, spaceSide: false, childSide: true, bound: false };
+      }
+      return { refused: "unknown_handle" };
+    });
+    const liveGovernance = vi.fn(() => []);
+    const service = createCommunitiesService({ ...f.options, liveGovernance });
+    await expect(service.state(community)).resolves.toMatchObject({ details: {
+      name: "Garden", description: "Garden description", nameSource: "host_observed", governance: { state: "orphaned" },
+      rooms: [{ id: room, name: "Talk", link }],
+      publications: [{ id: publication.id, link: { official: false, spaceSide: true, childSide: false, bound: false } }],
+      communities: [{ id: "nested", link: { official: false, spaceSide: false, childSide: true, bound: false } }],
+      admission: {
+        membership: "not_joined", offer: { id: offer.target, approvalRequired: true, uses: "limited", expiresAtMs: 9000 },
+        action: { availability: "blocked", kind: "request_community_join", reason: "unsupported" },
+      },
+    } });
+    expect(liveGovernance).toHaveBeenCalledWith(ctx, community.id);
+    f.space.mockReturnValue({ head: null, governance: "conflict" });
+    await expect(service.state(community)).resolves.toMatchObject({ details: {
+      governance: { state: "conflict" }, rooms: [], publications: [], communities: [],
+    } });
+  });
+
+  it("makes a Room offer reviewable without exposing member-only Room facts", async () => {
+    const f = fixture();
+    f.moderation.mockReturnValue(null);
+    f.directory.push(observed("room", room, "Observed Room", { ...offer, approvalRequired: false }));
+    await expect(f.service.state(roomPlace)).resolves.toMatchObject({ details: {
+      name: "Observed Room", topics: [], participation: [], members: [], link: null,
+      admission: { membership: null, action: { availability: "blocked", kind: "join_room", reason: "unsupported" } },
+    } });
+    await expect(f.service.state(topicPlace)).resolves.toEqual(empty);
+    expect(f.topics).not.toHaveBeenCalled();
+  });
+
+  it("maps signed feed projections and keeps the discussion independent", async () => {
+    const f = fixture();
+    f.directory.push(observed("publication", publication.id, "Updates"), observed("room", room, "Discussion"));
+    await expect(f.service.state(publication)).resolves.toMatchObject({ details: {
+      provenance: "checking", posts: [], followAction: { availability: "blocked", reason: "unavailable" },
+    } });
+    f.feed.mockReturnValue({ provenance: "confirmed", frozen: false, conflicts: [],
+      head: { hash: "head", version: "1", discussion: room }, posts: [
+        { id: "post", publishedAtMs: 3, state: "published", text: "First entry", reason: null },
+        { id: "edit", publishedAtMs: 2, state: "edited", text: "Updated entry", reason: null },
+        { id: "retract", publishedAtMs: 1, state: "retracted", text: null, reason: "Withdrawn" },
+      ],
+    });
+    await expect(f.service.state(publication)).resolves.toMatchObject({ details: {
+      provenance: "confirmed", discussion: { id: room, name: "Discussion" }, posts: [
+        { id: "post", state: "published", content: { blocks: [{ children: [{ text: "First entry" }] }] } },
+        { id: "edit", state: "edited", content: { blocks: [{ children: [{ text: "Updated entry" }] }] } },
+        { id: "retract", state: "retracted", reason: "Withdrawn" },
+      ],
+    } });
+    f.feed.mockReturnValue({ provenance: "conflict", frozen: true, conflicts: [], head: null, posts: [] });
+    await expect(f.service.state(publication)).resolves.toMatchObject({ details: { provenance: "conflict" } });
+  });
+
+  it("waits for durable follow, isolates profiles, unfollows, and rejects stale targets", async () => {
+    const f = fixture();
+    f.directory.push(observed("publication", publication.id, "Updates"));
+    const store = memoryFollowStore();
+    const service = createCommunitiesService({ ...f.options, followStore: store });
+    const first = (await service.state(publication)).details;
+    if (first?.kind !== "publication" || first.followAction?.availability !== "ready") throw new Error("Expected follow action");
+    const follow = first.followAction.intent;
+    const commit = store.commit.getMockImplementation()!;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let started!: () => void;
+    const start = new Promise<void>((resolve) => { started = resolve; });
+    store.commit.mockImplementationOnce(async (...args) => { started(); await gate; await commit(...args); });
+    const changing = service.change(publication, follow);
+    await start;
+    await expect(store.read(ctx.profileId, publication.id)).resolves.toMatchObject({ following: false, pending: { id: follow.target } });
+    release();
+    const after = await changing;
+    expect(after).toMatchObject({ details: { following: true }, outcome: { kind: "Committed" } });
+    await expect(service.change(publication, follow)).resolves.toMatchObject({ outcome: { kind: "Committed" } });
+    expect(store.reserve).toHaveBeenCalledTimes(1);
+    const other = createCommunitiesService({ ...f.options, followStore: store,
+      ctx: captureProfileContext(asProfileId("two"), ctx.generation),
+    });
+    await expect(other.state(publication)).resolves.toMatchObject({ details: { following: false } });
+    await expect(other.change(publication, follow)).resolves.toMatchObject({ outcome: { kind: "Rejected", reason: "stale_state" } });
+    if (after.details?.kind !== "publication" || after.details.followAction?.availability !== "ready") throw new Error("Expected unfollow action");
+    await expect(service.change(publication, after.details.followAction.intent)).resolves.toMatchObject({
+      details: { following: false }, outcome: { kind: "Committed" },
+    });
+    await expect(service.change(publication, follow)).resolves.toMatchObject({ outcome: { kind: "Rejected", reason: "stale_state" } });
+  });
+
+  it("resumes a pending follow under the same identity after a restart", async () => {
+    const f = fixture();
+    f.directory.push(observed("publication", publication.id, "Updates"));
+    const followStore = memoryFollowStore();
+    const options = { ...f.options, followStore };
+    const service = createCommunitiesService(options);
+    const details = (await service.state(publication)).details;
+    if (details?.kind !== "publication" || details.followAction?.availability !== "ready") throw new Error("Expected follow action");
+    const intent = details.followAction.intent;
+    followStore.commit.mockRejectedValueOnce(new Error("Storage interrupted"));
+    await expect(service.change(publication, intent)).resolves.toMatchObject({
+      details: { following: false, followAction: null }, outcome: { kind: "PendingReconciliation" },
+    });
+    await expect(createCommunitiesService(options).state(publication)).resolves.toMatchObject({
+      details: { following: true }, outcome: { kind: "Committed" },
+    });
+    expect(followStore.reserve).toHaveBeenCalledTimes(1);
+    expect(followStore.commit).toHaveBeenNthCalledWith(2, ctx.profileId, publication.id, intent.target);
   });
 });
 
@@ -181,6 +359,16 @@ describe.skipIf(!existsSync(wasm))("engineering Wasm communities host", () => {
       await expect(communities.state(topicPlace)).resolves.toMatchObject({ details: {
         id: room, selectedTopic: { id: topicId, title: "Core topic", status: "open" }, link: { ...link, bound: false },
       } });
+
+      expect(engines.directory.observe(profile, "publication", publication.id, { name: "Updates\u202e" })).toEqual({ done: true });
+      expect(engines.publication.open(profile, publication.id)).toEqual({ done: true });
+      const wired = createCommunitiesService({ ctx: profile, engines, roomViews, followStore: memoryFollowStore() });
+      const published = (await wired.state(publication)).details;
+      if (published?.kind !== "publication" || published.followAction?.availability !== "ready") throw new Error("Expected follow action from real directory");
+      expect(published).toMatchObject({ name: "Updates", provenance: "checking" });
+      await expect(wired.change(publication, published.followAction.intent)).resolves.toMatchObject({
+        details: { following: true }, outcome: { kind: "Committed" },
+      });
 
       const stale = createCommunitiesService({ ctx: { ...profile, generation: asProfileGeneration("stale") }, engines, roomViews });
       await expect(stale.state(roomPlace)).rejects.toThrow("stale profile context");

@@ -9,6 +9,7 @@ import type {
 } from "./communities";
 
 export interface CommunitiesCopy {
+  readonly directoryObservation: string;
   readonly place: Readonly<Record<"community" | "room" | "publication" | "topic", string>>;
   readonly loading: string;
   readonly changing: string;
@@ -30,6 +31,7 @@ export interface CommunitiesCopy {
     readonly delegated: string;
   };
   readonly admission: {
+    readonly observed: string;
     readonly boundary: string;
     readonly roomBoundary: string;
     readonly review: string;
@@ -62,7 +64,7 @@ export interface CommunitiesCopy {
     readonly openSuccessor: (name: ReactNode) => ReactNode;
   };
   readonly room: {
-    readonly mode: Readonly<Record<RoomDetails["mode"], string>>;
+    readonly mode: Readonly<Record<NonNullable<RoomDetails["mode"]>, string>>;
     readonly forum: string;
     readonly announcement: string;
     readonly participation: string;

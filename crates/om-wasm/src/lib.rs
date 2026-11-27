@@ -14,6 +14,8 @@ pub mod bridge;
 
 #[allow(unsafe_code)]
 mod abi;
+#[cfg(feature = "scope-engines")]
+mod communities;
 #[cfg(feature = "groups-openmls")]
 mod groups_selftest;
 #[cfg(feature = "scope-engines")]

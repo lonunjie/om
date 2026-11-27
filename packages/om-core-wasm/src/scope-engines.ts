@@ -4,6 +4,7 @@
 // This file adds no behaviour: it names the commands and their answers.
 import type { ProfileExecutionContext } from "@om/platform-api";
 import type { WasmCore } from "./wasm";
+import { createCommunitiesEngines, type CommunitiesEngines } from "./communities";
 
 export type Refusal = { readonly refused: string };
 export type Done = { readonly done: true };
@@ -81,7 +82,7 @@ export interface BridgeMapping {
 }
 export interface LinkState { readonly official: boolean; readonly spaceSide: boolean; readonly childSide: boolean; readonly bound: boolean }
 
-export interface ScopeEngines {
+export interface ScopeEngines extends CommunitiesEngines {
   /** Room-member service path (one Room per handle). */
   readonly roomServices: {
     open(room: string, opts: { quorum: number | null; sequencingTimeout: number }): Done | Refusal;
@@ -162,6 +163,7 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
   const lt = (side: "sender" | "receiver", handle: string, op: Record<string, unknown>) => q<never>({ cmd: "lan_transfer_do", side, handle, op });
   const sb = (handle: string, op: Record<string, unknown>) => q<never>({ cmd: "space_binding_do", handle, op });
   return {
+    ...createCommunitiesEngines(core),
     roomServices: {
       open: (room, o) => rs(room, [], { kind: "open", ...o }),
       close: (room) => rs(room, [], { kind: "close" }),
@@ -240,3 +242,9 @@ export type {
   PortabilityReadableExport, PortabilityRehydrateItem, PortabilityRehydrateContext,
   PortabilityRehydratePlan, PortabilityEngine,
 } from "./portability";
+
+export { createCommunitiesEngines } from "./communities";
+export type {
+  AdmissionPlace, AdmissionTerms, AdmissionUses, CommunitiesEngines, DirectoryEntry, DirectoryKind,
+  PublicationHead, PublicationView, ScopedControlHead, ScopedPublicationPost, SpaceHead, SpaceView,
+} from "./communities";

@@ -12,11 +12,13 @@ export type CommunitiesHref = (place: CommunitiesPlace) => string;
 export interface CommunityReference {
   readonly id: string;
   readonly name: string;
+  readonly nameSource?: "host_observed";
 }
 
 export interface RoomReference {
   readonly id: ConversationId;
   readonly name: string;
+  readonly nameSource?: "host_observed";
 }
 
 /** Mirrors the spaceBinding view from the scope engine. Use its materialized answers as supplied. */
@@ -55,6 +57,7 @@ export interface CapabilityLabel {
 export interface AdmissionOffer {
   readonly id: string;
   readonly approvalRequired: boolean;
+  readonly source?: "host_observed";
   readonly uses?: "one_time" | "limited" | "reusable";
   readonly expiresAtMs?: number;
   readonly grants?: readonly CapabilityLabel[];
@@ -67,7 +70,7 @@ export type AdmissionEvidence =
 type JoinCommunity = "join_community" | "request_community_join";
 type JoinRoom = "join_room" | "request_room_join";
 export interface AdmissionView<Kind extends JoinCommunity | JoinRoom> {
-  readonly membership: MembershipState;
+  readonly membership: MembershipState | null;
   readonly offer?: AdmissionOffer;
   readonly evidence?: AdmissionEvidence;
   readonly action: CommunitiesAction<Kind> | null;
@@ -120,7 +123,7 @@ export interface CommunityDetails extends CommunityReference {
   readonly kind: "community";
   readonly description?: string;
   readonly admission: AdmissionView<JoinCommunity>;
-  readonly governance: GovernanceView;
+  readonly governance?: GovernanceView;
   readonly rooms: readonly (RoomReference & { readonly link: CommunityLinkState })[];
   readonly publications: readonly (CommunityReference & { readonly link: CommunityLinkState })[];
   readonly communities: readonly (CommunityReference & { readonly link: CommunityLinkState })[];
@@ -131,8 +134,9 @@ export interface RoomDetails extends RoomReference {
   readonly kind: "room";
   readonly community?: CommunityReference;
   readonly admission: AdmissionView<JoinRoom>;
-  readonly governance: GovernanceView;
-  readonly mode: "chat" | "forum" | "announcement";
+  readonly governance?: GovernanceView;
+  readonly mode?: "chat" | "forum" | "announcement";
+  readonly description?: string;
   readonly topics: readonly TopicView[];
   readonly selectedTopic?: TopicView;
   /** Core's answers for the current reader, independent of the Room's presentation mode. */

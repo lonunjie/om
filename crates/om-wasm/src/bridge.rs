@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 //! The JSON command layer over [`om_core::Core`]. Pure safe Rust and host-independent, so it is unit-tested natively.
 
+#[cfg(feature = "scope-engines")]
+use crate::communities;
 use om_core::Core;
 use om_core::api::{HomeSummary, Intent, ProfileExecutionContext, Query};
 use om_core::attach::Meta;
@@ -336,6 +338,23 @@ enum Command {
     #[cfg(feature = "scope-engines")]
     LanFrameDecode {
         bytes: String,
+    },
+    #[cfg(feature = "scope-engines")]
+    PublicationDo {
+        ctx: ProfileExecutionContext,
+        handle: String,
+        op: communities::PublicationOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    SpaceDo {
+        ctx: ProfileExecutionContext,
+        handle: String,
+        op: communities::SpaceOp,
+    },
+    #[cfg(feature = "scope-engines")]
+    DirectoryDo {
+        ctx: ProfileExecutionContext,
+        op: communities::DirectoryOp,
     },
     #[cfg(feature = "scope-engines")]
     SpaceBindingDo {
@@ -1218,6 +1237,8 @@ pub struct Bridge<R: RngCore + CryptoRng> {
     #[cfg(feature = "scope-engines")]
     handles: scope::Handles,
     #[cfg(feature = "scope-engines")]
+    community_handles: communities::Handles,
+    #[cfg(feature = "scope-engines")]
     plugin_handles: crate::plugins::Handles,
 }
 
@@ -1235,6 +1256,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             first_contact: Default::default(),
             #[cfg(feature = "scope-engines")]
             handles: Default::default(),
+            #[cfg(feature = "scope-engines")]
+            community_handles: Default::default(),
             #[cfg(feature = "scope-engines")]
             plugin_handles: Default::default(),
         }
@@ -1333,6 +1356,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             } => Ok(enc(&self.core()?.open_profile(&profile_id, &records)?)),
             Command::CloseProfile { profile_id } => {
                 self.core()?.close_profile(&profile_id);
+                #[cfg(feature = "scope-engines")]
+                self.community_handles.close_profile(&profile_id);
                 Ok(Value::Null)
             }
             Command::ContextFor { profile_id } => {
@@ -1578,6 +1603,37 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::LanFrameEncode { frame } => Ok(scope::lan_frame_encode(frame)),
             #[cfg(feature = "scope-engines")]
             Command::LanFrameDecode { bytes } => Ok(scope::lan_frame_decode(&bytes)),
+            #[cfg(feature = "scope-engines")]
+            Command::PublicationDo { ctx, handle, op } => {
+                let core = self.core()?;
+                core.community_reader(&ctx)?;
+                let accounts = if matches!(op, communities::PublicationOp::AcceptControl { .. }) {
+                    core.room_control_accounts(&ctx)?
+                } else {
+                    Vec::new()
+                };
+                Ok(self
+                    .community_handles
+                    .publication_do(&ctx, &handle, op, &accounts))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::SpaceDo { ctx, handle, op } => {
+                let core = self.core()?;
+                let reader = core.community_reader(&ctx)?;
+                let accounts = if matches!(op, communities::SpaceOp::AcceptState { .. }) {
+                    core.room_control_accounts(&ctx)?
+                } else {
+                    Vec::new()
+                };
+                Ok(self
+                    .community_handles
+                    .space_do(&ctx, &handle, op, &accounts, reader))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::DirectoryDo { ctx, op } => {
+                self.core()?.community_reader(&ctx)?;
+                Ok(self.community_handles.directory_do(&ctx, op))
+            }
             #[cfg(feature = "scope-engines")]
             Command::SpaceBindingDo { handle, op } => {
                 Ok(scope::space_binding_do(&mut self.handles, &handle, op))

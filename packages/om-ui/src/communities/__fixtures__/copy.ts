@@ -64,7 +64,9 @@ export const communitiesTestCopy: CommunitiesCopy = {
     },
     delegated: "This Room has given the Community specific permissions.",
   },
+  directoryObservation: "The directory supplied this name and description.",
   admission: {
+    observed: "The directory supplied these invitation details.",
     boundary: "Joining the Community does not join its Rooms.",
     roomBoundary: "This Room handles membership separately.",
     review: "Review how to join",

@@ -53,7 +53,8 @@ pub struct Opened {
     pub approvers: Vec<Principal>,
 }
 
-fn controller_device<'a>(
+/// Resolve a device against an already authenticated account head and its committed credential.
+pub fn controller_device<'a>(
     accounts: &'a [ControllerAccount],
     device: &[u8; 16],
 ) -> Option<(&'a ControllerAccount, Credential)> {

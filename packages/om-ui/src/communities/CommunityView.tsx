@@ -99,6 +99,7 @@ function CommunitiesState({ service, place, hrefFor, copy }: Required<Communitie
       <h2 id={headingId} ref={heading} tabIndex={-1}>
         <bdi>{selectedTopic?.title ?? details?.name ?? copy.place[place.kind]}</bdi>
       </h2>
+      {details?.nameSource === "host_observed" ? <p>{copy.directoryObservation}</p> : null}
       <Text as="p" role="status">{status}</Text>
       {errorText === null ? null : <Text as="p" role="alert">{errorText}</Text>}
       {errorText !== null || pending || outcome?.kind === "Rejected" ? (
@@ -180,8 +181,8 @@ function Content({ details, hrefFor, ...actionProps }: ActionProps & {
           </a>
         </div>
       ) : null}
-      {details.kind === "community" && details.description !== undefined ? <p dir="auto">{details.description}</p> : null}
-      <GovernanceNotice governance={details.governance} hrefFor={hrefFor} copy={copy.governance} />
+      {details.description !== undefined ? <p dir="auto">{details.description}</p> : null}
+      {details.governance === undefined ? null : <GovernanceNotice governance={details.governance} hrefFor={hrefFor} copy={copy.governance} />}
       <Admission details={details} {...actionProps} />
       {details.kind === "community" ? (
         <>
@@ -193,8 +194,8 @@ function Content({ details, hrefFor, ...actionProps }: ActionProps & {
         </>
       ) : (
         <>
-          <p>{copy.room.mode[details.mode]}</p>
-          {details.mode === "chat" ? null : <p>{copy.room[details.mode]}</p>}
+          {details.mode === undefined ? null : <p>{copy.room.mode[details.mode]}</p>}
+          {details.mode === undefined || details.mode === "chat" ? null : <p>{copy.room[details.mode]}</p>}
           {details.selectedTopic === undefined ? null : <p>{copy.room.topicStatus[details.selectedTopic.status]}</p>}
           {details.participation.length === 0 ? null : (
             <section className="om-community-stack">

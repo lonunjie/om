@@ -2384,6 +2384,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/community_directory.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/control.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -3771,6 +3778,13 @@
     },
     {
       "path": "crates/om-wasm/src/bridge/scope.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/src/communities.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -10742,13 +10756,6 @@
       "authority": "executable_guardrail"
     },
     {
-      "path": "heavy-r.sh",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
       "path": "infra/MEDIA_TURN_ADAPTER_CONTRACT.md",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -11599,6 +11606,20 @@
       "path": "packages/om-core-wasm/src/calls.test.ts",
       "class": "product_code",
       "domain": "calls_media",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/communities.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/communities.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },

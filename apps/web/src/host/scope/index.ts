@@ -16,8 +16,8 @@ import { createPortabilityService, type PortabilityServiceOptions } from "./port
 
 export { bridgeRoomHandle, denyAll, type PendingBridgeOperation, type PendingStore, type RoomAuthority } from "./bridge";
 export {
-  communitiesRoomLinkHandle, createCommunitiesService, type CommunitiesRoomDetails, type CommunitiesRoomViews,
-  type CommunitiesServiceOptions,
+  communityChildLinkHandle, communitiesRoomLinkHandle, createCommunitiesService, type CommunitiesRoomDetails, type CommunitiesRoomViews,
+  type CommunitiesServiceOptions, type FollowOperation, type FollowRecord, type FollowStore,
 } from "./communities";
 export type { FileHost, HistorySource } from "./portability";
 export {

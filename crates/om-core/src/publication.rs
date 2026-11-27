@@ -376,6 +376,15 @@ impl Feed {
     }
 
     pub fn accept_event(&mut self, ev: Event) -> Result<EventOutcome, EventError> {
+        self.accept_event_with(ev, &mut |_| {})
+    }
+
+    /// Reports each newly applied event in reducer order, including events released from the held queue.
+    pub fn accept_event_with(
+        &mut self,
+        ev: Event,
+        applied: &mut impl FnMut(&Event),
+    ) -> Result<EventOutcome, EventError> {
         if ev.publication_id != self.id {
             return Err(EventError::WrongPublication);
         }
@@ -426,6 +435,7 @@ impl Feed {
                 (k, _) => PostView::Live(k),
             },
         );
+        applied(&ev);
         // A held event may now continue the chain.
         let key = ev.signing_key_ref.clone();
         if let Some(i) = self
@@ -434,7 +444,7 @@ impl Feed {
             .position(|h| h.signing_key_ref == key && h.seq == ev.seq + 1)
         {
             let h = self.held.remove(i);
-            let _ = self.accept_event(h);
+            let _ = self.accept_event_with(h, applied);
         }
         Ok(EventOutcome::Accepted)
     }

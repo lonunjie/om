@@ -1626,8 +1626,16 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .collect())
     }
 
+    /// The local account used to compare membership against a verified Space head.
+    pub fn community_reader(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Option<[u8; 32]>, CoreError> {
+        Ok(self.slot(ctx)?.state.device.as_ref().map(|d| d.account_id))
+    }
+
     /// Our own account and every contact's account, each with the control head Core already holds.
-    fn room_control_accounts(
+    pub fn room_control_accounts(
         &self,
         ctx: &ProfileExecutionContext,
     ) -> Result<Vec<crate::room_control::ControllerAccount>, CoreError> {
