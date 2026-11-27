@@ -7,6 +7,17 @@ import type { WasmCore } from "./wasm";
 
 export type Refusal = { readonly refused: string };
 export type Done = { readonly done: true };
+export interface RoomControlEntry {
+  readonly kind: "service" | "bridge";
+  readonly id: string;
+  readonly headVersion: number | null;
+  readonly frozen: boolean;
+  readonly endpoints: readonly { readonly id: string; readonly state: number; readonly usable: boolean }[];
+  /** From the monotonic clock; the host compares it with its freshness bound. */
+  readonly observedAgeMs: number;
+  /** A governance fact the host reported at install, never a verified quorum. */
+  readonly reportedApprovers: readonly Approver[];
+}
 export interface NearbyState { readonly enabled: boolean; readonly available: boolean }
 
 export interface HeadFacts {
@@ -75,6 +86,11 @@ export interface ScopeEngines {
     advertise(ctx: ProfileExecutionContext): { readonly tags: readonly string[] };
     observe(ctx: ProfileExecutionContext, tag: string): { readonly conversationId: string | null } | Refusal;
   };
+  /** What a Room has observed of its services and bridges (ADR-0269). Core verifies every signature; the host only supplies bytes. */
+  readonly roomControl: {
+    observe(ctx: ProfileExecutionContext, room: string, kind: "service" | "bridge", signedHex: string, reportedApprovers?: readonly Approver[]): { readonly outcome: "accepted" | "duplicate" | "forked" } | Refusal;
+    view(ctx: ProfileExecutionContext, room: string): { readonly entries: readonly RoomControlEntry[] };
+  };
   readonly spaceBinding: {
     propose(handle: string): Done | Refusal;
     childAccepts(handle: string): LinkState | Refusal;
@@ -127,6 +143,10 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
       state: (ctx, conversationId) => q({ cmd: "lan_nearby_state", ctx, conversationId }),
       advertise: (ctx) => q({ cmd: "lan_advertise", ctx }),
       observe: (ctx, tag) => q({ cmd: "lan_observe", ctx, tag }),
+    },
+    roomControl: {
+      observe: (ctx, room, kind, signedHex, reportedApprovers) => q({ cmd: "room_control_observe", ctx, room, kind, signed: signedHex, approvers: reportedApprovers ?? [] }),
+      view: (ctx, room) => q({ cmd: "room_control_view", ctx, room }),
     },
     spaceBinding: {
       propose: (h) => sb(h, { kind: "propose" }),

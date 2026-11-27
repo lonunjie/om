@@ -297,6 +297,22 @@ enum Command {
         ctx: ProfileExecutionContext,
         conversation_id: String,
     },
+    /// A Room observes a signed service or bridge control state (ADR-0269): `signed` is the hex of a SignedEnvelope,
+    /// `kind` is `service` or `bridge`, `approvers` is what the host reports at install (recorded as reported).
+    #[cfg(feature = "scope-engines")]
+    RoomControlObserve {
+        ctx: ProfileExecutionContext,
+        room: String,
+        kind: String,
+        signed: String,
+        #[serde(default)]
+        approvers: Vec<scope::ApproverIn>,
+    },
+    #[cfg(feature = "scope-engines")]
+    RoomControlView {
+        ctx: ProfileExecutionContext,
+        room: String,
+    },
     /// The tags to advertise now (hex list; empty when nobody is turned on).
     #[cfg(feature = "scope-engines")]
     LanAdvertise {
@@ -1481,6 +1497,31 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             } => {
                 let s = self.core()?.lan_nearby_state(&ctx, &conversation_id)?;
                 Ok(json!({ "enabled": s.enabled, "available": s.available }))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::RoomControlObserve {
+                ctx,
+                room,
+                kind,
+                signed,
+                approvers,
+            } => {
+                let (Some(kind), Some(bytes), Some(approvers)) = (
+                    scope::control_kind(&kind),
+                    scope::lan_bytes(&signed),
+                    scope::approvers(&approvers),
+                ) else {
+                    return Ok(json!({ "refused": "malformed" }));
+                };
+                let r = self
+                    .core()?
+                    .room_control_observe(&ctx, &room, kind, &bytes, approvers)?;
+                Ok(scope::control_observed(r))
+            }
+            #[cfg(feature = "scope-engines")]
+            Command::RoomControlView { ctx, room } => {
+                let v = self.core()?.room_control_view(&ctx, &room)?;
+                Ok(scope::control_view(&v))
             }
             #[cfg(feature = "scope-engines")]
             Command::LanAdvertise { ctx } => {

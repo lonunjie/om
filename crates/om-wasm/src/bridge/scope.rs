@@ -650,7 +650,7 @@ fn head(h: &HeadIn) -> Option<ServiceState> {
     })
 }
 
-fn approvers(a: &[ApproverIn]) -> Option<Vec<(u64, Vec<u8>)>> {
+pub fn approvers(a: &[ApproverIn]) -> Option<Vec<(u64, Vec<u8>)>> {
     a.iter().map(|p| Some((p.kind, hex_vec(&p.id)?))).collect()
 }
 
@@ -1541,4 +1541,63 @@ pub fn lan_frame_decode(bytes_hex: &str) -> Value {
             json!({ "kind": "fetch_blob", "requestId": hex_out(&request_id), "capability": hex_out(&capability), "blobId": hex_out(&blob_id), "ciphertextDigest": hex_out(&ciphertext_digest) })
         }
     }
+}
+
+/// `service` or `bridge`.
+pub fn control_kind(s: &str) -> Option<om_core::room_control::ObjectKind> {
+    match s {
+        "service" => Some(om_core::room_control::ObjectKind::Service),
+        "bridge" => Some(om_core::room_control::ObjectKind::Bridge),
+        _ => None,
+    }
+}
+
+fn snake(debug: String) -> String {
+    let mut out = String::new();
+    for (i, c) in debug.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.extend(c.to_lowercase());
+    }
+    out
+}
+
+pub fn control_observed(
+    r: Result<om_core::service_control::ControlOutcome, om_core::engine::ObserveError>,
+) -> Value {
+    use om_core::engine::ObserveError;
+    use om_core::service_control::ControlOutcome;
+    match r {
+        Ok(ControlOutcome::Accepted) => json!({ "outcome": "accepted" }),
+        Ok(ControlOutcome::Duplicate) => json!({ "outcome": "duplicate" }),
+        Ok(ControlOutcome::Forked) => json!({ "outcome": "forked" }),
+        Err(ObserveError::Open(e)) => json!({ "refused": snake(format!("{e:?}")) }),
+        Err(ObserveError::Control(e)) => json!({ "refused": snake(format!("{e:?}")) }),
+    }
+}
+
+pub fn control_view(v: &[om_core::engine::RoomControlEntry]) -> Value {
+    let list: Vec<Value> = v
+        .iter()
+        .map(|e| {
+            json!({
+                "kind": match e.kind {
+                    om_core::room_control::ObjectKind::Service => "service",
+                    om_core::room_control::ObjectKind::Bridge => "bridge",
+                },
+                "id": lan_hex(&e.id),
+                "headVersion": e.head_version,
+                "frozen": e.frozen,
+                "endpoints": e.endpoints.iter().map(|(id, state, usable)| json!({
+                    "id": lan_hex(id), "state": state, "usable": usable,
+                })).collect::<Vec<_>>(),
+                "observedAgeMs": e.observed_age_ms,
+                "reportedApprovers": e.reported_approvers.iter().map(|(k, id)| json!({
+                    "kind": k, "id": lan_hex(id),
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
+    json!({ "entries": list })
 }
