@@ -1,0 +1,212 @@
+// SPDX-License-Identifier: MPL-2.0
+import { createHash } from "node:crypto";
+import { asConversationId, asProfileGeneration, asProfileId, captureProfileContext, type ConversationId, type ProfileId } from "@om/platform-api";
+import { describe, expect, it, vi } from "vitest";
+import { createScopeEngines, type RoomControlEntry, type ScopeEngines, type ServiceListing } from "../../../../../packages/om-core-wasm/src/scope-engines";
+import {
+  createConnectedServicesService, serviceRoomHandle, type PendingServiceOperation, type PendingServiceStore,
+} from "./services";
+import { createScopeServices } from "./index";
+
+const ctx = captureProfileContext(asProfileId("one"), asProfileGeneration("generation-1"));
+const room = asConversationId("room");
+const service = "63".repeat(32);
+const target = "a1".repeat(32);
+const headHash = "b1".repeat(32);
+const endpoint = "05".repeat(16);
+const install = { kind: "install", target } as const;
+const remove = { kind: "remove", target } as const;
+const caps = ["room.install_service"];
+
+class MemoryPendingStore implements PendingServiceStore {
+  readonly records = new Map<string, PendingServiceOperation>();
+  readonly reservations: PendingServiceOperation[] = [];
+
+  async load(profile: ProfileId, conversationId: ConversationId) {
+    return this.records.get(serviceRoomHandle(profile, conversationId)) ?? null;
+  }
+
+  async reserve(profile: ProfileId, operation: PendingServiceOperation) {
+    const key = serviceRoomHandle(profile, operation.conversationId);
+    if (this.records.has(key)) return false;
+    this.records.set(key, operation);
+    this.reservations.push(operation);
+    return true;
+  }
+
+  async clear(profile: ProfileId, conversationId: ConversationId, id: string) {
+    const key = serviceRoomHandle(profile, conversationId);
+    if (this.records.get(key)?.id === id) this.records.delete(key);
+  }
+}
+
+function fixture() {
+  const pending = new MemoryPendingStore();
+  let current: ServiceListing = {
+    service, target, membership: "proposed", name: "Assistant", installed: false,
+    capabilities: ["message.create"], filterClasses: [1], approversReportedAtProposal: 1,
+    admissionBasis: { serviceId: service, version: 1, hash: headHash, endpoints: [{ id: endpoint, state: 1 }] },
+  };
+  let head: RoomControlEntry = {
+    kind: "service", id: service, headVersion: 1, headHash, frozen: false, observedAgeMs: 3,
+    endpoints: [{ id: endpoint, state: 1, usable: true }], reportedApprovers: [],
+  };
+  let readable = true;
+  const list = vi.fn<ScopeEngines["roomServices"]["list"]>(() => {
+    if (!readable) throw new Error("view unavailable");
+    return { services: [current] };
+  });
+  const installOffer = vi.fn<ScopeEngines["roomServices"]["installOffer"]>((_room, _caps, input) => {
+    if (current.target !== input.target) return { refused: "stale_target" };
+    current = { ...current, membership: "installed", installed: true, canReadAllContent: true,
+      endpoints: [endpoint], admittedVersion: 1, heldVersion: 1, capabilities: null };
+    return { done: true };
+  });
+  const removeMember = vi.fn<ScopeEngines["roomServices"]["removeMember"]>((_room, _caps, input) => {
+    if (current.target !== input.target) return { refused: "stale_target" };
+    current = { ...current, membership: "removed", installed: false };
+    return { removedEndpoints: 1 };
+  });
+  const base = createScopeEngines({ call: () => { throw new Error("Unexpected Core command"); } });
+  const control = vi.fn<ScopeEngines["roomControl"]["view"]>(() => ({ entries: [head] }));
+  const opts = {
+    ctx, authority: { capabilities: () => caps }, pending, now: () => 17,
+    engines: {
+      roomServices: { ...base.roomServices, list, installOffer, removeMember },
+      roomControl: { ...base.roomControl, view: control },
+    },
+  };
+  return {
+    opts, pending, installOffer, removeMember, control, list,
+    update: (patch: Partial<ServiceListing>) => { current = { ...current, ...patch }; },
+    updateHead: (patch: Partial<RoomControlEntry>) => { head = { ...head, ...patch }; },
+    viewAvailable: (value: boolean) => { readable = value; },
+  };
+}
+
+describe("connected services host", () => {
+  it("shows the review, installs and removes by target, and reports revocation from Core", async () => {
+    const f = fixture();
+    const connected = createConnectedServicesService(f.opts);
+    expect(await connected.state(room)).toMatchObject({
+      entries: [{
+        principal: { id: service, name: "Assistant" }, status: "offered", mode: "full_room_member",
+        capabilities: [{ id: "message.create" }], readAccess: { kind: "none" },
+        actions: [{ availability: "ready", intent: install }],
+      }],
+      invocation: null,
+    });
+    expect(await connected.change(room, install)).toMatchObject({
+      entries: [{ status: "installed", capabilities: [], readAccess: {
+        kind: "full_room_member", roster: { canReadAllContent: true, filterClasses: [1] },
+      } }],
+      outcome: { kind: "Committed" },
+    });
+    expect(f.installOffer).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target }, ctx);
+
+    f.updateHead({ headVersion: 2, endpoints: [{ id: endpoint, state: 3, usable: false }] });
+    expect(await connected.state(room)).toMatchObject({
+      entries: [{ status: "revoked", readAccess: { kind: "full_room_member" },
+        actions: [{ availability: "ready", intent: remove }] }],
+    });
+    expect(await connected.change(room, remove)).toMatchObject({
+      entries: [{ status: "removed", readAccess: { kind: "none" }, actions: [] }],
+      outcome: { kind: "Committed" },
+    });
+    expect(f.removeMember).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room), caps, { service, target });
+    expect(f.pending.records.size).toBe(0);
+  });
+
+  it("refuses a stale target without leaking a pending operation", async () => {
+    const f = fixture();
+    const connected = createConnectedServicesService(f.opts);
+    expect(await connected.change(room, { ...install, target: "stale" })).toMatchObject({
+      outcome: { kind: "Rejected", reason: "stale_state" },
+    });
+    expect(f.pending.reservations).toHaveLength(0);
+
+    const original = f.installOffer.getMockImplementation();
+    if (original === undefined) throw new Error("Missing install fixture");
+    f.installOffer.mockImplementationOnce((...args) => {
+      expect(f.pending.records.size).toBe(1);
+      f.update({ target: "b2".repeat(32) });
+      return original(...args);
+    });
+    expect(await connected.change(room, install)).toMatchObject({
+      outcome: { kind: "Rejected", reason: "stale_state" },
+    });
+    expect(f.pending.records.size).toBe(0);
+  });
+
+  it("keeps the pending identity and does not replay an install after losing its acknowledgement", async () => {
+    const f = fixture();
+    const id = createHash("sha256").update(JSON.stringify([ctx.profileId, room, "install", target])).digest("hex");
+    const original = f.installOffer.getMockImplementation();
+    if (original === undefined) throw new Error("Missing install fixture");
+    f.installOffer.mockImplementationOnce((...args) => {
+      expect(f.pending.records.get(serviceRoomHandle(ctx.profileId, room))?.id).toBe(id);
+      original(...args);
+      f.viewAvailable(false);
+      throw new Error("lost acknowledgement");
+    });
+    expect(await createConnectedServicesService(f.opts).change(room, install)).toMatchObject({
+      outcome: { kind: "PendingReconciliation" },
+    });
+    expect(f.pending.records.size).toBe(1);
+    f.viewAvailable(true);
+    expect(await createConnectedServicesService(f.opts).state(room)).toMatchObject({ outcome: { kind: "Committed" } });
+    expect(f.installOffer).toHaveBeenCalledTimes(1);
+    expect(f.pending.reservations).toEqual([{ id, conversationId: room, service, intent: install }]);
+    expect(f.pending.records.size).toBe(0);
+  });
+
+  it("blocks by default and never offers invocation", async () => {
+    const f = fixture();
+    const connected = createConnectedServicesService({ ctx, engines: f.opts.engines, pending: f.pending, now: f.opts.now });
+    expect(await connected.state(room)).toMatchObject({
+      entries: [{ actions: [{ availability: "blocked", kind: "install", reason: "unauthorized" }] }],
+      invocation: null,
+    });
+    expect(await connected.change(room, install)).toMatchObject({ outcome: { kind: "Rejected", reason: "unauthorized" } });
+    f.update({ membership: "installed", installed: true });
+    expect(await connected.state(room)).toMatchObject({
+      entries: [{ actions: [
+        { availability: "blocked", kind: "remove", reason: "unauthorized" },
+        { availability: "blocked", kind: "revoke", reason: "unauthorized" },
+      ] }],
+      invocation: null,
+    });
+    expect(await connected.change(room, { kind: "invoke", target })).toMatchObject({
+      invocation: null, outcome: { kind: "Rejected", reason: "unsupported" },
+    });
+    expect(await createConnectedServicesService(f.opts).change(room, { kind: "revoke", target })).toMatchObject({
+      outcome: { kind: "Rejected", reason: "unsupported" },
+    });
+    expect(f.pending.reservations).toHaveLength(0);
+    expect(f.installOffer).not.toHaveBeenCalled();
+    expect(f.removeMember).not.toHaveBeenCalled();
+  });
+
+  it("requires the exact verified head and uses the captured profile when composing the adapter", async () => {
+    const f = fixture();
+    const inputCtx = { ...ctx };
+    const connected = createConnectedServicesService({ ...f.opts, ctx: inputCtx });
+    Object.assign(inputCtx, { profileId: asProfileId("two"), generation: asProfileGeneration("generation-2") });
+    f.updateHead({ headHash: "bc".repeat(32) });
+    expect(await connected.state(room)).toMatchObject({
+      entries: [{ actions: [{ availability: "blocked", kind: "install", reason: "stale_state" }] }],
+    });
+    expect(await connected.change(room, install)).toMatchObject({ outcome: { kind: "Rejected", reason: "stale_state" } });
+    expect(f.control).toHaveBeenCalledWith(ctx, room);
+    expect(f.list).toHaveBeenCalledWith(serviceRoomHandle(ctx.profileId, room));
+    expect(f.pending.reservations).toHaveLength(0);
+
+    const core = { call: vi.fn((request: Readonly<Record<string, unknown>>) =>
+      request["cmd"] === "room_control_view" ? { entries: [] } : { services: [] }) };
+    const loaded = { core, connectedServices: { pending: f.pending, now: f.opts.now } };
+    expect(createScopeServices({ ctx, enabled: false, loaded })).toEqual({});
+    const composed = createScopeServices({ ctx, enabled: true, loaded }).connectedServices;
+    expect(await composed?.state(room)).toEqual({ entries: [], invocation: null, outcome: null });
+    expect(core.call).toHaveBeenCalledWith({ cmd: "room_control_view", ctx, room });
+  });
+});

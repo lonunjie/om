@@ -248,6 +248,7 @@ enum Command {
     RoomServicesDo {
         room: String,
         caps: Vec<String>,
+        ctx: Option<ProfileExecutionContext>,
         op: scope::RoomOp,
     },
     #[cfg(feature = "scope-engines")]
@@ -1438,8 +1439,37 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 Ok(scope::first_contact(&mut self.first_contact, step))
             }
             #[cfg(feature = "scope-engines")]
-            Command::RoomServicesDo { room, caps, op } => {
-                Ok(scope::room_services_do(&mut self.handles, &room, &caps, op))
+            Command::RoomServicesDo {
+                room,
+                caps,
+                ctx,
+                op,
+            } => {
+                let controls = match (self.core.as_ref(), ctx.as_ref()) {
+                    (Some(core), Some(ctx)) if op.uses_control_head() => {
+                        let Ok((profile_id, conversation_id)) =
+                            serde_json::from_str::<(String, String)>(&room)
+                        else {
+                            return Ok(json!({ "refused": "malformed" }));
+                        };
+                        if profile_id != ctx.profile_id {
+                            return Ok(json!({ "refused": "not_authorized" }));
+                        }
+                        Some(core.room_control_view(ctx, &conversation_id)?)
+                    }
+                    (Some(_), None) | (None, Some(_)) if op.uses_control_head() => {
+                        return Ok(json!({ "refused": "unverified_head" }));
+                    }
+                    // A standalone engineering handle can exercise reducers over caller-validated facts.
+                    _ => None,
+                };
+                Ok(scope::room_services_do(
+                    &mut self.handles,
+                    &room,
+                    &caps,
+                    op,
+                    controls.as_deref(),
+                ))
             }
             #[cfg(feature = "scope-engines")]
             Command::PluginsDo { request } => Ok(crate::plugins::plugins_do(

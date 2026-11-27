@@ -6,17 +6,24 @@ import { createPortabilityEngine } from "../../../../../packages/om-core-wasm/sr
 import type { BridgeService } from "../../../../../packages/om-ui/src/bridges/bridges";
 import type { NearbyService } from "../../../../../packages/om-ui/src/conversations/nearby";
 import type { PortabilityService } from "../../../../../packages/om-ui/src/portability/portability";
+import type { ConnectedServicesService } from "../../../../../packages/om-ui/src/services/services";
+import { createConnectedServicesService, type ConnectedServicesOptions } from "./services";
 import { createBridgeService, type BridgeServiceOptions } from "./bridge";
 import { createNearbyService, type NearbyServiceOptions } from "./nearby";
 import { createPortabilityService, type PortabilityServiceOptions } from "./portability";
 
 export { bridgeRoomHandle, denyAll, type PendingBridgeOperation, type PendingStore, type RoomAuthority } from "./bridge";
 export type { FileHost, HistorySource } from "./portability";
+export {
+  createConnectedServicesService, serviceRoomHandle, type ConnectedServicesOptions,
+  type PendingServiceOperation, type PendingServiceStore,
+} from "./services";
 
 export interface ScopeServices {
   readonly bridge?: BridgeService;
   readonly portability?: PortabilityService;
   readonly nearby?: NearbyService;
+  readonly connectedServices?: ConnectedServicesService;
 }
 
 export interface LoadedScopeServices {
@@ -24,6 +31,7 @@ export interface LoadedScopeServices {
   readonly bridge?: Omit<BridgeServiceOptions, "ctx" | "engines">;
   readonly portability?: Omit<PortabilityServiceOptions, "ctx" | "engine">;
   readonly nearby?: Omit<NearbyServiceOptions, "ctx" | "engines">;
+  readonly connectedServices?: Omit<ConnectedServicesOptions, "ctx" | "engines">;
 }
 
 /** The engineering entry supplies bindings only after loading the scoped module. */
@@ -41,5 +49,8 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded }: {
       portability: createPortabilityService({ ...loaded.portability, ctx, engine: createPortabilityEngine(loaded.core) }),
     }),
     ...(loaded.nearby === undefined ? {} : { nearby: createNearbyService({ ...loaded.nearby, ctx, engines }) }),
+    ...(loaded.connectedServices === undefined ? {} : {
+      connectedServices: createConnectedServicesService({ ...loaded.connectedServices, ctx, engines }),
+    }),
   };
 }

@@ -163,6 +163,7 @@ pub struct RoomControlEntry {
     pub id: [u8; 32],
     /// `None` while the chain is forked.
     pub head_version: Option<u64>,
+    pub head_hash: Option<[u8; 32]>,
     pub frozen: bool,
     /// (endpoint id, state, usable): usable only while active in every tip and revoked in none.
     pub endpoints: Vec<(Vec<u8>, u64, bool)>,
@@ -1615,6 +1616,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     kind: *kind,
                     id: *id,
                     head_version: c.chain.head().map(|h| h.version),
+                    head_hash: c.chain.head().map(|h| h.hash),
                     frozen: c.chain.is_frozen(),
                     endpoints,
                     observed_age_ms: now.saturating_sub(c.observed_ms),

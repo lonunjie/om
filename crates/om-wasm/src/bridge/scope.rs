@@ -585,7 +585,8 @@ pub fn first_contact(f: &mut FirstContact, step: FirstContactStep) -> Value {
 use om_core::bridge_room::{BridgeRoom, BridgeRoomError, Mapping};
 use om_core::lan_transfer::{Chunk, Receiver, Sender, TransferError};
 use om_core::service_control::{Endpoint, ServiceState};
-use om_core::service_room_member::{RoomError, RoomServices, TriggerFilter};
+use om_core::service_offer::{Membership, Offer, OfferError, ServiceRoom};
+use om_core::service_room_member::{RoomError, TriggerFilter};
 use std::collections::BTreeMap;
 
 /// Upper bound per handle kind; a host that needs more closes one first.
@@ -593,7 +594,7 @@ const MAX_HANDLES: usize = 64;
 
 #[derive(Default)]
 pub struct Handles {
-    rooms: BTreeMap<String, RoomServices>,
+    rooms: BTreeMap<String, ServiceRoom>,
     bridge_rooms: BTreeMap<String, BridgeRoom>,
     senders: BTreeMap<String, (Sender, bool)>,
     receivers: BTreeMap<String, Receiver>,
@@ -737,6 +738,55 @@ pub enum RoomOp {
     View {
         service: String,
     },
+    List,
+    /// An offer references the currently verified Room control head.
+    Propose {
+        head: HeadIn,
+        incarnation: String,
+        capabilities: Vec<String>,
+        filter_classes: Option<Vec<u8>>,
+        approvers: Vec<ApproverIn>,
+        name: String,
+    },
+    WithdrawOffer {
+        service: String,
+    },
+    InstallOffer {
+        service: String,
+        target: String,
+    },
+    RemoveMember {
+        service: String,
+        target: String,
+    },
+}
+
+impl RoomOp {
+    pub fn uses_control_head(&self) -> bool {
+        matches!(self, Self::Propose { .. } | Self::InstallOffer { .. })
+    }
+}
+
+fn verified_service_head(
+    controls: Option<&[om_core::engine::RoomControlEntry]>,
+    head: &ServiceState,
+) -> bool {
+    controls.is_none_or(|entries| {
+        entries.iter().any(|entry| {
+            entry.kind == om_core::room_control::ObjectKind::Service
+                && entry.id == head.service_id
+                && !entry.frozen
+                && entry.head_version == Some(head.version)
+                && entry.head_hash == Some(head.hash)
+                && entry.endpoints.len() == head.endpoints.len()
+                && entry.endpoints.iter().all(|(id, state, usable)| {
+                    head.endpoints
+                        .get(id)
+                        .is_some_and(|endpoint| endpoint.state == *state)
+                        && (*state != om_core::service_control::ACTIVE || *usable)
+                })
+        })
+    })
 }
 
 fn roster_view(
@@ -756,7 +806,75 @@ fn roster_view(
     }
 }
 
-pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp) -> Value {
+fn service_offer_err(e: &OfferError) -> &'static str {
+    match e {
+        OfferError::Malformed => "malformed",
+        OfferError::TooMany => "too_many_offers",
+        OfferError::StaleTarget => "stale_target",
+        OfferError::Room(e) => room_err(e),
+    }
+}
+
+fn service_listing(r: &ServiceRoom, service: &[u8; 32], membership: Membership) -> Value {
+    let mut value = roster_view(r.members().entry(service), r.members().held_head(service));
+    if let Value::Object(row) = &mut value {
+        let offer = r.offer(service);
+        row.insert("service".into(), json!(lan_hex(service)));
+        row.insert(
+            "membership".into(),
+            json!(match membership {
+                Membership::Proposed => "proposed",
+                Membership::Installed => "installed",
+                Membership::Removed => "removed",
+            }),
+        );
+        row.insert(
+            "target".into(),
+            json!(r.current_target(service).map(|t| lan_hex(&t))),
+        );
+        row.insert("name".into(), json!(r.name(service)));
+        row.insert(
+            "capabilities".into(),
+            json!(
+                offer
+                    .filter(|_| membership == Membership::Proposed)
+                    .map(|o| &o.capabilities)
+            ),
+        );
+        row.insert(
+            "approversReportedAtProposal".into(),
+            json!(offer.map(|o| o.approvers.len())),
+        );
+        if let Some(offer) = offer {
+            row.insert(
+                "admissionBasis".into(),
+                json!({
+                    "serviceId": lan_hex(service),
+                    "version": offer.head.version,
+                    "hash": lan_hex(&offer.head.hash),
+                    "endpoints": offer.head.endpoints.values().map(|e| json!({
+                        "id": lan_hex(&e.id), "state": e.state,
+                    })).collect::<Vec<_>>(),
+                }),
+            );
+            if membership == Membership::Proposed {
+                row.insert(
+                    "filterClasses".into(),
+                    json!(offer.filter.as_ref().map(|f| &f.event_classes)),
+                );
+            }
+        }
+    }
+    value
+}
+
+pub fn room_services_do(
+    h: &mut Handles,
+    room: &str,
+    caps: &[String],
+    op: RoomOp,
+    controls: Option<&[om_core::engine::RoomControlEntry]>,
+) -> Value {
     let bad = || refused("malformed");
     if let RoomOp::Open {
         quorum,
@@ -768,7 +886,7 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
         }
         h.rooms.insert(
             room.to_string(),
-            RoomServices::new(quorum, sequencing_timeout),
+            ServiceRoom::new(quorum, sequencing_timeout),
         );
         return done();
     }
@@ -804,7 +922,10 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
             let Some(s) = hex_n::<32>(&service) else {
                 return bad();
             };
-            match r.set_filter(&caps, &s, filter(&filter_classes)) {
+            match r
+                .members_mut()
+                .set_filter(&caps, &s, filter(&filter_classes))
+            {
                 Ok(()) => done(),
                 Err(e) => refused(room_err(&e)),
             }
@@ -813,7 +934,7 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
             let Some(hd) = head(&hd) else {
                 return bad();
             };
-            match r.observe_head(&hd, now) {
+            match r.members_mut().observe_head(&hd, now) {
                 Ok(()) => done(),
                 Err(e) => refused(room_err(&e)),
             }
@@ -822,7 +943,7 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
             let (Some(s), Some(e)) = (hex_n::<32>(&service), hex_vec(&endpoint)) else {
                 return bad();
             };
-            json!({ "mustStopSending": r.must_stop_sending(&s, &e) })
+            json!({ "mustStopSending": r.members().must_stop_sending(&s, &e) })
         }
         RoomOp::MayCommitRemoval {
             service,
@@ -833,7 +954,7 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
             let (Some(s), Some(e)) = (hex_n::<32>(&service), hex_vec(&endpoint)) else {
                 return bad();
             };
-            match r.may_commit_removal(&s, &e, is_coordinator, now) {
+            match r.members().may_commit_removal(&s, &e, is_coordinator, now) {
                 Ok(()) => done(),
                 Err(e) => refused(room_err(&e)),
             }
@@ -842,13 +963,13 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
             let (Some(s), Some(e)) = (hex_n::<32>(&service), hex_vec(&endpoint)) else {
                 return bad();
             };
-            json!({ "applied": r.removal_committed(&s, &e) })
+            json!({ "applied": r.members_mut().removal_committed(&s, &e) })
         }
         RoomOp::Remove { service } => {
             let Some(s) = hex_n::<32>(&service) else {
                 return bad();
             };
-            match r.remove_installation(&caps, &s) {
+            match r.remove(&caps, &s) {
                 Ok(gone) => json!({ "removedEndpoints": gone.len() }),
                 Err(e) => refused(room_err(&e)),
             }
@@ -857,7 +978,74 @@ pub fn room_services_do(h: &mut Handles, room: &str, caps: &[String], op: RoomOp
             let Some(s) = hex_n::<32>(&service) else {
                 return bad();
             };
-            roster_view(r.entry(&s), r.held_head(&s))
+            roster_view(r.members().entry(&s), r.members().held_head(&s))
+        }
+        RoomOp::List => {
+            let services: Vec<_> = r
+                .listing()
+                .into_iter()
+                .map(|(service, membership)| service_listing(r, &service, membership))
+                .collect();
+            json!({ "services": services })
+        }
+        RoomOp::Propose {
+            head: hd,
+            incarnation,
+            capabilities,
+            filter_classes,
+            approvers: ap,
+            name,
+        } => {
+            let (Some(hd), Some(incarnation), Some(approvers)) =
+                (head(&hd), hex_vec(&incarnation), approvers(&ap))
+            else {
+                return bad();
+            };
+            if !verified_service_head(controls, &hd) {
+                return refused("unverified_head");
+            }
+            match r.propose(Offer {
+                head: hd,
+                incarnation,
+                capabilities: capabilities.into_iter().collect(),
+                filter: filter(&filter_classes),
+                approvers,
+                name,
+            }) {
+                Ok(target) => json!({ "target": lan_hex(&target) }),
+                Err(e) => refused(service_offer_err(&e)),
+            }
+        }
+        RoomOp::WithdrawOffer { service } => {
+            let Some(s) = hex_n::<32>(&service) else {
+                return bad();
+            };
+            json!({ "done": r.withdraw_offer(&s) })
+        }
+        RoomOp::InstallOffer { service, target } => {
+            let (Some(s), Some(t)) = (hex_n::<32>(&service), hex_n::<32>(&target)) else {
+                return bad();
+            };
+            if r.current_target(&s) == Some(t)
+                && r.members().entry(&s).is_none()
+                && r.offer(&s)
+                    .is_some_and(|offer| !verified_service_head(controls, &offer.head))
+            {
+                return refused("unverified_head");
+            }
+            match r.install_offer(&caps, &s, &t) {
+                Ok(()) => done(),
+                Err(e) => refused(service_offer_err(&e)),
+            }
+        }
+        RoomOp::RemoveMember { service, target } => {
+            let (Some(s), Some(t)) = (hex_n::<32>(&service), hex_n::<32>(&target)) else {
+                return bad();
+            };
+            match r.remove_installation(&caps, &s, &t) {
+                Ok(gone) => json!({ "removedEndpoints": gone.len() }),
+                Err(e) => refused(service_offer_err(&e)),
+            }
         }
     }
 }
@@ -1741,6 +1929,7 @@ pub fn control_view(v: &[om_core::engine::RoomControlEntry]) -> Value {
                 },
                 "id": lan_hex(&e.id),
                 "headVersion": e.head_version,
+                "headHash": e.head_hash.map(|hash| lan_hex(&hash)),
                 "frozen": e.frozen,
                 "endpoints": e.endpoints.iter().map(|(id, state, usable)| json!({
                     "id": lan_hex(id), "state": state, "usable": usable,

@@ -1,9 +1,9 @@
 {
   "source": "scope-engines engineering module (om_wasm_scope.wasm) minus the base om_wasm.wasm, production-optimised, gzip level 9; not shipped, not bundled",
   "baseline": {
-    "deltaRawBytes": 1711626,
-    "deltaGzipBytes": 429334
+    "deltaRawBytes": 1837286,
+    "deltaGzipBytes": 454365
   },
   "headroomPercent": 5,
-  "headroomNote": "Re-measured 2026-11-27 on emeth4 after the portability archive commands and the bridge offer ops were added (two identical cold builds, digest prefix 22762d4b7fdd). Previous baseline +1303936 raw / +302667 gzip. Most of the growth is the archive reader. The module is engineering-only: not bundled, flag off; the release base module and its own size budget are unaffected."
+  "headroomNote": "Re-measured 2026-11-27 on emeth4 after the service offer ops were added (digest prefix f054160612b1, reproducible). Previous baseline +1711626 raw / +429334 gzip. The module is engineering-only: not bundled, flag off; the release base module and its own size budget are unaffected."
 }

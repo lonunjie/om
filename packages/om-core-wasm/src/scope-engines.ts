@@ -26,10 +26,29 @@ export interface BridgeListing extends Omit<BridgeMember, "mapping"> {
   readonly externalClaim?: string | null;
   readonly approversReportedAtProposal?: number;
 }
+export interface ServiceListing extends Roster {
+  readonly service: string;
+  readonly membership: "proposed" | "installed" | "removed";
+  readonly target: string | null;
+  readonly name: string | null;
+  /** Requested capabilities on proposals. Installed action grants are not supplied by this engine. */
+  readonly capabilities: readonly string[] | null;
+  readonly admissionBasis?: HeadFacts;
+  readonly approversReportedAtProposal: number | null;
+}
+export interface ServiceOfferInput {
+  readonly head: HeadFacts;
+  readonly incarnation: string;
+  readonly capabilities: readonly string[];
+  readonly filterClasses: readonly number[] | null;
+  readonly approvers: readonly Approver[];
+  readonly name: string;
+}
 export interface RoomControlEntry {
   readonly kind: "service" | "bridge";
   readonly id: string;
   readonly headVersion: number | null;
+  readonly headHash?: string | null;
   readonly frozen: boolean;
   readonly endpoints: readonly { readonly id: string; readonly state: number; readonly usable: boolean }[];
   /** From the monotonic clock; the host compares it with its freshness bound. */
@@ -74,6 +93,12 @@ export interface ScopeEngines {
     removalCommitted(room: string, service: string, endpoint: string): boolean;
     remove(room: string, caps: readonly string[], service: string): { readonly removedEndpoints: number } | Refusal;
     view(room: string, service: string): Roster | Refusal;
+    list(room: string): { readonly services: readonly ServiceListing[] } | Refusal;
+    /** Places an offer. An initialized Core verifies the head under the supplied profile context. */
+    propose(room: string, offer: ServiceOfferInput, ctx?: ProfileExecutionContext): { readonly target: string } | Refusal;
+    withdrawOffer(room: string, service: string): { readonly done: boolean } | Refusal;
+    installOffer(room: string, caps: readonly string[], a: { service: string; target: string }, ctx?: ProfileExecutionContext): Done | Refusal;
+    removeMember(room: string, caps: readonly string[], a: { service: string; target: string }): { readonly removedEndpoints: number } | Refusal;
   };
   readonly bridgeRoom: {
     open(room: string, opts: { quorum: number | null; sequencingTimeout: number; freshnessBound: number }): Done | Refusal;
@@ -131,7 +156,8 @@ export interface ScopeEngines {
 
 export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
   const q = <T>(cmd: Record<string, unknown>): T => core.call(cmd) as T;
-  const rs = (room: string, caps: readonly string[], op: Record<string, unknown>) => q<never>({ cmd: "room_services_do", room, caps, op });
+  const rs = (room: string, caps: readonly string[], op: Record<string, unknown>, ctx?: ProfileExecutionContext) =>
+    q<never>({ cmd: "room_services_do", room, caps, op, ...(ctx === undefined ? {} : { ctx }) });
   const br = (room: string, caps: readonly string[], op: Record<string, unknown>) => q<never>({ cmd: "bridge_room_do", room, caps, op });
   const lt = (side: "sender" | "receiver", handle: string, op: Record<string, unknown>) => q<never>({ cmd: "lan_transfer_do", side, handle, op });
   const sb = (handle: string, op: Record<string, unknown>) => q<never>({ cmd: "space_binding_do", handle, op });
@@ -146,6 +172,11 @@ export function createScopeEngines(core: Pick<WasmCore, "call">): ScopeEngines {
       removalCommitted: (room, service, endpoint) => (rs(room, [], { kind: "removal_committed", service, endpoint }) as { applied: boolean }).applied === true,
       remove: (room, caps, service) => rs(room, caps, { kind: "remove", service }),
       view: (room, service) => rs(room, [], { kind: "view", service }),
+      list: (room) => rs(room, [], { kind: "list" }),
+      propose: (room, offer, ctx) => rs(room, [], { kind: "propose", ...offer }, ctx),
+      withdrawOffer: (room, service) => rs(room, [], { kind: "withdraw_offer", service }),
+      installOffer: (room, caps, a, ctx) => rs(room, caps, { kind: "install_offer", ...a }, ctx),
+      removeMember: (room, caps, a) => rs(room, caps, { kind: "remove_member", ...a }),
     },
     bridgeRoom: {
       open: (room, o) => br(room, [], { kind: "open", ...o }),

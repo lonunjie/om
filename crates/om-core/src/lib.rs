@@ -60,6 +60,7 @@ pub mod service_automation;
 pub mod service_broker;
 pub mod service_control;
 pub mod service_invocation;
+pub mod service_offer;
 pub mod service_room_member;
 pub mod space_binding;
 pub mod space_control;
