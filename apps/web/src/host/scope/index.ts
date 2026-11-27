@@ -4,15 +4,21 @@ import { createScopeEngines } from "../../../../../packages/om-core-wasm/src/sco
 import { captureProfileContext, type ProfileExecutionContext } from "@om/platform-api";
 import { createPortabilityEngine } from "../../../../../packages/om-core-wasm/src/portability";
 import type { BridgeService } from "../../../../../packages/om-ui/src/bridges/bridges";
+import type { CommunitiesService } from "../../../../../packages/om-ui/src/communities/communities";
 import type { NearbyService } from "../../../../../packages/om-ui/src/conversations/nearby";
 import type { PortabilityService } from "../../../../../packages/om-ui/src/portability/portability";
 import type { ConnectedServicesService } from "../../../../../packages/om-ui/src/services/services";
 import { createConnectedServicesService, type ConnectedServicesOptions } from "./services";
 import { createBridgeService, type BridgeServiceOptions } from "./bridge";
+import { createCommunitiesService, type CommunitiesServiceOptions } from "./communities";
 import { createNearbyService, type NearbyServiceOptions } from "./nearby";
 import { createPortabilityService, type PortabilityServiceOptions } from "./portability";
 
 export { bridgeRoomHandle, denyAll, type PendingBridgeOperation, type PendingStore, type RoomAuthority } from "./bridge";
+export {
+  communitiesRoomLinkHandle, createCommunitiesService, type CommunitiesRoomDetails, type CommunitiesRoomViews,
+  type CommunitiesServiceOptions,
+} from "./communities";
 export type { FileHost, HistorySource } from "./portability";
 export {
   createConnectedServicesService, serviceRoomHandle, type ConnectedServicesOptions,
@@ -24,6 +30,7 @@ export interface ScopeServices {
   readonly portability?: PortabilityService;
   readonly nearby?: NearbyService;
   readonly connectedServices?: ConnectedServicesService;
+  readonly communities?: CommunitiesService;
 }
 
 export interface LoadedScopeServices {
@@ -32,6 +39,7 @@ export interface LoadedScopeServices {
   readonly portability?: Omit<PortabilityServiceOptions, "ctx" | "engine">;
   readonly nearby?: Omit<NearbyServiceOptions, "ctx" | "engines">;
   readonly connectedServices?: Omit<ConnectedServicesOptions, "ctx" | "engines">;
+  readonly communities?: Omit<CommunitiesServiceOptions, "ctx" | "engines">;
 }
 
 /** The engineering entry supplies bindings only after loading the scoped module. */
@@ -51,6 +59,9 @@ export function createScopeServices({ ctx: inputCtx, enabled, loaded }: {
     ...(loaded.nearby === undefined ? {} : { nearby: createNearbyService({ ...loaded.nearby, ctx, engines }) }),
     ...(loaded.connectedServices === undefined ? {} : {
       connectedServices: createConnectedServicesService({ ...loaded.connectedServices, ctx, engines }),
+    }),
+    ...(loaded.communities === undefined ? {} : {
+      communities: createCommunitiesService({ ...loaded.communities, ctx, engines }),
     }),
   };
 }
